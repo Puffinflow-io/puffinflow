@@ -6,6 +6,7 @@
 [![Coverage](https://codecov.io/gh/yourusername/puffinflow/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/puffinflow)
 [![Documentation](https://readthedocs.org/projects/puffinflow/badge/?version=latest)](https://puffinflow.readthedocs.io/en/latest/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![image](https://github.com/user-attachments/assets/eb167fd1-3cb1-43c3-8a48-f2a6813e7629)
 
 A powerful Python workflow orchestration framework with advanced resource management, state persistence, and async execution.
 
