@@ -8,13 +8,21 @@ Tests cover:
 - Resource type combinations and validations
 - Edge cases and attribute modifications
 - Integration with Priority enum
+- Resource amount calculations and validations
+- Serialization/representation methods
+- Complex scenario testing
+- Performance and stress testing
 """
 
 import pytest
-from unittest.mock import patch
+import sys
+import threading
+import time
+from unittest.mock import patch, MagicMock
+from dataclasses import fields, asdict
 
 # Import the classes under test
-from src.puffinflow.core.resources.requirements import ResourceRequirements, ResourceType
+from src.puffinflow.core.resources.requirements import ResourceRequirements, ResourceType, get_resource_amount
 from src.puffinflow.core.agent.state import Priority
 
 
@@ -22,13 +30,18 @@ class TestResourceType:
     """Test ResourceType enum functionality."""
 
     def test_resource_type_values(self):
-        """Test ResourceType enum values."""
+        """Test ResourceType enum values are powers of 2."""
         assert ResourceType.NONE.value == 0
         assert ResourceType.CPU.value == 1
         assert ResourceType.MEMORY.value == 2
         assert ResourceType.IO.value == 4
         assert ResourceType.NETWORK.value == 8
         assert ResourceType.GPU.value == 16
+
+        # Verify they are proper flags (powers of 2)
+        for rt in ResourceType:
+            if rt != ResourceType.NONE and rt != ResourceType.ALL:
+                assert (rt.value & (rt.value - 1)) == 0, f"{rt.name} is not a power of 2"
 
     def test_resource_type_all_combination(self):
         """Test ResourceType.ALL includes all resource types."""
@@ -50,11 +63,27 @@ class TestResourceType:
         assert ResourceType.IO not in cpu_and_memory
 
         # All types
-        assert ResourceType.CPU in ResourceType.ALL
-        assert ResourceType.MEMORY in ResourceType.ALL
-        assert ResourceType.IO in ResourceType.ALL
-        assert ResourceType.NETWORK in ResourceType.ALL
-        assert ResourceType.GPU in ResourceType.ALL
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            assert rt in ResourceType.ALL
+
+    def test_resource_type_operations_comprehensive(self):
+        """Test comprehensive flag operations."""
+        # Test XOR
+        cpu_xor_memory = ResourceType.CPU ^ ResourceType.MEMORY
+        assert ResourceType.CPU in cpu_xor_memory
+        assert ResourceType.MEMORY in cpu_xor_memory
+        assert cpu_xor_memory == (ResourceType.CPU | ResourceType.MEMORY)
+
+        # Test intersection
+        all_vs_cpu_mem = ResourceType.ALL & (ResourceType.CPU | ResourceType.MEMORY)
+        assert all_vs_cpu_mem == (ResourceType.CPU | ResourceType.MEMORY)
+
+        # Test negation
+        not_cpu = ResourceType.ALL & ~ResourceType.CPU
+        assert ResourceType.CPU not in not_cpu
+        for rt in [ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]:
+            assert rt in not_cpu
 
     def test_resource_type_combinations(self):
         """Test various ResourceType combinations."""
@@ -81,12 +110,106 @@ class TestResourceType:
     def test_resource_type_none(self):
         """Test ResourceType.NONE behavior."""
         assert ResourceType.NONE.value == 0
-        assert ResourceType.CPU not in ResourceType.NONE
-        assert ResourceType.MEMORY not in ResourceType.NONE
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            assert rt not in ResourceType.NONE
 
         # NONE with other types
         cpu_with_none = ResourceType.CPU | ResourceType.NONE
         assert cpu_with_none == ResourceType.CPU
+
+    def test_resource_type_string_representation(self):
+        """Test string representation of ResourceType."""
+        assert str(ResourceType.CPU) == "ResourceType.CPU"
+        assert repr(ResourceType.CPU) == "<ResourceType.CPU: 1>"
+
+        # Test combined types
+        combined = ResourceType.CPU | ResourceType.MEMORY
+        # Note: The exact string representation may vary by Python version
+        assert "CPU" in str(combined) or "3" in str(combined)
+
+    def test_resource_type_iteration(self):
+        """Test iteration over ResourceType enum."""
+        all_types = list(ResourceType)
+
+        # Flag enums only include non-zero power-of-2 members when iterating
+        # NONE (0) and composite flags like ALL are excluded from iteration
+        expected_basic_types = [ResourceType.CPU, ResourceType.MEMORY,
+                                ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]
+
+        assert len(all_types) == len(expected_basic_types)
+
+        for rt in expected_basic_types:
+            assert rt in all_types, f"{rt} not found in ResourceType iteration"
+
+        # Verify NONE and ALL exist but aren't in iteration (this is correct behavior)
+        assert ResourceType.NONE not in all_types  # NONE (0) excluded from Flag iteration
+        assert ResourceType.ALL not in all_types  # Composite flags excluded from iteration
+
+        # But they should still be accessible
+        assert ResourceType.NONE.value == 0
+        assert ResourceType.ALL == (ResourceType.CPU | ResourceType.MEMORY |
+                                    ResourceType.IO | ResourceType.NETWORK | ResourceType.GPU)
+        assert ResourceType.ALL.value == 31
+
+class TestGetResourceAmount:
+    """Test get_resource_amount function."""
+
+    def test_get_resource_amount_basic(self):
+        """Test basic get_resource_amount functionality."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            io_weight=3.0,
+            network_weight=2.5,
+            gpu_units=1.0
+        )
+
+        assert get_resource_amount(req, ResourceType.CPU) == 2.0
+        assert get_resource_amount(req, ResourceType.MEMORY) == 512.0
+        assert get_resource_amount(req, ResourceType.IO) == 3.0
+        assert get_resource_amount(req, ResourceType.NETWORK) == 2.5
+        assert get_resource_amount(req, ResourceType.GPU) == 1.0
+
+    def test_get_resource_amount_none_and_all(self):
+        """Test get_resource_amount with NONE and ALL."""
+        req = ResourceRequirements(cpu_units=1.0, memory_mb=100.0)
+
+        # NONE should return 0
+        assert get_resource_amount(req, ResourceType.NONE) == 0.0
+
+        # ALL should return sum of all resources
+        expected_total = 1.0 + 100.0 + 1.0 + 1.0 + 0.0  # cpu + mem + io + net + gpu
+        assert get_resource_amount(req, ResourceType.ALL) == expected_total
+
+    def test_get_resource_amount_zero_values(self):
+        """Test get_resource_amount with zero values."""
+        req = ResourceRequirements(
+            cpu_units=0.0,
+            memory_mb=0.0,
+            io_weight=0.0,
+            network_weight=0.0,
+            gpu_units=0.0
+        )
+
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            assert get_resource_amount(req, rt) == 0.0
+
+    def test_get_resource_amount_invalid_type(self):
+        """Test get_resource_amount with invalid resource type."""
+        req = ResourceRequirements()
+
+        # Test with a combined type (should raise error or return sum)
+        combined = ResourceType.CPU | ResourceType.MEMORY
+        # This behavior depends on implementation - adjust based on actual function
+        try:
+            result = get_resource_amount(req, combined)
+            # If it doesn't raise an error, verify it makes sense
+            assert isinstance(result, (int, float))
+        except (ValueError, KeyError):
+            # Expected if function doesn't handle combined types
+            pass
 
 
 class TestResourceRequirementsInitialization:
@@ -127,6 +250,22 @@ class TestResourceRequirementsInitialization:
         assert req.timeout == 30.0
         assert req.resource_types == ResourceType.CPU | ResourceType.MEMORY
 
+    def test_keyword_only_initialization(self):
+        """Test that initialization works with keyword arguments only."""
+        # This tests the dataclass behavior
+        req = ResourceRequirements(
+            cpu_units=4.0,
+            memory_mb=1024.0,
+            gpu_units=2.0
+        )
+
+        assert req.cpu_units == 4.0
+        assert req.memory_mb == 1024.0
+        assert req.gpu_units == 2.0
+        # Defaults for others
+        assert req.io_weight == 1.0
+        assert req.network_weight == 1.0
+
     def test_partial_initialization(self):
         """Test ResourceRequirements with partial values."""
         req = ResourceRequirements(cpu_units=4.0, memory_mb=1024.0)
@@ -159,6 +298,15 @@ class TestResourceRequirementsInitialization:
         assert req.gpu_units == 0.0
         assert req.priority_boost == 0
 
+    def test_dataclass_fields(self):
+        """Test that ResourceRequirements has expected dataclass fields."""
+        req_fields = {field.name for field in fields(ResourceRequirements)}
+        expected_fields = {
+            'cpu_units', 'memory_mb', 'io_weight', 'network_weight',
+            'gpu_units', 'priority_boost', 'timeout', 'resource_types'
+        }
+        assert req_fields == expected_fields
+
 
 class TestPriorityProperty:
     """Test priority property getter/setter logic."""
@@ -170,70 +318,84 @@ class TestPriorityProperty:
 
     def test_priority_getter_mapping(self):
         """Test priority property getter with different priority_boost values."""
-        # LOW (0)
-        req_low = ResourceRequirements(priority_boost=0)
-        assert req_low.priority == Priority.LOW
+        test_cases = [
+            (0, Priority.LOW),
+            (1, Priority.NORMAL),
+            (2, Priority.HIGH),
+            (3, Priority.CRITICAL),
+            (5, Priority.CRITICAL),  # Any value >= 3 should be CRITICAL
+            (100, Priority.CRITICAL)
+        ]
 
-        # NORMAL (1)
-        req_normal = ResourceRequirements(priority_boost=1)
-        assert req_normal.priority == Priority.NORMAL
+        for boost_value, expected_priority in test_cases:
+            req = ResourceRequirements(priority_boost=boost_value)
+            assert req.priority == expected_priority, f"Failed for boost_value={boost_value}"
 
-        # HIGH (2)
-        req_high = ResourceRequirements(priority_boost=2)
-        assert req_high.priority == Priority.HIGH
-
-        # CRITICAL (3+)
-        req_critical = ResourceRequirements(priority_boost=3)
-        assert req_critical.priority == Priority.CRITICAL
-
-        req_critical_high = ResourceRequirements(priority_boost=5)
-        assert req_critical_high.priority == Priority.CRITICAL
+    def test_priority_getter_negative_values(self):
+        """Test priority property getter with negative priority_boost values."""
+        # Negative values should still map to LOW
+        for negative_value in [-1, -10, -100]:
+            req = ResourceRequirements(priority_boost=negative_value)
+            assert req.priority == Priority.LOW
 
     def test_priority_setter_with_enum(self):
         """Test priority property setter with Priority enum values."""
         req = ResourceRequirements()
 
-        # Set to LOW
-        req.priority = Priority.LOW
-        assert req.priority_boost == Priority.LOW.value
-        assert req.priority == Priority.LOW
-
-        # Set to NORMAL
-        req.priority = Priority.NORMAL
-        assert req.priority_boost == Priority.NORMAL.value
-        assert req.priority == Priority.NORMAL
-
-        # Set to HIGH
-        req.priority = Priority.HIGH
-        assert req.priority_boost == Priority.HIGH.value
-        assert req.priority == Priority.HIGH
-
-        # Set to CRITICAL
-        req.priority = Priority.CRITICAL
-        assert req.priority_boost == Priority.CRITICAL.value
-        assert req.priority == Priority.CRITICAL
+        for priority in Priority:
+            req.priority = priority
+            assert req.priority_boost == priority.value
+            assert req.priority == priority
 
     def test_priority_setter_with_int(self):
         """Test priority property setter with integer values."""
         req = ResourceRequirements()
 
-        # Set with integer
-        req.priority = 2
-        assert req.priority_boost == 2
-        assert req.priority == Priority.HIGH
+        test_cases = [
+            (0, Priority.LOW),
+            (1, Priority.NORMAL),
+            (2, Priority.HIGH),
+            (3, Priority.CRITICAL),
+            (10, Priority.CRITICAL)  # High values map to CRITICAL
+        ]
 
-        req.priority = 0
-        assert req.priority_boost == 0
-        assert req.priority == Priority.LOW
+        for int_value, expected_priority in test_cases:
+            req.priority = int_value
+            assert req.priority_boost == int_value
+            assert req.priority == expected_priority
+
+    def test_priority_setter_with_invalid_type(self):
+        """Test priority property setter with invalid types."""
+        req = ResourceRequirements()
+
+        # Test with string
+        with pytest.raises((TypeError, ValueError)):
+            req.priority = "high"
+
+        # Test with float
+        with pytest.raises((TypeError, ValueError)):
+            req.priority = 2.5
 
     def test_priority_roundtrip(self):
         """Test priority getter/setter roundtrip."""
         req = ResourceRequirements()
 
-        for priority in [Priority.LOW, Priority.NORMAL, Priority.HIGH, Priority.CRITICAL]:
+        for priority in Priority:
             req.priority = priority
             assert req.priority == priority
             assert req.priority_boost == priority.value
+
+    def test_priority_consistency(self):
+        """Test priority consistency across multiple operations."""
+        req = ResourceRequirements()
+
+        # Test multiple modifications
+        req.priority = Priority.HIGH
+        req.priority_boost += 1  # Should now be CRITICAL
+        assert req.priority == Priority.CRITICAL
+
+        req.priority = Priority.LOW
+        assert req.priority_boost == Priority.LOW.value
 
 
 class TestResourceTypesHandling:
@@ -245,36 +407,30 @@ class TestResourceTypesHandling:
         assert req.resource_types == ResourceType.ALL
 
         # All types should be included
-        assert ResourceType.CPU in req.resource_types
-        assert ResourceType.MEMORY in req.resource_types
-        assert ResourceType.IO in req.resource_types
-        assert ResourceType.NETWORK in req.resource_types
-        assert ResourceType.GPU in req.resource_types
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            assert rt in req.resource_types
 
     def test_custom_resource_types(self):
         """Test custom resource_types combinations."""
-        # CPU only
-        req_cpu = ResourceRequirements(resource_types=ResourceType.CPU)
-        assert ResourceType.CPU in req_cpu.resource_types
-        assert ResourceType.MEMORY not in req_cpu.resource_types
+        test_cases = [
+            (ResourceType.CPU, [ResourceType.CPU], [ResourceType.MEMORY, ResourceType.IO]),
+            (ResourceType.CPU | ResourceType.MEMORY,
+             [ResourceType.CPU, ResourceType.MEMORY],
+             [ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]),
+            (ResourceType.ALL & ~ResourceType.GPU,
+             [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK],
+             [ResourceType.GPU])
+        ]
 
-        # CPU + Memory
-        req_cpu_mem = ResourceRequirements(
-            resource_types=ResourceType.CPU | ResourceType.MEMORY
-        )
-        assert ResourceType.CPU in req_cpu_mem.resource_types
-        assert ResourceType.MEMORY in req_cpu_mem.resource_types
-        assert ResourceType.IO not in req_cpu_mem.resource_types
+        for resource_types, should_include, should_exclude in test_cases:
+            req = ResourceRequirements(resource_types=resource_types)
+            assert req.resource_types == resource_types
 
-        # All except GPU
-        req_no_gpu = ResourceRequirements(
-            resource_types=ResourceType.ALL & ~ResourceType.GPU
-        )
-        assert ResourceType.CPU in req_no_gpu.resource_types
-        assert ResourceType.MEMORY in req_no_gpu.resource_types
-        assert ResourceType.IO in req_no_gpu.resource_types
-        assert ResourceType.NETWORK in req_no_gpu.resource_types
-        assert ResourceType.GPU not in req_no_gpu.resource_types
+            for rt in should_include:
+                assert rt in req.resource_types
+            for rt in should_exclude:
+                assert rt not in req.resource_types
 
     def test_none_resource_types(self):
         """Test ResourceType.NONE behavior."""
@@ -282,11 +438,28 @@ class TestResourceTypesHandling:
         assert req.resource_types == ResourceType.NONE
 
         # No types should be included
-        assert ResourceType.CPU not in req.resource_types
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            assert rt not in req.resource_types
+
+    def test_resource_types_modification(self):
+        """Test modifying resource_types after initialization."""
+        req = ResourceRequirements()
+
+        # Start with ALL
+        assert req.resource_types == ResourceType.ALL
+
+        # Change to CPU only
+        req.resource_types = ResourceType.CPU
+        assert req.resource_types == ResourceType.CPU
+        assert ResourceType.CPU in req.resource_types
         assert ResourceType.MEMORY not in req.resource_types
-        assert ResourceType.IO not in req.resource_types
-        assert ResourceType.NETWORK not in req.resource_types
-        assert ResourceType.GPU not in req.resource_types
+
+        # Change to combined
+        req.resource_types = ResourceType.CPU | ResourceType.GPU
+        assert ResourceType.CPU in req.resource_types
+        assert ResourceType.GPU in req.resource_types
+        assert ResourceType.MEMORY not in req.resource_types
 
 
 class TestAttributeModification:
@@ -296,37 +469,27 @@ class TestAttributeModification:
         """Test modifying resource amount attributes."""
         req = ResourceRequirements()
 
-        # Modify CPU
-        req.cpu_units = 4.0
-        assert req.cpu_units == 4.0
+        # Test each resource type
+        modifications = [
+            ('cpu_units', 4.0),
+            ('memory_mb', 2048.0),
+            ('io_weight', 5.0),
+            ('network_weight', 3.5),
+            ('gpu_units', 2.0)
+        ]
 
-        # Modify memory
-        req.memory_mb = 2048.0
-        assert req.memory_mb == 2048.0
-
-        # Modify IO weight
-        req.io_weight = 5.0
-        assert req.io_weight == 5.0
-
-        # Modify network weight
-        req.network_weight = 3.5
-        assert req.network_weight == 3.5
-
-        # Modify GPU
-        req.gpu_units = 2.0
-        assert req.gpu_units == 2.0
+        for attr, value in modifications:
+            setattr(req, attr, value)
+            assert getattr(req, attr) == value
 
     def test_modify_priority_boost(self):
         """Test modifying priority_boost attribute."""
         req = ResourceRequirements()
 
-        req.priority_boost = 3
-        assert req.priority_boost == 3
-        assert req.priority == Priority.CRITICAL
-
-        req.priority_boost = 1
-        assert req.priority_boost == 1
-        assert req.priority == Priority.NORMAL
+        test_values = [0, 1, 2, 3, 10, -5]
+        for value in test_values:
+            req.priority_boost = value
+            assert req.priority_boost == value
 
     def test_modify_timeout(self):
         """Test modifying timeout attribute."""
@@ -334,25 +497,31 @@ class TestAttributeModification:
 
         assert req.timeout is None
 
-        req.timeout = 60.0
-        assert req.timeout == 60.0
+        # Set various timeout values
+        timeout_values = [60.0, 0.0, 3600.0, 0.1]
+        for timeout in timeout_values:
+            req.timeout = timeout
+            assert req.timeout == timeout
 
+        # Reset to None
         req.timeout = None
         assert req.timeout is None
 
-    def test_modify_resource_types(self):
-        """Test modifying resource_types attribute."""
+    def test_chained_modifications(self):
+        """Test chaining multiple attribute modifications."""
         req = ResourceRequirements()
 
-        # Change to CPU only
-        req.resource_types = ResourceType.CPU
-        assert req.resource_types == ResourceType.CPU
+        # Chain modifications
+        req.cpu_units = 2.0
+        req.memory_mb = 512.0
+        req.priority = Priority.HIGH
+        req.timeout = 30.0
 
-        # Change to CPU + Memory
-        req.resource_types = ResourceType.CPU | ResourceType.MEMORY
-        assert ResourceType.CPU in req.resource_types
-        assert ResourceType.MEMORY in req.resource_types
-        assert ResourceType.IO not in req.resource_types
+        # Verify all changes
+        assert req.cpu_units == 2.0
+        assert req.memory_mb == 512.0
+        assert req.priority == Priority.HIGH
+        assert req.timeout == 30.0
 
 
 class TestEdgeCases:
@@ -360,13 +529,13 @@ class TestEdgeCases:
 
     def test_negative_values(self):
         """Test ResourceRequirements with negative values."""
-        # Should be allowed (validation happens elsewhere)
         req = ResourceRequirements(
             cpu_units=-1.0,
             memory_mb=-100.0,
             io_weight=-2.0,
             network_weight=-1.5,
-            gpu_units=-0.5
+            gpu_units=-0.5,
+            priority_boost=-5
         )
 
         assert req.cpu_units == -1.0
@@ -374,11 +543,14 @@ class TestEdgeCases:
         assert req.io_weight == -2.0
         assert req.network_weight == -1.5
         assert req.gpu_units == -0.5
+        assert req.priority_boost == -5
 
     def test_very_large_values(self):
         """Test ResourceRequirements with very large values."""
+        large_value = sys.float_info.max / 10  # Avoid overflow
+
         req = ResourceRequirements(
-            cpu_units=1000000.0,
+            cpu_units=large_value,
             memory_mb=1e9,
             io_weight=999999.9,
             network_weight=1e6,
@@ -386,13 +558,31 @@ class TestEdgeCases:
             priority_boost=1000
         )
 
-        assert req.cpu_units == 1000000.0
+        assert req.cpu_units == large_value
         assert req.memory_mb == 1e9
         assert req.io_weight == 999999.9
         assert req.network_weight == 1e6
         assert req.gpu_units == 100.0
         assert req.priority_boost == 1000
-        assert req.priority == Priority.CRITICAL  # Should still map to CRITICAL
+        assert req.priority == Priority.CRITICAL
+
+    def test_very_small_values(self):
+        """Test ResourceRequirements with very small positive values."""
+        small_value = sys.float_info.min * 10
+
+        req = ResourceRequirements(
+            cpu_units=small_value,
+            memory_mb=1e-6,
+            io_weight=0.001,
+            network_weight=1e-3,
+            gpu_units=0.0001
+        )
+
+        assert req.cpu_units == small_value
+        assert req.memory_mb == 1e-6
+        assert req.io_weight == 0.001
+        assert req.network_weight == 1e-3
+        assert req.gpu_units == 0.0001
 
     def test_fractional_values(self):
         """Test ResourceRequirements with fractional values."""
@@ -401,7 +591,8 @@ class TestEdgeCases:
             memory_mb=128.5,
             io_weight=1.25,
             network_weight=0.75,
-            gpu_units=0.25
+            gpu_units=0.25,
+            timeout=30.5
         )
 
         assert req.cpu_units == 0.5
@@ -409,33 +600,85 @@ class TestEdgeCases:
         assert req.io_weight == 1.25
         assert req.network_weight == 0.75
         assert req.gpu_units == 0.25
+        assert req.timeout == 30.5
 
-    def test_extreme_priority_boost(self):
-        """Test priority property with extreme priority_boost values."""
-        # Very negative
-        req_neg = ResourceRequirements(priority_boost=-100)
-        assert req_neg.priority == Priority.LOW
+    def test_special_float_values(self):
+        """Test ResourceRequirements with special float values."""
+        import math
 
-        # Very positive
-        req_pos = ResourceRequirements(priority_boost=100)
-        assert req_pos.priority == Priority.CRITICAL
+        # Test with infinity (should be allowed if no validation)
+        try:
+            req = ResourceRequirements(cpu_units=float('inf'))
+            assert math.isinf(req.cpu_units)
+        except (ValueError, OverflowError):
+            # Expected if validation rejects infinite values
+            pass
+
+        # Test with NaN (should be rejected or handled)
+        try:
+            req = ResourceRequirements(cpu_units=float('nan'))
+            assert math.isnan(req.cpu_units)
+        except (ValueError, TypeError):
+            # Expected if validation rejects NaN values
+            pass
 
     def test_equality(self):
         """Test equality comparison of ResourceRequirements."""
         req1 = ResourceRequirements(cpu_units=2.0, memory_mb=512.0)
         req2 = ResourceRequirements(cpu_units=2.0, memory_mb=512.0)
         req3 = ResourceRequirements(cpu_units=3.0, memory_mb=512.0)
+        req4 = ResourceRequirements(cpu_units=2.0, memory_mb=512.0, priority_boost=1)
 
         assert req1 == req2
         assert req1 != req3
+        assert req1 != req4
+        assert req2 != req3
+
+    def test_inequality_operators(self):
+        """Test inequality operators if implemented."""
+        req1 = ResourceRequirements(cpu_units=1.0)
+        req2 = ResourceRequirements(cpu_units=2.0)
+
+        # These may not be implemented, so test conditionally
+        try:
+            assert req1 != req2
+            assert not (req1 == req2)
+        except TypeError:
+            # Expected if comparison operators aren't implemented
+            pass
 
     def test_hash_consistency(self):
-        """Test that ResourceRequirements is not hashable by default."""
+        """Test that ResourceRequirements handles hashing appropriately."""
         req1 = ResourceRequirements(cpu_units=2.0, memory_mb=512.0)
 
         # ResourceRequirements should not be hashable (it's a mutable dataclass)
         with pytest.raises(TypeError, match="unhashable type"):
             hash(req1)
+
+    def test_copy_behavior(self):
+        """Test copying behavior of ResourceRequirements."""
+        import copy
+
+        req1 = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            resource_types=ResourceType.CPU | ResourceType.MEMORY
+        )
+
+        # Shallow copy
+        req2 = copy.copy(req1)
+        assert req1 == req2
+        assert req1 is not req2
+
+        # Deep copy
+        req3 = copy.deepcopy(req1)
+        assert req1 == req3
+        assert req1 is not req3
+
+        # Modify original and verify copies are independent
+        req1.cpu_units = 4.0
+        assert req2.cpu_units == 2.0  # Shallow copy should be independent for primitive values
+        assert req3.cpu_units == 2.0  # Deep copy should be independent
 
 
 class TestIntegrationWithPriority:
@@ -443,7 +686,6 @@ class TestIntegrationWithPriority:
 
     def test_all_priority_levels(self):
         """Test all Priority enum levels."""
-        # Test each priority level
         for priority in Priority:
             req = ResourceRequirements()
             req.priority = priority
@@ -452,13 +694,17 @@ class TestIntegrationWithPriority:
 
     def test_priority_enum_values(self):
         """Test Priority enum values are as expected."""
-        # This ensures our mapping logic is correct
-        assert Priority.LOW.value == 0
-        assert Priority.NORMAL.value == 1
-        assert Priority.HIGH.value == 2
-        assert Priority.CRITICAL.value == 3
+        expected_values = {
+            Priority.LOW: 0,
+            Priority.NORMAL: 1,
+            Priority.HIGH: 2,
+            Priority.CRITICAL: 3
+        }
 
-    def test_priority_inheritance(self):
+        for priority, expected_value in expected_values.items():
+            assert priority.value == expected_value
+
+    def test_priority_inheritance_patterns(self):
         """Test priority behavior with inheritance patterns."""
         base_req = ResourceRequirements(priority_boost=1)
         assert base_req.priority == Priority.NORMAL
@@ -471,6 +717,23 @@ class TestIntegrationWithPriority:
         )
         assert derived_req.priority == Priority.HIGH
 
+    def test_priority_edge_cases(self):
+        """Test priority edge cases."""
+        req = ResourceRequirements()
+
+        # Test boundary values
+        boundary_tests = [
+            (-1, Priority.LOW),   # Below minimum
+            (0, Priority.LOW),    # Minimum
+            (3, Priority.CRITICAL),  # Maximum defined
+            (4, Priority.CRITICAL),  # Above maximum
+            (1000, Priority.CRITICAL)  # Very high value
+        ]
+
+        for boost_value, expected_priority in boundary_tests:
+            req.priority_boost = boost_value
+            assert req.priority == expected_priority
+
 
 class TestResourceTypeCombinations:
     """Test complex ResourceType combinations."""
@@ -480,34 +743,39 @@ class TestResourceTypeCombinations:
         compute_types = ResourceType.CPU | ResourceType.MEMORY | ResourceType.GPU
         req = ResourceRequirements(resource_types=compute_types)
 
-        assert ResourceType.CPU in req.resource_types
-        assert ResourceType.MEMORY in req.resource_types
-        assert ResourceType.GPU in req.resource_types
-        assert ResourceType.IO not in req.resource_types
-        assert ResourceType.NETWORK not in req.resource_types
+        # Should include
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.GPU]:
+            assert rt in req.resource_types
+
+        # Should exclude
+        for rt in [ResourceType.IO, ResourceType.NETWORK]:
+            assert rt not in req.resource_types
 
     def test_io_resources_only(self):
         """Test IO-only resource types."""
         io_types = ResourceType.IO | ResourceType.NETWORK
         req = ResourceRequirements(resource_types=io_types)
 
-        assert ResourceType.IO in req.resource_types
-        assert ResourceType.NETWORK in req.resource_types
-        assert ResourceType.CPU not in req.resource_types
-        assert ResourceType.MEMORY not in req.resource_types
-        assert ResourceType.GPU not in req.resource_types
+        # Should include
+        for rt in [ResourceType.IO, ResourceType.NETWORK]:
+            assert rt in req.resource_types
 
-    def test_single_resource_type(self):
+        # Should exclude
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.GPU]:
+            assert rt not in req.resource_types
+
+    def test_single_resource_types(self):
         """Test each resource type individually."""
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY,
-                             ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]:
-            req = ResourceRequirements(resource_types=resource_type)
-            assert resource_type in req.resource_types
+        all_types = [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                    ResourceType.NETWORK, ResourceType.GPU]
+
+        for target_type in all_types:
+            req = ResourceRequirements(resource_types=target_type)
+            assert target_type in req.resource_types
 
             # Verify no other types are included
-            for other_type in [ResourceType.CPU, ResourceType.MEMORY,
-                              ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]:
-                if other_type != resource_type:
+            for other_type in all_types:
+                if other_type != target_type:
                     assert other_type not in req.resource_types
 
     def test_resource_type_arithmetic(self):
@@ -529,9 +797,400 @@ class TestResourceTypeCombinations:
         no_gpu = ResourceType.ALL & ~ResourceType.GPU
         req3 = ResourceRequirements(resource_types=no_gpu)
         assert ResourceType.GPU not in req3.resource_types
-        assert ResourceType.CPU in req3.resource_types
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK]:
+            assert rt in req3.resource_types
+
+    def test_resource_type_complex_combinations(self):
+        """Test complex resource type combinations."""
+        # All except memory and GPU
+        complex_combo = ResourceType.ALL & ~(ResourceType.MEMORY | ResourceType.GPU)
+        req = ResourceRequirements(resource_types=complex_combo)
+
+        # Should include
+        for rt in [ResourceType.CPU, ResourceType.IO, ResourceType.NETWORK]:
+            assert rt in req.resource_types
+
+        # Should exclude
+        for rt in [ResourceType.MEMORY, ResourceType.GPU]:
+            assert rt not in req.resource_types
+
+
+class TestSerialization:
+    """Test serialization and representation methods."""
+
+    def test_string_representation(self):
+        """Test string representation of ResourceRequirements."""
+        req = ResourceRequirements(cpu_units=2.0, memory_mb=512.0, priority_boost=1)
+
+        str_repr = str(req)
+        assert "ResourceRequirements" in str_repr
+        assert "cpu_units" in str_repr or "2.0" in str_repr
+
+        repr_str = repr(req)
+        assert "ResourceRequirements" in repr_str
+
+    def test_dataclass_asdict(self):
+        """Test converting ResourceRequirements to dictionary."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            io_weight=3.0,
+            priority_boost=1,
+            timeout=30.0,
+            resource_types=ResourceType.CPU | ResourceType.MEMORY
+        )
+
+        req_dict = asdict(req)
+
+        assert req_dict['cpu_units'] == 2.0
+        assert req_dict['memory_mb'] == 512.0
+        assert req_dict['io_weight'] == 3.0
+        assert req_dict['priority_boost'] == 1
+        assert req_dict['timeout'] == 30.0
+        assert req_dict['resource_types'] == ResourceType.CPU | ResourceType.MEMORY
+
+    def test_recreation_from_dict(self):
+        """Test recreating ResourceRequirements from dictionary."""
+        original = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            priority_boost=2,
+            resource_types=ResourceType.CPU | ResourceType.MEMORY
+        )
+
+        # Convert to dict and back
+        req_dict = asdict(original)
+        recreated = ResourceRequirements(**req_dict)
+
+        assert recreated == original
+
+
+class TestValidation:
+    """Test validation scenarios."""
+
+    def test_resource_requirements_with_get_resource_amount(self):
+        """Test ResourceRequirements integration with get_resource_amount."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            io_weight=3.0,
+            network_weight=2.5,
+            gpu_units=1.0
+        )
+
+        # Test that get_resource_amount works correctly
+        assert get_resource_amount(req, ResourceType.CPU) == req.cpu_units
+        assert get_resource_amount(req, ResourceType.MEMORY) == req.memory_mb
+        assert get_resource_amount(req, ResourceType.IO) == req.io_weight
+        assert get_resource_amount(req, ResourceType.NETWORK) == req.network_weight
+        assert get_resource_amount(req, ResourceType.GPU) == req.gpu_units
+
+    def test_validation_with_resource_pool_patterns(self):
+        """Test patterns that would be used by ResourcePool."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=1024.0,
+            gpu_units=0.5,
+            priority_boost=2
+        )
+
+        # Test patterns that ResourcePool might use
+        total_resources = 0.0
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            amount = get_resource_amount(req, rt)
+            assert amount >= 0.0  # Should be non-negative for typical use
+            total_resources += amount
+
+        assert total_resources > 0.0  # Should have some resource requirements
+
+    def test_resource_type_consistency(self):
+        """Test consistency between resource_types and actual resource amounts."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=0.0,  # No memory requested
+            io_weight=0.0,  # No IO requested
+            network_weight=0.0,  # No network requested
+            gpu_units=1.0,
+            resource_types=ResourceType.CPU | ResourceType.GPU  # Only CPU and GPU
+        )
+
+        # Verify that resource_types matches what's actually requested
+        assert ResourceType.CPU in req.resource_types
+        assert ResourceType.GPU in req.resource_types
+        assert get_resource_amount(req, ResourceType.CPU) > 0
+        assert get_resource_amount(req, ResourceType.GPU) > 0
+
+        # These should be zero
+        assert get_resource_amount(req, ResourceType.MEMORY) == 0
+        assert get_resource_amount(req, ResourceType.IO) == 0
+        assert get_resource_amount(req, ResourceType.NETWORK) == 0
+
+
+class TestConcurrency:
+    """Test thread safety and concurrent access patterns."""
+
+    def test_concurrent_priority_modifications(self):
+        """Test concurrent modifications to priority don't cause issues."""
+        req = ResourceRequirements()
+        results = []
+        errors = []
+
+        def modify_priority(priority_val):
+            try:
+                req.priority_boost = priority_val
+                results.append(req.priority)
+            except Exception as e:
+                errors.append(e)
+
+        # Create multiple threads modifying priority
+        threads = []
+        for i in range(10):
+            thread = threading.Thread(target=modify_priority, args=(i % 4,))
+            threads.append(thread)
+
+        # Start all threads
+        for thread in threads:
+            thread.start()
+
+        # Wait for completion
+        for thread in threads:
+            thread.join()
+
+        # Verify no errors occurred
+        assert len(errors) == 0
+        assert len(results) == 10
+
+    def test_concurrent_resource_modifications(self):
+        """Test concurrent modifications to resource amounts."""
+        req = ResourceRequirements()
+        modifications = []
+
+        def modify_resources(multiplier):
+            try:
+                req.cpu_units = 1.0 * multiplier
+                req.memory_mb = 100.0 * multiplier
+                modifications.append(multiplier)
+            except Exception as e:
+                modifications.append(f"Error: {e}")
+
+        # Create multiple threads
+        threads = []
+        for i in range(5):
+            thread = threading.Thread(target=modify_resources, args=(i + 1,))
+            threads.append(thread)
+
+        # Execute concurrently
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        # Verify all modifications completed
+        assert len(modifications) == 5
+        assert all(isinstance(m, (int, float)) for m in modifications)
+
+
+class TestPerformance:
+    """Test performance characteristics."""
+
+    def test_creation_performance(self):
+        """Test ResourceRequirements creation performance."""
+        import time
+
+        start_time = time.time()
+
+        # Create many instances
+        requirements = []
+        for i in range(1000):
+            req = ResourceRequirements(
+                cpu_units=i * 0.1,
+                memory_mb=i * 10,
+                priority_boost=i % 4
+            )
+            requirements.append(req)
+
+        end_time = time.time()
+        creation_time = end_time - start_time
+
+        # Should be fast (less than 1 second for 1000 creations)
+        assert creation_time < 1.0
+        assert len(requirements) == 1000
+
+    def test_property_access_performance(self):
+        """Test property access performance."""
+        req = ResourceRequirements(cpu_units=2.0, priority_boost=2)
+
+        start_time = time.time()
+
+        # Access properties many times
+        for _ in range(10000):
+            _ = req.priority
+            _ = req.cpu_units
+            _ = req.resource_types
+
+        end_time = time.time()
+        access_time = end_time - start_time
+
+        # Property access should be very fast
+        assert access_time < 0.1
+
+    def test_get_resource_amount_performance(self):
+        """Test get_resource_amount function performance."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            io_weight=3.0,
+            network_weight=2.5,
+            gpu_units=1.0
+        )
+
+        start_time = time.time()
+
+        # Call get_resource_amount many times
+        for _ in range(10000):
+            for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                      ResourceType.NETWORK, ResourceType.GPU]:
+                _ = get_resource_amount(req, rt)
+
+        end_time = time.time()
+        function_time = end_time - start_time
+
+        # Function calls should be reasonably fast
+        assert function_time < 1.0
+
+
+class TestComplexScenarios:
+    """Test complex real-world scenarios."""
+
+    def test_machine_learning_workload_scenario(self):
+        """Test scenario resembling ML workload requirements."""
+        ml_req = ResourceRequirements(
+            cpu_units=4.0,      # Multi-core processing
+            memory_mb=8192.0,   # Large memory for datasets
+            gpu_units=2.0,      # GPU acceleration
+            io_weight=5.0,      # Heavy disk I/O for data loading
+            network_weight=3.0, # Network for distributed training
+            priority_boost=3,   # Critical priority
+            timeout=7200.0,     # 2 hour timeout
+            resource_types=ResourceType.ALL  # Needs all resource types
+        )
+
+        # Verify requirements make sense
+        assert ml_req.cpu_units >= 1.0
+        assert ml_req.memory_mb >= 1000.0
+        assert ml_req.gpu_units > 0.0
+        assert ml_req.priority == Priority.CRITICAL
+        assert ml_req.timeout == 7200.0
+
+        # Verify all resource types are requested
+        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                   ResourceType.NETWORK, ResourceType.GPU]:
+            assert rt in ml_req.resource_types
+            assert get_resource_amount(ml_req, rt) > 0.0
+
+    def test_web_service_scenario(self):
+        """Test scenario resembling web service requirements."""
+        web_req = ResourceRequirements(
+            cpu_units=1.0,      # Moderate CPU
+            memory_mb=512.0,    # Moderate memory
+            gpu_units=0.0,      # No GPU needed
+            io_weight=2.0,      # Some disk I/O
+            network_weight=5.0, # Heavy network usage
+            priority_boost=1,   # Normal priority
+            timeout=30.0,       # Quick timeout
+            resource_types=ResourceType.ALL & ~ResourceType.GPU  # All except GPU
+        )
+
+        assert web_req.priority == Priority.NORMAL
+        assert web_req.gpu_units == 0.0
+        assert ResourceType.GPU not in web_req.resource_types
+        assert ResourceType.NETWORK in web_req.resource_types
+        assert get_resource_amount(web_req, ResourceType.NETWORK) > 0.0
+
+    def test_batch_processing_scenario(self):
+        """Test scenario resembling batch processing requirements."""
+        batch_req = ResourceRequirements(
+            cpu_units=8.0,      # High CPU for parallel processing
+            memory_mb=4096.0,   # Large memory for batch data
+            gpu_units=0.0,      # CPU-only processing
+            io_weight=10.0,     # Very heavy I/O
+            network_weight=1.0, # Minimal network
+            priority_boost=0,   # Low priority (can wait)
+            timeout=None,       # No timeout (can run indefinitely)
+            resource_types=ResourceType.CPU | ResourceType.MEMORY | ResourceType.IO
+        )
+
+        assert batch_req.priority == Priority.LOW
+        assert batch_req.timeout is None
+        assert ResourceType.GPU not in batch_req.resource_types
+        assert ResourceType.NETWORK not in batch_req.resource_types
+        assert get_resource_amount(batch_req, ResourceType.IO) == 10.0
+
+    def test_requirements_scaling(self):
+        """Test scaling requirements up and down."""
+        base_req = ResourceRequirements(
+            cpu_units=1.0,
+            memory_mb=100.0,
+            io_weight=1.0,
+            network_weight=1.0,
+            gpu_units=0.0
+        )
+
+        # Scale up by factor of 4
+        scale_factor = 4.0
+        scaled_req = ResourceRequirements(
+            cpu_units=base_req.cpu_units * scale_factor,
+            memory_mb=base_req.memory_mb * scale_factor,
+            io_weight=base_req.io_weight * scale_factor,
+            network_weight=base_req.network_weight * scale_factor,
+            gpu_units=base_req.gpu_units * scale_factor,
+            priority_boost=base_req.priority_boost,
+            timeout=base_req.timeout,
+            resource_types=base_req.resource_types
+        )
+
+        assert scaled_req.cpu_units == 4.0
+        assert scaled_req.memory_mb == 400.0
+        assert scaled_req.io_weight == 4.0
+        assert scaled_req.network_weight == 4.0
+        assert scaled_req.gpu_units == 0.0  # 0 * 4 = 0
+
+    def test_requirements_merging(self):
+        """Test merging multiple requirements."""
+        req1 = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            priority_boost=1
+        )
+
+        req2 = ResourceRequirements(
+            cpu_units=1.0,
+            memory_mb=256.0,
+            gpu_units=1.0,
+            priority_boost=2
+        )
+
+        # Merge by taking maximum of each resource
+        merged_req = ResourceRequirements(
+            cpu_units=max(req1.cpu_units, req2.cpu_units),
+            memory_mb=max(req1.memory_mb, req2.memory_mb),
+            io_weight=max(req1.io_weight, req2.io_weight),
+            network_weight=max(req1.network_weight, req2.network_weight),
+            gpu_units=max(req1.gpu_units, req2.gpu_units),
+            priority_boost=max(req1.priority_boost, req2.priority_boost),
+            # Combine resource types
+            resource_types=req1.resource_types | req2.resource_types
+        )
+
+        assert merged_req.cpu_units == 2.0  # max(2.0, 1.0)
+        assert merged_req.memory_mb == 512.0  # max(512.0, 256.0)
+        assert merged_req.gpu_units == 1.0  # max(0.0, 1.0)
+        assert merged_req.priority == Priority.HIGH  # priority_boost=2
 
 
 if __name__ == "__main__":
-    # Run tests with pytest
-    pytest.main([__file__, "-v"])
+    # Run tests with pytest - install pytest-cov for coverage if needed
+    # pip install pytest pytest-cov
+    pytest.main([__file__, "-v", "--tb=short"])

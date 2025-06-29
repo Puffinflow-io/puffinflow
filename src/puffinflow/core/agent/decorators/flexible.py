@@ -1,18 +1,17 @@
 """
 Flexible state decorator with optional parameters and multiple configuration methods.
 """
+import copy
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Any, Optional, Union, List
+from functools import wraps
 
-import functools
-import inspect
-from typing import Optional, Dict, Any, List, Union, Callable, Type
-from dataclasses import dataclass, field, asdict
-from enum import Enum
-
-from src.puffinflow.core.agent.state import Priority
-from src.puffinflow.core.resources.requirements import ResourceRequirements, ResourceType
-from src.puffinflow.core.coordination.primitives import PrimitiveType
-from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
-from src.puffinflow.core.agent.dependencies import DependencyConfig, DependencyType, DependencyLifecycle
+from ..state import Priority, RetryPolicy
+from ..context import Context
+from ...resources.requirements import ResourceRequirements, ResourceType
+from ...coordination.primitives import PrimitiveType
+from ...reliability.circuit_breaker import CircuitBreakerConfig
+from ...reliability.bulkhead import BulkheadConfig
 
 
 @dataclass
@@ -33,10 +32,17 @@ class StateProfile:
     tags: Dict[str, Any] = field(default_factory=dict)
     description: Optional[str] = None
 
+    # NEW: Reliability patterns
+    circuit_breaker: bool = False
+    circuit_breaker_config: Optional[Dict[str, Any]] = None
+    bulkhead: bool = False
+    bulkhead_config: Optional[Dict[str, Any]] = None
+    leak_detection: bool = True  # Default enabled
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""
         result = {}
-        for key, value in asdict(self).items():
+        for key, value in self.__dict__.items():
             if value is not None and key != 'name':
                 result[key] = value
         return result
@@ -44,108 +50,181 @@ class StateProfile:
 
 # Predefined profiles
 PROFILES = {
-    'minimal': StateProfile(
-        name='minimal',
-        cpu=0.1,
-        memory=50.0,
-        description="Minimal resource state for lightweight operations"
+    "minimal": StateProfile(
+        name="minimal",
+        cpu=0.1, memory=50.0, priority=Priority.NORMAL,
+        max_retries=1,
+        circuit_breaker=False,  # Keep minimal lightweight
+        bulkhead=False,
+        leak_detection=False,
+        tags={"profile": "minimal"}
     ),
-    
-    'standard': StateProfile(
-        name='standard',
-        cpu=1.0,
-        memory=100.0,
-        description="Standard state configuration"
+    "standard": StateProfile(
+        name="standard",
+        cpu=1.0, memory=100.0, priority=Priority.NORMAL,
+        max_retries=3,
+        circuit_breaker=False,  # Standard doesn't need extra protection
+        bulkhead=False,
+        leak_detection=True,   # But enable leak detection
+        tags={"profile": "standard"}
     ),
-    
-    'cpu_intensive': StateProfile(
-        name='cpu_intensive',
-        cpu=4.0,
-        memory=1024.0,
-        priority=Priority.HIGH,
-        timeout=300.0,
-        description="CPU-intensive operations"
+    "cpu_intensive": StateProfile(
+        name="cpu_intensive",
+        cpu=4.0, memory=1024.0, priority=Priority.HIGH, timeout=300.0,
+        max_retries=3,
+        circuit_breaker=True,  # CPU intensive operations can fail
+        bulkhead=True,        # Isolate CPU intensive work
+        bulkhead_config={"max_concurrent": 2},  # Limit concurrent CPU work
+        leak_detection=True,
+        tags={"profile": "cpu_intensive", "workload": "compute"}
     ),
-    
-    'memory_intensive': StateProfile(
-        name='memory_intensive',
-        cpu=2.0,
-        memory=4096.0,
-        priority=Priority.HIGH,
-        description="Memory-intensive operations"
+    "memory_intensive": StateProfile(
+        name="memory_intensive",
+        cpu=2.0, memory=4096.0, priority=Priority.HIGH, timeout=600.0,
+        max_retries=3,
+        circuit_breaker=True,
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 3},
+        leak_detection=True,
+        tags={"profile": "memory_intensive", "workload": "memory"}
     ),
-    
-    'io_intensive': StateProfile(
-        name='io_intensive',
-        cpu=1.0,
-        memory=256.0,
-        io=10.0,
-        timeout=180.0,
-        description="I/O intensive operations"
-    ),
-    
-    'gpu_accelerated': StateProfile(
-        name='gpu_accelerated',
-        cpu=2.0,
-        memory=2048.0,
-        gpu=1.0,
-        priority=Priority.HIGH,
-        timeout=600.0,
-        description="GPU-accelerated operations"
-    ),
-    
-    'network_intensive': StateProfile(
-        name='network_intensive',
-        cpu=1.0,
-        memory=512.0,
-        network=10.0,
-        timeout=120.0,
-        description="Network-intensive operations"
-    ),
-    
-    'quick': StateProfile(
-        name='quick',
-        cpu=0.5,
-        memory=50.0,
-        timeout=30.0,
-        rate_limit=100.0,
-        description="Quick, lightweight operations"
-    ),
-    
-    'batch': StateProfile(
-        name='batch',
-        cpu=2.0,
-        memory=1024.0,
-        priority=Priority.LOW,
-        timeout=1800.0,
-        description="Batch processing operations"
-    ),
-    
-    'critical': StateProfile(
-        name='critical',
-        cpu=2.0,
-        memory=512.0,
-        priority=Priority.CRITICAL,
-        coordination='mutex',
+    "io_intensive": StateProfile(
+        name="io_intensive",
+        cpu=1.0, memory=256.0, io=10.0, priority=Priority.NORMAL, timeout=120.0,
         max_retries=5,
-        timeout=60.0,
-        description="Critical system operations"
+        circuit_breaker=True,  # IO operations can fail often
+        circuit_breaker_config={"failure_threshold": 3, "recovery_timeout": 30.0},
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 5},
+        leak_detection=True,
+        tags={"profile": "io_intensive", "workload": "io"}
     ),
-    
-    'concurrent': StateProfile(
-        name='concurrent',
-        cpu=1.0,
-        memory=256.0,
-        coordination='semaphore:5',
-        description="Concurrent operations with limited parallelism"
+    "gpu_accelerated": StateProfile(
+        name="gpu_accelerated",
+        cpu=2.0, memory=2048.0, gpu=1.0, priority=Priority.HIGH, timeout=900.0,
+        max_retries=2,
+        circuit_breaker=True,
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 1},  # Only one GPU operation at a time
+        leak_detection=True,
+        tags={"profile": "gpu_accelerated", "workload": "gpu"}
     ),
-    
-    'synchronized': StateProfile(
-        name='synchronized',
-        cpu=1.0,
-        memory=200.0,
-        coordination='barrier:3',
-        description="Synchronized operations waiting for multiple parties"
+    "network_intensive": StateProfile(
+        name="network_intensive",
+        cpu=1.0, memory=512.0, network=10.0, priority=Priority.NORMAL, timeout=60.0,
+        max_retries=5,
+        circuit_breaker=True,  # Network operations are unreliable
+        circuit_breaker_config={"failure_threshold": 2, "recovery_timeout": 20.0},
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 10},
+        leak_detection=True,
+        tags={"profile": "network_intensive", "workload": "network"}
+    ),
+    "quick": StateProfile(
+        name="quick",
+        cpu=0.5, memory=50.0, priority=Priority.NORMAL, timeout=30.0, rate_limit=100.0,
+        max_retries=2,
+        circuit_breaker=False,  # Quick operations shouldn't need circuit breaker
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 20},  # Allow many quick operations
+        leak_detection=False,   # Quick operations shouldn't leak
+        tags={"profile": "quick", "speed": "fast"}
+    ),
+    "batch": StateProfile(
+        name="batch",
+        cpu=2.0, memory=1024.0, priority=Priority.LOW, timeout=1800.0,
+        max_retries=3,
+        circuit_breaker=True,
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 3},
+        leak_detection=True,
+        tags={"profile": "batch", "workload": "batch"}
+    ),
+    "critical": StateProfile(
+        name="critical",
+        cpu=2.0, memory=512.0, priority=Priority.CRITICAL, coordination="mutex",
+        max_retries=3,
+        circuit_breaker=False,  # Critical operations should not be circuit broken
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 1},  # Exclusive execution
+        leak_detection=True,
+        tags={"profile": "critical", "importance": "high"}
+    ),
+    "concurrent": StateProfile(
+        name="concurrent",
+        cpu=1.0, memory=256.0, priority=Priority.NORMAL, coordination="semaphore:5",
+        max_retries=3,
+        circuit_breaker=True,
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 5},  # Match semaphore limit
+        leak_detection=True,
+        tags={"profile": "concurrent", "concurrency": "limited"}
+    ),
+    "synchronized": StateProfile(
+        name="synchronized",
+        cpu=1.0, memory=200.0, priority=Priority.NORMAL, coordination="barrier:3",
+        max_retries=3,
+        circuit_breaker=False,  # Barrier synchronization shouldn't be circuit broken
+        bulkhead=False,        # Barriers need to coordinate
+        leak_detection=True,
+        tags={"profile": "synchronized", "sync": "barrier"}
+    ),
+    # Dead letter specific profiles
+    "resilient": StateProfile(
+        name="resilient",
+        cpu=1.0, memory=200.0, priority=Priority.NORMAL,
+        max_retries=5,
+        circuit_breaker=True,  # Resilient means protected
+        circuit_breaker_config={"failure_threshold": 5, "recovery_timeout": 60.0},
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 3},
+        leak_detection=True,
+        tags={"profile": "resilient", "dead_letter": "enabled"}
+    ),
+    "critical_no_dlq": StateProfile(
+        name="critical_no_dlq",
+        cpu=2.0, memory=512.0, priority=Priority.CRITICAL,
+        max_retries=3,
+        circuit_breaker=False,  # Critical should fail fast, not be circuit broken
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 1},
+        leak_detection=True,
+        tags={"profile": "critical", "dead_letter": "disabled"}
+    ),
+
+    # NEW: Reliability-focused profiles
+    "fault_tolerant": StateProfile(
+        name="fault_tolerant",
+        cpu=1.0, memory=256.0, priority=Priority.NORMAL,
+        max_retries=5,
+        circuit_breaker=True,
+        circuit_breaker_config={"failure_threshold": 3, "recovery_timeout": 45.0},
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 4, "max_queue_size": 20},
+        leak_detection=True,
+        tags={"profile": "fault_tolerant", "reliability": "high"}
+    ),
+    "external_service": StateProfile(
+        name="external_service",
+        cpu=0.5, memory=128.0, priority=Priority.NORMAL, timeout=30.0,
+        max_retries=3,
+        circuit_breaker=True,
+        circuit_breaker_config={"failure_threshold": 2, "recovery_timeout": 30.0},
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 8, "timeout": 10.0},
+        leak_detection=True,
+        tags={"profile": "external_service", "type": "integration"}
+    ),
+    "high_availability": StateProfile(
+        name="high_availability",
+        cpu=1.5, memory=512.0, priority=Priority.HIGH,
+        max_retries=10,
+        circuit_breaker=True,
+        circuit_breaker_config={"failure_threshold": 5, "recovery_timeout": 120.0},
+        bulkhead=True,
+        bulkhead_config={"max_concurrent": 2, "max_queue_size": 50},
+        leak_detection=True,
+        tags={"profile": "high_availability", "sla": "99.9%"}
     )
 }
 
@@ -154,10 +233,10 @@ class FlexibleStateDecorator:
     """
     Flexible state decorator that supports multiple configuration methods.
     """
-    
+
     def __init__(self):
         self.default_config = {}
-    
+
     def __call__(self, *args, **kwargs):
         """
         Handle multiple call patterns:
@@ -167,24 +246,24 @@ class FlexibleStateDecorator:
         - @state(cpu=2.0, memory=512.0)
         - @state(config={'cpu': 2.0})
         """
-        
         # Case 1: @state (direct decoration without parentheses)
-        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-            return self._decorate_function(args[0], {})
-        
+        if len(args) == 1 and callable(args[0]) and not kwargs:
+            func = args[0]
+            return self._decorate_function(func, self.default_config)
+
         # Case 2: @state() or @state(params...)
         def decorator(func):
             # Merge all configuration sources
             final_config = self._merge_configurations(*args, **kwargs)
             return self._decorate_function(func, final_config)
-        
+
         return decorator
-    
+
     def _merge_configurations(self, *args, **kwargs) -> Dict[str, Any]:
         """Merge configuration from multiple sources in priority order."""
         final_config = self.default_config.copy()
-        
-        # FIXED: Apply default profile first if present
+
+        # Apply default profile first if present
         default_profile = self.default_config.get('profile')
         if default_profile and default_profile in PROFILES:
             profile_config = PROFILES[default_profile].to_dict()
@@ -195,43 +274,36 @@ class FlexibleStateDecorator:
             if isinstance(arg, dict):
                 # Direct config dictionary
                 final_config.update(arg)
-            elif isinstance(arg, str):
+            elif isinstance(arg, str) and arg in PROFILES:
                 # Profile name
-                if arg in PROFILES:
-                    profile_config = PROFILES[arg].to_dict()
-                    final_config.update(profile_config)
-                else:
-                    raise ValueError(f"Unknown profile: {arg}")
+                profile_config = PROFILES[arg].to_dict()
+                final_config.update(profile_config)
             elif isinstance(arg, StateProfile):
                 # Profile object
                 profile_config = arg.to_dict()
                 final_config.update(profile_config)
-        
+
         # Process keyword arguments (highest priority)
         # Handle special cases
         config_dict = kwargs.pop('config', {})
         profile_name = kwargs.pop('profile', None)
-        
+
         # Apply profile first
-        if profile_name:
-            if profile_name in PROFILES:
-                profile_config = PROFILES[profile_name].to_dict()
-                final_config.update(profile_config)
-            else:
-                raise ValueError(f"Unknown profile: {profile_name}")
-        
+        if profile_name and profile_name in PROFILES:
+            profile_config = PROFILES[profile_name].to_dict()
+            final_config.update(profile_config)
+
         # Apply config dict
         if config_dict:
             final_config.update(config_dict)
-        
+
         # Apply direct keyword arguments (highest priority)
         final_config.update(kwargs)
-        
+
         return final_config
-    
+
     def _decorate_function(self, func: Callable, config: Dict[str, Any]) -> Callable:
         """Apply decoration with merged configuration."""
-        
         # Set default values for any missing configuration
         defaults = {
             'cpu': 1.0,
@@ -244,107 +316,172 @@ class FlexibleStateDecorator:
             'rate_limit': None,
             'burst_limit': None,
             'coordination': None,
-            'depends_on': None,
-            'dependency_type': DependencyType.REQUIRED,
-            'dependency_lifecycle': DependencyLifecycle.ALWAYS,
+            'depends_on': [],
             'max_retries': 3,
-            'retry_delay': 1.0,
-            'retry_exponential': True,
-            'retry_jitter': True,
             'tags': {},
             'description': None,
-            'preemptible': False,
-            'checkpoint_interval': None,
-            'health_check': None,
-            'cleanup_on_failure': True,
+            # NEW: Reliability defaults
+            'circuit_breaker': False,
+            'circuit_breaker_config': None,
+            'bulkhead': False,
+            'bulkhead_config': None,
+            'leak_detection': True
         }
-        
+
         # Merge defaults with provided config
         for key, default_value in defaults.items():
             if key not in config:
                 config[key] = default_value
-        
+
         # Process and validate configuration
         config = self._process_configuration(config, func)
-        
+
         # Apply configuration to function
         return self._apply_configuration(func, config)
-    
+
     def _process_configuration(self, config: Dict[str, Any], func: Callable) -> Dict[str, Any]:
         """Process and validate configuration."""
-        
         # Normalize priority
         priority = config['priority']
         if isinstance(priority, str):
-            config['priority'] = Priority[priority.upper()]
+            priority = getattr(Priority, priority.upper(), Priority.NORMAL)
         elif isinstance(priority, int):
-            config['priority'] = Priority(priority)
-        
+            priority = Priority(priority)
+        config['priority'] = priority
+
         # Process coordination string
         coordination = config.get('coordination')
-        if isinstance(coordination, str):
-            config.update(self._parse_coordination_string(coordination))
-        
+        if coordination and isinstance(coordination, str):
+            coord_config = self._parse_coordination_string(coordination)
+            config.update(coord_config)
+
         # Normalize dependencies
         depends_on = config.get('depends_on')
-        if depends_on:
-            if isinstance(depends_on, str):
-                config['depends_on'] = [depends_on]
-            elif not isinstance(depends_on, list):
-                config['depends_on'] = list(depends_on)
-        
+        if isinstance(depends_on, str):
+            config['depends_on'] = [depends_on]
+        elif depends_on is None:
+            config['depends_on'] = []
+
         # Auto-generate description if not provided
         if not config.get('description'):
-            config['description'] = func.__doc__ or f"State: {func.__name__}"
-        
+            config['description'] = f"State function {func.__name__}"
+
         # Process tags
         tags = config.get('tags', {})
         if not isinstance(tags, dict):
-            config['tags'] = {}
-        else:
-            # Add automatic tags
-            auto_tags = {
-                'function_name': func.__name__,
-                'module': func.__module__,
-                'decorated_at': 'runtime'  # Could be timestamp
-            }
-            config['tags'] = {**auto_tags, **tags}
-        
+            tags = {}
+
+        # Add automatic tags
+        auto_tags = {
+            'function_name': func.__name__,
+            'decorated_at': 'runtime'
+        }
+        auto_tags.update(tags)
+        config['tags'] = auto_tags
+
+        # Process dead letter configuration
+        dead_letter_enabled = config.get('dead_letter', True)
+        no_dead_letter = config.get('no_dead_letter', False)
+
+        if no_dead_letter:
+            dead_letter_enabled = False
+
+        # Process retry configuration with dead letter
+        retry_config = config.get('retry_config')
+        max_retries = config.get('max_retries', config.get('retries', 3))
+
+        if retry_config or max_retries != 3 or not dead_letter_enabled:
+            if isinstance(retry_config, dict):
+                retry_config['dead_letter_on_max_retries'] = dead_letter_enabled
+                retry_config['dead_letter_on_timeout'] = dead_letter_enabled
+            else:
+                retry_config = {
+                    'max_retries': max_retries,
+                    'dead_letter_on_max_retries': dead_letter_enabled,
+                    'dead_letter_on_timeout': dead_letter_enabled
+                }
+            config['retry_config'] = retry_config
+
+        # NEW: Process reliability patterns
+        self._process_reliability_config(config, func)
+
         return config
-    
+
+    def _process_reliability_config(self, config: Dict[str, Any], func: Callable) -> None:
+        """Process reliability pattern configuration."""
+        # Circuit breaker configuration
+        if config.get('circuit_breaker'):
+            cb_config = config.get('circuit_breaker_config', {})
+            if not isinstance(cb_config, dict):
+                cb_config = {}
+
+            # Set defaults
+            cb_defaults = {
+                'name': f"{func.__name__}_circuit_breaker",
+                'failure_threshold': 5,
+                'recovery_timeout': 60.0,
+                'success_threshold': 3,
+                'timeout': 30.0
+            }
+
+            for key, default in cb_defaults.items():
+                if key not in cb_config:
+                    cb_config[key] = default
+
+            config['circuit_breaker_config'] = cb_config
+
+        # Bulkhead configuration
+        if config.get('bulkhead'):
+            bh_config = config.get('bulkhead_config', {})
+            if not isinstance(bh_config, dict):
+                bh_config = {}
+
+            # Set defaults
+            bh_defaults = {
+                'name': f"{func.__name__}_bulkhead",
+                'max_concurrent': 5,
+                'max_queue_size': 100,
+                'timeout': 30.0
+            }
+
+            for key, default in bh_defaults.items():
+                if key not in bh_config:
+                    bh_config[key] = default
+
+            config['bulkhead_config'] = bh_config
+
     def _parse_coordination_string(self, coordination: str) -> Dict[str, Any]:
         """Parse coordination string like 'mutex', 'semaphore:5', 'barrier:3'."""
-        result = {}
-        
         if ':' in coordination:
             coord_type, param = coordination.split(':', 1)
-            param = int(param)
+            try:
+                param = int(param)
+            except ValueError:
+                param = None
         else:
             coord_type = coordination
             param = None
-        
+
         coord_type = coord_type.lower()
-        
+
         if coord_type == 'mutex':
-            result['mutex'] = True
-        elif coord_type == 'semaphore':
-            result['semaphore'] = param or 1
-        elif coord_type == 'barrier':
-            result['barrier'] = param or 2
-        elif coord_type == 'lease':
-            result['lease'] = param or 30.0
-        elif coord_type == 'quota':
-            result['quota'] = param or 100.0
+            return {'mutex': True}
+        elif coord_type == 'semaphore' and param:
+            return {'semaphore': param}
+        elif coord_type == 'barrier' and param:
+            return {'barrier': param}
+        elif coord_type == 'lease' and param:
+            return {'lease': param}
+        elif coord_type == 'quota' and param:
+            return {'quota': param}
         else:
-            raise ValueError(f"Unknown coordination type: {coord_type}")
-        
-        return result
-    
+            return {}
+
     def _apply_configuration(self, func: Callable, config: Dict[str, Any]) -> Callable:
         """Apply the final configuration to the function."""
-        
         # Create resource requirements
         resource_types = ResourceType.NONE
+
         if config['cpu'] > 0:
             resource_types |= ResourceType.CPU
         if config['memory'] > 0:
@@ -355,92 +492,98 @@ class FlexibleStateDecorator:
             resource_types |= ResourceType.NETWORK
         if config['gpu'] > 0:
             resource_types |= ResourceType.GPU
-        
+
         requirements = ResourceRequirements(
             cpu_units=config['cpu'],
             memory_mb=config['memory'],
             io_weight=config['io'],
             network_weight=config['network'],
             gpu_units=config['gpu'],
+            priority_boost=config['priority'].value,
             timeout=config['timeout'],
-            resource_types=resource_types,
-            priority_boost=config['priority'].value
+            resource_types=resource_types
         )
-        
+
         # Create dependency configurations
         dependency_configs = {}
         deps = config.get('depends_on', [])
-        if deps:
-            for dep in deps:
-                dependency_configs[dep] = DependencyConfig(
-                    type=config['dependency_type'],
-                    lifecycle=config['dependency_lifecycle'],
-                    timeout=config.get('dependency_timeout')
-                )
-        
+        for dep in deps:
+            dependency_configs[dep] = {'type': 'required'}
+
         # Determine coordination primitive
         coordination_primitive = None
         coordination_config = {}
-        
+
         if config.get('mutex'):
             coordination_primitive = PrimitiveType.MUTEX
             coordination_config = {'ttl': 30.0}
-        elif config.get('semaphore') is not None:
+        elif config.get('semaphore'):
             coordination_primitive = PrimitiveType.SEMAPHORE
             coordination_config = {'max_count': config['semaphore'], 'ttl': 30.0}
-        elif config.get('barrier') is not None:
+        elif config.get('barrier'):
             coordination_primitive = PrimitiveType.BARRIER
             coordination_config = {'parties': config['barrier']}
-        elif config.get('lease') is not None:
+        elif config.get('lease'):
             coordination_primitive = PrimitiveType.LEASE
             coordination_config = {'ttl': config['lease'], 'auto_renew': True}
-        elif config.get('quota') is not None:
+        elif config.get('quota'):
             coordination_primitive = PrimitiveType.QUOTA
             coordination_config = {'limit': config['quota']}
-        
+
         # Store all configuration as function attributes
-        func._puffinflow_state = True
-        func._state_config = config
         func._resource_requirements = requirements
+        func._priority = config['priority']
         func._dependency_configs = dependency_configs
         func._coordination_primitive = coordination_primitive
         func._coordination_config = coordination_config
-        func._priority = config['priority']
-        
+
         # Store rate limiting
-        if config.get('rate_limit') is not None:
-            func._rate_limit = config['rate_limit']
-            func._burst_limit = config.get('burst_limit') or int(config['rate_limit'] * 2)
-            func._rate_strategy = config.get('rate_strategy', RateLimitStrategy.TOKEN_BUCKET)
-        
+        if config['rate_limit']:
+            func._rate_limit = {
+                'rate': config['rate_limit'],
+                'burst': config['burst_limit'] or int(config['rate_limit'] * 2)
+            }
+
+        # NEW: Store reliability configurations
+        if config.get('circuit_breaker'):
+            func._circuit_breaker_enabled = True
+            func._circuit_breaker_config = config.get('circuit_breaker_config')
+        else:
+            func._circuit_breaker_enabled = False
+
+        if config.get('bulkhead'):
+            func._bulkhead_enabled = True
+            func._bulkhead_config = config.get('bulkhead_config')
+        else:
+            func._bulkhead_enabled = False
+
+        func._leak_detection_enabled = config.get('leak_detection', True)
+
         # Store metadata
-        func._state_name = func.__name__
-        func._state_description = config['description']
-        func._state_tags = config['tags']
-        func._preemptible = config['preemptible']
-        func._checkpoint_interval = config.get('checkpoint_interval')
-        func._health_check = config.get('health_check')
-        func._cleanup_on_failure = config['cleanup_on_failure']
-        
+        func._config = config
+        func._tags = config['tags']
+        func._description = config['description']
+
         # Preserve function metadata
-        functools.update_wrapper(func, func)
-        
+        func = wraps(func)(func)
+
         return func
-    
+
     def with_defaults(self, **defaults) -> 'FlexibleStateDecorator':
         """Create a new decorator with different default values."""
         new_decorator = FlexibleStateDecorator()
         new_decorator.default_config = {**self.default_config, **defaults}
         return new_decorator
-    
+
     def create_profile(self, name: str, **config) -> StateProfile:
         """Create a new profile."""
         return StateProfile(name=name, **config)
-    
+
     def register_profile(self, profile: Union[StateProfile, str], **config):
         """Register a new profile globally."""
         if isinstance(profile, str):
             profile = StateProfile(name=profile, **config)
+
         PROFILES[profile.name] = profile
 
 
@@ -459,6 +602,11 @@ batch_state = state.with_defaults(profile='batch')
 critical_state = state.with_defaults(profile='critical')
 concurrent_state = state.with_defaults(profile='concurrent')
 synchronized_state = state.with_defaults(profile='synchronized')
+
+# NEW: Reliability-focused decorators
+fault_tolerant = state.with_defaults(profile='fault_tolerant')
+external_service = state.with_defaults(profile='external_service')
+high_availability = state.with_defaults(profile='high_availability')
 
 
 def get_profile(name: str) -> Optional[StateProfile]:

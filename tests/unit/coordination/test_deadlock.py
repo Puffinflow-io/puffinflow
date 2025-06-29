@@ -1022,13 +1022,14 @@ class TestDeadlockDetector:
     async def test_metrics_tracking(self):
         """Test metrics tracking functionality."""
         mock_agent = create_mock_agent()
-        detector = DeadlockDetector(mock_agent, enable_metrics=True)
+        # Use a very short detection interval for testing
+        detector = DeadlockDetector(mock_agent, enable_metrics=True, detection_interval=0.01)
 
         try:
             await detector.start()
 
             # Let it run for a bit to accumulate metrics
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.2)  # Now 0.2s should be enough for 20 detection cycles
 
             metrics = detector.get_metrics()
 

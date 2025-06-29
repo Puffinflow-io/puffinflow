@@ -1,18 +1,24 @@
 """State management types and enums."""
-
-from enum import Enum, IntEnum
-from typing import Set, Dict, Union, List, Tuple, Optional, TYPE_CHECKING
-from dataclasses import dataclass, field
 import uuid
+import time
+import random
+import asyncio
+from enum import IntEnum, Enum
+from dataclasses import dataclass, field
+from typing import Union, List, Tuple, Optional, Dict, Any, Callable, TYPE_CHECKING
+from typing_extensions import runtime_checkable, Protocol
 
-# Import directly from specific modules to avoid circular imports
 if TYPE_CHECKING:
-    from src.puffinflow.core.agent.base import Agent, RetryPolicy
-    from src.puffinflow.core.agent.dependencies import DependencyConfig
+    from .context import Context
+    from ..resources.requirements import ResourceRequirements
+
+try:
+    from ..resources.requirements import ResourceRequirements
+except ImportError:
+    ResourceRequirements = None
 
 # Type definitions
 StateResult = Union[str, List[Union[str, Tuple["Agent", str]]], None]
-
 
 class Priority(IntEnum):
     """Priority levels for state execution."""
@@ -20,7 +26,6 @@ class Priority(IntEnum):
     NORMAL = 1
     HIGH = 2
     CRITICAL = 3
-
 
 class AgentStatus(str, Enum):
     """Agent execution status."""
@@ -31,7 +36,6 @@ class AgentStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
-
 class StateStatus(str, Enum):
     """State execution status."""
     PENDING = "pending"
@@ -39,20 +43,46 @@ class StateStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-    BLOCKED = "blocked"
     CANCELLED = "cancelled"
+    BLOCKED = "blocked"
     TIMEOUT = "timeout"
-
-
-from typing import Protocol, runtime_checkable
-from src.puffinflow.core.agent.context import Context
-
+    RETRYING = "retrying"
 
 @runtime_checkable
 class StateFunction(Protocol):
     """Protocol for state functions."""
-    async def __call__(self, context: Context) -> StateResult: ...
+    async def __call__(self, context: "Context") -> StateResult: ...
 
+@dataclass
+class RetryPolicy:
+    max_retries: int = 3
+    initial_delay: float = 1.0
+    exponential_base: float = 2.0
+    jitter: bool = True
+    # Dead letter handling
+    dead_letter_on_max_retries: bool = True
+    dead_letter_on_timeout: bool = True
+
+    async def wait(self, attempt: int) -> None:
+        delay = min(
+            self.initial_delay * (self.exponential_base ** attempt),
+            60.0  # Max 60 seconds
+        )
+        if self.jitter:
+            delay *= (0.5 + random.random() * 0.5)
+        await asyncio.sleep(delay)
+
+# Dead letter data structure
+@dataclass
+class DeadLetter:
+    state_name: str
+    agent_name: str
+    error_message: str
+    error_type: str
+    attempts: int
+    failed_at: float
+    timeout_occurred: bool = False
+    context_snapshot: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class StateMetadata:
@@ -61,20 +91,18 @@ class StateMetadata:
     attempts: int = 0
     max_retries: int = 3
     resources: Optional["ResourceRequirements"] = None
-    dependencies: Dict[str, "DependencyConfig"] = field(default_factory=dict)
-    satisfied_dependencies: Set[str] = field(default_factory=set)
+    dependencies: Dict[str, Any] = field(default_factory=dict)
+    satisfied_dependencies: set = field(default_factory=set)
     last_execution: Optional[float] = None
     last_success: Optional[float] = None
     state_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    retry_policy: Optional["RetryPolicy"] = None
+    retry_policy: Optional[RetryPolicy] = None
     priority: Priority = Priority.NORMAL
 
     def __post_init__(self):
         """Initialize resources if not provided."""
-        if self.resources is None:
-            from src.puffinflow.core.resources.requirements import ResourceRequirements
+        if self.resources is None and ResourceRequirements is not None:
             self.resources = ResourceRequirements()
-
 
 @dataclass(order=True)
 class PrioritizedState:

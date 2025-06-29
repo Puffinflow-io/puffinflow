@@ -1,87 +1,61 @@
-"""Agent module for workflow orchestrator with flexible decorators."""
+"""Agent module for workflow orchestrator with flexible decorators and reliability patterns."""
 
 # Core agent functionality
-from src.puffinflow.core.agent.base import Agent, RetryPolicy
-from src.puffinflow.core.agent.context import Context, TypedContextData, StateType
-from src.puffinflow.core.agent.state import (
-    Priority,
-    AgentStatus,
-    StateStatus,
-    StateResult,
-    StateFunction,
-    StateMetadata,
-    PrioritizedState
+from .base import Agent
+from .context import Context
+from .state import (
+    Priority, AgentStatus, StateStatus, StateMetadata, PrioritizedState,
+    RetryPolicy, StateResult, DeadLetter
 )
-from src.puffinflow.core.agent.dependencies import (
-    DependencyType,
-    DependencyLifecycle,
-    DependencyConfig
-)
-from src.puffinflow.core.agent.checkpoint import AgentCheckpoint
+from .checkpoint import AgentCheckpoint
+from .dependencies import DependencyType, DependencyLifecycle, DependencyConfig
 
 # Import decorator functionality
-from src.puffinflow.core.agent.decorators.flexible import (
-    state,
-    FlexibleStateDecorator,
-    minimal_state,
-    cpu_intensive,
-    memory_intensive,
-    io_intensive,
-    gpu_accelerated,
-    network_intensive,
-    quick_state,
-    batch_state,
-    critical_state,
-    concurrent_state,
-    synchronized_state,
-    get_profile,
-    list_profiles,
-    create_custom_decorator,
-    StateProfile,
-    PROFILES
+from .decorators.flexible import (
+    state, StateProfile,
+    minimal_state, cpu_intensive, memory_intensive, io_intensive,
+    gpu_accelerated, network_intensive, quick_state, batch_state,
+    critical_state, concurrent_state, synchronized_state,
+    fault_tolerant, external_service, high_availability,  # NEW
+    get_profile, list_profiles, create_custom_decorator
+)
+from .decorators.builder import (
+    StateBuilder, build_state, cpu_state, memory_state, gpu_state,
+    exclusive_state, concurrent_state, high_priority_state, critical_state,
+    fault_tolerant_state, external_service_state, production_state,  # NEW
+    protected_state, isolated_state  # NEW
+)
+from .decorators.inspection import (
+    is_puffinflow_state, get_state_config, get_state_requirements,
+    get_state_rate_limit, get_state_coordination, list_state_metadata,
+    compare_states, get_state_summary
 )
 
-from src.puffinflow.core.agent.decorators.builder import (
-    StateBuilder,
-    build_state,
-    cpu_state,
-    memory_state,
-    gpu_state,
-    exclusive_state,
-    concurrent_state as builder_concurrent_state,
-    high_priority_state as builder_high_priority_state,
-    critical_state as builder_critical_state
-)
-
-from src.puffinflow.core.agent.decorators.inspection import (
-    is_puffinflow_state,
-    get_state_config,
-    get_state_requirements,
-    get_state_rate_limit,
-    get_state_coordination,
-    list_state_metadata,
-    compare_states,
-    get_state_summary
+# NEW: Import reliability patterns
+from ..reliability import (
+    CircuitBreaker, CircuitState, CircuitBreakerError,
+    Bulkhead, BulkheadFullError,
+    ResourceLeakDetector, ResourceLeak
 )
 
 __all__ = [
     # Core classes
     "Agent",
     "Context",
-    "RetryPolicy",
+    "AgentCheckpoint",
 
     # State types
     "Priority",
     "AgentStatus",
     "StateStatus",
-    "StateResult",
-    "StateFunction",
     "StateMetadata",
     "PrioritizedState",
+    "StateResult",
+    "RetryPolicy",
+    "DeadLetter",
 
     # Context types
-    "TypedContextData",
-    "StateType",
+    "Context",
 
     # Dependencies
     "DependencyType",
@@ -93,7 +67,7 @@ __all__ = [
 
     # Main Flexible Decorator
     "state",
-    "FlexibleStateDecorator",
+    "StateProfile",
 
     # Profile-based Decorators
     "minimal_state",
@@ -107,10 +81,11 @@ __all__ = [
     "critical_state",
     "concurrent_state",
     "synchronized_state",
+    "fault_tolerant",  # NEW
+    "external_service",  # NEW
+    "high_availability",  # NEW
 
     # Profile Management
-    "StateProfile",
-    "PROFILES",
     "get_profile",
     "list_profiles",
     "create_custom_decorator",
@@ -122,9 +97,12 @@ __all__ = [
     "memory_state",
     "gpu_state",
     "exclusive_state",
-    "builder_concurrent_state",
-    "builder_high_priority_state",
-    "builder_critical_state",
+    "high_priority_state",
+    "fault_tolerant_state",  # NEW
+    "external_service_state",  # NEW
+    "production_state",  # NEW
+    "protected_state",  # NEW
+    "isolated_state",  # NEW
 
     # Inspection and Utilities
     "is_puffinflow_state",
@@ -135,6 +113,20 @@ __all__ = [
     "list_state_metadata",
     "compare_states",
     "get_state_summary",
+
+    # NEW: Reliability Patterns
+    "CircuitBreaker",
+    "CircuitState",
+    "CircuitBreakerError",
+    "Bulkhead",
+    "BulkheadFullError",
+    "ResourceLeakDetector",
+    "ResourceLeak",
+
+    # Helper functions
+    "create_team_decorator",
+    "create_environment_decorator",
+    "create_service_decorator"
 ]
 
 
@@ -166,87 +158,135 @@ def create_service_decorator(service_name: str, **defaults):
     return create_custom_decorator(**service_defaults)
 
 
-# Add convenience functions to __all__
+# NEW: Reliability-focused team decorators
+def create_reliable_team_decorator(team_name: str, **defaults):
+    """Create a team decorator with reliability patterns enabled."""
+    reliable_defaults = {
+        'tags': {'team': team_name, 'reliability': 'enabled'},
+        'circuit_breaker': True,
+        'bulkhead': True,
+        'leak_detection': True,
+        **defaults
+    }
+    return create_custom_decorator(**reliable_defaults)
+
+
+def create_external_team_decorator(team_name: str, **defaults):
+    """Create a team decorator optimized for external service calls."""
+    external_defaults = {
+        'tags': {'team': team_name, 'type': 'external'},
+        'circuit_breaker': True,
+        'circuit_breaker_config': {'failure_threshold': 2, 'recovery_timeout': 30.0},
+        'bulkhead': True,
+        'bulkhead_config': {'max_concurrent': 10},
+        'timeout': 30.0,
+        'max_retries': 3,
+        **defaults
+    }
+    return create_custom_decorator(**external_defaults)
+
+
+# Add new functions to __all__
 __all__.extend([
-    "create_team_decorator",
-    "create_environment_decorator",
-    "create_service_decorator",
+    "create_reliable_team_decorator",
+    "create_external_team_decorator"
 ])
 
+# Enhanced example usage documentation
+__doc__ = """
+Usage Examples with Reliability Patterns:
 
-# Example usage documentation
-"""
-Usage Examples:
-
-1. Basic Usage:
-   @state
-   async def simple_state(context):
+1. Basic Circuit Breaker:
+   @state(circuit_breaker=True)
+   async def fragile_operation(context):
        pass
 
-2. Profile-based:
-   @cpu_intensive
-   async def heavy_computation(context):
+2. Bulkhead Isolation:
+   @state(bulkhead=True, bulkhead_config={'max_concurrent': 3})
+   async def resource_intensive(context):
+       pass
+
+3. Full Reliability Stack:
+   @fault_tolerant
+   async def production_critical(context):
+       pass
+
+4. Builder Pattern with Reliability:
+   @build_state().protected().isolated(2).retry(5)
+   async def resilient_state(context):
+       pass
+
+5. External Service Call:
+   @external_service
+   async def api_call(context):
        pass
    
-   @state('gpu_accelerated')
-   async def ml_training(context):
+   # Or with builder:
+   @external_service_state(timeout=10.0)
+   async def quick_api_call(context):
        pass
 
-3. Flexible Parameters:
-   @state(cpu=2.0, memory=512.0, mutex=True, priority='high')
-   async def configured_state(context):
+6. Custom Reliability Configuration:
+   @state(
+       circuit_breaker=True,
+       circuit_breaker_config={
+           'failure_threshold': 2,
+           'recovery_timeout': 60.0
+       },
+       bulkhead=True,
+       bulkhead_config={
+           'max_concurrent': 5,
+           'max_queue_size': 20
+       }
+   )
+   async def custom_reliable_state(context):
        pass
 
-4. Builder Pattern:
-   @build_state().cpu(4.0).memory(2048.0).mutex().high_priority()
-   async def builder_state(context):
+7. Builder with Custom Reliability:
+   @(build_state()
+     .circuit_breaker(failure_threshold=3, recovery_timeout=45.0)
+     .bulkhead(max_concurrent=4, timeout=20.0)
+     .leak_detection(True)
+     .production_ready())
+   async def enterprise_state(context):
        pass
 
-5. Custom Team Decorator:
-   ml_team = create_team_decorator('ml', cpu=2.0, memory=1024.0)
+8. Team-specific Reliability:
+   api_team = create_external_team_decorator('api-team')
    
-   @ml_team(gpu=1.0)
-   async def ml_state(context):
+   @api_team(timeout=15.0)
+   async def team_api_call(context):
        pass
 
-6. Environment-specific:
-   prod = create_environment_decorator('production', max_retries=5)
+9. Reliability Profiles:
+   @state('fault_tolerant')  # Pre-configured profile
+   async def auto_reliable(context):
+       pass
    
-   @prod('critical')
-   async def prod_critical_state(context):
+   @state('external_service')  # Optimized for external calls
+   async def service_integration(context):
        pass
 
-7. Inspection:
-   print(get_state_summary(my_state))
-   print(list_state_metadata(my_state))
+10. Production Monitoring:
+    agent = Agent("prod", enable_circuit_breaker=True, enable_bulkhead=True)
+    
+    # Check reliability metrics
+    status = agent.get_resource_status()
+    print("Circuit Breaker:", status.get("circuit_breaker"))
+    print("Bulkhead:", status.get("bulkhead"))
+    print("Resource Leaks:", status.get("resource_leaks"))
 
-8. Profile Management:
-   # List available profiles
-   print(list_profiles())
-   
-   # Get specific profile
-   profile = get_profile('cpu_intensive')
-   
-   # Create custom profile
-   state.register_profile('my_custom', cpu=8.0, memory=4096.0, priority='high')
+Available Reliability Profiles:
+- fault_tolerant: Circuit breaker + bulkhead + enhanced retries
+- external_service: Optimized for external API calls with timeouts
+- high_availability: Maximum reliability for critical operations
 
-9. Comparison:
-   differences = compare_states(state1, state2)
-   print(differences)
+Builder Convenience Methods:
+- .protected() - Enable circuit breaker with sensible defaults
+- .isolated() - Enable bulkhead with limited concurrency
+- .fault_tolerant() - Enable comprehensive fault tolerance
+- .production_ready() - Apply all production reliability patterns
+- .external_call() - Configure for external service integration
 
-Available Profiles:
-- minimal: Lightweight operations (cpu=0.1, memory=50MB)
-- standard: Default configuration (cpu=1.0, memory=100MB)
-- cpu_intensive: CPU-heavy work (cpu=4.0, memory=1024MB)
-- memory_intensive: Memory-heavy work (cpu=2.0, memory=4096MB)
-- io_intensive: I/O operations (cpu=1.0, memory=256MB, io=10.0)
-- gpu_accelerated: GPU workloads (cpu=2.0, memory=2048MB, gpu=1.0)
-- network_intensive: Network operations (cpu=1.0, memory=512MB, network=10.0)
-- quick: Fast operations (cpu=0.5, memory=50MB, timeout=30s, rate_limit=100/s)
-- batch: Batch processing (cpu=2.0, memory=1024MB, low priority, timeout=30min)
-- critical: Critical operations (cpu=2.0, memory=512MB, critical priority, mutex)
-- concurrent: Limited parallelism (cpu=1.0, memory=256MB, semaphore:5)
-- synchronized: Barrier sync (cpu=1.0, memory=200MB, barrier:3)
-
-For detailed documentation, see the decorators module.
+For detailed documentation, see the reliability module.
 """

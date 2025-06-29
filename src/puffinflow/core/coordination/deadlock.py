@@ -1,17 +1,31 @@
-"""Deadlock detection for workflow execution with improved reliability and performance"""
+"""
+Deadlock detection for workflow execution.
 
-from typing import Dict, Set, Optional, List, Any, Tuple, Callable
+This module provides comprehensive deadlock detection capabilities including:
+- Dependency graph cycle detection
+- Resource wait-for graph analysis
+- Configurable resolution strategies
+- Performance monitoring and metrics
+- Memory management and cleanup
+- Thread-safe operations
+"""
+
+from typing import Dict, Set, Optional, List, Any, Tuple, Callable, Union
 import asyncio
 import weakref
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+import threading
 import time
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict, deque
 from enum import Enum, auto
-import uuid
+from contextlib import asynccontextmanager
+import json
 
 
+# Configure logging
 logger = logging.getLogger(__name__)
 
 
@@ -20,9 +34,11 @@ class DeadlockResolutionStrategy(Enum):
     RAISE_EXCEPTION = auto()
     KILL_YOUNGEST = auto()
     KILL_OLDEST = auto()
+    KILL_LOWEST_PRIORITY = auto()
     PREEMPT_RESOURCES = auto()
     ROLLBACK_TRANSACTION = auto()
     LOG_ONLY = auto()
+    CUSTOM_CALLBACK = auto()
 
 
 class DeadlockError(Exception):
@@ -31,32 +47,48 @@ class DeadlockError(Exception):
     def __init__(self, cycle: List[str], detection_id: str = None, message: str = "Deadlock detected"):
         self.cycle = cycle
         self.detection_id = detection_id or str(uuid.uuid4())
+        self.timestamp = datetime.now(timezone.utc)
         super().__init__(f"{message}: {' -> '.join(cycle)} (ID: {self.detection_id})")
 
 
 @dataclass
 class ResourceNode:
-    """Node in resource wait graph"""
+    """Node in resource wait graph with enhanced metadata"""
     resource_id: str
     resource_type: str
     holders: Set[str] = field(default_factory=set)
     waiters: Set[str] = field(default_factory=set)
     acquired_at: Optional[datetime] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_accessed: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     access_count: int = 0
+    max_holders: int = 1  # For semaphore-like resources
+    priority: int = 0
 
     def is_free(self) -> bool:
-        """Check if resource is free"""
-        return len(self.holders) == 0
+        """Check if resource has available capacity"""
+        return len(self.holders) < self.max_holders
+
+    def can_acquire(self, count: int = 1) -> bool:
+        """Check if resource can be acquired by count holders"""
+        return len(self.holders) + count <= self.max_holders
 
     def age_seconds(self) -> float:
         """Get age of resource in seconds"""
         return (datetime.now(timezone.utc) - self.created_at).total_seconds()
 
+    def idle_time_seconds(self) -> float:
+        """Get idle time since last access"""
+        return (datetime.now(timezone.utc) - self.last_accessed).total_seconds()
+
+    def update_access(self):
+        """Update last access time"""
+        self.last_accessed = datetime.now(timezone.utc)
+
 
 @dataclass
 class ProcessNode:
-    """Node representing a process/state in wait graph"""
+    """Node representing a process/state in wait graph with enhanced tracking"""
     process_id: str
     process_name: str
     holding: Set[str] = field(default_factory=set)
@@ -65,10 +97,18 @@ class ProcessNode:
     blocked_at: Optional[datetime] = None
     last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     priority: int = 0
+    timeout: Optional[float] = None  # Timeout in seconds
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def is_blocked(self) -> bool:
         """Check if process is blocked"""
         return len(self.waiting_for) > 0
+
+    def is_timed_out(self) -> bool:
+        """Check if process has timed out"""
+        if not self.timeout or not self.blocked_at:
+            return False
+        return (datetime.now(timezone.utc) - self.blocked_at).total_seconds() > self.timeout
 
     def age_seconds(self) -> float:
         """Get age of process in seconds"""
@@ -80,6 +120,10 @@ class ProcessNode:
             return (datetime.now(timezone.utc) - self.blocked_at).total_seconds()
         return 0.0
 
+    def idle_time_seconds(self) -> float:
+        """Get idle time since last activity"""
+        return (datetime.now(timezone.utc) - self.last_activity).total_seconds()
+
     def update_activity(self):
         """Update last activity timestamp"""
         self.last_activity = datetime.now(timezone.utc)
@@ -87,12 +131,14 @@ class ProcessNode:
 
 @dataclass
 class CycleDetectionResult:
-    """Result of cycle detection"""
+    """Enhanced result of cycle detection with performance metrics"""
     has_cycle: bool
     cycles: List[List[str]] = field(default_factory=list)
     detection_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     graph_size: int = 0
+    edge_count: int = 0
     detection_duration_ms: float = 0.0
+    algorithm_used: str = "dfs"
 
     def get_shortest_cycle(self) -> Optional[List[str]]:
         """Get the shortest detected cycle"""
@@ -106,138 +152,298 @@ class CycleDetectionResult:
             return None
         return max(self.cycles, key=len)
 
+    def get_critical_cycle(self) -> Optional[List[str]]:
+        """Get the most critical cycle (shortest with highest priority nodes)"""
+        if not self.cycles:
+            return None
+        # For now, return shortest. Can be enhanced with priority logic
+        return self.get_shortest_cycle()
+
+
+class NodeCleanupStrategy:
+    """Strategy for node cleanup with different policies"""
+
+    @staticmethod
+    def lru_cleanup(nodes: Dict[str, Any], metadata: Dict[str, Dict], count: int) -> List[str]:
+        """Least Recently Used cleanup"""
+        sorted_nodes = sorted(
+            nodes.keys(),
+            key=lambda n: metadata.get(n, {}).get('last_access', datetime.min.replace(tzinfo=timezone.utc))
+        )
+        return sorted_nodes[:count]
+
+    @staticmethod
+    def age_based_cleanup(nodes: Dict[str, Any], metadata: Dict[str, Dict], count: int) -> List[str]:
+        """Age-based cleanup (oldest first)"""
+        sorted_nodes = sorted(
+            nodes.keys(),
+            key=lambda n: metadata.get(n, {}).get('created_at', datetime.max.replace(tzinfo=timezone.utc))
+        )
+        return sorted_nodes[:count]
+
+    @staticmethod
+    def usage_based_cleanup(nodes: Dict[str, Any], metadata: Dict[str, Dict], count: int) -> List[str]:
+        """Usage-based cleanup (least used first)"""
+        sorted_nodes = sorted(
+            nodes.keys(),
+            key=lambda n: metadata.get(n, {}).get('access_count', float('inf'))
+        )
+        return sorted_nodes[:count]
+
 
 class DependencyGraph:
-    """Enhanced graph for tracking dependencies and detecting cycles"""
+    """Enhanced thread-safe graph for tracking dependencies and detecting cycles"""
 
-    def __init__(self, max_nodes: int = 10000):
+    def __init__(self, max_nodes: int = 10000, cleanup_threshold: float = 0.8,
+                 cache_ttl: float = 5.0, enable_metrics: bool = True,
+                 prevent_cycles: bool = False):
         self.nodes: Dict[str, Set[str]] = {}
         self.reverse_edges: Dict[str, Set[str]] = {}
-        self.node_metadata: Dict[str, Dict[str, Any]] = {}
-        self._lock = asyncio.Lock()
+        self.node_metadata: Dict[str, Any] = {}  # Store metadata directly as provided
+
+        # Configuration
         self.max_nodes = max_nodes
+        self.cleanup_threshold = cleanup_threshold
+        self.cache_ttl = cache_ttl
+        self.enable_metrics = enable_metrics
+        self.prevent_cycles = prevent_cycles  # Option to prevent cycle creation
+
+        # Thread safety
+        self._lock = asyncio.Lock()
+        self._operation_count = 0
+
+        # Caching
         self._cycle_cache: Dict[str, CycleDetectionResult] = {}
-        self._cache_ttl = 5.0  # Cache for 5 seconds
+        self._topology_cache: Optional[Tuple[List[str], str, float]] = None
 
-    async def add_dependency(self, node: str, depends_on: str, metadata: Optional[Dict[str, Any]] = None):
-        """Add a dependency edge with optional metadata"""
+        # Metrics
+        self._metrics = {
+            'operations': 0,
+            'cache_hits': 0,
+            'cache_misses': 0,
+            'cleanups_performed': 0,
+            'nodes_cleaned': 0,
+            'avg_detection_time_ms': 0.0
+        }
+
+    async def add_dependency(self, node: str, depends_on: str,
+                           metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Add a dependency edge with metadata and validation"""
+        if not node or not depends_on:
+            raise ValueError("Node and dependency names cannot be empty")
+
+        # Allow self-loops for testing compatibility
+        # if node == depends_on:
+        #     raise ValueError("Node cannot depend on itself")
+
         async with self._lock:
-            # Check for capacity
-            if len(self.nodes) >= self.max_nodes:
-                await self._cleanup_old_nodes()
+            self._operation_count += 1
 
+            # Check capacity and cleanup if needed
+            if len(self.nodes) >= self.max_nodes * self.cleanup_threshold:
+                await self._cleanup_old_nodes_internal()
+
+            # Store metadata directly as provided by user
+            if metadata is not None:
+                self.node_metadata[node] = metadata
+
+            # Check if this would create a cycle (optional)
+            if self.prevent_cycles and self._would_create_cycle_sync(node, depends_on):
+                return False
+
+            # Add the dependency
             if node not in self.nodes:
                 self.nodes[node] = set()
-                self.node_metadata[node] = metadata or {}
             if depends_on not in self.reverse_edges:
                 self.reverse_edges[depends_on] = set()
-                if depends_on not in self.node_metadata:
-                    self.node_metadata[depends_on] = {}
 
             self.nodes[node].add(depends_on)
             self.reverse_edges[depends_on].add(node)
 
-            # Invalidate cache when graph changes
-            self._cycle_cache.clear()
+            # Invalidate caches
+            self._invalidate_caches()
 
-    async def remove_dependency(self, node: str, depends_on: str):
+            if self.enable_metrics:
+                self._metrics['operations'] += 1
+
+            return True
+
+    def _would_create_cycle_sync(self, from_node: str, to_node: str) -> bool:
+        """Synchronous cycle check for use during dependency addition"""
+        # Simple DFS to check if to_node can reach from_node
+        visited = set()
+
+        def dfs(node: str) -> bool:
+            if node == from_node:
+                return True
+            if node in visited:
+                return False
+            visited.add(node)
+
+            for neighbor in self.nodes.get(node, []):
+                if dfs(neighbor):
+                    return True
+            return False
+
+        return dfs(to_node)
+
+    async def remove_dependency(self, node: str, depends_on: str) -> bool:
         """Remove a dependency edge"""
         async with self._lock:
-            if node in self.nodes:
-                self.nodes[node].discard(depends_on)
-                if not self.nodes[node]:
-                    del self.nodes[node]
-                    self.node_metadata.pop(node, None)
+            return await self._remove_dependency_internal(node, depends_on)
 
-            if depends_on in self.reverse_edges:
-                self.reverse_edges[depends_on].discard(node)
-                if not self.reverse_edges[depends_on]:
-                    del self.reverse_edges[depends_on]
+    async def _remove_dependency_internal(self, node: str, depends_on: str) -> bool:
+        """Internal method to remove dependency without acquiring lock"""
+        if node not in self.nodes or depends_on not in self.nodes[node]:
+            return False
 
-            self._cycle_cache.clear()
+        self.nodes[node].discard(depends_on)
+        if not self.nodes[node]:
+            del self.nodes[node]
+            self.node_metadata.pop(node, None)
 
-    async def remove_node(self, node: str):
+        if depends_on in self.reverse_edges:
+            self.reverse_edges[depends_on].discard(node)
+            if not self.reverse_edges[depends_on]:
+                del self.reverse_edges[depends_on]
+
+        self._invalidate_caches()
+        return True
+
+    async def remove_node(self, node: str) -> bool:
         """Remove a node and all its edges"""
         async with self._lock:
-            # Remove outgoing edges
-            if node in self.nodes:
-                for dep in self.nodes[node]:
-                    if dep in self.reverse_edges:
-                        self.reverse_edges[dep].discard(node)
-                del self.nodes[node]
-                self.node_metadata.pop(node, None)
+            return await self._remove_node_internal(node)
 
-            # Remove incoming edges
-            if node in self.reverse_edges:
-                for dependent in self.reverse_edges[node]:
-                    if dependent in self.nodes:
-                        self.nodes[dependent].discard(node)
-                del self.reverse_edges[node]
+    async def _remove_node_internal(self, node: str) -> bool:
+        """Internal method to remove node without acquiring lock"""
+        removed = False
 
-            self._cycle_cache.clear()
+        # Remove outgoing edges
+        if node in self.nodes:
+            for dep in list(self.nodes[node]):
+                if dep in self.reverse_edges:
+                    self.reverse_edges[dep].discard(node)
+                    if not self.reverse_edges[dep]:
+                        del self.reverse_edges[dep]
+            del self.nodes[node]
+            removed = True
 
-    async def _cleanup_old_nodes(self):
-        """Remove old nodes to prevent memory growth"""
-        # This is a simple LRU-style cleanup
-        # You might want more sophisticated cleanup strategies
-        nodes_to_remove = list(self.nodes.keys())[:len(self.nodes) // 4]
+        # Remove incoming edges
+        if node in self.reverse_edges:
+            for dependent in list(self.reverse_edges[node]):
+                if dependent in self.nodes:
+                    self.nodes[dependent].discard(node)
+                    if not self.nodes[dependent]:
+                        del self.nodes[dependent]
+                        self.node_metadata.pop(dependent, None)
+            del self.reverse_edges[node]
+            removed = True
+
+        # Remove metadata
+        if node in self.node_metadata:
+            del self.node_metadata[node]
+            removed = True
+
+        if removed:
+            self._invalidate_caches()
+
+        return removed
+
+    async def _cleanup_old_nodes_internal(self) -> int:
+        """Internal cleanup method without acquiring lock"""
+        if len(self.nodes) < self.max_nodes * self.cleanup_threshold:
+            return 0
+
+        target_size = int(self.max_nodes * 0.6)  # Clean to 60% capacity
+        nodes_to_remove_count = len(self.nodes) - target_size
+
+        if nodes_to_remove_count <= 0:
+            return 0
+
+        # Simple cleanup - remove oldest nodes
+        nodes_to_remove = list(self.nodes.keys())[:nodes_to_remove_count]
+
+        cleaned_count = 0
         for node in nodes_to_remove:
-            await self.remove_node(node)
+            if await self._remove_node_internal(node):
+                cleaned_count += 1
+
+        if self.enable_metrics:
+            self._metrics['cleanups_performed'] += 1
+            self._metrics['nodes_cleaned'] += cleaned_count
+
+        logger.info(f"Cleaned up {cleaned_count} nodes from dependency graph")
+        return cleaned_count
 
     def find_cycles(self, use_cache: bool = True) -> CycleDetectionResult:
-        """Find all cycles in the graph using optimized DFS"""
-        start_time = time.time()
+        """Find all cycles in the graph using optimized DFS with proper cycle detection"""
+        start_time = time.perf_counter()
 
         # Check cache first
         if use_cache:
             cache_key = self._get_graph_hash()
             cached_result = self._cycle_cache.get(cache_key)
-            if cached_result and (time.time() - cached_result.detection_time.timestamp()) < self._cache_ttl:
+            if cached_result and self._is_cache_valid(cached_result):
+                if self.enable_metrics:
+                    self._metrics['cache_hits'] += 1
                 return cached_result
 
+        if self.enable_metrics:
+            self._metrics['cache_misses'] += 1
+
+        # Perform cycle detection using proper DFS for directed graphs
         cycles = []
         visited = set()
-        rec_stack = set()
-        path = []
+        rec_stack = set()  # Recursion stack to track current path
 
-        def dfs(node: str) -> bool:
-            """Optimized DFS to detect cycles"""
+        def dfs_detect_cycles(node: str, path: List[str]) -> None:
+            # If node is in recursion stack, we found a cycle
             if node in rec_stack:
-                # Found a cycle
-                cycle_start = path.index(node)
-                cycle = path[cycle_start:] + [node]
-                cycles.append(cycle)
-                return True
+                # Find the cycle in the current path
+                try:
+                    cycle_start = path.index(node)
+                    cycle = path[cycle_start:] + [node]
+                    cycles.append(cycle)
+                except ValueError:
+                    # Fallback if node not found in path
+                    cycles.append([node])
+                return
 
+            # If already visited but not in current path, skip
             if node in visited:
-                return False
+                return
 
+            # Mark as visited and add to recursion stack
             visited.add(node)
             rec_stack.add(node)
             path.append(node)
 
-            # Check all dependencies
+            # Visit all neighbors
             for neighbor in self.nodes.get(node, []):
-                if dfs(neighbor):
-                    # Don't return immediately to find all cycles
-                    pass
+                dfs_detect_cycles(neighbor, path)
 
-            path.pop()
+            # Backtrack: remove from recursion stack and path
             rec_stack.remove(node)
-            return False
+            path.pop()
 
-        # Check all nodes
+        # Check all nodes to handle disconnected components
         for node in list(self.nodes.keys()):
             if node not in visited:
-                dfs(node)
+                dfs_detect_cycles(node, [])
 
-        detection_duration = (time.time() - start_time) * 1000  # Convert to ms
+        detection_duration = (time.perf_counter() - start_time) * 1000
+
+        # Count edges
+        edge_count = sum(len(deps) for deps in self.nodes.values())
 
         result = CycleDetectionResult(
             has_cycle=len(cycles) > 0,
             cycles=cycles,
             graph_size=len(self.nodes),
-            detection_duration_ms=detection_duration
+            edge_count=edge_count,
+            detection_duration_ms=detection_duration,
+            algorithm_used="dfs"
         )
 
         # Cache the result
@@ -245,27 +451,43 @@ class DependencyGraph:
             cache_key = self._get_graph_hash()
             self._cycle_cache[cache_key] = result
 
-        return result
+        # Update metrics
+        if self.enable_metrics:
+            alpha = 0.1
+            self._metrics['avg_detection_time_ms'] = (
+                alpha * detection_duration +
+                (1 - alpha) * self._metrics['avg_detection_time_ms']
+            )
 
-    def _get_graph_hash(self) -> str:
-        """Get a hash representing the current graph state"""
-        # Simple hash based on node count and edge count
-        edge_count = sum(len(deps) for deps in self.nodes.values())
-        return f"{len(self.nodes)}:{edge_count}"
+        return result
 
     def topological_sort(self) -> Optional[List[str]]:
         """Perform topological sort if no cycles exist"""
-        # Check for cycles first
-        if self.find_cycles().has_cycle:
+        # Check cache first
+        if self._topology_cache:
+            result, graph_hash, timestamp = self._topology_cache
+            if (self._get_graph_hash() == graph_hash and
+                time.time() - timestamp < self.cache_ttl):
+                return result
+
+        # Check for cycles first - if cycles exist, no topological sort possible
+        cycle_result = self.find_cycles()
+        if cycle_result.has_cycle:
             return None
 
+        # Get all unique nodes in the graph
+        all_nodes = set(self.nodes.keys())
+        for deps in self.nodes.values():
+            all_nodes.update(deps)
+
+        if not all_nodes:
+            return []
+
         # Kahn's algorithm
-        in_degree = defaultdict(int)
+        in_degree = {node: 0 for node in all_nodes}
 
         # Calculate in-degrees
         for node in self.nodes:
-            if node not in in_degree:
-                in_degree[node] = 0
             for dep in self.nodes[node]:
                 in_degree[dep] += 1
 
@@ -283,142 +505,248 @@ class DependencyGraph:
                 if in_degree[neighbor] == 0:
                     queue.append(neighbor)
 
-        # Check if all nodes were processed
-        return result if len(result) == len(self.nodes) else None
+        # Validate result - if not all nodes processed, there was a cycle
+        if len(result) != len(all_nodes):
+            return None
+
+        # Cache the result
+        self._topology_cache = (result, self._get_graph_hash(), time.time())
+        return result
+
+    def _get_graph_hash(self) -> str:
+        """Get a hash representing the current graph state"""
+        edge_count = sum(len(deps) for deps in self.nodes.values())
+        return f"{len(self.nodes)}:{edge_count}:{self._operation_count}"
+
+    def _is_cache_valid(self, result: CycleDetectionResult) -> bool:
+        """Check if cached result is still valid"""
+        return (time.time() - result.detection_time.timestamp()) < self.cache_ttl
+
+    def _invalidate_caches(self):
+        """Invalidate all caches"""
+        self._cycle_cache.clear()
+        self._topology_cache = None
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get performance metrics"""
+        return {
+            **self._metrics,
+            'node_count': len(self.nodes),
+            'edge_count': sum(len(deps) for deps in self.nodes.values()),
+            'cache_size': len(self._cycle_cache),
+            'operation_count': self._operation_count
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform health check"""
+        async with self._lock:
+            return {
+                'status': 'healthy',
+                'node_count': len(self.nodes),
+                'memory_usage_percent': len(self.nodes) / self.max_nodes * 100,
+                'cache_hit_rate': (
+                    self._metrics['cache_hits'] /
+                    max(1, self._metrics['cache_hits'] + self._metrics['cache_misses'])
+                ) * 100 if self.enable_metrics else 0,
+                'last_cleanup': self._metrics.get('last_cleanup'),
+                'needs_cleanup': len(self.nodes) >= self.max_nodes * self.cleanup_threshold
+            }
 
 
 class ResourceWaitGraph:
     """Enhanced wait-for graph for resource-based deadlock detection"""
 
-    def __init__(self, max_resources: int = 5000, max_processes: int = 5000):
+    def __init__(self, max_resources: int = 5000, max_processes: int = 5000,
+                 cleanup_interval: float = 300.0, enable_timeouts: bool = True):
         self.resources: Dict[str, ResourceNode] = {}
         self.processes: Dict[str, ProcessNode] = {}
-        self._lock = asyncio.Lock()
+
+        # Configuration
         self.max_resources = max_resources
         self.max_processes = max_processes
+        self.cleanup_interval = cleanup_interval
+        self.enable_timeouts = enable_timeouts
+
+        # Thread safety
+        self._lock = asyncio.Lock()
+
+        # Caching and optimization
         self._wait_graph_cache: Optional[DependencyGraph] = None
         self._cache_invalidated = True
+        self._last_cleanup = datetime.now(timezone.utc)
 
-    async def add_resource(self, resource_id: str, resource_type: str = "generic"):
-        """Add a resource to the graph"""
+        # Metrics
+        self._metrics = {
+            'resource_acquisitions': 0,
+            'resource_releases': 0,
+            'deadlock_detections': 0,
+            'timeouts': 0,
+            'preemptions': 0
+        }
+
+    async def add_resource(self, resource_id: str, resource_type: str = "generic",
+                          max_holders: int = 1, priority: int = 0) -> bool:
+        """Add a resource to the graph with configuration"""
+        if not resource_id:
+            raise ValueError("Resource ID cannot be empty")
+
         async with self._lock:
             if len(self.resources) >= self.max_resources:
-                await self._cleanup_old_resources()
+                await self._cleanup_old_resources_internal()
 
             if resource_id not in self.resources:
                 self.resources[resource_id] = ResourceNode(
                     resource_id=resource_id,
-                    resource_type=resource_type
+                    resource_type=resource_type,
+                    max_holders=max_holders,
+                    priority=priority
                 )
                 self._cache_invalidated = True
+                return True
+            return False
 
-    async def add_process(self, process_id: str, process_name: str = "", priority: int = 0):
-        """Add a process to the graph"""
+    async def add_process(self, process_id: str, process_name: str = "",
+                         priority: int = 0, timeout: Optional[float] = None) -> bool:
+        """Add a process to the graph with configuration"""
+        if not process_id:
+            raise ValueError("Process ID cannot be empty")
+
         async with self._lock:
             if len(self.processes) >= self.max_processes:
-                await self._cleanup_old_processes()
+                await self._cleanup_old_processes_internal()
 
             if process_id not in self.processes:
                 self.processes[process_id] = ProcessNode(
                     process_id=process_id,
                     process_name=process_name or process_id,
-                    priority=priority
+                    priority=priority,
+                    timeout=timeout
                 )
                 self._cache_invalidated = True
+                return True
+            return False
 
-    async def acquire_resource(self, process_id: str, resource_id: str) -> bool:
-        """Process acquires a resource"""
+    async def acquire_resource(self, process_id: str, resource_id: str,
+                             count: int = 1, timeout: Optional[float] = None) -> bool:
+        """Process attempts to acquire a resource with optional timeout"""
         async with self._lock:
-            if resource_id not in self.resources:
-                await self.add_resource(resource_id)
-            if process_id not in self.processes:
-                await self.add_process(process_id)
+            return await self._acquire_resource_internal(process_id, resource_id, count, timeout)
+
+    async def _acquire_resource_internal(self, process_id: str, resource_id: str,
+                                       count: int = 1, timeout: Optional[float] = None) -> bool:
+        """Internal method to acquire resource without acquiring lock"""
+        if count <= 0:
+            raise ValueError("Count must be positive")
+
+        # Ensure resource and process exist
+        if resource_id not in self.resources:
+            self.resources[resource_id] = ResourceNode(
+                resource_id=resource_id,
+                resource_type="generic"
+            )
+            self._cache_invalidated = True
+
+        if process_id not in self.processes:
+            self.processes[process_id] = ProcessNode(
+                process_id=process_id,
+                process_name=process_id,
+                timeout=timeout
+            )
+            self._cache_invalidated = True
+
+        resource = self.resources[resource_id]
+        process = self.processes[process_id]
+
+        # Check if resource can be acquired
+        if resource.can_acquire(count) and process_id not in resource.waiters:
+            # Successful acquisition - use simple process ID for holders
+            resource.holders.add(process_id)
+
+            resource.acquired_at = datetime.now(timezone.utc)
+            resource.access_count += 1
+            resource.update_access()
+
+            process.holding.add(resource_id)
+            process.waiting_for.discard(resource_id)
+            process.update_activity()
+
+            # Clear blocked status if not waiting for anything
+            if not process.waiting_for:
+                process.blocked_at = None
+
+            self._cache_invalidated = True
+            self._metrics['resource_acquisitions'] += 1
+            return True
+        else:
+            # Must wait
+            resource.waiters.add(process_id)
+            process.waiting_for.add(resource_id)
+            if process.blocked_at is None:
+                process.blocked_at = datetime.now(timezone.utc)
+
+            self._cache_invalidated = True
+            return False
+
+    async def release_resource(self, process_id: str, resource_id: str,
+                             count: int = 1) -> bool:
+        """Process releases a resource"""
+        if count <= 0:
+            raise ValueError("Count must be positive")
+
+        async with self._lock:
+            if (resource_id not in self.resources or
+                process_id not in self.processes):
+                return False
 
             resource = self.resources[resource_id]
             process = self.processes[process_id]
 
-            # Check if resource is available
-            if resource.is_free() or process_id in resource.holders:
-                resource.holders.add(process_id)
-                resource.acquired_at = datetime.now(timezone.utc)
-                resource.access_count += 1
-                process.holding.add(resource_id)
-                process.waiting_for.discard(resource_id)
-                process.update_activity()
+            # Release the resource
+            resource.holders.discard(process_id)
+            process.holding.discard(resource_id)
+            process.update_activity()
+            resource.update_access()
 
-                # Clear blocked status if not waiting for anything
-                if not process.waiting_for:
-                    process.blocked_at = None
+            # Try to wake up waiters (using internal method)
+            await self._process_waiters_internal(resource_id)
 
-                self._cache_invalidated = True
-                return True
-            else:
-                # Process must wait
-                resource.waiters.add(process_id)
-                process.waiting_for.add(resource_id)
-                if process.blocked_at is None:
-                    process.blocked_at = datetime.now(timezone.utc)
+            self._cache_invalidated = True
+            self._metrics['resource_releases'] += 1
+            return True
 
-                self._cache_invalidated = True
-                return False
+    async def _process_waiters_internal(self, resource_id: str):
+        """Process waiting list for a resource (internal method)"""
+        if resource_id not in self.resources:
+            return
 
-    async def release_resource(self, process_id: str, resource_id: str):
-        """Process releases a resource"""
-        async with self._lock:
-            if resource_id in self.resources and process_id in self.processes:
-                resource = self.resources[resource_id]
-                process = self.processes[process_id]
+        resource = self.resources[resource_id]
 
-                resource.holders.discard(process_id)
-                process.holding.discard(resource_id)
-                process.update_activity()
+        # Sort waiters by priority and wait time
+        if resource.waiters:
+            sorted_waiters = sorted(
+                resource.waiters,
+                key=lambda pid: (
+                    -self.processes.get(pid, ProcessNode("", "")).priority,
+                    self.processes.get(pid, ProcessNode("", "")).blocked_at or datetime.max.replace(tzinfo=timezone.utc)
+                )
+            )
 
-                # Check if any waiters can acquire (priority-based)
-                if resource.is_free() and resource.waiters:
-                    # Sort waiters by priority (higher priority first)
-                    sorted_waiters = sorted(
-                        resource.waiters,
-                        key=lambda pid: self.processes.get(pid, ProcessNode("", "")).priority,
-                        reverse=True
-                    )
-
-                    next_process = sorted_waiters[0]
-                    resource.waiters.remove(next_process)
-
-                    # Recursive acquisition
-                    await self.acquire_resource(next_process, resource_id)
-
-                self._cache_invalidated = True
-
-    async def _cleanup_old_resources(self):
-        """Clean up old unused resources"""
-        now = datetime.now(timezone.utc)
-        old_resources = [
-            rid for rid, resource in self.resources.items()
-            if resource.is_free() and
-               len(resource.waiters) == 0 and
-               (now - resource.created_at).total_seconds() > 300  # 5 minutes old
-        ]
-
-        for rid in old_resources[:len(self.resources) // 4]:  # Remove 25%
-            del self.resources[rid]
-
-    async def _cleanup_old_processes(self):
-        """Clean up old inactive processes"""
-        now = datetime.now(timezone.utc)
-        old_processes = [
-            pid for pid, process in self.processes.items()
-            if len(process.holding) == 0 and
-               len(process.waiting_for) == 0 and
-               (now - process.last_activity).total_seconds() > 300  # 5 minutes inactive
-        ]
-
-        for pid in old_processes[:len(self.processes) // 4]:  # Remove 25%
-            del self.processes[pid]
+            # Try to satisfy waiters using internal method
+            for waiter_id in list(sorted_waiters):
+                if resource.can_acquire(1):
+                    resource.waiters.remove(waiter_id)
+                    # Use internal method to avoid lock acquisition
+                    await self._acquire_resource_internal(waiter_id, resource_id)
+                else:
+                    break
 
     async def detect_deadlock(self) -> CycleDetectionResult:
-        """Detect deadlocks using optimized cycle detection in wait-for graph"""
+        """Detect deadlocks using wait-for graph analysis"""
         async with self._lock:
+            # Check for timeouts first
+            if self.enable_timeouts:
+                await self._handle_timeouts_internal()
+
             # Build or reuse wait-for graph
             if self._cache_invalidated or self._wait_graph_cache is None:
                 self._wait_graph_cache = DependencyGraph()
@@ -433,14 +761,81 @@ class ResourceWaitGraph:
                 self._cache_invalidated = False
 
             # Find cycles
-            return self._wait_graph_cache.find_cycles()
+            result = self._wait_graph_cache.find_cycles()
+            self._metrics['deadlock_detections'] += 1
+            return result
+
+    async def _handle_timeouts_internal(self):
+        """Handle process timeouts (internal method)"""
+        timed_out_processes = []
+
+        for process in self.processes.values():
+            if process.is_timed_out():
+                timed_out_processes.append(process.process_id)
+
+        for process_id in timed_out_processes:
+            await self._timeout_process_internal(process_id)
+            self._metrics['timeouts'] += 1
+
+    async def _timeout_process_internal(self, process_id: str):
+        """Handle process timeout (internal method)"""
+        if process_id not in self.processes:
+            return
+
+        process = self.processes[process_id]
+
+        # Remove from all waiting lists
+        for resource_id in list(process.waiting_for):
+            if resource_id in self.resources:
+                self.resources[resource_id].waiters.discard(process_id)
+
+        process.waiting_for.clear()
+        process.blocked_at = None
+
+        logger.warning(f"Process {process_id} timed out after waiting")
+
+    async def _cleanup_old_resources_internal(self) -> int:
+        """Clean up old unused resources (internal method)"""
+        now = datetime.now(timezone.utc)
+        cleanup_threshold = timedelta(seconds=self.cleanup_interval)
+
+        old_resources = [
+            rid for rid, resource in self.resources.items()
+            if (resource.is_free() and
+                len(resource.waiters) == 0 and
+                now - resource.last_accessed > cleanup_threshold)
+        ]
+
+        cleaned_count = 0
+        for rid in old_resources[:len(self.resources) // 4]:  # Remove 25%
+            del self.resources[rid]
+            cleaned_count += 1
+
+        self._last_cleanup = now
+        return cleaned_count
+
+    async def _cleanup_old_processes_internal(self) -> int:
+        """Clean up old inactive processes (internal method)"""
+        now = datetime.now(timezone.utc)
+        cleanup_threshold = timedelta(seconds=self.cleanup_interval)
+
+        old_processes = [
+            pid for pid, process in self.processes.items()
+            if (len(process.holding) == 0 and
+                len(process.waiting_for) == 0 and
+                now - process.last_activity > cleanup_threshold)
+        ]
+
+        cleaned_count = 0
+        for pid in old_processes[:len(self.processes) // 4]:  # Remove 25%
+            del self.processes[pid]
+            cleaned_count += 1
+
+        return cleaned_count
 
     def get_blocked_processes(self) -> List[ProcessNode]:
         """Get all currently blocked processes"""
-        return [
-            proc for proc in self.processes.values()
-            if proc.is_blocked()
-        ]
+        return [proc for proc in self.processes.values() if proc.is_blocked()]
 
     def get_resource_holders(self, resource_id: str) -> Set[str]:
         """Get processes holding a resource"""
@@ -454,9 +849,34 @@ class ResourceWaitGraph:
             return self.resources[resource_id].waiters.copy()
         return set()
 
+    def get_resource_stats(self) -> Dict[str, Any]:
+        """Get comprehensive resource statistics"""
+        total_resources = len(self.resources)
+        free_resources = sum(1 for r in self.resources.values() if r.is_free())
+        total_holders = sum(len(r.holders) for r in self.resources.values())
+        total_waiters = sum(len(r.waiters) for r in self.resources.values())
+
+        return {
+            'total_resources': total_resources,
+            'free_resources': free_resources,
+            'utilized_resources': total_resources - free_resources,
+            'total_holders': total_holders,
+            'total_waiters': total_waiters,
+            'average_utilization': (total_resources - free_resources) / max(1, total_resources),
+            'blocked_processes': len(self.get_blocked_processes())
+        }
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get performance metrics"""
+        return {
+            **self._metrics,
+            **self.get_resource_stats(),
+            'total_processes': len(self.processes)
+        }
+
 
 class DeadlockDetector:
-    """Enhanced deadlock detection with improved reliability and performance"""
+    """Production-grade deadlock detection with comprehensive monitoring and resolution"""
 
     def __init__(
         self,
@@ -464,242 +884,337 @@ class DeadlockDetector:
         detection_interval: float = 1.0,
         max_cycles: int = 100,
         resolution_strategy: DeadlockResolutionStrategy = DeadlockResolutionStrategy.LOG_ONLY,
-        enable_metrics: bool = True
+        enable_metrics: bool = True,
+        enable_health_monitoring: bool = True,
+        max_resolution_attempts: int = 3
     ):
-        self.agent = weakref.proxy(agent)
+        self.agent = weakref.proxy(agent) if agent else None
         self.detection_interval = detection_interval
         self.max_cycles = max_cycles
         self.resolution_strategy = resolution_strategy
         self.enable_metrics = enable_metrics
+        self.enable_health_monitoring = enable_health_monitoring
+        self.max_resolution_attempts = max_resolution_attempts
 
-        self._dependency_graph = DependencyGraph()
+        # Core components
+        self._dependency_graph = DependencyGraph(enable_metrics=enable_metrics)
         self._resource_graph = ResourceWaitGraph()
+
+        # Control and synchronization
         self._lock = asyncio.Lock()
         self._detection_task: Optional[asyncio.Task] = None
+        self._health_task: Optional[asyncio.Task] = None
+        self._shutdown_event = asyncio.Event()
+
+        # State tracking
         self._cycle_count = 0
         self._last_cycle: Optional[List[str]] = None
-        self._detection_history: deque = deque(maxlen=100)
+        self._detection_history: deque = deque(maxlen=1000)
+        self._resolution_history: deque = deque(maxlen=100)
+
+        # Metrics and monitoring
         self._metrics = {
             'total_detections': 0,
             'deadlocks_found': 0,
             'deadlocks_resolved': 0,
             'detection_errors': 0,
-            'avg_detection_time_ms': 0.0
+            'resolution_failures': 0,
+            'avg_detection_time_ms': 0.0,
+            'uptime_seconds': 0.0,
+            'last_error': None
         }
+
+        # Callbacks and extensibility
         self._resolution_callbacks: List[Callable[[List[str]], bool]] = []
+        self._notification_callbacks: List[Callable[[str, Dict[str, Any]], None]] = []
 
-    async def start(self):
-        """Start deadlock detection"""
-        async with self._lock:
-            if self._detection_task and not self._detection_task.done():
-                logger.warning("Deadlock detector already running")
-                return
+        # Health monitoring
+        self._health_status = 'initializing'
+        self._last_successful_detection = datetime.now(timezone.utc)
+        self._start_time = datetime.now(timezone.utc)
 
-            self._detection_task = asyncio.create_task(self._detect_deadlocks())
-            logger.info("Deadlock detection started")
+    async def start(self) -> bool:
+        """Start deadlock detection with comprehensive initialization"""
+        try:
+            async with self._lock:
+                if self._detection_task and not self._detection_task.done():
+                    logger.warning("Deadlock detector already running")
+                    return False
 
-            if hasattr(self.agent, '_monitor'):
-                self.agent._monitor.logger.info("deadlock_detection_started")
+                self._shutdown_event.clear()
+                self._health_status = 'starting'
 
-    async def stop(self):
-        """Stop deadlock detection"""
-        async with self._lock:
-            if self._detection_task:
-                self._detection_task.cancel()
-                try:
-                    await asyncio.wait_for(self._detection_task, timeout=5.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    logger.warning("Deadlock detection task did not stop gracefully")
-                finally:
-                    self._detection_task = None
+                # Start detection task
+                self._detection_task = asyncio.create_task(self._detection_loop())
 
-            logger.info("Deadlock detection stopped")
+                # Start health monitoring if enabled
+                if self.enable_health_monitoring:
+                    self._health_task = asyncio.create_task(self._health_monitoring_loop())
 
-            if hasattr(self.agent, '_monitor'):
-                self.agent._monitor.logger.info("deadlock_detection_stopped")
+                self._health_status = 'running'
+                self._start_time = datetime.now(timezone.utc)
 
-    def add_resolution_callback(self, callback: Callable[[List[str]], bool]):
-        """Add a callback for custom deadlock resolution"""
-        self._resolution_callbacks.append(callback)
+                logger.info(f"Deadlock detector started with strategy: {self.resolution_strategy.name}")
+                await self._notify("deadlock_detector_started", {"strategy": self.resolution_strategy.name})
 
-    def get_status(self) -> Dict[str, Any]:
-        """Get comprehensive detector status"""
-        return {
-            "cycle_count": self._cycle_count,
-            "last_cycle": self._last_cycle,
-            "active": bool(self._detection_task and not self._detection_task.done()),
-            "graph_size": len(self._dependency_graph.nodes),
-            "resource_count": len(self._resource_graph.resources),
-            "process_count": len(self._resource_graph.processes),
-            "blocked_processes": len(self._resource_graph.get_blocked_processes()),
-            "metrics": self._metrics.copy(),
-            "resolution_strategy": self.resolution_strategy.name,
-            "detection_interval": self.detection_interval
-        }
+                return True
 
-    async def add_dependency(self, from_state: str, to_state: str):
-        """Add a dependency between states"""
-        await self._dependency_graph.add_dependency(from_state, to_state)
+        except Exception as e:
+            self._health_status = 'error'
+            self._metrics['last_error'] = str(e)
+            logger.error(f"Failed to start deadlock detector: {e}")
+            return False
 
-    async def remove_dependency(self, from_state: str, to_state: str):
-        """Remove a dependency between states"""
-        await self._dependency_graph.remove_dependency(from_state, to_state)
+    async def stop(self, timeout: float = 10.0) -> bool:
+        """Stop deadlock detection gracefully"""
+        try:
+            async with self._lock:
+                self._health_status = 'stopping'
+                self._shutdown_event.set()
 
-    async def acquire_resource(
-        self,
-        process_id: str,
-        resource_id: str,
-        process_name: Optional[str] = None,
-        priority: int = 0
-    ) -> bool:
-        """Process attempts to acquire a resource"""
-        if process_name:
-            await self._resource_graph.add_process(process_id, process_name, priority)
+                # Cancel tasks
+                tasks_to_cancel = []
+                if self._detection_task:
+                    tasks_to_cancel.append(self._detection_task)
+                if self._health_task:
+                    tasks_to_cancel.append(self._health_task)
 
-        success = await self._resource_graph.acquire_resource(process_id, resource_id)
+                if tasks_to_cancel:
+                    for task in tasks_to_cancel:
+                        task.cancel()
 
-        # Check for deadlock immediately after failed acquisition
-        if not success:
-            try:
-                result = await self._resource_graph.detect_deadlock()
-                if result.has_cycle:
-                    await self._handle_deadlock(result)
-            except Exception as e:
-                logger.error(f"Error during immediate deadlock check: {e}")
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.gather(*tasks_to_cancel, return_exceptions=True),
+                            timeout=timeout
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning("Some tasks did not stop gracefully within timeout")
 
-        return success
+                self._detection_task = None
+                self._health_task = None
+                self._health_status = 'stopped'
 
-    async def release_resource(self, process_id: str, resource_id: str):
-        """Process releases a resource"""
-        await self._resource_graph.release_resource(process_id, resource_id)
+                logger.info("Deadlock detector stopped")
+                await self._notify("deadlock_detector_stopped", {})
+                return True
 
-    async def _detect_deadlocks(self):
-        """Main deadlock detection loop with enhanced error handling"""
+        except Exception as e:
+            self._health_status = 'error'
+            logger.error(f"Error stopping deadlock detector: {e}")
+            return False
+
+    async def _detection_loop(self):
+        """Main detection loop with comprehensive error handling"""
         consecutive_errors = 0
         max_consecutive_errors = 5
 
-        while True:
-            try:
-                await asyncio.sleep(self.detection_interval)
+        try:
+            while not self._shutdown_event.is_set():
+                try:
+                    # Wait for next detection cycle
+                    await asyncio.wait_for(
+                        self._shutdown_event.wait(),
+                        timeout=self.detection_interval
+                    )
+                    if self._shutdown_event.is_set():
+                        break
 
-                detection_start = time.time()
-                self._metrics['total_detections'] += 1
+                except asyncio.TimeoutError:
+                    pass  # Normal timeout, continue with detection
 
-                # Check state dependencies
-                state_result = self._dependency_graph.find_cycles()
-                if state_result.has_cycle:
-                    await self._handle_deadlock(state_result)
+                detection_start = time.perf_counter()
 
-                # Check resource wait graph
-                resource_result = await self._resource_graph.detect_deadlock()
-                if resource_result.has_cycle:
-                    await self._handle_deadlock(resource_result)
+                try:
+                    # Perform detection
+                    await self._perform_detection_cycle()
 
-                # Update metrics
-                detection_duration = (time.time() - detection_start) * 1000
-                self._update_detection_metrics(detection_duration)
+                    # Update metrics
+                    detection_duration = (time.perf_counter() - detection_start) * 1000
+                    self._update_detection_metrics(detection_duration)
 
-                # Keep detection history
-                self._detection_history.append(state_result)
+                    # Reset error counter on successful detection
+                    consecutive_errors = 0
+                    self._last_successful_detection = datetime.now(timezone.utc)
 
-                # Reset error counter on successful detection
-                consecutive_errors = 0
+                except Exception as detection_error:
+                    consecutive_errors += 1
+                    self._metrics['detection_errors'] += 1
+                    self._metrics['last_error'] = str(detection_error)
 
-            except asyncio.CancelledError:
-                logger.info("Deadlock detection cancelled")
-                break
-            except Exception as e:
-                consecutive_errors += 1
-                self._metrics['detection_errors'] += 1
+                    logger.error(f"Detection cycle error: {detection_error}")
 
-                logger.error(f"Deadlock detection error: {e}")
+                    # Implement exponential backoff on errors
+                    if consecutive_errors >= max_consecutive_errors:
+                        logger.critical(f"Too many consecutive errors ({consecutive_errors}), stopping detection")
+                        self._health_status = 'error'
+                        break
 
-                # Implement exponential backoff on errors
-                if consecutive_errors >= max_consecutive_errors:
-                    logger.error(f"Too many consecutive errors ({consecutive_errors}), stopping deadlock detection")
-                    break
+                    # Exponential backoff with jitter
+                    error_delay = min(
+                        self.detection_interval * (2 ** consecutive_errors) * (0.5 + 0.5 * time.time() % 1),
+                        60.0
+                    )
+                    await asyncio.sleep(error_delay)
 
-                # Exponential backoff
-                error_delay = min(self.detection_interval * (2 ** consecutive_errors), 60.0)
-                await asyncio.sleep(error_delay)
+        except asyncio.CancelledError:
+            logger.info("Detection loop cancelled")
+        except Exception as e:
+            logger.critical(f"Unexpected error in detection loop: {e}")
+            self._health_status = 'error'
+            self._metrics['last_error'] = str(e)
 
-    def _update_detection_metrics(self, duration_ms: float):
-        """Update detection performance metrics"""
-        if self.enable_metrics:
-            # Update average detection time with exponential moving average
-            alpha = 0.1
-            self._metrics['avg_detection_time_ms'] = (
-                alpha * duration_ms +
-                (1 - alpha) * self._metrics['avg_detection_time_ms']
-            )
+    async def _perform_detection_cycle(self):
+        """Perform a single detection cycle"""
+        self._metrics['total_detections'] += 1
 
-    async def _handle_deadlock(self, result: CycleDetectionResult):
-        """Handle detected deadlock with configurable resolution strategies"""
+        # Check state dependencies
+        state_result = self._dependency_graph.find_cycles()
+        if state_result.has_cycle:
+            await self._handle_deadlock_detection(state_result, 'dependency_graph')
+
+        # Check resource wait graph
+        resource_result = await self._resource_graph.detect_deadlock()
+        if resource_result.has_cycle:
+            await self._handle_deadlock_detection(resource_result, 'resource_graph')
+
+        # Keep detection history
+        self._detection_history.append({
+            'timestamp': datetime.now(timezone.utc),
+            'state_cycles': len(state_result.cycles),
+            'resource_cycles': len(resource_result.cycles),
+            'total_cycles': len(state_result.cycles) + len(resource_result.cycles)
+        })
+
+    async def _handle_deadlock_detection(self, result: CycleDetectionResult, source: str):
+        """Handle detected deadlock with enhanced resolution logic"""
         self._cycle_count += 1
-        self._last_cycle = result.get_shortest_cycle()
+        self._last_cycle = result.get_critical_cycle()
         self._metrics['deadlocks_found'] += 1
 
         detection_id = str(uuid.uuid4())
 
         logger.error(
-            f"Deadlock detected (ID: {detection_id}): "
+            f"Deadlock detected from {source} (ID: {detection_id}): "
             f"cycle_count={self._cycle_count}, "
             f"cycle={self._last_cycle}, "
             f"total_cycles={len(result.cycles)}"
         )
 
-        # Notify agent monitor if available
-        if hasattr(self.agent, '_monitor'):
-            self.agent._monitor.logger.error(
-                f"deadlock_detected: cycle={self._last_cycle}, id={detection_id}"
-            )
+        # Notify callbacks
+        await self._notify("deadlock_detected", {
+            'detection_id': detection_id,
+            'source': source,
+            'cycle': self._last_cycle,
+            'total_cycles': len(result.cycles),
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
 
-        # Try custom resolution callbacks first
+        # Attempt resolution
+        resolution_attempts = 0
         resolved = False
-        for callback in self._resolution_callbacks:
+
+        while resolution_attempts < self.max_resolution_attempts and not resolved:
+            resolution_attempts += 1
+
             try:
-                if callback(self._last_cycle):
-                    resolved = True
-                    self._metrics['deadlocks_resolved'] += 1
-                    logger.info(f"Deadlock {detection_id} resolved by custom callback")
+                # Try custom callbacks first
+                for callback in self._resolution_callbacks:
+                    try:
+                        if await self._run_callback_safely(callback, self._last_cycle):
+                            resolved = True
+                            self._metrics['deadlocks_resolved'] += 1
+                            logger.info(f"Deadlock {detection_id} resolved by custom callback (attempt {resolution_attempts})")
+                            break
+                    except Exception as e:
+                        logger.error(f"Resolution callback failed: {e}")
+
+                # Apply configured strategy if not resolved
+                if not resolved:
+                    resolved = await self._apply_resolution_strategy(self._last_cycle, detection_id)
+
+                if resolved:
                     break
+
             except Exception as e:
-                logger.error(f"Resolution callback failed: {e}")
+                logger.error(f"Resolution attempt {resolution_attempts} failed: {e}")
 
-        # Apply configured resolution strategy if not resolved
+            # Wait before retry
+            if resolution_attempts < self.max_resolution_attempts:
+                await asyncio.sleep(0.1 * resolution_attempts)  # Progressive delay
+
+        # Record resolution outcome
+        self._resolution_history.append({
+            'detection_id': detection_id,
+            'cycle': self._last_cycle,
+            'resolved': resolved,
+            'attempts': resolution_attempts,
+            'strategy': self.resolution_strategy.name,
+            'timestamp': datetime.now(timezone.utc)
+        })
+
         if not resolved:
-            resolved = await self._apply_resolution_strategy(self._last_cycle, detection_id)
+            self._metrics['resolution_failures'] += 1
 
-        # If still not resolved and strategy is to raise exception
-        if not resolved and self.resolution_strategy == DeadlockResolutionStrategy.RAISE_EXCEPTION:
-            raise DeadlockError(self._last_cycle, detection_id)
+            # Raise exception if strategy requires it
+            if self.resolution_strategy == DeadlockResolutionStrategy.RAISE_EXCEPTION:
+                raise DeadlockError(self._last_cycle, detection_id)
+
+    # Add the missing method alias for backward compatibility
+    async def _handle_deadlock(self, result: CycleDetectionResult, source: str = "test"):
+        """Handle detected deadlock (alias for backward compatibility)"""
+        return await self._handle_deadlock_detection(result, source)
+
+    async def _run_callback_safely(self, callback: Callable, cycle: List[str]) -> bool:
+        """Run callback safely with timeout"""
+        try:
+            if asyncio.iscoroutinefunction(callback):
+                return await asyncio.wait_for(callback(cycle), timeout=5.0)
+            else:
+                # Run sync callback in thread pool
+                loop = asyncio.get_event_loop()
+                return await loop.run_in_executor(None, callback, cycle)
+        except asyncio.TimeoutError:
+            logger.warning("Resolution callback timed out")
+            return False
 
     async def _apply_resolution_strategy(self, cycle: List[str], detection_id: str) -> bool:
         """Apply the configured resolution strategy"""
-        if self.resolution_strategy == DeadlockResolutionStrategy.LOG_ONLY:
-            return True  # Just log, don't actually resolve
+        try:
+            if self.resolution_strategy == DeadlockResolutionStrategy.LOG_ONLY:
+                return True  # Just log, consider resolved
 
-        elif self.resolution_strategy == DeadlockResolutionStrategy.KILL_YOUNGEST:
-            return await self._kill_youngest_process(cycle, detection_id)
+            elif self.resolution_strategy == DeadlockResolutionStrategy.KILL_YOUNGEST:
+                return await self._kill_youngest_process(cycle, detection_id)
 
-        elif self.resolution_strategy == DeadlockResolutionStrategy.KILL_OLDEST:
-            return await self._kill_oldest_process(cycle, detection_id)
+            elif self.resolution_strategy == DeadlockResolutionStrategy.KILL_OLDEST:
+                return await self._kill_oldest_process(cycle, detection_id)
 
-        elif self.resolution_strategy == DeadlockResolutionStrategy.PREEMPT_RESOURCES:
-            return await self._preempt_resources(cycle, detection_id)
+            elif self.resolution_strategy == DeadlockResolutionStrategy.KILL_LOWEST_PRIORITY:
+                return await self._kill_lowest_priority_process(cycle, detection_id)
 
-        return False
+            elif self.resolution_strategy == DeadlockResolutionStrategy.PREEMPT_RESOURCES:
+                return await self._preempt_resources(cycle, detection_id)
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Resolution strategy {self.resolution_strategy.name} failed: {e}")
+            return False
 
     async def _kill_youngest_process(self, cycle: List[str], detection_id: str) -> bool:
         """Kill the youngest process in the cycle"""
         try:
+            valid_processes = [pid for pid in cycle if pid in self._resource_graph.processes]
+            if not valid_processes:
+                return False
+
             youngest_process = min(
-                (pid for pid in cycle if pid in self._resource_graph.processes),
+                valid_processes,
                 key=lambda pid: self._resource_graph.processes[pid].age_seconds()
             )
 
             await self._terminate_process(youngest_process, f"deadlock_resolution_{detection_id}")
-            self._metrics['deadlocks_resolved'] += 1
             logger.info(f"Killed youngest process {youngest_process} to resolve deadlock {detection_id}")
             return True
 
@@ -710,13 +1225,16 @@ class DeadlockDetector:
     async def _kill_oldest_process(self, cycle: List[str], detection_id: str) -> bool:
         """Kill the oldest process in the cycle"""
         try:
+            valid_processes = [pid for pid in cycle if pid in self._resource_graph.processes]
+            if not valid_processes:
+                return False
+
             oldest_process = max(
-                (pid for pid in cycle if pid in self._resource_graph.processes),
+                valid_processes,
                 key=lambda pid: self._resource_graph.processes[pid].age_seconds()
             )
 
             await self._terminate_process(oldest_process, f"deadlock_resolution_{detection_id}")
-            self._metrics['deadlocks_resolved'] += 1
             logger.info(f"Killed oldest process {oldest_process} to resolve deadlock {detection_id}")
             return True
 
@@ -724,20 +1242,36 @@ class DeadlockDetector:
             logger.error(f"Failed to kill oldest process: {e}")
             return False
 
+    async def _kill_lowest_priority_process(self, cycle: List[str], detection_id: str) -> bool:
+        """Kill the lowest priority process in the cycle"""
+        try:
+            valid_processes = [pid for pid in cycle if pid in self._resource_graph.processes]
+            if not valid_processes:
+                return False
+
+            lowest_priority_process = min(
+                valid_processes,
+                key=lambda pid: self._resource_graph.processes[pid].priority
+            )
+
+            await self._terminate_process(lowest_priority_process, f"deadlock_resolution_{detection_id}")
+            logger.info(f"Killed lowest priority process {lowest_priority_process} to resolve deadlock {detection_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to kill lowest priority process: {e}")
+            return False
+
     async def _preempt_resources(self, cycle: List[str], detection_id: str) -> bool:
         """Preempt resources from processes in the cycle"""
         try:
-            # Find process with most resources to preempt from
-            processes_in_cycle = [
-                pid for pid in cycle
-                if pid in self._resource_graph.processes
-            ]
-
-            if not processes_in_cycle:
+            valid_processes = [pid for pid in cycle if pid in self._resource_graph.processes]
+            if not valid_processes:
                 return False
 
+            # Find process with most resources to preempt from
             victim_process = max(
-                processes_in_cycle,
+                valid_processes,
                 key=lambda pid: len(self._resource_graph.processes[pid].holding)
             )
 
@@ -748,11 +1282,11 @@ class DeadlockDetector:
             for resource_id in resources_to_preempt:
                 await self._resource_graph.release_resource(victim_process, resource_id)
 
-            self._metrics['deadlocks_resolved'] += 1
             logger.info(
                 f"Preempted {len(resources_to_preempt)} resources from process "
                 f"{victim_process} to resolve deadlock {detection_id}"
             )
+            self._resource_graph._metrics['preemptions'] += 1
             return True
 
         except Exception as e:
@@ -761,23 +1295,229 @@ class DeadlockDetector:
 
     async def _terminate_process(self, process_id: str, reason: str):
         """Terminate a process and clean up its resources"""
-        if process_id in self._resource_graph.processes:
-            process = self._resource_graph.processes[process_id]
+        try:
+            if process_id in self._resource_graph.processes:
+                process = self._resource_graph.processes[process_id]
 
-            # Release all held resources
-            for resource_id in list(process.holding):
-                await self._resource_graph.release_resource(process_id, resource_id)
+                # Release all held resources
+                for resource_id in list(process.holding):
+                    await self._resource_graph.release_resource(process_id, resource_id)
 
-            # Remove from waiting lists
-            for resource_id in list(process.waiting_for):
-                if resource_id in self._resource_graph.resources:
-                    self._resource_graph.resources[resource_id].waiters.discard(process_id)
+                # Remove from waiting lists
+                for resource_id in list(process.waiting_for):
+                    if resource_id in self._resource_graph.resources:
+                        self._resource_graph.resources[resource_id].waiters.discard(process_id)
 
-            # Remove process
-            del self._resource_graph.processes[process_id]
+                # Remove process
+                del self._resource_graph.processes[process_id]
 
-            # Remove from dependency graph
-            await self._dependency_graph.remove_node(process_id)
+                # Remove from dependency graph
+                await self._dependency_graph.remove_node(process_id)
+
+                logger.info(f"Terminated process {process_id}, reason: {reason}")
+
+        except Exception as e:
+            logger.error(f"Failed to terminate process {process_id}: {e}")
+
+    async def _health_monitoring_loop(self):
+        """Health monitoring loop"""
+        try:
+            while not self._shutdown_event.is_set():
+                try:
+                    await asyncio.wait_for(self._shutdown_event.wait(), timeout=30.0)
+                    if self._shutdown_event.is_set():
+                        break
+                except asyncio.TimeoutError:
+                    pass
+
+                # Perform health checks
+                await self._perform_health_checks()
+
+        except asyncio.CancelledError:
+            logger.info("Health monitoring loop cancelled")
+        except Exception as e:
+            logger.error(f"Health monitoring error: {e}")
+
+    async def _perform_health_checks(self):
+        """Perform comprehensive health checks"""
+        try:
+            now = datetime.now(timezone.utc)
+
+            # Check if detection is stuck
+            time_since_last_detection = (now - self._last_successful_detection).total_seconds()
+            if time_since_last_detection > self.detection_interval * 10:  # 10x normal interval
+                self._health_status = 'degraded'
+                logger.warning(f"No successful detection in {time_since_last_detection:.1f} seconds")
+
+            # Check graph health
+            dep_health = await self._dependency_graph.health_check()
+            resource_health = self._resource_graph.get_metrics()
+
+            # Update uptime
+            self._metrics['uptime_seconds'] = (now - self._start_time).total_seconds()
+
+            # Log health status periodically
+            if int(time.time()) % 300 == 0:  # Every 5 minutes
+                logger.info(f"Health check: status={self._health_status}, "
+                          f"dep_nodes={dep_health['node_count']}, "
+                          f"resources={resource_health['total_resources']}, "
+                          f"blocked_processes={resource_health['blocked_processes']}")
+
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+
+    async def _notify(self, event: str, data: Dict[str, Any]):
+        """Send notifications to registered callbacks"""
+        for callback in self._notification_callbacks:
+            try:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(event, data)
+                else:
+                    callback(event, data)
+            except Exception as e:
+                logger.error(f"Notification callback failed for event {event}: {e}")
+
+    def _update_detection_metrics(self, duration_ms: float):
+        """Update detection performance metrics"""
+        if self.enable_metrics:
+            # Exponential moving average
+            alpha = 0.1
+            self._metrics['avg_detection_time_ms'] = (
+                alpha * duration_ms +
+                (1 - alpha) * self._metrics['avg_detection_time_ms']
+            )
+
+    # Public API methods
+
+    def add_resolution_callback(self, callback: Callable[[List[str]], bool]):
+        """Add a callback for custom deadlock resolution"""
+        self._resolution_callbacks.append(callback)
+
+    def add_notification_callback(self, callback: Callable[[str, Dict[str, Any]], None]):
+        """Add a callback for event notifications"""
+        self._notification_callbacks.append(callback)
+
+    async def add_dependency(self, from_state: str, to_state: str,
+                           metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Add a dependency between states"""
+        return await self._dependency_graph.add_dependency(from_state, to_state, metadata)
+
+    async def remove_dependency(self, from_state: str, to_state: str) -> bool:
+        """Remove a dependency between states"""
+        return await self._dependency_graph.remove_dependency(from_state, to_state)
+
+    async def acquire_resource(self, process_id: str, resource_id: str,
+                             process_name: Optional[str] = None, priority: int = 0,
+                             timeout: Optional[float] = None) -> bool:
+        """Process attempts to acquire a resource"""
+        if process_name:
+            await self._resource_graph.add_process(process_id, process_name, priority, timeout)
+
+        success = await self._resource_graph.acquire_resource(process_id, resource_id, timeout=timeout)
+
+        # Immediate deadlock check after failed acquisition
+        if not success:
+            try:
+                result = await self._resource_graph.detect_deadlock()
+                if result.has_cycle:
+                    await self._handle_deadlock_detection(result, 'immediate_check')
+            except Exception as e:
+                logger.error(f"Error during immediate deadlock check: {e}")
+
+        return success
+
+    async def release_resource(self, process_id: str, resource_id: str) -> bool:
+        """Process releases a resource"""
+        return await self._resource_graph.release_resource(process_id, resource_id)
+
+    def get_comprehensive_status(self) -> Dict[str, Any]:
+        """Get comprehensive detector status"""
+        return {
+            # Basic status
+            "active": bool(self._detection_task and not self._detection_task.done()),
+            "health_status": self._health_status,
+            "cycle_count": self._cycle_count,
+            "last_cycle": self._last_cycle,
+
+            # Missing fields that tests expect
+            "graph_size": len(self._dependency_graph.nodes),
+            "resource_count": len(self._resource_graph.resources),
+            "process_count": len(self._resource_graph.processes),
+            "blocked_processes": len(self._resource_graph.get_blocked_processes()),
+
+            # Configuration
+            "detection_interval": self.detection_interval,
+            "resolution_strategy": self.resolution_strategy.name,
+            "max_resolution_attempts": self.max_resolution_attempts,
+
+            # Graph statistics
+            "dependency_graph": self._dependency_graph.get_metrics(),
+            "resource_graph": self._resource_graph.get_metrics(),
+
+            # Performance metrics
+            "metrics": self._metrics.copy(),
+
+            # Recent activity
+            "recent_detections": len([h for h in self._detection_history
+                                    if (datetime.now(timezone.utc) - h['timestamp']).total_seconds() < 300]),
+            "recent_resolutions": len([r for r in self._resolution_history
+                                     if (datetime.now(timezone.utc) - r['timestamp']).total_seconds() < 300]),
+
+            # Health indicators
+            "last_successful_detection": self._last_successful_detection.isoformat(),
+            "time_since_last_detection": (datetime.now(timezone.utc) - self._last_successful_detection).total_seconds()
+        }
+
+    async def force_detection(self) -> CycleDetectionResult:
+        """Force an immediate deadlock detection"""
+        try:
+            # Check both graphs
+            state_result = self._dependency_graph.find_cycles()
+            resource_result = await self._resource_graph.detect_deadlock()
+
+            # Return combined result
+            all_cycles = state_result.cycles + resource_result.cycles
+
+            return CycleDetectionResult(
+                has_cycle=len(all_cycles) > 0,
+                cycles=all_cycles,
+                graph_size=state_result.graph_size + resource_result.graph_size,
+                detection_duration_ms=max(state_result.detection_duration_ms, resource_result.detection_duration_ms),
+                algorithm_used="combined"
+            )
+
+        except Exception as e:
+            logger.error(f"Force detection failed: {e}")
+            raise
+
+    async def export_state(self) -> Dict[str, Any]:
+        """Export current state for debugging/analysis"""
+        return {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'status': self.get_comprehensive_status(),
+            'dependency_graph': self._dependency_graph.get_metrics(),
+            'resource_graph': {
+                'processes': {pid: {
+                    'name': proc.process_name,
+                    'holding': list(proc.holding),
+                    'waiting_for': list(proc.waiting_for),
+                    'priority': proc.priority,
+                    'blocked_duration': proc.blocked_duration_seconds()
+                } for pid, proc in self._resource_graph.processes.items()},
+                'resources': {rid: {
+                    'type': res.resource_type,
+                    'holders': list(res.holders),
+                    'waiters': list(res.waiters),
+                    'access_count': res.access_count
+                } for rid, res in self._resource_graph.resources.items()}
+            },
+            'detection_history': list(self._detection_history)[-10:],  # Last 10 detections
+            'resolution_history': list(self._resolution_history)[-10:]  # Last 10 resolutions
+        }
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get comprehensive detector status (alias for backward compatibility)"""
+        return self.get_comprehensive_status()
 
     def get_dependency_graph(self) -> Dict[str, Set[str]]:
         """Get current dependency graph"""
@@ -829,3 +1569,13 @@ class DeadlockDetector:
             "active_resources": len(self._resource_graph.resources),
             "blocked_processes": len(self._resource_graph.get_blocked_processes())
         }
+
+    # Context manager support
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        await self.stop()
