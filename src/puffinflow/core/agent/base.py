@@ -24,7 +24,7 @@ class ResourceTimeoutError(Exception):
     pass
 
 class Agent:
-    """Enhanced Agent with circuit breaker, bulkhead, and dead letter handling."""
+    """Agent with circuit breaker, bulkhead, and dead letter handling."""
 
     def __init__(
         self,
