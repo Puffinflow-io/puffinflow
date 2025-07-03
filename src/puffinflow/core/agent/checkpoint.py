@@ -37,7 +37,7 @@ class AgentCheckpoint:
             agent_status=agent.status,
             priority_queue=deepcopy(agent.priority_queue),
             state_metadata=deepcopy(agent.state_metadata),
-            running_states=set(agent._running_states),
+            running_states=set(agent.running_states),
             completed_states=set(agent.completed_states),
             completed_once=set(agent.completed_once),
             shared_state=deepcopy(agent.shared_state),

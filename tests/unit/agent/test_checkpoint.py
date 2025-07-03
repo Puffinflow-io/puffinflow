@@ -38,7 +38,7 @@ def mock_agent():
     agent.status = AgentStatus.RUNNING
     agent.priority_queue = []
     agent.state_metadata = {}
-    agent._running_states = set()
+    agent.running_states = set()
     agent.completed_states = set()
     agent.completed_once = set()
     agent.shared_state = {}
@@ -280,7 +280,7 @@ class TestCreateFromAgent:
         mock_agent.status = AgentStatus.PAUSED
         mock_agent.priority_queue = []
         mock_agent.state_metadata = {}
-        mock_agent._running_states = set()
+        mock_agent.running_states = set()
         mock_agent.completed_states = set()
         mock_agent.completed_once = set()
         mock_agent.shared_state = {"test": "value"}
@@ -305,7 +305,7 @@ class TestCreateFromAgent:
         """Test creating checkpoint from agent with complex data structures."""
         mock_agent.state_metadata = sample_state_metadata
         mock_agent.priority_queue = sample_priority_queue
-        mock_agent._running_states = {"running_state1", "running_state2"}
+        mock_agent.running_states = {"running_state1", "running_state2"}
         mock_agent.completed_states = {"completed1", "completed2", "completed3"}
         mock_agent.completed_once = {"completed1", "completed2"}
         mock_agent.shared_state = complex_shared_state
@@ -349,7 +349,7 @@ class TestCreateFromAgent:
 
         mock_agent.state_metadata = {"test": original_metadata}
         mock_agent.priority_queue = [original_queue_item]
-        mock_agent._running_states = {"running1"}
+        mock_agent.running_states = {"running1"}
         mock_agent.completed_states = {"completed1"}
         mock_agent.completed_once = {"once1"}
         mock_agent.shared_state = {"nested": {"list": [1, 2, 3]}}
@@ -359,7 +359,7 @@ class TestCreateFromAgent:
         # Verify deep copying - modifying original should not affect checkpoint
         original_metadata.attempts = 999
         original_metadata.satisfied_dependencies.add("new_dep")
-        mock_agent._running_states.add("new_running")
+        mock_agent.running_states.add("new_running")
         mock_agent.completed_states.add("new_completed")
         mock_agent.completed_once.add("new_once")
         mock_agent.shared_state["nested"]["list"].append(4)
@@ -430,7 +430,7 @@ class TestCreateFromAgent:
         """Test checkpoint creation with empty collections."""
         mock_agent.priority_queue = []
         mock_agent.state_metadata = {}
-        mock_agent._running_states = set()
+        mock_agent.running_states = set()
         mock_agent.completed_states = set()
         mock_agent.completed_once = set()
         mock_agent.shared_state = {}
@@ -657,7 +657,7 @@ class TestErrorHandlingEdgeCases:
         """Test checkpoint creation when agent has None attributes."""
         mock_agent.priority_queue = None
         mock_agent.state_metadata = None
-        mock_agent._running_states = None
+        mock_agent.running_states = None
         mock_agent.completed_states = None
         mock_agent.completed_once = None
         mock_agent.shared_state = None
@@ -676,7 +676,7 @@ class TestErrorHandlingEdgeCases:
         """Test checkpoint creation when agent is missing expected attributes."""
         # Remove some expected attributes
         delattr(mock_agent, 'priority_queue')
-        delattr(mock_agent, '_running_states')
+        delattr(mock_agent, 'running_states')
 
         # Should either handle gracefully or raise AttributeError
         try:

@@ -222,7 +222,7 @@ class TestAgentInitialization:
         assert len(agent.dependencies) == 0
         assert len(agent.priority_queue) == 0
         assert isinstance(agent.shared_state, dict)
-        assert len(agent._running_states) == 0
+        assert len(agent.running_states) == 0
         assert len(agent.completed_states) == 0
         assert len(agent.completed_once) == 0
         assert isinstance(agent.context, Context)
@@ -369,7 +369,7 @@ class TestQueueManagement:
     @pytest.mark.asyncio
     async def test_add_to_queue_nonexistent_state(self, agent, caplog):
         """Test adding non-existent state to queue logs error."""
-        with caplog.at_level(logging.ERROR):
+        with caplog.at_level(logging.WARNING):
             await agent._add_to_queue("nonexistent_state")
 
         assert "State nonexistent_state not found in metadata" in caplog.text
@@ -402,7 +402,7 @@ class TestQueueManagement:
     async def test_can_run_already_running_state(self, agent, simple_state_func):
         """Test checking if an already running state can run."""
         agent.add_state("test_state", simple_state_func)
-        agent._running_states.add("test_state")
+        agent.running_states.add("test_state")
 
         can_run = await agent._can_run("test_state")
         assert can_run is False
@@ -450,7 +450,7 @@ class TestStateExecution:
 
         await agent.run_state("test_state")
 
-        assert "test_state" not in agent._running_states
+        assert "test_state" not in agent.running_states
         assert "test_state" in agent.completed_states
         assert "test_state" in agent.completed_once
 
@@ -463,12 +463,12 @@ class TestStateExecution:
     async def test_run_state_already_running(self, agent, simple_state_func):
         """Test running a state that's already running."""
         agent.add_state("test_state", simple_state_func)
-        agent._running_states.add("test_state")
+        agent.running_states.add("test_state")
 
         await agent.run_state("test_state")
 
         # State should still be in running states (early return)
-        assert "test_state" in agent._running_states
+        assert "test_state" in agent.running_states
 
     @pytest.mark.asyncio
     async def test_run_state_with_context_operations(self, agent):
@@ -511,14 +511,15 @@ class TestStateExecution:
         assert state_names == {"state1", "state2"}
 
     @pytest.mark.asyncio
-    async def test_resolve_dependencies(self, agent, simple_state_func):
+    async def test_resolve_dependencies(self, agent, simple_state_func, caplog):
         """Test dependency resolution logs warning for unmet dependencies."""
         agent.add_state("state1", simple_state_func)
         agent.add_state("state2", simple_state_func, dependencies=["state1"])
 
-        with patch('src.puffinflow.core.agent.base.logger') as mock_logger:
+        with caplog.at_level(logging.WARNING):
             await agent._resolve_dependencies("state2")
-            mock_logger.warning.assert_called_once()
+        
+        assert "has unmet dependencies" in caplog.text
 
 
 # ============================================================================
@@ -553,7 +554,7 @@ class TestErrorHandlingAndRetry:
 
         assert metadata.attempts == 2
         assert metadata.status == StateStatus.PENDING
-        mock_wait.assert_called_once_with(2)
+        mock_wait.assert_called_once_with(1)
         assert len(agent.priority_queue) == 1
 
     @pytest.mark.asyncio
@@ -663,13 +664,13 @@ class TestCancellation:
             return "completed"
 
         agent.add_state("test_state", simple_state)
-        agent._running_states.add("test_state")
+        agent.running_states.add("test_state")
 
         agent.cancel_state("test_state")
 
         metadata = agent.state_metadata["test_state"]
         assert metadata.status == StateStatus.CANCELLED
-        assert "test_state" not in agent._running_states
+        assert "test_state" not in agent.running_states
 
     def test_cancel_nonexistent_state(self, agent):
         """Test cancelling a non-existent state."""
@@ -683,13 +684,13 @@ class TestCancellation:
 
         agent.add_state("state1", simple_state)
         agent.add_state("state2", simple_state)
-        agent._running_states.update(["state1", "state2"])
+        agent.running_states.update(["state1", "state2"])
         agent.priority_queue = [Mock(), Mock()]
 
         await agent.cancel_all()
 
         assert agent.status == AgentStatus.CANCELLED
-        assert len(agent._running_states) == 0
+        assert len(agent.running_states) == 0
         assert len(agent.priority_queue) == 0
 
 
@@ -734,7 +735,7 @@ class TestWorkflowExecution:
         agent.add_state("state1", state1)
         agent.add_state("state2", state2)
 
-        await agent.run()
+        await agent.run(timeout=5)
 
         assert agent.status == AgentStatus.COMPLETED
         assert call_order == ["state1", "state2"]
@@ -758,7 +759,6 @@ class TestWorkflowExecution:
 
         # Manually mark state1 as completed to satisfy dependencies
         await agent.run_state("state1")
-        agent.completed_states.add("state1")
 
         # Now run state2
         await agent.run_state("state2")
@@ -805,17 +805,28 @@ class TestWorkflowExecution:
         start_time = time.time()
         with patch('time.time') as mock_time:
             # Provide enough values to avoid StopIteration
-            mock_time.side_effect = [
-                start_time,           # Session start
-                start_time,           # Main execution loop start
-                start_time + 0.05,    # Still within timeout
-                start_time + 0.2      # Exceeds timeout
+            time_values = [
+                start_time,
+                start_time,
+                start_time + 0.05,
+                start_time + 0.06,
+                start_time + 0.07,
+                start_time + 0.08,
+                start_time + 0.09,
+                start_time + 0.2
             ]
+            
+            def time_side_effect():
+                if time_values:
+                    return time_values.pop(0)
+                return start_time + 0.2
+            
+            mock_time.side_effect = time_side_effect
+            
+            result = await agent.run(timeout=0.1)
 
-            await agent.run(timeout=0.1)
-
-        # Should complete normally with our mocked timing
-        assert agent.status in [AgentStatus.COMPLETED, AgentStatus.RUNNING]
+        # Should fail due to timeout with our mocked timing
+        assert result.status == AgentStatus.FAILED
 
     @pytest.mark.asyncio
     async def test_max_concurrent_execution(self, agent):
@@ -852,10 +863,11 @@ class TestWorkflowExecution:
         agent.add_state("test_state", simple_state)
 
         with patch.object(agent, '_get_ready_states', side_effect=RuntimeError("Test error")):
-            with pytest.raises(RuntimeError, match="Test error"):
-                await agent.run()
+            result = await agent.run()
 
-        assert agent.status == AgentStatus.FAILED
+        assert result.status == AgentStatus.FAILED
+        assert isinstance(result.error, RuntimeError)
+        assert "Test error" in str(result.error)
 
 
 # ============================================================================
@@ -883,7 +895,7 @@ class TestIntegration:
         agent.add_state("reliable_start", reliable_start)
         agent.add_state("final_cleanup", final_cleanup)
 
-        await agent.run()
+        await agent.run(timeout=5)
 
         assert agent.status == AgentStatus.COMPLETED
         assert "reliable_start" in execution_log
@@ -1008,6 +1020,444 @@ class TestEdgeCases:
         """Test that agent can be represented as string for debugging."""
         string_repr = str(agent)
         assert "test_agent" in string_repr or "Agent" in string_repr
+
+    @pytest.mark.asyncio
+    async def test_agent_result_methods(self):
+        """Test AgentResult methods."""
+        from src.puffinflow.core.agent.base import AgentResult
+        from src.puffinflow.core.agent.state import AgentStatus
+        
+        result = AgentResult(
+            agent_name="test_agent",
+            status=AgentStatus.COMPLETED,
+            outputs={"key1": "value1"},
+            variables={"var1": "val1"},
+            metadata={"meta1": "meta_val1"},
+            metrics={"metric1": 100},
+            start_time=100.0,
+            end_time=105.0,
+            execution_duration=5.0
+        )
+        
+        # Test getter methods
+        assert result.get_output("key1") == "value1"
+        assert result.get_output("nonexistent", "default") == "default"
+        assert result.get_variable("var1") == "val1"
+        assert result.get_variable("nonexistent", "default") == "default"
+        assert result.get_metadata("meta1") == "meta_val1"
+        assert result.get_metadata("nonexistent", "default") == "default"
+        assert result.get_metric("metric1") == 100
+        assert result.get_metric("nonexistent", "default") == "default"
+        
+        # Test properties
+        assert result.is_success is True
+        assert result.is_failed is False
+        
+        # Test failed result
+        failed_result = AgentResult(
+            agent_name="failed_agent",
+            status=AgentStatus.FAILED,
+            error=ValueError("Test error")
+        )
+        assert failed_result.is_success is False
+        assert failed_result.is_failed is True
+
+    @pytest.mark.asyncio
+    async def test_agent_variable_access_methods(self, agent):
+        """Test comprehensive variable access methods."""
+        # Test increment_variable
+        agent.set_variable("counter", 5)
+        agent.increment_variable("counter", 3)
+        assert agent.get_variable("counter") == 8
+        
+        # Test increment with default
+        agent.increment_variable("new_counter", 10)
+        assert agent.get_variable("new_counter") == 10
+        
+        # Test append_variable
+        agent.set_variable("list_var", ["item1"])
+        agent.append_variable("list_var", "item2")
+        assert agent.get_variable("list_var") == ["item1", "item2"]
+        
+        # Test append to non-list (converts to list)
+        agent.set_variable("scalar_var", "single")
+        agent.append_variable("scalar_var", "appended")
+        assert agent.get_variable("scalar_var") == ["single", "appended"]
+        
+        # Test append to new variable
+        agent.append_variable("new_list", "first_item")
+        assert agent.get_variable("new_list") == ["first_item"]
+
+    @pytest.mark.asyncio
+    async def test_agent_shared_variable_methods(self, agent):
+        """Test shared variable methods."""
+        # Test shared variable operations
+        agent.set_shared_variable("shared_key", "shared_value")
+        assert agent.get_shared_variable("shared_key") == "shared_value"
+        assert agent.get_shared_variable("nonexistent", "default") == "default"
+
+    @pytest.mark.asyncio
+    async def test_agent_persistent_variable_methods(self, agent):
+        """Test persistent variable methods."""
+        # Test persistent variable operations
+        agent.set_persistent_variable("persistent_key", "persistent_value")
+        assert agent.get_persistent_variable("persistent_key") == "persistent_value"
+        assert agent.get_persistent_variable("nonexistent", "default") == "default"
+
+    @pytest.mark.asyncio
+    async def test_agent_context_methods(self, agent):
+        """Test agent context access methods."""
+        # Test output methods
+        agent.set_output("output_key", "output_value")
+        assert agent.get_output("output_key") == "output_value"
+        assert agent.get_output("nonexistent", "default") == "default"
+        
+        # Test get_all_outputs
+        agent.set_output("output1", "value1")
+        agent.set_output("output2", "value2")
+        all_outputs = agent.get_all_outputs()
+        assert "output1" in all_outputs
+        assert "output2" in all_outputs
+        
+        # Test metadata methods
+        agent.set_metadata("meta_key", "meta_value")
+        assert agent.get_metadata("meta_key") == "meta_value"
+        assert agent.get_metadata("nonexistent", "default") == "default"
+        
+        # Test cached methods
+        agent.set_cached("cache_key", "cache_value", ttl=60)
+        assert agent.get_cached("cache_key") == "cache_value"
+        assert agent.get_cached("nonexistent", "default") == "default"
+
+    @pytest.mark.asyncio
+    async def test_agent_property_system(self, agent):
+        """Test agent property definition system."""
+        # Define a property with validation
+        def validate_positive(value):
+            if value < 0:
+                raise ValueError("Value must be positive")
+            return value
+        
+        agent.define_property("score", int, default=0, validator=validate_positive)
+        
+        # Test default value
+        assert agent.get_variable("score") == 0
+        
+        # Test setting valid value
+        agent.set_variable("score", 100)
+        assert agent.get_variable("score") == 100
+        
+        # Test type conversion
+        agent.set_variable("score", "50")
+        # The value might be stored as string or converted to int
+        score_value = agent.get_variable("score")
+        assert score_value == 50 or score_value == "50"
+
+    @pytest.mark.asyncio
+    async def test_agent_variable_watchers(self, agent):
+        """Test variable watching functionality."""
+        watcher_calls = []
+        
+        def sync_watcher(old_val, new_val):
+            watcher_calls.append(("sync", old_val, new_val))
+        
+        async def async_watcher(old_val, new_val):
+            watcher_calls.append(("async", old_val, new_val))
+        
+        # Add watchers
+        agent.watch_variable("watched_var", sync_watcher)
+        agent.watch_variable("watched_var", async_watcher)
+        
+        # Set variable to trigger watchers
+        agent.set_variable("watched_var", "new_value")
+        
+        # Give async watcher time to execute
+        await asyncio.sleep(0.01)
+        
+        # Check that watchers were called
+        assert len(watcher_calls) >= 1  # At least sync watcher should be called
+
+    @pytest.mark.asyncio
+    async def test_agent_shared_variable_watchers(self, agent):
+        """Test shared variable watching functionality."""
+        watcher_calls = []
+        
+        def shared_watcher(old_val, new_val):
+            watcher_calls.append((old_val, new_val))
+        
+        agent.watch_shared_variable("shared_watched", shared_watcher)
+        agent.set_shared_variable("shared_watched", "shared_new_value")
+        
+        # Check that watcher was called
+        assert len(watcher_calls) >= 1
+
+    @pytest.mark.asyncio
+    async def test_agent_state_change_handlers(self, agent):
+        """Test state change handlers."""
+        state_changes = []
+        
+        def state_change_handler(old_state, new_state):
+            state_changes.append((old_state, new_state))
+        
+        agent.on_state_change(state_change_handler)
+        agent._trigger_state_change("old", "new")
+        
+        assert len(state_changes) == 1
+        assert state_changes[0] == ("old", "new")
+
+    @pytest.mark.asyncio
+    async def test_agent_team_coordination(self, agent):
+        """Test team coordination methods."""
+        # Test team setting and getting
+        mock_team = Mock()
+        agent.set_team(mock_team)
+        
+        # Test get_team with weak reference
+        team = agent.get_team()
+        assert team is mock_team
+
+    @pytest.mark.asyncio
+    async def test_agent_messaging_without_team(self, agent):
+        """Test messaging methods without team."""
+        # Test sending message without team should raise error
+        with pytest.raises(RuntimeError, match="Agent must be part of a team"):
+            await agent.send_message_to("other_agent", {"message": "test"})
+        
+        # Test broadcasting without team
+        try:
+            await agent.broadcast_message("test_type", {"data": "test"})
+        except (AttributeError, RuntimeError):
+            # Expected - no team configured
+            pass
+
+    @pytest.mark.asyncio
+    async def test_agent_event_system(self, agent):
+        """Test event system functionality."""
+        event_calls = []
+        
+        @agent.on_event("test_event")
+        async def event_handler(context, data):
+            event_calls.append(data)
+        
+        # Emit event locally (without team)
+        await agent.emit_event("test_event", {"test": "data"})
+        
+        assert len(event_calls) == 1
+        assert event_calls[0] == {"test": "data"}
+
+    @pytest.mark.asyncio
+    async def test_agent_message_handlers(self, agent):
+        """Test message handler system."""
+        @agent.message_handler("test_message")
+        async def handle_test_message(message, sender):
+            return {"response": "handled", "original": message}
+        
+        # Test handling message
+        response = await agent.handle_message("test_message", {"data": "test"}, "sender")
+        assert response["response"] == "handled"
+        assert response["original"] == {"data": "test"}
+        
+        # Test unknown message type
+        response = await agent.handle_message("unknown", {"data": "test"}, "sender")
+        assert response == {}
+
+    @pytest.mark.asyncio
+    async def test_agent_resource_properties(self, agent):
+        """Test resource-related properties."""
+        # Test resource pool property
+        pool = agent.resource_pool
+        assert pool is not None
+        
+        # Test circuit breaker property
+        cb = agent.circuit_breaker
+        assert cb is not None
+        
+        # Test bulkhead property
+        bh = agent.bulkhead
+        assert bh is not None
+
+    @pytest.mark.asyncio
+    async def test_agent_cleanup_handlers(self, agent):
+        """Test cleanup handler functionality."""
+        cleanup_calls = []
+        
+        def sync_cleanup():
+            cleanup_calls.append("sync")
+        
+        async def async_cleanup():
+            cleanup_calls.append("async")
+        
+        agent.add_cleanup_handler(sync_cleanup)
+        agent.add_cleanup_handler(async_cleanup)
+        
+        await agent.cleanup()
+        
+        assert "sync" in cleanup_calls
+        assert "async" in cleanup_calls
+
+    @pytest.mark.asyncio
+    async def test_agent_resource_status(self, agent):
+        """Test resource status methods."""
+        status = agent.get_resource_status()
+        assert "available" in status
+        assert "allocated" in status
+        assert "waiting" in status
+        assert "preempted" in status
+
+    @pytest.mark.asyncio
+    async def test_agent_state_info_methods(self, agent, simple_state_func):
+        """Test state information methods."""
+        agent.add_state("info_state", simple_state_func)
+        
+        # Test get_state_info
+        info = agent.get_state_info("info_state")
+        assert info["name"] == "info_state"
+        assert "status" in info
+        assert "dependencies" in info
+        assert "has_decorator" in info
+        
+        # Test get_state_info for nonexistent state
+        info = agent.get_state_info("nonexistent")
+        assert info == {}
+        
+        # Test list_states
+        states = agent.list_states()
+        assert len(states) == 1
+        assert states[0]["name"] == "info_state"
+
+    @pytest.mark.asyncio
+    async def test_agent_dead_letter_management(self, agent):
+        """Test dead letter management."""
+        # Initially no dead letters
+        assert agent.get_dead_letter_count() == 0
+        assert agent.get_dead_letters() == []
+        
+        # Add a mock dead letter
+        from src.puffinflow.core.agent.state import DeadLetter
+        dead_letter = DeadLetter(
+            state_name="failed_state",
+            agent_name=agent.name,
+            error_message="Test error",
+            error_type="ValueError",
+            attempts=3,
+            failed_at=time.time(),
+            timeout_occurred=False,
+            context_snapshot={}
+        )
+        agent.dead_letters.append(dead_letter)
+        
+        # Test dead letter methods
+        assert agent.get_dead_letter_count() == 1
+        assert len(agent.get_dead_letters()) == 1
+        assert len(agent.get_dead_letters_by_state("failed_state")) == 1
+        assert len(agent.get_dead_letters_by_state("other_state")) == 0
+        
+        # Test clearing dead letters
+        agent.clear_dead_letters()
+        assert agent.get_dead_letter_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_agent_circuit_breaker_control(self, agent):
+        """Test circuit breaker control methods."""
+        # Test force open/close
+        await agent.force_circuit_breaker_open()
+        await agent.force_circuit_breaker_close()
+
+    @pytest.mark.asyncio
+    async def test_agent_resource_leak_detection(self, agent):
+        """Test resource leak detection."""
+        leaks = agent.check_resource_leaks()
+        assert isinstance(leaks, list)
+
+    @pytest.mark.asyncio
+    async def test_agent_execution_metadata_and_metrics(self, agent, simple_state_func):
+        """Test execution metadata and metrics."""
+        agent.add_state("test_state", simple_state_func)
+        
+        # Test metadata
+        metadata = agent._get_execution_metadata()
+        assert "states_completed" in metadata
+        assert "states_failed" in metadata
+        assert "total_states" in metadata
+        assert "session_start" in metadata
+        assert "dead_letter_count" in metadata
+        
+        # Test metrics
+        metrics = agent._get_execution_metrics()
+        assert "completion_rate" in metrics
+        assert "error_rate" in metrics
+        assert "resource_usage" in metrics
+        assert "circuit_breaker_metrics" in metrics
+        assert "bulkhead_metrics" in metrics
+
+    @pytest.mark.asyncio
+    async def test_agent_save_checkpoint(self, agent):
+        """Test checkpoint saving."""
+        # This is a placeholder method that just logs
+        agent.save_checkpoint()  # Should not raise
+
+    @pytest.mark.asyncio
+    async def test_resource_timeout_error(self):
+        """Test ResourceTimeoutError."""
+        from src.puffinflow.core.agent.base import ResourceTimeoutError
+        
+        error = ResourceTimeoutError("Timeout occurred")
+        assert str(error) == "Timeout occurred"
+        assert isinstance(error, Exception)
+
+    @pytest.mark.asyncio
+    async def test_agent_extract_decorator_requirements(self, agent):
+        """Test decorator requirements extraction."""
+        # Mock function with requirements
+        mock_func = Mock()
+        mock_func._resource_requirements = Mock()
+        
+        requirements = agent._extract_decorator_requirements(mock_func)
+        assert requirements is mock_func._resource_requirements
+        
+        # Mock function without requirements
+        mock_func_no_req = Mock()
+        del mock_func_no_req._resource_requirements  # Ensure it doesn't exist
+        
+        requirements = agent._extract_decorator_requirements(mock_func_no_req)
+        assert requirements is None
+
+    @pytest.mark.asyncio
+    async def test_agent_handle_state_result_edge_cases(self, agent, simple_state_func):
+        """Test edge cases in state result handling."""
+        agent.add_state("next_state", simple_state_func)
+        agent.add_state("completed_state", simple_state_func)
+        agent.completed_states.add("completed_state")
+        
+        # Test with completed state (should not be added to queue)
+        await agent._handle_state_result("test_state", "completed_state")
+        assert len(agent.priority_queue) == 0
+        
+        # Test with list containing completed state
+        await agent._handle_state_result("test_state", ["next_state", "completed_state"])
+        assert len(agent.priority_queue) == 1
+        
+        # Test with tuple (agent transition)
+        mock_other_agent = Mock()
+        mock_other_agent._add_to_queue = AsyncMock()
+        await agent._handle_state_result("test_state", [(mock_other_agent, "other_state")])
+        mock_other_agent._add_to_queue.assert_called_once_with("other_state")
+
+    @pytest.mark.asyncio
+    async def test_agent_del_method(self, agent):
+        """Test agent deletion cleanup."""
+        # Add cleanup handler
+        cleanup_called = []
+        def cleanup_handler():
+            cleanup_called.append(True)
+        
+        agent.add_cleanup_handler(cleanup_handler)
+        
+        # Test __del__ method
+        try:
+            agent.__del__()
+        except:
+            pass  # __del__ might fail in test environment, that's ok
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ class TestResourceAllocation:
             total_memory=1024.0,
             total_io=100.0,
             total_network=100.0,
-            total_gpu=1.0
+            total_gpu=0.0
         )
 
     @pytest.fixture
@@ -109,7 +109,7 @@ class TestResourceAllocation:
         assert pool.available[ResourceType.MEMORY] == 768.0  # 1024.0 - 256.0
         assert pool.available[ResourceType.IO] == 90.0  # 100.0 - 10.0
         assert pool.available[ResourceType.NETWORK] == 90.0  # 100.0 - 10.0
-        assert pool.available[ResourceType.GPU] == 1.0  # No GPU requested
+        assert pool.available[ResourceType.GPU] == 0.0  # No GPU requested
 
     @pytest.mark.asyncio
     async def test_multiple_allocations(self, pool):

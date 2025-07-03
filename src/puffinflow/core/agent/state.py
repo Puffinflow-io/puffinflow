@@ -98,6 +98,7 @@ class StateMetadata:
     state_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     retry_policy: Optional[RetryPolicy] = None
     priority: Priority = Priority.NORMAL
+    coordination_primitives: List[Any] = field(default_factory=list)
 
     def __post_init__(self):
         """Initialize resources if not provided."""

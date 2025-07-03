@@ -274,8 +274,10 @@ class FlexibleStateDecorator:
             if isinstance(arg, dict):
                 # Direct config dictionary
                 final_config.update(arg)
-            elif isinstance(arg, str) and arg in PROFILES:
-                # Profile name
+            elif isinstance(arg, str):
+                # Profile name - validate it exists
+                if arg not in PROFILES:
+                    raise ValueError(f"Unknown profile: {arg}")
                 profile_config = PROFILES[arg].to_dict()
                 final_config.update(profile_config)
             elif isinstance(arg, StateProfile):
@@ -289,7 +291,9 @@ class FlexibleStateDecorator:
         profile_name = kwargs.pop('profile', None)
 
         # Apply profile first
-        if profile_name and profile_name in PROFILES:
+        if profile_name:
+            if profile_name not in PROFILES:
+                raise ValueError(f"Unknown profile: {profile_name}")
             profile_config = PROFILES[profile_name].to_dict()
             final_config.update(profile_config)
 
@@ -344,7 +348,10 @@ class FlexibleStateDecorator:
         # Normalize priority
         priority = config['priority']
         if isinstance(priority, str):
-            priority = getattr(Priority, priority.upper(), Priority.NORMAL)
+            try:
+                priority = getattr(Priority, priority.upper())
+            except AttributeError:
+                raise KeyError(f"Invalid priority: {priority}")
         elif isinstance(priority, int):
             priority = Priority(priority)
         config['priority'] = priority
@@ -364,7 +371,11 @@ class FlexibleStateDecorator:
 
         # Auto-generate description if not provided
         if not config.get('description'):
-            config['description'] = f"State function {func.__name__}"
+            # Use function docstring if available, otherwise generate from name
+            if func.__doc__ and func.__doc__.strip():
+                config['description'] = func.__doc__.strip()
+            else:
+                config['description'] = f"State: {func.__name__}"
 
         # Process tags
         tags = config.get('tags', {})
@@ -475,7 +486,7 @@ class FlexibleStateDecorator:
         elif coord_type == 'quota' and param:
             return {'quota': param}
         else:
-            return {}
+            raise ValueError(f"Unknown coordination type: {coord_type}")
 
     def _apply_configuration(self, func: Callable, config: Dict[str, Any]) -> Callable:
         """Apply the final configuration to the function."""
@@ -505,10 +516,16 @@ class FlexibleStateDecorator:
         )
 
         # Create dependency configurations
+        from ..dependencies import DependencyType
+        
+        class DependencyConfig:
+            def __init__(self, dep_type):
+                self.type = dep_type
+        
         dependency_configs = {}
         deps = config.get('depends_on', [])
         for dep in deps:
-            dependency_configs[dep] = {'type': 'required'}
+            dependency_configs[dep] = DependencyConfig(DependencyType.REQUIRED)
 
         # Determine coordination primitive
         coordination_primitive = None
@@ -530,6 +547,11 @@ class FlexibleStateDecorator:
             coordination_primitive = PrimitiveType.QUOTA
             coordination_config = {'limit': config['quota']}
 
+        # CRITICAL: Mark as PuffinFlow state
+        func._puffinflow_state = True
+        func._state_name = func.__name__
+        func._state_config = config
+
         # Store all configuration as function attributes
         func._resource_requirements = requirements
         func._priority = config['priority']
@@ -539,10 +561,8 @@ class FlexibleStateDecorator:
 
         # Store rate limiting
         if config['rate_limit']:
-            func._rate_limit = {
-                'rate': config['rate_limit'],
-                'burst': config['burst_limit'] or int(config['rate_limit'] * 2)
-            }
+            func._rate_limit = config['rate_limit']
+            func._burst_limit = config['burst_limit'] or int(config['rate_limit'] * 2)
 
         # NEW: Store reliability configurations
         if config.get('circuit_breaker'):
@@ -560,9 +580,9 @@ class FlexibleStateDecorator:
         func._leak_detection_enabled = config.get('leak_detection', True)
 
         # Store metadata
-        func._config = config
-        func._tags = config['tags']
-        func._description = config['description']
+        func._state_config = config
+        func._state_tags = config['tags']
+        func._state_description = config['description']
 
         # Preserve function metadata
         func = wraps(func)(func)

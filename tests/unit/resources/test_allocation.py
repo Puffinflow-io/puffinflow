@@ -1,8 +1,5 @@
 """
 Comprehensive unit tests for src.puffinflow.core.resources.allocation module
-
-Fixed all test expectations to match the properly working allocation.py code.
-The allocation.py code correctly uses RESOURCE_ATTRIBUTE_MAPPING and get_resource_amount.
 """
 
 import asyncio
@@ -29,6 +26,19 @@ from src.puffinflow.core.resources.allocation import (
     get_resource_amount
 )
 from src.puffinflow.core.resources.requirements import ResourceType, ResourceRequirements
+
+
+class TestAllocationStrategy:
+    """Test AllocationStrategy enum."""
+
+    def test_strategy_values(self):
+        """Test strategy enum values."""
+        assert AllocationStrategy.FIRST_FIT.value == "first_fit"
+        assert AllocationStrategy.BEST_FIT.value == "best_fit"
+        assert AllocationStrategy.WORST_FIT.value == "worst_fit"
+        assert AllocationStrategy.PRIORITY.value == "priority"
+        assert AllocationStrategy.FAIR_SHARE.value == "fair_share"
+        assert AllocationStrategy.WEIGHTED.value == "weighted"
 
 
 class TestAllocationRequest:
@@ -72,6 +82,30 @@ class TestAllocationRequest:
         )
 
         assert request.deadline == deadline
+
+    def test_request_defaults(self):
+        """Test request default values."""
+        requirements = ResourceRequirements()
+        request = AllocationRequest(
+            request_id="req_123",
+            requester_id="agent_1",
+            requirements=requirements
+        )
+        
+        assert request.priority == 0
+        assert request.weight == 1.0
+        assert request.metadata == {}
+        assert request.deadline is None
+
+    def test_request_comparison(self):
+        """Test request comparison for priority queue."""
+        requirements = ResourceRequirements()
+        
+        req1 = AllocationRequest("req1", "agent1", requirements, priority=1)
+        req2 = AllocationRequest("req2", "agent2", requirements, priority=2)
+        
+        # Higher priority should be "less than" for min-heap behavior
+        assert req2 < req1  # req2 has higher priority
 
 
 class TestAllocationResult:
@@ -130,6 +164,23 @@ class TestAllocationResult:
         assert result_dict["allocated"]["MEMORY"] == 512.0
         assert result_dict["allocation_time"] == 0.5
         assert "timestamp" in result_dict
+
+    def test_result_to_dict(self):
+        """Test result conversion to dictionary."""
+        allocated = {ResourceType.CPU: 2.0}
+        result = AllocationResult(
+            request_id="req_123",
+            success=True,
+            allocated=allocated,
+            allocation_time=0.5
+        )
+        
+        result_dict = result.to_dict()
+        
+        assert result_dict["request_id"] == "req_123"
+        assert result_dict["success"] is True
+        assert result_dict["allocated"]["CPU"] == 2.0
+        assert result_dict["allocation_time"] == 0.5
 
 
 class TestAllocationMetrics:
@@ -214,9 +265,36 @@ class TestAllocationMetrics:
         assert stats["avg_wait_time"] == 0.5
         assert stats["resource_utilization"][ResourceType.CPU] == 8.0
 
+    def test_metrics_initialization(self):
+        """Test metrics initialization."""
+        metrics = AllocationMetrics()
+        assert metrics.total_requests == 0
+        assert metrics.successful_allocations == 0
+        assert metrics.failed_allocations == 0
+        assert metrics.total_allocation_time == 0.0
+
+    def test_get_allocation_stats(self):
+        """Test getting allocation statistics."""
+        metrics = AllocationMetrics()
+        # Record some allocations
+        success_result = AllocationResult("req1", True, {ResourceType.CPU: 1.0}, allocation_time=0.3)
+        fail_result = AllocationResult("req2", False)
+        
+        metrics.record_allocation(success_result, wait_time=0.5)
+        metrics.record_allocation(fail_result)
+        
+        stats = metrics.get_stats()
+        
+        assert stats["total_requests"] == 2
+        assert stats["successful_allocations"] == 1
+        assert stats["failed_allocations"] == 1
+        assert stats["success_rate"] == 0.5
+        assert stats["avg_allocation_time"] == 0.3
+        assert stats["avg_wait_time"] == 0.5
+
 
 class MockResourcePool:
-    """Mock resource pool for testing - UPDATED to work with fixed allocation code."""
+    """Mock resource pool for testing."""
 
     def __init__(self, resources=None, available=None):
         # Initialize all resource types to avoid KeyError
@@ -240,259 +318,7 @@ class MockResourcePool:
 
     async def acquire(self, state_name: str, requirements: ResourceRequirements,
                      timeout=None, allow_preemption=False):
-        """Mock acquire method - UPDATED to use fixed resource handling."""
-        # Check if resources are available using the fixed helper function
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type not in requirements.resource_types:
-                continue
-
-            required = get_resource_amount(requirements, resource_type)
-
-            if self.available.get(resource_type, 0.0) < required:
-                return False
-
-        # Allocate resources
-        allocated = {}
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type not in requirements.resource_types:
-                continue
-
-            required = get_resource_amount(requirements, resource_type)
-            if required > 0:
-                self.available[resource_type] -= required
-                allocated[resource_type] = required
-
-        if allocated:  # Only store if we actually allocated something
-            self._allocations[state_name] = allocated
-        return True
-
-    async def release(self, state_name: str):
-        """Mock release method."""
-        if state_name in self._allocations:
-            for resource_type, amount in self._allocations[state_name].items():
-                self.available[resource_type] += amount
-            del self._allocations[state_name]
-
-
-class TestBestFitAllocator:
-    """Test BestFitAllocator with CORRECTED expectations."""
-
-    @pytest.fixture
-    def allocator(self):
-        """Create allocator with mock resource pool."""
-        resource_pool = MockResourcePool()
-        return BestFitAllocator(resource_pool)
-
-    @pytest.mark.asyncio
-    async def test_allocation(self, allocator):
-        """Test basic allocation."""
-        requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
-        request = AllocationRequest("test-1", "agent-1", requirements)
-
-        result = await allocator.allocate(request)
-
-        assert result.success is True
-        assert result.request_id == "test-1"
-        assert result.allocated[ResourceType.CPU] == 2.0
-        assert result.allocated[ResourceType.MEMORY] == 256.0  # FIXED: Now works correctly
-
-    def test_calculate_waste(self, allocator):
-        """Test waste calculation - CORRECTED for fixed code."""
-        requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
-        waste = allocator._calculate_waste(requirements)
-
-        # CORRECTED: The fixed code properly maps attributes
-        # CPU: 8.0 - 2.0 = 6.0
-        # MEMORY: 1024.0 - 256.0 = 768.0
-        # IO: 100.0 - 1.0 = 99.0 (io_weight default is 1.0)
-        # NETWORK: 100.0 - 1.0 = 99.0 (network_weight default is 1.0)
-        # GPU: 2.0 - 0.0 = 2.0 (gpu_units default is 0.0)
-        expected_waste = 6.0 + 768.0 + 99.0 + 99.0 + 2.0  # = 974.0
-        assert waste == expected_waste
-
-    def test_get_allocation_order(self, allocator):
-        """Test ordering by waste (best fit first) - CORRECTED."""
-        # Small request (less waste)
-        req1 = AllocationRequest("1", "agent-1",
-                               ResourceRequirements(cpu_units=1.0, memory_mb=100.0))
-        # Large request (more waste)
-        req2 = AllocationRequest("2", "agent-2",
-                               ResourceRequirements(cpu_units=4.0, memory_mb=500.0))
-
-        requests = [req2, req1]  # Large first
-        ordered = allocator.get_allocation_order(requests)
-
-        # CORRECTED: Now properly calculates waste for both requests
-        # req1 waste: (8-1) + (1024-100) + (100-1) + (100-1) + (2-0) = 1031
-        # req2 waste: (8-4) + (1024-500) + (100-1) + (100-1) + (2-0) = 728
-        # req2 has less waste, so should come first
-        assert ordered[0].request_id == "2"  # Less waste (better fit)
-        assert ordered[1].request_id == "1"  # More waste
-
-
-class TestWorstFitAllocator:
-    """Test WorstFitAllocator with CORRECTED expectations."""
-
-    @pytest.fixture
-    def allocator(self):
-        """Create allocator with mock resource pool."""
-        resource_pool = MockResourcePool()
-        return WorstFitAllocator(resource_pool)
-
-    def test_calculate_remaining(self, allocator):
-        """Test remaining space calculation - CORRECTED."""
-        requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
-        remaining = allocator._calculate_remaining(requirements)
-
-        # CORRECTED: Now properly calculates remaining space for all resource types
-        expected_remaining = (8.0 - 2.0) + (1024.0 - 256.0) + (100.0 - 1.0) + (100.0 - 1.0) + (2.0 - 0.0)
-        # = 6.0 + 768.0 + 99.0 + 99.0 + 2.0 = 974.0
-        assert remaining == expected_remaining
-
-    def test_get_allocation_order(self, allocator):
-        """Test ordering by remaining space (worst fit first) - CORRECTED."""
-        # Small request (more remaining space)
-        req1 = AllocationRequest("1", "agent-1",
-                               ResourceRequirements(cpu_units=1.0, memory_mb=100.0))
-        # Large request (less remaining space)
-        req2 = AllocationRequest("2", "agent-2",
-                               ResourceRequirements(cpu_units=4.0, memory_mb=500.0))
-
-        requests = [req2, req1]
-        ordered = allocator.get_allocation_order(requests)
-
-        # CORRECTED: Now correctly orders by remaining space
-        # req1 remaining: 1031 (more remaining)
-        # req2 remaining: 728 (less remaining)
-        assert ordered[0].request_id == "1"  # More remaining
-        assert ordered[1].request_id == "2"  # Less remaining
-
-
-class TestFairShareAllocator:
-    """Test FairShareAllocator with CORRECTED expectations."""
-
-    @pytest.fixture
-    def allocator(self):
-        """Create allocator with mock resource pool."""
-        resource_pool = MockResourcePool()
-        return FairShareAllocator(resource_pool)
-
-    @pytest.mark.asyncio
-    async def test_within_fair_share(self, allocator):
-        """Test allocation within fair share."""
-        requirements = ResourceRequirements(cpu_units=1.0, memory_mb=100.0)
-        request = AllocationRequest("test-1", "agent-1", requirements)
-
-        result = await allocator.allocate(request)
-
-        assert result.success is True
-        assert result.request_id == "test-1"
-
-        # Check usage tracking
-        assert allocator._usage_history["agent-1"] > 0
-        assert allocator._allocation_counts["agent-1"] == 1
-
-    @pytest.mark.asyncio
-    async def test_exceeds_fair_share(self, allocator):
-        """Test allocation that exceeds fair share - CORRECTED."""
-        # First allocate to establish usage
-        requirements1 = ResourceRequirements(cpu_units=3.0, memory_mb=300.0)
-        request1 = AllocationRequest("test-1", "agent-1", requirements1)
-        result1 = await allocator.allocate(request1)
-        assert result1.success is True
-
-        # Try to allocate amount that would exceed fair share
-        # Total resources = 8+1024+100+100+2 = 1234, fair share for 1 agent = 1234
-        # After first allocation: agent-1 used 3+300+1+1+0 = 305
-        # Try to allocate more than remaining fair share: 1234 - 305 = 929
-        requirements2 = ResourceRequirements(cpu_units=5.0, memory_mb=1000.0)  # Total: 5+1000+1+1+0 = 1007
-        # Total usage would be 305 + 1007 = 1312 > 1234 (exceeds fair share)
-        request2 = AllocationRequest("test-2", "agent-1", requirements2)
-
-        result = await allocator.allocate(request2)
-
-        assert result.success is False
-        assert "Exceeds fair share" in result.reason
-
-    def test_calculate_fair_share(self, allocator):
-        """Test fair share calculation."""
-        # With no requesters in history
-        fair_share = allocator._calculate_fair_share("agent-1")
-        total_resources = sum(allocator.resource_pool.resources.values())
-        assert fair_share == total_resources  # Default to 1 requester
-
-        # Add two requesters to the history
-        allocator._usage_history["agent-1"] = 100.0
-        allocator._usage_history["agent-2"] = 50.0
-        fair_share = allocator._calculate_fair_share("agent-1")
-        # Now there are 2 requesters in the history
-        assert fair_share == total_resources / 2
-
-    def test_calculate_resource_total(self, allocator):
-        """Test resource total calculation - CORRECTED."""
-        requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
-        total = allocator._calculate_resource_total(requirements)
-
-        # CORRECTED: Now properly sums all resource types using fixed mapping
-        # cpu_units (2.0) + memory_mb (256.0) + io_weight (1.0) + network_weight (1.0) + gpu_units (0.0)
-        expected_total = 2.0 + 256.0 + 1.0 + 1.0 + 0.0  # = 260.0
-        assert total == expected_total
-
-    def test_get_allocation_order(self, allocator):
-        """Test ordering by usage history."""
-        # Set up usage history
-        allocator._usage_history["agent-1"] = 100.0
-        allocator._usage_history["agent-2"] = 50.0
-
-        req1 = AllocationRequest("1", "agent-1", ResourceRequirements())
-        req2 = AllocationRequest("2", "agent-2", ResourceRequirements())
-
-        requests = [req1, req2]
-        ordered = allocator.get_allocation_order(requests)
-
-        # Should order by least used first
-        assert ordered[0].request_id == "2"  # agent-2 used less
-        assert ordered[1].request_id == "1"  # agent-1 used more
-
-    def test_reset_usage_history(self, allocator):
-        """Test resetting usage history."""
-        allocator._usage_history["agent-1"] = 100.0
-        allocator._allocation_counts["agent-1"] = 5
-
-        allocator.reset_usage_history()
-
-        assert len(allocator._usage_history) == 0
-        assert len(allocator._allocation_counts) == 0
-
-
-class MockResourcePool:
-    """Mock resource pool for testing - UPDATED to work with fixed allocation code."""
-
-    def __init__(self, resources=None, available=None):
-        # Initialize all resource types to avoid KeyError
-        default_resources = {
-            ResourceType.CPU: 8.0,
-            ResourceType.MEMORY: 1024.0,
-            ResourceType.IO: 100.0,
-            ResourceType.NETWORK: 100.0,
-            ResourceType.GPU: 2.0
-        }
-        self.resources = resources or default_resources
-        self.available = available or self.resources.copy()
-
-        # Ensure all resource types are present in available
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type not in self.available:
-                self.available[resource_type] = self.resources.get(resource_type, 0.0)
-
-        self._allocations = {}
-
-    async def acquire(self, state_name: str, requirements: ResourceRequirements,
-                     timeout=None, allow_preemption=False):
-        """Mock acquire method - UPDATED to use fixed resource handling."""
+        """Mock acquire method."""
         # Check if resources are available using the fixed helper function
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
@@ -597,9 +423,69 @@ class TestFirstFitAllocator:
         requirements2 = ResourceRequirements(cpu_units=20.0)
         assert allocator.can_allocate(requirements2) is False
 
+    def test_allocator_initialization(self):
+        """Test allocator initialization."""
+        pool = MockResourcePool()
+        allocator = FirstFitAllocator(pool)
+        assert allocator.resource_pool == pool
+        assert isinstance(allocator.metrics, AllocationMetrics)
+
+    @pytest.mark.asyncio
+    async def test_successful_allocation_with_mock(self):
+        """Test successful allocation with mock."""
+        pool = Mock()
+        pool.acquire = AsyncMock(return_value=True)
+        allocator = FirstFitAllocator(pool)
+        
+        requirements = ResourceRequirements(cpu_units=2.0, memory_mb=1024.0)
+        request = AllocationRequest("req_123", "agent_1", requirements)
+        
+        with patch('time.time', side_effect=[0.0, 0.5]):  # Mock timing
+            result = await allocator.allocate(request)
+        
+        assert result.success is True
+        assert result.request_id == "req_123"
+        assert result.allocation_time == 0.5
+        pool.acquire.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_failed_allocation_with_mock(self):
+        """Test failed allocation with mock."""
+        pool = Mock()
+        pool.acquire = AsyncMock(return_value=False)
+        allocator = FirstFitAllocator(pool)
+        
+        requirements = ResourceRequirements(cpu_units=100.0)
+        request = AllocationRequest("req_123", "agent_1", requirements)
+        
+        result = await allocator.allocate(request)
+        
+        assert result.success is False
+        assert result.reason == "Insufficient resources"
+
+    def test_get_allocation_order_fifo(self):
+        """Test allocation order (FIFO)."""
+        pool = MockResourcePool()
+        allocator = FirstFitAllocator(pool)
+        requirements = ResourceRequirements()
+        
+        req1 = AllocationRequest("req1", "agent1", requirements)
+        req2 = AllocationRequest("req2", "agent2", requirements)
+        req3 = AllocationRequest("req3", "agent3", requirements)
+        
+        # Manually set timestamps to control order
+        req1.timestamp = datetime(2023, 1, 1, 10, 0, 0)
+        req2.timestamp = datetime(2023, 1, 1, 10, 0, 1)
+        req3.timestamp = datetime(2023, 1, 1, 10, 0, 2)
+        
+        requests = [req3, req1, req2]  # Out of order
+        ordered = allocator.get_allocation_order(requests)
+        
+        assert ordered == [req1, req2, req3]  # Should be in timestamp order
+
 
 class TestBestFitAllocator:
-    """Test BestFitAllocator with CORRECTED expectations."""
+    """Test BestFitAllocator."""
 
     @pytest.fixture
     def allocator(self):
@@ -621,11 +507,10 @@ class TestBestFitAllocator:
         assert result.allocated[ResourceType.MEMORY] == 256.0
 
     def test_calculate_waste(self, allocator):
-        """Test waste calculation - CORRECTED for fixed code."""
+        """Test waste calculation."""
         requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
         waste = allocator._calculate_waste(requirements)
 
-        # CORRECTED: The fixed code properly maps attributes
         # CPU: 8.0 - 2.0 = 6.0
         # MEMORY: 1024.0 - 256.0 = 768.0
         # IO: 100.0 - 1.0 = 99.0 (io_weight default is 1.0)
@@ -635,7 +520,7 @@ class TestBestFitAllocator:
         assert waste == expected_waste
 
     def test_get_allocation_order(self, allocator):
-        """Test ordering by waste (best fit first) - CORRECTED."""
+        """Test ordering by waste (best fit first)."""
         # Small request (less waste)
         req1 = AllocationRequest("1", "agent-1",
                                ResourceRequirements(cpu_units=1.0, memory_mb=100.0))
@@ -646,7 +531,6 @@ class TestBestFitAllocator:
         requests = [req2, req1]  # Large first
         ordered = allocator.get_allocation_order(requests)
 
-        # CORRECTED: Now properly calculates waste for both requests
         # req1 waste: (8-1) + (1024-100) + (100-1) + (100-1) + (2-0) = 1031
         # req2 waste: (8-4) + (1024-500) + (100-1) + (100-1) + (2-0) = 728
         # req2 has less waste, so should come first
@@ -655,7 +539,7 @@ class TestBestFitAllocator:
 
 
 class TestWorstFitAllocator:
-    """Test WorstFitAllocator with CORRECTED expectations."""
+    """Test WorstFitAllocator."""
 
     @pytest.fixture
     def allocator(self):
@@ -664,17 +548,16 @@ class TestWorstFitAllocator:
         return WorstFitAllocator(resource_pool)
 
     def test_calculate_remaining(self, allocator):
-        """Test remaining space calculation - CORRECTED."""
+        """Test remaining space calculation."""
         requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
         remaining = allocator._calculate_remaining(requirements)
 
-        # CORRECTED: Now properly calculates remaining space for all resource types
         expected_remaining = (8.0 - 2.0) + (1024.0 - 256.0) + (100.0 - 1.0) + (100.0 - 1.0) + (2.0 - 0.0)
         # = 6.0 + 768.0 + 99.0 + 99.0 + 2.0 = 974.0
         assert remaining == expected_remaining
 
     def test_get_allocation_order(self, allocator):
-        """Test ordering by remaining space (worst fit first) - CORRECTED."""
+        """Test ordering by remaining space (worst fit first)."""
         # Small request (more remaining space)
         req1 = AllocationRequest("1", "agent-1",
                                ResourceRequirements(cpu_units=1.0, memory_mb=100.0))
@@ -685,7 +568,6 @@ class TestWorstFitAllocator:
         requests = [req2, req1]
         ordered = allocator.get_allocation_order(requests)
 
-        # CORRECTED: Now correctly orders by remaining space
         # req1 remaining: 1031 (more remaining)
         # req2 remaining: 728 (less remaining)
         assert ordered[0].request_id == "1"  # More remaining
@@ -737,9 +619,34 @@ class TestPriorityAllocator:
         assert ordered[1].request_id == "3"  # priority 3
         assert ordered[2].request_id == "1"  # priority 1
 
+    def test_allocator_initialization(self):
+        """Test allocator initialization."""
+        pool = MockResourcePool()
+        allocator = PriorityAllocator(pool)
+        assert hasattr(allocator, '_priority_queue')
+        assert allocator._priority_queue == []
+
+    def test_get_allocation_order_by_priority(self):
+        """Test allocation order by priority."""
+        pool = MockResourcePool()
+        allocator = PriorityAllocator(pool)
+        requirements = ResourceRequirements()
+        
+        req1 = AllocationRequest("req1", "agent1", requirements, priority=1)
+        req2 = AllocationRequest("req2", "agent2", requirements, priority=5)
+        req3 = AllocationRequest("req3", "agent3", requirements, priority=3)
+        
+        requests = [req1, req2, req3]
+        ordered = allocator.get_allocation_order(requests)
+        
+        # Should be ordered by priority (highest first)
+        assert ordered[0].priority == 5
+        assert ordered[1].priority == 3
+        assert ordered[2].priority == 1
+
 
 class TestFairShareAllocator:
-    """Test FairShareAllocator with CORRECTED expectations."""
+    """Test FairShareAllocator."""
 
     @pytest.fixture
     def allocator(self):
@@ -764,7 +671,7 @@ class TestFairShareAllocator:
 
     @pytest.mark.asyncio
     async def test_exceeds_fair_share(self, allocator):
-        """Test allocation that exceeds fair share - CORRECTED."""
+        """Test allocation that exceeds fair share."""
         # First allocate to establish usage
         requirements1 = ResourceRequirements(cpu_units=3.0, memory_mb=300.0)
         request1 = AllocationRequest("test-1", "agent-1", requirements1)
@@ -799,11 +706,10 @@ class TestFairShareAllocator:
         assert fair_share == total_resources / 2
 
     def test_calculate_resource_total(self, allocator):
-        """Test resource total calculation - CORRECTED."""
+        """Test resource total calculation."""
         requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
         total = allocator._calculate_resource_total(requirements)
 
-        # CORRECTED: Now properly sums all resource types using fixed mapping
         # cpu_units (2.0) + memory_mb (256.0) + io_weight (1.0) + network_weight (1.0) + gpu_units (0.0)
         expected_total = 2.0 + 256.0 + 1.0 + 1.0 + 0.0  # = 260.0
         assert total == expected_total
@@ -833,6 +739,34 @@ class TestFairShareAllocator:
 
         assert len(allocator._usage_history) == 0
         assert len(allocator._allocation_counts) == 0
+
+    def test_allocator_initialization(self):
+        """Test allocator initialization."""
+        pool = MockResourcePool()
+        pool.resources = {ResourceType.CPU: 10.0, ResourceType.MEMORY: 2048.0}
+        allocator = FairShareAllocator(pool)
+        assert hasattr(allocator, '_usage_history')
+        assert hasattr(allocator, '_allocation_counts')
+
+    def test_get_allocation_order_by_usage(self):
+        """Test allocation order by usage history."""
+        pool = MockResourcePool()
+        allocator = FairShareAllocator(pool)
+        requirements = ResourceRequirements()
+        
+        req1 = AllocationRequest("req1", "agent1", requirements)
+        req2 = AllocationRequest("req2", "agent2", requirements)
+        
+        # Set usage history
+        allocator._usage_history["agent1"] = 5.0
+        allocator._usage_history["agent2"] = 2.0
+        
+        requests = [req1, req2]
+        ordered = allocator.get_allocation_order(requests)
+        
+        # Agent with less usage should come first
+        assert ordered[0].requester_id == "agent2"
+        assert ordered[1].requester_id == "agent1"
 
 
 class TestWeightedAllocator:
@@ -915,6 +849,53 @@ class TestResourceAllocatorBase:
         assert allocator.metrics.successful_allocations == 2
         assert allocator.metrics.failed_allocations == 1
 
+    def test_can_allocate_sufficient_resources(self):
+        """Test can_allocate with sufficient resources."""
+        pool = MockResourcePool()
+        pool.available = {
+            ResourceType.CPU: 4.0,
+            ResourceType.MEMORY: 2048.0,
+            ResourceType.IO: 100.0,
+            ResourceType.NETWORK: 100.0,
+            ResourceType.GPU: 2.0
+        }
+        allocator = FirstFitAllocator(pool)
+        requirements = ResourceRequirements(cpu_units=2.0, memory_mb=1024.0)
+        
+        assert allocator.can_allocate(requirements) is True
+
+    def test_can_allocate_insufficient_resources(self):
+        """Test can_allocate with insufficient resources."""
+        pool = MockResourcePool()
+        pool.available = {
+            ResourceType.CPU: 4.0,
+            ResourceType.MEMORY: 2048.0
+        }
+        allocator = FirstFitAllocator(pool)
+        requirements = ResourceRequirements(cpu_units=8.0, memory_mb=1024.0)
+        
+        assert allocator.can_allocate(requirements) is False
+
+    @pytest.mark.asyncio
+    async def test_allocate_batch_mock(self):
+        """Test batch allocation with mock."""
+        pool = Mock()
+        pool.acquire = AsyncMock(return_value=True)
+        allocator = FirstFitAllocator(pool)
+        
+        requirements = ResourceRequirements(cpu_units=1.0)
+        requests = [
+            AllocationRequest("req1", "agent1", requirements),
+            AllocationRequest("req2", "agent2", requirements)
+        ]
+        
+        with patch('time.time', return_value=0.0):
+            results = await allocator.allocate_batch(requests)
+        
+        assert len(results) == 2
+        assert all(result.success for result in results)
+        assert allocator.metrics.total_requests == 2
+
 
 class TestCreateAllocator:
     """Test allocator factory function."""
@@ -962,13 +943,45 @@ class TestCreateAllocator:
         allocator = create_allocator("invalid_strategy", resource_pool)
         assert isinstance(allocator, FirstFitAllocator)
 
+    def test_create_first_fit_allocator(self):
+        """Test creating first-fit allocator."""
+        pool = MockResourcePool()
+        allocator = create_allocator(AllocationStrategy.FIRST_FIT, pool)
+        assert isinstance(allocator, FirstFitAllocator)
+
+    def test_create_best_fit_allocator(self):
+        """Test creating best-fit allocator."""
+        pool = MockResourcePool()
+        allocator = create_allocator(AllocationStrategy.BEST_FIT, pool)
+        assert isinstance(allocator, BestFitAllocator)
+
+    def test_create_priority_allocator(self):
+        """Test creating priority allocator."""
+        pool = MockResourcePool()
+        allocator = create_allocator(AllocationStrategy.PRIORITY, pool)
+        assert isinstance(allocator, PriorityAllocator)
+
+    def test_create_fair_share_allocator(self):
+        """Test creating fair-share allocator."""
+        pool = MockResourcePool()
+        allocator = create_allocator(AllocationStrategy.FAIR_SHARE, pool)
+        assert isinstance(allocator, FairShareAllocator)
+
+    def test_create_default_allocator(self):
+        """Test creating allocator with unknown strategy defaults to first-fit."""
+        pool = MockResourcePool()
+        # Create a mock strategy that doesn't exist
+        unknown_strategy = "unknown_strategy"
+        allocator = create_allocator(unknown_strategy, pool)
+        assert isinstance(allocator, FirstFitAllocator)
+
 
 class TestIntegration:
     """Integration tests combining multiple components."""
 
     @pytest.mark.asyncio
     async def test_resource_contention(self):
-        """Test multiple allocators competing for resources - CORRECTED."""
+        """Test multiple allocators competing for resources."""
         # Use default resource pool but limit CPU availability
         resource_pool = MockResourcePool()
         # Set CPU to exactly 4.0 to test contention

@@ -1,51 +1,113 @@
-"""
-PuffinFlow - A comprehensive workflow orchestration framework.
-
-PuffinFlow provides a powerful, async-first workflow orchestration system with
-advanced resource management, monitoring, and coordination primitives.
-"""
+"""PuffinFlow -  Workflow Orchestration Framework."""
 
 __version__ = "0.1.0"
 __author__ = "Mohamed Ahmed"
 __email__ = "mohamed.ahmed.4894@gmail.com"
 
-# Core imports for convenience
-from .core.agent import Agent, Context, state
-from .core.resources import ResourcePool, ResourceType
-from .core.coordination import AgentCoordinator
+# Core agent functionality
+from .core.agent import (
+    Agent, AgentResult, Context, AgentCheckpoint,
+    Priority, AgentStatus, StateStatus, StateResult,
+    state, cpu_intensive, memory_intensive, io_intensive,
+    gpu_accelerated, network_intensive, critical_state,
+    build_state, StateBuilder
+)
 
-# Type annotations
-from .core.agent.state import Priority, StateStatus
+# Enhanced coordination
+from .core.coordination import (
+    AgentTeam, TeamResult, AgentGroup, ParallelAgentGroup,
+    AgentOrchestrator, Agents, run_agents_parallel, run_agents_sequential,
+    AgentPool, WorkQueue, WorkItem, DynamicProcessingPool,
+    EventBus, create_team, create_pipeline
+)
+
+# Resource management
+from .core.resources import (
+    ResourceRequirements, ResourceType, ResourcePool,
+    QuotaManager, AllocationStrategy
+)
+
+# Reliability patterns
+from .core.reliability import (
+    CircuitBreaker, CircuitBreakerConfig, Bulkhead, BulkheadConfig,
+    ResourceLeakDetector
+)
+
+# Configuration
+from .core.config import Settings, get_settings, Features, get_features
 
 __all__ = [
-    # Core classes
+    # Core
     "Agent",
+    "AgentResult",
     "Context",
-    "ResourcePool",
-    "AgentCoordinator",
+    "AgentCheckpoint",
+    "Priority",
+    "AgentStatus",
+    "StateStatus",
+    "StateResult",
+
     # Decorators
     "state",
-    # Enums
-    "Priority",
-    "StateStatus",
+    "cpu_intensive",
+    "memory_intensive",
+    "io_intensive",
+    "gpu_accelerated",
+    "network_intensive",
+    "critical_state",
+    "build_state",
+    "StateBuilder",
+
+    # Coordination
+    "AgentTeam",
+    "TeamResult",
+    "AgentGroup",
+    "ParallelAgentGroup",
+    "AgentOrchestrator",
+    "Agents",
+    "run_agents_parallel",
+    "run_agents_sequential",
+    "AgentPool",
+    "WorkQueue",
+    "WorkItem",
+    "DynamicProcessingPool",
+    "EventBus",
+    "create_team",
+    "create_pipeline",
+
+    # Resources
+    "ResourceRequirements",
     "ResourceType",
-    # Metadata
-    "__version__",
-    "__author__",
-    "__email__",
+    "ResourcePool",
+    "QuotaManager",
+    "AllocationStrategy",
+
+    # Reliability
+    "CircuitBreaker",
+    "CircuitBreakerConfig",
+    "Bulkhead",
+    "BulkheadConfig",
+    "ResourceLeakDetector",
+
+    # Configuration
+    "Settings",
+    "get_settings",
+    "Features",
+    "get_features",
 ]
 
-# Package metadata for runtime access
 def get_version():
-    """Get the current version of PuffinFlow."""
+    """Get PuffinFlow version."""
     return __version__
 
 def get_info():
-    """Get package information."""
+    """Get PuffinFlow package information."""
     return {
-        "name": "puffinflow",
         "version": __version__,
         "author": __author__,
         "email": __email__,
-        "description": "A comprehensive workflow orchestration framework",
+        "description": "Workflow orchestration framework with advanced resource management and observability"
     }
+
+# For backwards compatibility
+from .core.agent.base import Agent as BaseAgent

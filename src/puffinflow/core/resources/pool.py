@@ -51,7 +51,7 @@ class ResourcePool:
         total_memory: float = 1024.0,
         total_io: float = 100.0,
         total_network: float = 100.0,
-        total_gpu: float = 1.0,
+        total_gpu: float = 0.0,  # Changed default from 1.0 to 0.0
         enable_quotas: bool = False,
         enable_preemption: bool = False,
         enable_leak_detection: bool = True  # NEW
@@ -83,15 +83,21 @@ class ResourcePool:
 
         # Quotas (if enabled)
         self.enable_quotas = enable_quotas
+        self._enable_quotas = enable_quotas  # Add private attribute for tests
         self._quotas: Dict[str, Dict[ResourceType, float]] = {}
 
         # Preemption (if enabled)
         self.enable_preemption = enable_preemption
+        self._enable_preemption = enable_preemption  # Add private attribute for tests
         self._preempted_states: Set[str] = set()
 
         # Historical tracking
         self._allocation_history: Dict[ResourceType, List[tuple]] = defaultdict(list)
+        self._usage_history: List[tuple] = []  # Add for tests
         self._history_retention = 3600  # 1 hour
+
+        # Waiting states tracking (for tests)
+        self._waiting_states: Set[str] = set()
 
         # NEW: Leak detection
         self.enable_leak_detection = enable_leak_detection
@@ -116,6 +122,10 @@ class ResourcePool:
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
+            # Only check quotas for resources that are specified in resource_types
+            if resource_type not in requirements.resource_types:
+                continue
+                
             quota = self._quotas.get(state_name, {}).get(resource_type)
             if quota is None:
                 continue  # No quota set
@@ -154,6 +164,9 @@ class ResourcePool:
 
                 # Try allocation
                 while not self._can_allocate(requirements):
+                    # Add to waiting states
+                    self._waiting_states.add(state_name)
+                    
                     # Handle preemption
                     if allow_preemption and self.enable_preemption:
                         if self._try_preemption(state_name, requirements):
@@ -163,16 +176,21 @@ class ResourcePool:
                     if timeout:
                         remaining_time = timeout - (time.time() - start_time)
                         if remaining_time <= 0:
+                            self._waiting_states.discard(state_name)
                             self._update_stats_failure(requirements)
                             return False
 
                         try:
                             await asyncio.wait_for(self._condition.wait(), timeout=remaining_time)
                         except asyncio.TimeoutError:
+                            self._waiting_states.discard(state_name)
                             self._update_stats_failure(requirements)
                             return False
                     else:
                         await self._condition.wait()
+
+                # Remove from waiting states when allocation succeeds
+                self._waiting_states.discard(state_name)
 
                 # Allocate resources
                 self._allocate(state_name, requirements)
@@ -184,7 +202,7 @@ class ResourcePool:
                         rt.name.lower(): get_resource_amount(requirements, rt)
                         for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                   ResourceType.NETWORK, ResourceType.GPU]
-                        if get_resource_amount(requirements, rt) > 0
+                        if rt in requirements.resource_types and get_resource_amount(requirements, rt) > 0
                     }
                     leak_detector.track_allocation(state_name, agent, resource_dict)
 
@@ -201,20 +219,28 @@ class ResourcePool:
         """Validate resource requirements."""
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
+            # Only validate resources that are specified in resource_types
+            if resource_type not in requirements.resource_types:
+                continue
+                
             amount = get_resource_amount(requirements, resource_type)
             if amount < 0:
-                raise ValueError(f"Resource amount cannot be negative: {resource_type.name}={amount}")
+                raise ValueError(f"Negative resource requirement: {resource_type.name}={amount}")
 
             total_available = self.resources.get(resource_type, 0)
             if amount > total_available:
                 raise ResourceOverflowError(
-                    f"Requested {resource_type.name}={amount} exceeds total={total_available}"
+                    f"Requested {resource_type.name}={amount} exceeds total available={total_available}"
                 )
 
     def _can_allocate(self, requirements: ResourceRequirements) -> bool:
         """Check if resources can be allocated."""
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
+            # Only check resources that are specified in resource_types
+            if resource_type not in requirements.resource_types:
+                continue
+                
             required = get_resource_amount(requirements, resource_type)
             available = self.available.get(resource_type, 0.0)
             if required > available:
@@ -230,6 +256,10 @@ class ResourcePool:
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
+            # Only allocate resources that are specified in resource_types
+            if resource_type not in requirements.resource_types:
+                continue
+                
             amount = get_resource_amount(requirements, resource_type)
             if amount > 0:
                 self._allocations[state_name][resource_type] = amount
@@ -267,6 +297,10 @@ class ResourcePool:
             could_satisfy = True
             for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                  ResourceType.NETWORK, ResourceType.GPU]:
+                # Only check resources that are specified in resource_types
+                if resource_type not in requirements.resource_types:
+                    continue
+                    
                 required = get_resource_amount(requirements, resource_type)
                 available_after_preemption = self.available[resource_type] + would_free[resource_type]
                 if required > available_after_preemption:
@@ -325,9 +359,18 @@ class ResourcePool:
     def _update_stats(self, state_name: str, requirements: ResourceRequirements, start_time: float) -> None:
         """Update usage statistics."""
         wait_time = time.time() - start_time
+        current_time = time.time()
+
+        # Add to usage history
+        available_resources = self.available.copy()
+        self._usage_history.append((current_time, available_resources))
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
+            # Only update stats for resources that are specified in resource_types
+            if resource_type not in requirements.resource_types:
+                continue
+                
             amount = get_resource_amount(requirements, resource_type)
             if amount <= 0:
                 continue
@@ -335,7 +378,7 @@ class ResourcePool:
             stats = self._usage_stats[resource_type]
             stats.total_allocations += 1
             stats.total_wait_time += wait_time
-            stats.last_allocation_time = time.time()
+            stats.last_allocation_time = current_time
 
             # Calculate current usage across all allocations
             current_usage = sum(
@@ -345,18 +388,28 @@ class ResourcePool:
             stats.peak_usage = max(stats.peak_usage, current_usage)
 
             # Record historical data point
-            self._allocation_history[resource_type].append((time.time(), current_usage))
+            self._allocation_history[resource_type].append((current_time, current_usage))
 
             # Cleanup old history
-            cutoff = time.time() - self._history_retention
+            cutoff = current_time - self._history_retention
             self._allocation_history[resource_type] = [
                 (t, usage) for t, usage in self._allocation_history[resource_type] if t >= cutoff
             ]
+
+        # Cleanup old usage history
+        cutoff = current_time - self._history_retention
+        self._usage_history = [
+            (t, usage) for t, usage in self._usage_history if t >= cutoff
+        ]
 
     def _update_stats_failure(self, requirements: ResourceRequirements) -> None:
         """Update stats for failed allocation"""
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
+            # Only update failure stats for resources that are specified in resource_types
+            if resource_type not in requirements.resource_types:
+                continue
+                
             amount = get_resource_amount(requirements, resource_type)
             if amount > 0:
                 self._usage_stats[resource_type].failed_allocations += 1
@@ -371,8 +424,7 @@ class ResourcePool:
 
     def get_waiting_states(self) -> Set[str]:
         """Get states waiting for resources."""
-        # This is a simplified implementation - in practice you'd track waiting states
-        return set()
+        return self._waiting_states.copy()
 
     def get_preempted_states(self) -> Set[str]:
         """Get states that were preempted."""

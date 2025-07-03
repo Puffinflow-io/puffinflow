@@ -1,346 +1,515 @@
-"""
-src.puffinflow.core.agent.context
-==================
+"""Context with rich content management."""
 
-Unified state container for Puffinflow agents.
-
-Highlights
-----------
-• set_variable / get_variable                – free-form (no type lock)
-• set_typed_variable / get_typed_variable    – first write locks *Python* type
-• set_validated_data / get_validated_data    – first write locks Pydantic model
-• All metadata (_meta_typed_* / _meta_validated_*) is persisted in shared_state
-  so a fresh Context instance can reconstruct locks after reload.
-• Constants, secrets, TTL cache, per-state scratch (typed & untyped),
-  human-in-the-loop helper.
-
-Compatible with Python 3.8 – 3.13 and Pydantic v2 (preferred) or v1.
-"""
-
-from __future__ import annotations
-
-import asyncio
-import importlib
 import time
-from enum import Enum
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    runtime_checkable,
-)
-
-# ─────────────────────────────── protocol helper ────────────────────────── #
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union, Callable
+from datetime import datetime, timedelta
+import asyncio
 
 try:
-    from typing import Protocol          # stdlib ≥3.8
-except ImportError:
-    from typing_extensions import Protocol  # type: ignore
-
-# ─────────────────────────────── pydantic shim ──────────────────────────── #
-
-try:                                         # Prefer v2
-    from pydantic import BaseModel as _PBM
+    from pydantic import BaseModel, ValidationError
     _PYD_VER = 2
-except ModuleNotFoundError:
-    try:                                     # Accept v1
-        from pydantic.v1 import BaseModel as _PBM  # type: ignore
+    _PBM = BaseModel
+except ImportError:
+    try:
+        from pydantic.v1 import BaseModel, ValidationError
         _PYD_VER = 1
-    except ModuleNotFoundError as _e:        # Unavailable
-        _PBM = None          # type: ignore
+        _PBM = BaseModel
+    except ImportError as _e:
+        _PBM = None
         _PYD_VER = 0
         _PYD_ERR = _e
 
-_PBM_T = TypeVar("_PBM_T", bound=_PBM)        # generic helper
+from typing import Protocol, runtime_checkable
+
+_PBM_T = TypeVar("_PBM_T", bound=_PBM)
 
 
 @runtime_checkable
 class TypedContextData(Protocol):
-    """Marker protocol – implemented at runtime by Pydantic BaseModel."""
+    """Protocol for typed context data."""
+    pass
 
 
-class StateType(Enum):
+class StateType:
+    """State type enumeration for context data."""
     ANY = "any"
     TYPED = "typed"
     UNTYPED = "untyped"
 
 
-# ────────────────────────────────── Context ─────────────────────────────── #
-
 class Context:
-    """
-    Lightweight container passed to every state function.
+    """Enhanced context for agent state management with rich content support."""
 
-    Parameters
-    ----------
-    shared_state : dict
-        Mutable mapping persisted for the whole workflow run.
-    cache_ttl : int, default 300
-        TTL (seconds) for entries set via `set_cached`.
-    """
-
-    # metadata prefixes stored in shared_state
     _META_TYPED = "_meta_typed_"
     _META_VALIDATED = "_meta_validated_"
-
-    # keys that may never be overwritten via set_variable
+    _META_METADATA = "_meta_metadata_"
     _IMMUTABLE_PREFIXES = ("const_", "secret_")
 
-    # ---------------------------------------------------------------- init --
-
     def __init__(self, shared_state: Dict[str, Any], cache_ttl: int = 300) -> None:
-        self.shared_state = shared_state
+        self.shared_state = shared_state if shared_state is not None else {}
         self.cache_ttl = cache_ttl
-
-        # per-state scratch
-        self._state_data: Dict[str, Any] = {}
-        self._typed_data: Dict[str, _PBM] = {}
-        self._protected_keys: Set[str] = set()
-
-        # shared-state metadata (reconstructed from shared_state)
-        self._typed_var_types: Dict[str, Type[Any]] = {}
-        self._validated_types: Dict[str, Type[_PBM]] = {}
-
-        self._cache: Dict[str, Tuple[Any, float]] = {}
-
+        self._typed_data: Dict[str, Any] = {}
+        self._typed_var_types: Dict[str, type] = {}
+        self._validated_types: Dict[str, type] = {}
+        self._cache: Dict[str, tuple] = {}  # (value, expiry_time)
+        self._outputs: Dict[str, Any] = {}
+        self._metadata: Dict[str, Any] = {}
+        self._metrics: Dict[str, Any] = {}
         self._restore_metadata()
 
-    # ---------------------------------------------------------------- utils --
-
     def _restore_metadata(self) -> None:
-        """
-        Rebuild internal maps from persisted _meta_* keys.
-        """
-        for k, v in self.shared_state.items():
-            if k.startswith(self._META_TYPED):
-                orig = k[len(self._META_TYPED):]
-                if orig in self.shared_state:
-                    self._typed_var_types[orig] = type(self.shared_state[orig])
-            elif k.startswith(self._META_VALIDATED):
-                orig = k[len(self._META_VALIDATED):]
-                # Check if _PBM is not None before using it in isinstance
-                if orig in self.shared_state and _PBM is not None and isinstance(self.shared_state[orig], _PBM):
-                    self._validated_types[orig] = type(self.shared_state[orig])
+        """Restore metadata from shared state."""
+        # Restore typed data metadata
+        typed_keys = [k for k in self.shared_state.keys() if k.startswith(self._META_TYPED)]
+        for k in typed_keys:
+            orig = k[len(self._META_TYPED):]
+            self._typed_var_types[orig] = self.shared_state[k]
+
+        # Restore validated data metadata
+        validated_keys = [k for k in self.shared_state.keys() if k.startswith(self._META_VALIDATED)]
+        for k in validated_keys:
+            orig = k[len(self._META_VALIDATED):]
+            self._validated_types[orig] = self.shared_state[k]
 
     @staticmethod
-    def _now() -> float:                # monotonic timestamp
-        return time.monotonic()
+    def _now() -> float:
+        """Get current timestamp."""
+        return time.time()
 
     def _ensure_pydantic(self) -> None:
+        """Ensure Pydantic is available."""
         if _PYD_VER == 0:
-            raise ImportError(
-                "Pydantic is required for validated data but is not installed."
-            ) from _PYD_ERR  # type: ignore[name-defined]
+            raise ImportError(f"Pydantic is required for typed operations: {_PYD_ERR}")
 
-    # guard for reserved prefixes
     def _guard_reserved(self, key: str) -> None:
-        if key.startswith(self._IMMUTABLE_PREFIXES):
-            raise KeyError(
-                "Keys beginning with 'const_' or 'secret_' are reserved."
-            )
+        """Guard against reserved key prefixes."""
+        if any(key.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES):
+            raise ValueError(f"Cannot modify reserved key: {key}")
 
-    # persist helper
     def _persist_meta(self, prefix: str, key: str, cls: type) -> None:
-        """
-        Store a metadata record in shared_state for later reconstruction.
+        """Persist metadata to shared state."""
+        meta_key = f"{prefix}{key}"
+        self.shared_state[meta_key] = cls
 
-        Only the dotted path of the class is stored; this is informational.
-        """
-        self.shared_state[f"{prefix}{key}"] = f"{cls.__module__}.{cls.__qualname__}"
-
-    # ==================================================== per-state scratch --
-
+    # Basic state management
     def set_state(self, key: str, value: Any) -> None:
-        if key in self._protected_keys:
-            raise KeyError(f"Cannot overwrite typed slot '{key}' via set_state.")
-        self._state_data[key] = value
+        """Set a state value."""
+        self._guard_reserved(key)
+        self.shared_state[key] = value
 
     def get_state(self, key: str, default: Any = None) -> Any:
-        if key in self._protected_keys:
-            raise KeyError(f"Cannot access typed slot '{key}' via get_state.")
-        return self._state_data.get(key, default)
+        """Get a state value."""
+        return self.shared_state.get(key, default)
 
-    # per-state typed scratch
+    # Typed data management
     def set_typed(self, key: str, value: _PBM) -> None:
+        """Set typed data with Pydantic model validation."""
         self._ensure_pydantic()
         if not isinstance(value, _PBM):
-            raise TypeError("set_typed expects a Pydantic BaseModel.")
-        self._state_data.pop(key, None)
-        self._protected_keys.add(key)
+            raise TypeError(f"Value must be a Pydantic model, got {type(value)}")
+
         self._typed_data[key] = value
+        self._typed_var_types[key] = type(value)
+        self._persist_meta(self._META_TYPED, key, type(value))
 
     def get_typed(self, key: str, expected: Type[_PBM_T]) -> Optional[_PBM_T]:
+        """Get typed data with type checking."""
         self._ensure_pydantic()
         val = self._typed_data.get(key)
-        return val if isinstance(val, expected) else None
+        if val is None:
+            return None
+
+        if not isinstance(val, expected):
+            return None
+
+        return val
 
     def update_typed(self, key: str, **updates: Any) -> None:
+        """Update fields in typed data."""
         self._ensure_pydantic()
-        if key not in self._typed_data:
-            raise KeyError(f"No typed data under '{key}'.")
-        self._typed_data[key] = self._typed_data[key].model_copy(update=updates, deep=True)
+        current = self._typed_data.get(key)
+        if current and isinstance(current, _PBM):
+            # Create new instance with updated fields
+            updated_data = current.dict()
+            updated_data.update(updates)
+            new_instance = type(current)(**updated_data)
+            self._typed_data[key] = new_instance
 
-    # ===================================================== free variables --
-
+    # Variable management (free variables)
     def set_variable(self, key: str, value: Any) -> None:
-        """Cross-state variable (type can change freely)."""
-        self._guard_reserved(key)
+        """Set a variable in shared state."""
+        if any(key.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES):
+            raise ValueError(f"Cannot set variable with reserved prefix: {key}")
         self.shared_state[key] = value
 
     def get_variable(self, key: str, default: Any = None) -> Any:
+        """Get a variable from shared state."""
         return self.shared_state.get(key, default)
 
     def get_variable_keys(self) -> Set[str]:
+        """Get all variable keys, excluding reserved prefixes."""
         return {
-            k for k in self.shared_state
-            if not k.startswith(self._IMMUTABLE_PREFIXES)
-               and not k.startswith((self._META_TYPED, self._META_VALIDATED))
+            k for k in self.shared_state.keys()
+            if not any(k.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES)
+            and not k.startswith(self._META_TYPED)
+            and not k.startswith(self._META_VALIDATED)
+            and not k.startswith(self._META_METADATA)
         }
 
-    # ========================================== typed-variable (type-locked) --
-
+    # Typed variables (with type consistency checking)
     def set_typed_variable(self, key: str, value: Any) -> None:
-        self._guard_reserved(key)
+        """Set a typed variable with type consistency checking."""
+        if any(key.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES):
+            raise ValueError(f"Cannot set typed variable with reserved prefix: {key}")
+
         current_cls = self._typed_var_types.get(key)
-        if current_cls is None:
-            # first write → record and persist meta
-            self._typed_var_types[key] = type(value)
-            self._persist_meta(self._META_TYPED, key, type(value))
-        elif not isinstance(value, current_cls):
-            raise TypeError(
-                f"Typed variable '{key}' already holds {current_cls.__name__}; "
-                f"cannot store {type(value).__name__}."
-            )
+        if current_cls and not isinstance(value, current_cls):
+            raise TypeError(f"Type mismatch for {key}: expected {current_cls}, got {type(value)}")
+
         self.shared_state[key] = value
+        if key not in self._typed_var_types:
+            cls = type(value)
+            self._typed_var_types[key] = cls
+            self._persist_meta(self._META_TYPED, key, cls)
 
     def get_typed_variable(self, key: str, expected: Type[Any]) -> Optional[Any]:
+        """Get a typed variable with type checking."""
         val = self.shared_state.get(key)
-        return val if isinstance(val, expected) else None
+        if val is None:
+            return None
 
-    # =========================================== validated data (Pydantic) --
+        if not isinstance(val, expected):
+            return None
 
+        return val
+
+    # Validated data (Pydantic models stored in shared state)
     def set_validated_data(self, key: str, value: _PBM) -> None:
+        """Set validated Pydantic data in shared state."""
         self._ensure_pydantic()
-        if not isinstance(value, _PBM):
-            raise TypeError("set_validated_data expects a Pydantic BaseModel.")
         self._guard_reserved(key)
+        if not isinstance(value, _PBM):
+            raise TypeError(f"Value must be a Pydantic model, got {type(value)}")
+
         current_cls = self._validated_types.get(key)
-        if current_cls is None:
-            self._validated_types[key] = type(value)
-            self._persist_meta(self._META_VALIDATED, key, type(value))
-        elif not isinstance(value, current_cls):
-            raise TypeError(
-                f"Validated key '{key}' already stores {current_cls.__name__}; "
-                f"cannot store {type(value).__name__}."
-            )
+        if current_cls and not isinstance(value, current_cls):
+            raise TypeError(f"Type mismatch for {key}: expected {current_cls}, got {type(value)}")
+
         self.shared_state[key] = value
+        self._validated_types[key] = type(value)
+        self._persist_meta(self._META_VALIDATED, key, type(value))
 
     def get_validated_data(self, key: str, expected: Type[_PBM_T]) -> Optional[_PBM_T]:
+        """Get validated data with type checking."""
         self._ensure_pydantic()
         val = self.shared_state.get(key)
-        return val if isinstance(val, expected) else None
+        if val is None:
+            return None
 
-    # ================================================= constants / secrets --
+        if not isinstance(val, expected):
+            return None
 
+        return val
+
+    # Immutable data (constants and secrets)
     def _set_immutable(self, prefix: str, key: str, value: Any) -> None:
+        """Set immutable data with prefix."""
         full = f"{prefix}{key}"
         if full in self.shared_state:
-            raise ValueError(f"Immutable key '{key}' already set.")
+            raise ValueError(f"Immutable key {key} already exists")
         self.shared_state[full] = value
 
     def set_constant(self, key: str, value: Any) -> None:
+        """Set a constant value (immutable)."""
         self._set_immutable("const_", key, value)
 
     def get_constant(self, key: str, default: Any = None) -> Any:
+        """Get a constant value."""
         return self.shared_state.get(f"const_{key}", default)
 
     def set_secret(self, key: str, value: str) -> None:
+        """Set a secret value (immutable, string only)."""
+        if not isinstance(value, str):
+            raise TypeError("Secrets must be strings")
         self._set_immutable("secret_", key, value)
 
     def get_secret(self, key: str) -> Optional[str]:
+        """Get a secret value."""
         return self.shared_state.get(f"secret_{key}")
 
-    # ==================================================== output helpers --
-
+    # Output management
     def set_output(self, key: str, value: Any) -> None:
-        self.set_state(f"output_{key}", value)
+        """Set an output value."""
+        self._outputs[key] = value
 
     def get_output(self, key: str, default: Any = None) -> Any:
-        return self.get_state(f"output_{key}", default)
+        """Get an output value."""
+        return self._outputs.get(key, default)
 
     def get_output_keys(self) -> Set[str]:
-        return {
-            k[len("output_"):] for k in self._state_data
-            if k.startswith("output_")
-        }
+        """Get all output keys."""
+        return set(self._outputs.keys())
 
-    # ======================================================== cache (TTL) --
+    def get_all_outputs(self) -> Dict[str, Any]:
+        """Get all outputs."""
+        return self._outputs.copy()
 
+    # Metadata management
+    def set_metadata(self, key: str, value: Any) -> None:
+        """Set metadata value."""
+        self._metadata[key] = value
+        # Also persist to shared state for cross-agent access
+        self.shared_state[f"{self._META_METADATA}{key}"] = value
+
+    def get_metadata(self, key: str, default: Any = None) -> Any:
+        """Get metadata value."""
+        # Try local metadata first, then shared state
+        value = self._metadata.get(key)
+        if value is not None:
+            return value
+        return self.shared_state.get(f"{self._META_METADATA}{key}", default)
+
+    def get_all_metadata(self) -> Dict[str, Any]:
+        """Get all metadata."""
+        result = self._metadata.copy()
+        # Add shared metadata
+        for key, value in self.shared_state.items():
+            if key.startswith(self._META_METADATA):
+                orig_key = key[len(self._META_METADATA):]
+                if orig_key not in result:
+                    result[orig_key] = value
+        return result
+
+    # Metrics management
+    def set_metric(self, key: str, value: Union[int, float]) -> None:
+        """Set a metric value."""
+        if not isinstance(value, (int, float)):
+            raise TypeError("Metrics must be numeric")
+        self._metrics[key] = value
+
+    def get_metric(self, key: str, default: Union[int, float] = 0) -> Union[int, float]:
+        """Get a metric value."""
+        return self._metrics.get(key, default)
+
+    def increment_metric(self, key: str, amount: Union[int, float] = 1) -> None:
+        """Increment a metric."""
+        current = self._metrics.get(key, 0)
+        self._metrics[key] = current + amount
+
+    def get_all_metrics(self) -> Dict[str, Union[int, float]]:
+        """Get all metrics."""
+        return self._metrics.copy()
+
+    # Cache management with TTL
     def set_cached(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        self._cache[key] = (value, self._now() + (ttl or self.cache_ttl))
+        """Set a cached value with TTL."""
+        if ttl is None:
+            ttl = self.cache_ttl
+
+        if ttl > 0:
+            expiry_time = self._now() + ttl
+        else:
+            expiry_time = self._now() - 1  # Expire immediately
+        self._cache[key] = (value, expiry_time)
 
     def get_cached(self, key: str, default: Any = None) -> Any:
-        val, exp = self._cache.get(key, (default, 0))
-        if self._now() < exp:
-            return val
-        self._cache.pop(key, None)
-        return default
+        """Get a cached value, respecting TTL."""
+        if key not in self._cache:
+            return default
 
-    # ================================================= housekeeping --------
+        value, expiry_time = self._cache[key]
+        if self._now() > expiry_time:
+            del self._cache[key]
+            return default
 
-    def remove_state(self, key: str, state_type: StateType = StateType.ANY) -> bool:
+        return value
+
+    def clear_expired_cache(self) -> int:
+        """Clear expired cache entries and return count cleared."""
+        now = self._now()
+        expired_keys = [
+            key for key, (_, expiry_time) in self._cache.items()
+            if now > expiry_time
+        ]
+
+        for key in expired_keys:
+            del self._cache[key]
+
+        return len(expired_keys)
+
+    # State management and cleanup
+    def remove_state(self, key: str, state_type: str = StateType.ANY) -> bool:
+        """Remove state data by type."""
         removed = False
-        if state_type in (StateType.ANY, StateType.TYPED) and key in self._typed_data:
-            del self._typed_data[key]
-            self._protected_keys.discard(key)
-            removed = True
-        if state_type in (StateType.ANY, StateType.UNTYPED) and key in self._state_data:
-            del self._state_data[key]
-            removed = True
+
+        if state_type in (StateType.ANY, StateType.UNTYPED):
+            if key in self.shared_state:
+                del self.shared_state[key]
+                removed = True
+
+        if state_type in (StateType.ANY, StateType.TYPED):
+            if key in self._typed_data:
+                del self._typed_data[key]
+                removed = True
+            if key in self._typed_var_types:
+                del self._typed_var_types[key]
+                removed = True
+
         return removed
 
-    def clear_state(self, state_type: StateType = StateType.ANY) -> None:
+    def clear_state(self, state_type: str = StateType.ANY) -> None:
+        """Clear state data by type."""
+        if state_type in (StateType.ANY, StateType.UNTYPED):
+            # Clear non-reserved keys from shared state
+            keys_to_remove = [
+                k for k in self.shared_state.keys()
+                if not any(k.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES)
+                and not k.startswith(self._META_TYPED)
+                and not k.startswith(self._META_VALIDATED)
+            ]
+            for key in keys_to_remove:
+                del self.shared_state[key]
+
         if state_type in (StateType.ANY, StateType.TYPED):
             self._typed_data.clear()
-            self._protected_keys.clear()
+            self._typed_var_types.clear()
+
+    def get_keys(self, state_type: str = StateType.ANY) -> Set[str]:
+        """Get keys by state type."""
+        keys = set()
+
         if state_type in (StateType.ANY, StateType.UNTYPED):
-            self._state_data.clear()
+            keys.update(self.get_variable_keys())
 
-    def get_keys(self, state_type: StateType = StateType.ANY) -> Set[str]:
-        if state_type == StateType.ANY:
-            return set(self._typed_data) | set(self._state_data)
-        if state_type == StateType.TYPED:
-            return set(self._typed_data)
-        return {k for k in self._state_data if k not in self._protected_keys}
+        if state_type in (StateType.ANY, StateType.TYPED):
+            keys.update(self._typed_data.keys())
 
-    # ================================= human-in-the-loop helper -----------
+        return keys
 
+    # Human-in-the-loop functionality
     async def human_in_the_loop(
         self,
         prompt: str,
         timeout: Optional[float] = None,
         default: Optional[str] = None,
-        validator: Optional[Callable[[str], bool]] = None,
-    ) -> str:
-        """
-        Prompt a human (blocking input executed in a thread).
-        """
-        while True:
-            if timeout is not None:
-                try:
+        validator: Optional[Callable[[str], bool]] = None
+    ) -> Optional[str]:
+        """Get human input with optional timeout and validation."""
+        max_attempts = 3
+        attempt = 0
+
+        while attempt < max_attempts:
+            try:
+                if timeout:
+                    # Async input with timeout
                     reply = await asyncio.wait_for(
                         asyncio.get_event_loop().run_in_executor(None, input, prompt),
-                        timeout,
+                        timeout=timeout
                     )
-                except asyncio.TimeoutError:
-                    return default if default is not None else ""
-            else:
-                reply = input(prompt)
+                else:
+                    # Synchronous input
+                    reply = input(prompt)
 
-            if validator is None or validator(reply):
+                # Validate if validator provided
+                if validator:
+                    if validator(reply):
+                        return reply
+                    else:
+                        print("Invalid input, please try again.")
+                        attempt += 1
+                        continue
+
                 return reply
+
+            except asyncio.TimeoutError:
+                return default
+            except Exception:
+                attempt += 1
+                if attempt >= max_attempts:
+                    return default
+
+        return default
+
+    # Content inspection
+    def get_content_summary(self) -> Dict[str, Any]:
+        """Get summary of all content in context."""
+        return {
+            'variables': len(self.get_variable_keys()),
+            'outputs': len(self._outputs),
+            'metadata': len(self._metadata),
+            'metrics': len(self._metrics),
+            'typed_data': len(self._typed_data),
+            'cached_items': len(self._cache),
+            'constants': len([k for k in self.shared_state.keys() if k.startswith('const_')]),
+            'secrets': len([k for k in self.shared_state.keys() if k.startswith('secret_')])
+        }
+
+    def export_content(self, include_secrets: bool = False) -> Dict[str, Any]:
+        """Export all context content."""
+        content = {
+            'variables': {k: self.shared_state[k] for k in self.get_variable_keys()},
+            'outputs': self._outputs.copy(),
+            'metadata': self.get_all_metadata(),
+            'metrics': self._metrics.copy(),
+            'typed_data': self._typed_data.copy(),
+        }
+
+        # Add constants
+        constants = {
+            k[6:]: v for k, v in self.shared_state.items()
+            if k.startswith('const_')
+        }
+        if constants:
+            content['constants'] = constants
+
+        # Add secrets if requested
+        if include_secrets:
+            secrets = {
+                k[7:]: v for k, v in self.shared_state.items()
+                if k.startswith('secret_')
+            }
+            if secrets:
+                content['secrets'] = secrets
+
+        return content
+
+    def import_content(self, content: Dict[str, Any]) -> None:
+        """Import content into context."""
+        # Import variables
+        if 'variables' in content:
+            for key, value in content['variables'].items():
+                self.set_variable(key, value)
+
+        # Import outputs
+        if 'outputs' in content:
+            self._outputs.update(content['outputs'])
+
+        # Import metadata
+        if 'metadata' in content:
+            for key, value in content['metadata'].items():
+                self.set_metadata(key, value)
+
+        # Import metrics
+        if 'metrics' in content:
+            for key, value in content['metrics'].items():
+                self.set_metric(key, value)
+
+        # Import typed data
+        if 'typed_data' in content:
+            self._typed_data.update(content['typed_data'])
+
+        # Import constants
+        if 'constants' in content:
+            for key, value in content['constants'].items():
+                try:
+                    self.set_constant(key, value)
+                except ValueError:
+                    pass  # Already exists
+
+        # Import secrets
+        if 'secrets' in content:
+            for key, value in content['secrets'].items():
+                try:
+                    self.set_secret(key, value)
+                except ValueError:
+                    pass  # Already exists

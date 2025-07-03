@@ -50,9 +50,16 @@ def list_state_metadata(func: Callable) -> Dict[str, Any]:
     if not is_puffinflow_state(func):
         return {}
 
+    # Get description, falling back to docstring if not set
+    description = getattr(func, '_state_description', '')
+    if not description and func.__doc__:
+        description = func.__doc__.strip()
+    elif not description:
+        description = f"State: {func.__name__}"
+
     return {
         'name': getattr(func, '_state_name', func.__name__),
-        'description': getattr(func, '_state_description', ''),
+        'description': description,
         'tags': getattr(func, '_state_tags', {}),
         'priority': getattr(func, '_priority', Priority.NORMAL),
         'requirements': get_state_requirements(func),

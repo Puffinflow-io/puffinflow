@@ -576,14 +576,14 @@ class TestInspectionUtilities:
         """Test comprehensive metadata listing."""
         @state(cpu=4.0, memory=1024.0, priority=Priority.HIGH, mutex=True,
               rate_limit=10.0, depends_on=['init'], timeout=300.0,
-              tags={'team': 'backend'})
-        async def full_metadata_state(context: Context):
+              tags={'team': 'backend'}, description="A fully configured test state")
+        async def unique_full_metadata_test_state(context: Context):
             """A fully configured test state."""
             return "done"
 
-        metadata = list_state_metadata(full_metadata_state)
+        metadata = list_state_metadata(unique_full_metadata_test_state)
 
-        assert metadata['name'] == 'full_metadata_state'
+        assert metadata['name'] == 'unique_full_metadata_test_state'
         assert 'fully configured test state' in metadata['description'].lower()
         assert metadata['tags']['team'] == 'backend'
         assert metadata['priority'] == Priority.HIGH
