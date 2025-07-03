@@ -1,351 +1,39 @@
-name: Security
+name: Security Scan
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
   schedule:
-    # Run security scans daily at 2 AM UTC
+    # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-
 jobs:
-  dependency-scan:
-    name: Dependency Security Scan
+  trufflehog:
+    name: TruffleHog Secret Scan
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,security]"
-      
-      - name: Run Safety check
-        run: |
-          safety check --json --output safety-report.json --continue-on-error
-        continue-on-error: true
-      
-      - name: Run pip-audit
-        run: |
-          pip install pip-audit
-          pip-audit --format=json --output=pip-audit-report.json --progress-spinner=off
-        continue-on-error: true
-      
-      - name: Upload dependency scan results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dependency-scan-results
-          path: |
-            safety-report.json
-            pip-audit-report.json
-          retention-days: 30
-
-  code-scan:
-    name: Code Security Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install security tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install bandit[toml] semgrep
-      
-      - name: Run Bandit security linter
-        run: |
-          bandit -r src/ -f json -o bandit-report.json --severity-level medium
-        continue-on-error: true
-      
-      - name: Run Semgrep security scan
-        run: |
-          semgrep --config=auto --json --output=semgrep-report.json src/
-        continue-on-error: true
-      
-      - name: Upload code scan results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: code-scan-results
-          path: |
-            bandit-report.json
-            semgrep-report.json
-          retention-days: 30
-
-  codeql-analysis:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python' ]
-    
-    steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
-          queries: security-extended,security-and-quality
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-      
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{matrix.language}}"
-
-  secrets-scan:
-    name: Secrets Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Run TruffleHog OSS
+          fetch-depth: 0  # Fetch full history for better scanning
+          
+      - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
         with:
+          # Scan the entire repository for scheduled runs and workflow_dispatch
           path: ./
-          base: main
-          head: HEAD
-          extra_args: --debug --only-verified
-
-  license-scan:
-    name: License Compliance Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all]"
-          pip install pip-licenses
-      
-      - name: Generate license report
-        run: |
-          pip-licenses --format=json --output-file=licenses-report.json --with-urls --with-description
-      
-      - name: Check for incompatible licenses
-        run: |
-          # Check for GPL and other copyleft licenses that might be incompatible
-          python -c "
-          import json
-          with open('licenses-report.json') as f:
-              licenses = json.load(f)
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '') }}
+          head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          extra_args: --only-verified --config=.trufflehog.yml
           
-          incompatible = ['GPL', 'AGPL', 'LGPL']
-          found_incompatible = []
-          
-          for pkg in licenses:
-              license_name = pkg.get('License', '').upper()
-              for incompat in incompatible:
-                  if incompat in license_name:
-                      found_incompatible.append(f\"{pkg['Name']}: {pkg['License']}\")
-          
-          if found_incompatible:
-              print('WARNING: Found potentially incompatible licenses:')
-              for item in found_incompatible:
-                  print(f'  - {item}')
-          else:
-              print('No incompatible licenses found.')
-          "
-      
-      - name: Upload license report
+      - name: Upload TruffleHog results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: license-report
-          path: licenses-report.json
+          name: trufflehog-results
+          path: trufflehog-results.json
           retention-days: 30
-
-  vulnerability-database:
-    name: Update Vulnerability Database
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Update vulnerability databases
-        run: |
-          pip install safety pip-audit
-          # Update Safety database
-          safety --version
-          # Update pip-audit database
-          pip-audit --version
-          echo "Vulnerability databases updated"
-
-  security-report:
-    name: Generate Security Report
-    runs-on: ubuntu-latest
-    needs: [dependency-scan, code-scan, license-scan]
-    if: always()
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download all scan results
-        uses: actions/download-artifact@v4
-        with:
-          path: security-results/
-      
-      - name: Generate consolidated security report
-        run: |
-          mkdir -p security-report
-          
-          cat > security-report/README.md << 'EOF'
-          # Security Scan Report
-          
-          This report contains the results of automated security scans performed on the PuffinFlow codebase.
-          
-          ## Scans Performed
-          
-          1. **Dependency Security Scan**: Checks for known vulnerabilities in dependencies
-          2. **Code Security Scan**: Static analysis for security issues in source code
-          3. **License Compliance Scan**: Ensures license compatibility
-          4. **Secrets Scan**: Detects accidentally committed secrets
-          5. **CodeQL Analysis**: Advanced semantic code analysis
-          
-          ## Files in this Report
-          
-          - `dependency-scan-results/`: Results from Safety and pip-audit
-          - `code-scan-results/`: Results from Bandit and Semgrep
-          - `license-report/`: License compliance information
-          
-          ## Interpreting Results
-          
-          ### Severity Levels
-          - **Critical**: Immediate action required
-          - **High**: Should be addressed soon
-          - **Medium**: Should be reviewed and addressed
-          - **Low**: Optional improvements
-          
-          ### Next Steps
-          1. Review all findings in the scan results
-          2. Prioritize fixes based on severity and exploitability
-          3. Update dependencies to patched versions where available
-          4. Address code issues identified by static analysis
-          5. Ensure license compliance for all dependencies
-          
-          ## Automated Remediation
-          
-          Some issues can be automatically fixed:
-          - Dependency updates via Dependabot
-          - Code formatting and simple security fixes via automated PRs
-          
-          EOF
-          
-          # Copy all scan results to the report directory
-          if [ -d "security-results" ]; then
-            cp -r security-results/* security-report/ 2>/dev/null || true
-          fi
-          
-          echo "Security report generated at $(date)" >> security-report/scan-timestamp.txt
-      
-      - name: Upload consolidated security report
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-report
-          path: security-report/
-          retention-days: 90
-      
-      - name: Comment on PR with security summary
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            
-            let comment = '## 🔒 Security Scan Summary\n\n';
-            comment += 'Automated security scans have been completed for this PR.\n\n';
-            
-            // Check if any scan artifacts exist and add status
-            const scanTypes = [
-              'dependency-scan-results',
-              'code-scan-results', 
-              'license-report'
-            ];
-            
-            comment += '### Scan Status\n';
-            scanTypes.forEach(scan => {
-              comment += `- ✅ ${scan.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}\n`;
-            });
-            
-            comment += '\n### Next Steps\n';
-            comment += '1. Review the security report artifacts\n';
-            comment += '2. Address any critical or high-severity findings\n';
-            comment += '3. Ensure all dependencies are up to date\n\n';
-            comment += '📊 Detailed results are available in the workflow artifacts.';
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-
-  notify-security-team:
-    name: Notify Security Team
-    runs-on: ubuntu-latest
-    needs: [dependency-scan, code-scan, codeql-analysis]
-    if: failure() && github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Notify on critical security findings
-        run: |
-          echo "🚨 Critical security findings detected in main branch"
-          echo "Please review the security scan results immediately"
-          echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          # In a real environment, you would send notifications to your security team
-          # via Slack, email, or other alerting systems

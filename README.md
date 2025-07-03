@@ -22,6 +22,7 @@ A powerful Python workflow orchestration framework with advanced resource manage
 - 🔌 **Easy integration** with FastAPI, Celery, and Kubernetes
 - 📈 **Built-in monitoring** and observability features
 - 🧪 **Comprehensive testing** with 95%+ code coverage
+- 🔒 **Security scanning** with TruffleHog secret detection
 
 ## 🚀 Quick Start
 
@@ -173,3 +174,39 @@ puffinflow/
 ├── requirements-dev.txt
 ├── tox.ini
 └── Makefile
+
+## 🔒 Security & CI/CD
+
+This project includes comprehensive security scanning and CI/CD pipelines:
+
+### Security Scanning
+- **TruffleHog**: Automated secret detection in code and git history
+- **Configuration**: See [`.trufflehog.yml`](.trufflehog.yml) for scan settings
+- **Local Testing**: Run [`scripts/test-trufflehog.py`](scripts/test-trufflehog.py) to test locally
+
+### CI/CD Pipeline
+- **Automated Testing**: Multi-version Python testing (3.9-3.12)
+- **Code Coverage**: Minimum 85% coverage requirement
+- **Security Scans**: Automated secret detection on every push/PR
+- **Package Building**: Automated PyPI publishing on releases
+
+See [`docs/CI-CD.md`](docs/CI-CD.md) for detailed documentation.
+
+### Common Issues
+
+**TruffleHog "BASE and HEAD are the same" Error**
+This occurs when scanning between identical commits. The updated workflows handle this by:
+- Properly setting commit ranges for different event types
+- Using full repository scans for scheduled/manual runs
+- Fetching complete git history with `fetch-depth: 0`
+
+**Running Security Scans Locally**
+```bash
+# Test TruffleHog configuration
+python scripts/test-trufflehog.py
+
+# Or run directly with Docker
+docker run --rm -v .:/tmp -w /tmp \
+  ghcr.io/trufflesecurity/trufflehog:latest \
+  git file:///tmp/ --config=.trufflehog.yml --only-verified
+```

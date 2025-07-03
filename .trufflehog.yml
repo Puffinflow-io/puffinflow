@@ -110,3 +110,17 @@ output:
 log:
   level: "info"
   format: "text"
+
+# GitHub Actions specific configuration
+github_actions: true
+
+# Fail on verified secrets found
+fail: true
+
+# Skip files larger than 10MB
+max_file_size: 10485760
+
+# Additional performance settings
+no_verification: false
+archive_max_size: 20971520
+archive_max_depth: 5
