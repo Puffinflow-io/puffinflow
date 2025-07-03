@@ -192,3 +192,18 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Security scan reports and CI/CD artifacts
+bandit-report.json
+safety-report.json
+semgrep-report.json
+trufflehog-results.json
+.security-scan-marker
+
+# TruffleHog cache
+.trufflehog/
+
+# Additional security tools
+.bandit
+.safety
+.semgrep
