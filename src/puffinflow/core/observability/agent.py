@@ -17,6 +17,9 @@ class ObservableAgent(Agent):
         # Set observability BEFORE calling parent __init__
         self._observability = observability
 
+        # Initialize cleanup handlers before calling parent __init__
+        self._cleanup_handlers = []
+
         super().__init__(name, **kwargs)
         
         # Store any additional attributes that weren't handled by the parent

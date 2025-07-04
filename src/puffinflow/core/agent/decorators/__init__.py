@@ -1,7 +1,7 @@
 """Enhanced state decorators with flexible configuration."""
 
 # Import flexible decorator as the main state decorator
-from src.puffinflow.core.agent.decorators.flexible import (
+from .flexible import (
     state,
     FlexibleStateDecorator,
     minimal_state,
@@ -23,7 +23,7 @@ from src.puffinflow.core.agent.decorators.flexible import (
 )
 
 # Import builder pattern
-from src.puffinflow.core.agent.decorators.builder import (
+from .builder import (
     StateBuilder,
     build_state,
     cpu_state,
@@ -36,7 +36,7 @@ from src.puffinflow.core.agent.decorators.builder import (
 )
 
 # Import inspection utilities
-from src.puffinflow.core.agent.decorators.inspection import (
+from .inspection import (
     is_puffinflow_state,
     get_state_config,
     get_state_requirements,

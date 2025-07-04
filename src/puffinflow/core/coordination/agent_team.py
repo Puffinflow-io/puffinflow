@@ -274,6 +274,25 @@ class AgentTeam:
         self._event_bus.subscribe(event_type, handler)
 
     # Execution methods
+    async def run(self, mode: str = "parallel", timeout: Optional[float] = None) -> TeamResult:
+        """Run the team with specified mode.
+        
+        Args:
+            mode: Execution mode - "parallel", "sequential", or "dependencies"
+            timeout: Optional timeout for execution
+            
+        Returns:
+            TeamResult with execution results
+        """
+        if mode == "parallel":
+            return await self.run_parallel(timeout)
+        elif mode == "sequential":
+            return await self.run_sequential()
+        elif mode == "dependencies":
+            return await self.run_with_dependencies()
+        else:
+            raise ValueError(f"Unknown execution mode: {mode}")
+
     async def run_parallel(self, timeout: Optional[float] = None) -> TeamResult:
         """Run all agents in parallel."""
         start_time = time.time()

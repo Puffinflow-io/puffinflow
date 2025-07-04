@@ -32,15 +32,17 @@ except ImportError:
     ResourcePool = Mock
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an instance of the default event loop for the test session."""
+    """Create a fresh event loop for each test function."""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         yield loop
     finally:
         loop.close()
+        # Clean up any remaining tasks
+        asyncio.set_event_loop(None)
 
 
 @pytest.fixture

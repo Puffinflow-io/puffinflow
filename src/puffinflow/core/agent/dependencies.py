@@ -20,6 +20,12 @@ class DependencyType(Enum):
     AND = "and"  # All dependencies must be satisfied
     OR = "or"  # At least one dependency must be satisfied
 
+    def __str__(self):
+        return f"DependencyType.{self.name}"
+    
+    def __repr__(self):
+        return f"DependencyType.{self.name}"
+
 
 class DependencyLifecycle(Enum):
     """Lifecycle management for dependencies."""
@@ -28,6 +34,12 @@ class DependencyLifecycle(Enum):
     SESSION = "session"  # Dependency valid for current run() execution
     TEMPORARY = "temporary"  # Dependency expires after specified time
     PERIODIC = "periodic"  # Must be re-satisfied after specified interval
+
+    def __str__(self):
+        return f"DependencyLifecycle.{self.name}"
+    
+    def __repr__(self):
+        return f"DependencyLifecycle.{self.name}"
 
 
 @dataclass

@@ -33,6 +33,19 @@ except ImportError:
     # Decorators not available
     pass
 
+# Scheduling components
+try:
+    from .scheduling import (
+        GlobalScheduler, ScheduledAgent, ScheduleBuilder,
+        ScheduledInput, InputType, parse_magic_prefix,
+        ScheduleParser, parse_schedule_string,
+        SchedulingError, InvalidScheduleError, InvalidInputTypeError
+    )
+    _SCHEDULING_AVAILABLE = True
+except ImportError:
+    # Scheduling not available
+    _SCHEDULING_AVAILABLE = False
+
 # Team decorators for convenience
 def create_team_decorator(team_name: str, **defaults):
     """Create a decorator for team-specific agents."""
@@ -178,6 +191,19 @@ __all__ = [
     "create_service_decorator",
     "create_reliable_team_decorator",
     "create_external_team_decorator",
+    
+    # Scheduling (if available)
+    "GlobalScheduler",
+    "ScheduledAgent",
+    "ScheduleBuilder",
+    "ScheduledInput",
+    "InputType",
+    "parse_magic_prefix",
+    "ScheduleParser",
+    "parse_schedule_string",
+    "SchedulingError",
+    "InvalidScheduleError",
+    "InvalidInputTypeError",
 ]
 
 __doc__ = """

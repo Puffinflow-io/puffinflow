@@ -249,7 +249,9 @@ class FlexibleStateDecorator:
         # Case 1: @state (direct decoration without parentheses)
         if len(args) == 1 and callable(args[0]) and not kwargs:
             func = args[0]
-            return self._decorate_function(func, self.default_config)
+            # Still need to merge configurations to resolve profiles
+            final_config = self._merge_configurations()
+            return self._decorate_function(func, final_config)
 
         # Case 2: @state() or @state(params...)
         def decorator(func):
@@ -261,13 +263,18 @@ class FlexibleStateDecorator:
 
     def _merge_configurations(self, *args, **kwargs) -> Dict[str, Any]:
         """Merge configuration from multiple sources in priority order."""
-        final_config = self.default_config.copy()
+        final_config = {}
 
-        # Apply default profile first if present
+        # Apply default profile first if present in default_config
         default_profile = self.default_config.get('profile')
         if default_profile and default_profile in PROFILES:
             profile_config = PROFILES[default_profile].to_dict()
             final_config.update(profile_config)
+        
+        # Then apply other default config (excluding profile key)
+        for key, value in self.default_config.items():
+            if key != 'profile':
+                final_config[key] = value
 
         # Process positional arguments
         for arg in args:
@@ -332,7 +339,7 @@ class FlexibleStateDecorator:
             'leak_detection': True
         }
 
-        # Merge defaults with provided config
+        # Merge defaults with provided config (only for missing keys)
         for key, default_value in defaults.items():
             if key not in config:
                 config[key] = default_value
@@ -477,13 +484,21 @@ class FlexibleStateDecorator:
 
         if coord_type == 'mutex':
             return {'mutex': True}
-        elif coord_type == 'semaphore' and param:
+        elif coord_type == 'semaphore':
+            if param is None:
+                raise ValueError(f"Unknown coordination type: {coord_type}")
             return {'semaphore': param}
-        elif coord_type == 'barrier' and param:
+        elif coord_type == 'barrier':
+            if param is None:
+                raise ValueError(f"Unknown coordination type: {coord_type}")
             return {'barrier': param}
-        elif coord_type == 'lease' and param:
+        elif coord_type == 'lease':
+            if param is None:
+                raise ValueError(f"Unknown coordination type: {coord_type}")
             return {'lease': param}
-        elif coord_type == 'quota' and param:
+        elif coord_type == 'quota':
+            if param is None:
+                raise ValueError(f"Unknown coordination type: {coord_type}")
             return {'quota': param}
         else:
             raise ValueError(f"Unknown coordination type: {coord_type}")

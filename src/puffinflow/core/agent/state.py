@@ -36,6 +36,9 @@ class AgentStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+    def __str__(self):
+        return self.value
+
 class StateStatus(str, Enum):
     """State execution status."""
     PENDING = "pending"
@@ -47,6 +50,9 @@ class StateStatus(str, Enum):
     BLOCKED = "blocked"
     TIMEOUT = "timeout"
     RETRYING = "retrying"
+
+    def __str__(self):
+        return self.value
 
 @runtime_checkable
 class StateFunction(Protocol):

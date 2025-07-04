@@ -123,7 +123,7 @@ class ResourcePool:
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
             # Only check quotas for resources that are specified in resource_types
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
                 
             quota = self._quotas.get(state_name, {}).get(resource_type)
@@ -220,7 +220,7 @@ class ResourcePool:
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
             # Only validate resources that are specified in resource_types
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
                 
             amount = get_resource_amount(requirements, resource_type)
@@ -238,7 +238,7 @@ class ResourcePool:
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
             # Only check resources that are specified in resource_types
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
                 
             required = get_resource_amount(requirements, resource_type)
@@ -257,7 +257,7 @@ class ResourcePool:
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
             # Only allocate resources that are specified in resource_types
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
                 
             amount = get_resource_amount(requirements, resource_type)
@@ -298,7 +298,7 @@ class ResourcePool:
             for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                  ResourceType.NETWORK, ResourceType.GPU]:
                 # Only check resources that are specified in resource_types
-                if resource_type not in requirements.resource_types:
+                if not (resource_type & requirements.resource_types):
                     continue
                     
                 required = get_resource_amount(requirements, resource_type)
@@ -368,7 +368,7 @@ class ResourcePool:
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
             # Only update stats for resources that are specified in resource_types
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
                 
             amount = get_resource_amount(requirements, resource_type)
@@ -407,7 +407,7 @@ class ResourcePool:
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
             # Only update failure stats for resources that are specified in resource_types
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
                 
             amount = get_resource_amount(requirements, resource_type)

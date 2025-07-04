@@ -31,6 +31,9 @@ from src.puffinflow.core.resources.allocation import (
     ResourceAllocator
 )
 
+# Import submodules for import path tests
+from src.puffinflow.core.resources import pool, requirements, quotas, allocation
+
 __all__ = [
     # Pool
     "ResourcePool",
@@ -61,4 +64,18 @@ __all__ = [
     "PriorityAllocator",
     "FairShareAllocator",
     "ResourceAllocator",
+    
+    # Submodules
+    "pool",
+    "requirements",
+    "quotas",
+    "allocation",
 ]
+
+# Clean up module namespace
+import sys as _sys
+_current_module = _sys.modules[__name__]
+for _attr_name in dir(_current_module):
+    if not _attr_name.startswith('_') and _attr_name not in __all__:
+        delattr(_current_module, _attr_name)
+del _sys, _current_module, _attr_name

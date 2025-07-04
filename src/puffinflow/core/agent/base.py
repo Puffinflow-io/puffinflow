@@ -15,6 +15,14 @@ from .state import (
 )
 from .checkpoint import AgentCheckpoint
 
+# Import scheduling components
+try:
+    from .scheduling.scheduler import GlobalScheduler, ScheduledAgent
+    from .scheduling.builder import ScheduleBuilder
+    _SCHEDULING_AVAILABLE = True
+except ImportError:
+    _SCHEDULING_AVAILABLE = False
+
 # Import ResourceRequirements conditionally
 try:
     from ..resources.requirements import ResourceRequirements
@@ -926,6 +934,118 @@ class Agent:
             'bulkhead_metrics': self.bulkhead.get_metrics()
         }
 
+    # Scheduling methods
+    def schedule(self, when: str, **inputs) -> 'ScheduledAgent':
+        """Schedule this agent to run at specified times with given inputs.
+        
+        Args:
+            when: Schedule string (natural language or cron expression)
+                Examples: "daily", "hourly", "every 5 minutes", "0 9 * * 1-5"
+            **inputs: Input parameters with optional magic prefixes:
+                - secret:value - Store as secret
+                - const:value - Store as constant
+                - cache:TTL:value - Store as cached with TTL
+                - typed:value - Store as typed variable
+                - output:value - Pre-set as output
+                - value (no prefix) - Store as regular variable
+                
+        Returns:
+            ScheduledAgent instance for managing the scheduled execution
+            
+        Raises:
+            ImportError: If scheduling module is not available
+            SchedulingError: If scheduling fails
+            
+        Examples:
+            # Basic scheduling
+            agent.schedule("daily at 09:00", source="database")
+            
+            # With magic prefixes
+            agent.schedule(
+                "every 30 minutes",
+                api_key="secret:sk-1234567890abcdef",
+                pool_size="const:10",
+                config="cache:3600:{'timeout': 30}",
+                source="warehouse"
+            )
+        """
+        if not _SCHEDULING_AVAILABLE:
+            raise ImportError("Scheduling module not available. Install required dependencies.")
+        
+        scheduler = GlobalScheduler.get_instance_sync()
+        return scheduler.schedule_agent(self, when, **inputs)
+    
+    def every(self, interval: str) -> 'ScheduleBuilder':
+        """Start fluent API for scheduling with intervals.
+        
+        Args:
+            interval: Interval string like "5 minutes", "2 hours", "daily"
+            
+        Returns:
+            ScheduleBuilder for chaining
+            
+        Examples:
+            agent.every("5 minutes").with_inputs(source="api").run()
+            agent.every("daily").with_secrets(api_key="sk-123").run()
+        """
+        if not _SCHEDULING_AVAILABLE:
+            raise ImportError("Scheduling module not available. Install required dependencies.")
+        
+        # Handle "every X" format - avoid double "every"
+        if not interval.startswith("every "):
+            interval = f"every {interval}"
+        else:
+            # If it already starts with "every", don't add another
+            pass
+        
+        return ScheduleBuilder(self, interval)
+    
+    def daily(self, time_str: Optional[str] = None) -> 'ScheduleBuilder':
+        """Start fluent API for daily scheduling.
+        
+        Args:
+            time_str: Optional time like "09:00" or "2pm"
+            
+        Returns:
+            ScheduleBuilder for chaining
+            
+        Examples:
+            agent.daily().with_inputs(batch_size=1000).run()
+            agent.daily("09:00").with_secrets(db_pass="secret123").run()
+        """
+        if not _SCHEDULING_AVAILABLE:
+            raise ImportError("Scheduling module not available. Install required dependencies.")
+        
+        if time_str:
+            schedule_str = f"daily at {time_str}"
+        else:
+            schedule_str = "daily"
+        
+        return ScheduleBuilder(self, schedule_str)
+    
+    def hourly(self, minute: Optional[int] = None) -> 'ScheduleBuilder':
+        """Start fluent API for hourly scheduling.
+        
+        Args:
+            minute: Optional minute of the hour (0-59)
+            
+        Returns:
+            ScheduleBuilder for chaining
+            
+        Examples:
+            agent.hourly().with_inputs(check_status=True).run()
+            agent.hourly(30).with_constants(timeout=60).run()
+        """
+        if not _SCHEDULING_AVAILABLE:
+            raise ImportError("Scheduling module not available. Install required dependencies.")
+        
+        if minute is not None:
+            schedule_str = f"every hour at {minute}"
+        else:
+            schedule_str = "hourly"
+        
+        return ScheduleBuilder(self, schedule_str)
+
     # Main execution
     async def run(self, timeout: Optional[float] = None) -> AgentResult:
         """Run the agent workflow with enhanced result tracking."""
@@ -954,7 +1074,8 @@ class Agent:
             # Find entry states (states with no dependencies)
             entry_states = self._find_entry_states()
             if not entry_states:
-                entry_states = [next(iter(self.states.keys()))] if self.states else []
+                # If no entry states found, use all states (they will be filtered by dependencies during execution)
+                entry_states = list(self.states.keys())
 
             # Add entry states to queue
             for state_name in entry_states:

@@ -26,10 +26,12 @@ def get_state_rate_limit(func: Callable) -> Optional[Dict[str, Any]]:
     if not hasattr(func, '_rate_limit'):
         return None
 
+    strategy = getattr(func, '_rate_strategy', RateLimitStrategy.TOKEN_BUCKET)
+    
     return {
         'rate': func._rate_limit,
         'burst': getattr(func, '_burst_limit', None),
-        'strategy': getattr(func, '_rate_strategy', RateLimitStrategy.TOKEN_BUCKET)
+        'strategy': strategy
     }
 
 
@@ -95,19 +97,22 @@ def get_state_summary(func: Callable) -> str:
         return f"{func.__name__}: Not a PuffinFlow state"
 
     config = get_state_config(func)
-    if not config:
+    if config is None or not isinstance(config, dict):
         return f"{func.__name__}: No configuration found"
 
     summary_parts = [f"{func.__name__}:"]
 
     # Resources
     resources = []
-    if config.get('cpu', 0) > 0:
-        resources.append(f"CPU={config['cpu']}")
-    if config.get('memory', 0) > 0:
-        resources.append(f"Memory={config['memory']}MB")
-    if config.get('gpu', 0) > 0:
-        resources.append(f"GPU={config['gpu']}")
+    cpu = config.get('cpu', 0)
+    if cpu is not None and cpu > 0:
+        resources.append(f"CPU={cpu}")
+    memory = config.get('memory', 0)
+    if memory is not None and memory > 0:
+        resources.append(f"Memory={memory}MB")
+    gpu = config.get('gpu', 0)
+    if gpu is not None and gpu > 0:
+        resources.append(f"GPU={gpu}")
 
     if resources:
         summary_parts.append(f"  Resources: {', '.join(resources)}")

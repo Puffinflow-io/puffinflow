@@ -54,7 +54,7 @@ def get_resource_amount(requirements: ResourceRequirements, resource_type: Resou
     if resource_type == ResourceType.NONE:
         return 0.0
 
-    if resource_type not in requirements.resource_types:
+    if not (resource_type & requirements.resource_types):
         return 0.0
 
     attribute_name = RESOURCE_ATTRIBUTE_MAPPING.get(resource_type)
@@ -203,7 +203,7 @@ class ResourceAllocator(ABC):
         """FIXED: Check if allocation is possible with current resources."""
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type not in requirements.resource_types:
+            if not (resource_type & requirements.resource_types):
                 continue
 
             required = get_resource_amount(requirements, resource_type)

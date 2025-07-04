@@ -4,6 +4,9 @@ from .circuit_breaker import CircuitBreaker, CircuitState, CircuitBreakerError, 
 from .bulkhead import Bulkhead, BulkheadFullError, BulkheadConfig
 from .leak_detector import ResourceLeakDetector, ResourceLeak
 
+# Import submodules for import path tests
+from . import circuit_breaker, bulkhead, leak_detector
+
 __all__ = [
     "CircuitBreaker",
     "CircuitBreakerConfig",
@@ -13,5 +16,8 @@ __all__ = [
     "BulkheadFullError",
     "BulkheadConfig",
     "ResourceLeakDetector",
-    "ResourceLeak"
+    "ResourceLeak",
+    "circuit_breaker",
+    "bulkhead",
+    "leak_detector"
 ]

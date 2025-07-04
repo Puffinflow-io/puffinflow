@@ -4,9 +4,10 @@ Resource requirements and types for PuffinFlow resource management.
 
 from dataclasses import dataclass
 from enum import Flag
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 
-from ..agent.state import Priority
+if TYPE_CHECKING:
+    from ..agent.state import Priority
 
 
 class ResourceType(Flag):
@@ -43,8 +44,9 @@ class ResourceRequirements:
     resource_types: ResourceType = ResourceType.ALL
 
     @property
-    def priority(self) -> Priority:
+    def priority(self) -> "Priority":
         """Get priority level based on priority_boost."""
+        from ..agent.state import Priority
         if self.priority_boost <= 0:
             return Priority.LOW
         elif self.priority_boost == 1:
@@ -55,8 +57,9 @@ class ResourceRequirements:
             return Priority.CRITICAL
 
     @priority.setter
-    def priority(self, value: Union[Priority, int]) -> None:
+    def priority(self, value: Union["Priority", int]) -> None:
         """Set priority level, updating priority_boost accordingly."""
+        from ..agent.state import Priority
         if isinstance(value, Priority):
             self.priority_boost = value.value
         elif isinstance(value, int):

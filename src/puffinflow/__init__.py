@@ -1,6 +1,6 @@
 """PuffinFlow -  Workflow Orchestration Framework."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.dev12+g0f61537.d20250701"
 __author__ = "Mohamed Ahmed"
 __email__ = "mohamed.ahmed.4894@gmail.com"
 
