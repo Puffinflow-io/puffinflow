@@ -1,7 +1,7 @@
+import asyncio
 import functools
 import time
-import asyncio
-from typing import Callable, Optional, Dict, Any
+from typing import Callable, Optional
 
 from .core import get_observability
 from .interfaces import SpanType

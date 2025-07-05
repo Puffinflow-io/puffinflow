@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Import example modules
 try:
-    import basic_agent
+    import eampbasic_agent
     import coordination_examples
     import resource_management
     import reliability_patterns

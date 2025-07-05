@@ -2,9 +2,8 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Callable, Union, Set
 from dataclasses import dataclass
-from collections import defaultdict
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from ..agent.base import Agent, AgentResult
 from .agent_team import AgentTeam, TeamResult

@@ -1,8 +1,8 @@
 """Dependency management types."""
 
-from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, Callable, Dict, Any, TYPE_CHECKING
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
     from src.puffinflow.core.agent.base import Agent
@@ -22,7 +22,7 @@ class DependencyType(Enum):
 
     def __str__(self):
         return f"DependencyType.{self.name}"
-    
+
     def __repr__(self):
         return f"DependencyType.{self.name}"
 
@@ -37,7 +37,7 @@ class DependencyLifecycle(Enum):
 
     def __str__(self):
         return f"DependencyLifecycle.{self.name}"
-    
+
     def __repr__(self):
         return f"DependencyLifecycle.{self.name}"
 

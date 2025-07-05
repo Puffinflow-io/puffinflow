@@ -8,7 +8,7 @@ class SchedulingError(Exception):
 
 class InvalidScheduleError(SchedulingError):
     """Raised when a schedule string is invalid."""
-    
+
     def __init__(self, schedule: str, message: str = None):
         self.schedule = schedule
         if message is None:
@@ -21,7 +21,7 @@ class InvalidScheduleError(SchedulingError):
 
 class InvalidInputTypeError(SchedulingError):
     """Raised when an input type prefix is invalid."""
-    
+
     def __init__(self, prefix: str, message: str = None):
         self.prefix = prefix
         if message is None:

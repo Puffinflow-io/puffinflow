@@ -303,6 +303,7 @@ markers = [
     "tracing: marks tests as tracing-related",
     "metrics: marks tests as metrics-related",
     "alerting: marks tests as alerting-related",
+    "e2e: marks tests as end-to-end tests",
 ]
 asyncio_mode = "auto"
 filterwarnings = [

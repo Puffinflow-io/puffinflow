@@ -1,23 +1,27 @@
 """Reliability patterns for production workflows."""
 
-from .circuit_breaker import CircuitBreaker, CircuitState, CircuitBreakerError, CircuitBreakerConfig
-from .bulkhead import Bulkhead, BulkheadFullError, BulkheadConfig
-from .leak_detector import ResourceLeakDetector, ResourceLeak
-
 # Import submodules for import path tests
-from . import circuit_breaker, bulkhead, leak_detector
+from . import bulkhead, circuit_breaker, leak_detector
+from .bulkhead import Bulkhead, BulkheadConfig, BulkheadFullError
+from .circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerError,
+    CircuitState,
+)
+from .leak_detector import ResourceLeak, ResourceLeakDetector
 
 __all__ = [
+    "Bulkhead",
+    "BulkheadConfig",
+    "BulkheadFullError",
     "CircuitBreaker",
     "CircuitBreakerConfig",
-    "CircuitState",
     "CircuitBreakerError",
-    "Bulkhead",
-    "BulkheadFullError",
-    "BulkheadConfig",
-    "ResourceLeakDetector",
+    "CircuitState",
     "ResourceLeak",
-    "circuit_breaker",
+    "ResourceLeakDetector",
     "bulkhead",
+    "circuit_breaker",
     "leak_detector"
 ]

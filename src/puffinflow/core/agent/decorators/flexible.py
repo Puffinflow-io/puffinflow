@@ -1,17 +1,13 @@
 """
 Flexible state decorator with optional parameters and multiple configuration methods.
 """
-import copy
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Any, Optional, Union, List
 from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from ..state import Priority, RetryPolicy
-from ..context import Context
-from ...resources.requirements import ResourceRequirements, ResourceType
 from ...coordination.primitives import PrimitiveType
-from ...reliability.circuit_breaker import CircuitBreakerConfig
-from ...reliability.bulkhead import BulkheadConfig
+from ...resources.requirements import ResourceRequirements, ResourceType
+from ..state import Priority
 
 
 @dataclass
@@ -270,7 +266,7 @@ class FlexibleStateDecorator:
         if default_profile and default_profile in PROFILES:
             profile_config = PROFILES[default_profile].to_dict()
             final_config.update(profile_config)
-        
+
         # Then apply other default config (excluding profile key)
         for key, value in self.default_config.items():
             if key != 'profile':
@@ -532,11 +528,11 @@ class FlexibleStateDecorator:
 
         # Create dependency configurations
         from ..dependencies import DependencyType
-        
+
         class DependencyConfig:
             def __init__(self, dep_type):
                 self.type = dep_type
-        
+
         dependency_configs = {}
         deps = config.get('depends_on', [])
         for dep in deps:

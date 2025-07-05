@@ -1,12 +1,11 @@
 """Fluent APIs for intuitive agent coordination."""
 
-import asyncio
-from typing import Any, Dict, List, Optional, Callable, Union
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Union
 
 from ..agent.base import Agent, AgentResult
-from .agent_team import AgentTeam, TeamResult
 from .agent_group import AgentOrchestrator, ExecutionStrategy
+from .agent_team import AgentTeam, TeamResult
 
 
 class Agents:

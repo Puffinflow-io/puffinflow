@@ -1,7 +1,8 @@
 """Fluent API builder for agent scheduling."""
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-from .inputs import parse_inputs, ScheduledInput
+from typing import TYPE_CHECKING, Dict
+
+from .inputs import ScheduledInput, parse_inputs
 
 if TYPE_CHECKING:
     from ..base import Agent
@@ -9,12 +10,12 @@ if TYPE_CHECKING:
 
 class ScheduleBuilder:
     """Fluent API builder for scheduling agents."""
-    
+
     def __init__(self, agent: 'Agent', schedule_string: str):
         self._agent = agent
         self._schedule_string = schedule_string
         self._inputs: Dict[str, ScheduledInput] = {}
-    
+
     def with_inputs(self, **inputs) -> 'ScheduleBuilder':
         """Add regular variable inputs.
         
@@ -27,7 +28,7 @@ class ScheduleBuilder:
         parsed = parse_inputs(**inputs)
         self._inputs.update(parsed)
         return self
-    
+
     def with_secrets(self, **secrets) -> 'ScheduleBuilder':
         """Add secret inputs.
         
@@ -42,7 +43,7 @@ class ScheduleBuilder:
             parsed = parse_inputs(**{key: prefixed_value})
             self._inputs.update(parsed)
         return self
-    
+
     def with_constants(self, **constants) -> 'ScheduleBuilder':
         """Add constant inputs.
         
@@ -57,7 +58,7 @@ class ScheduleBuilder:
             parsed = parse_inputs(**{key: prefixed_value})
             self._inputs.update(parsed)
         return self
-    
+
     def with_cache(self, ttl: int, **cached_inputs) -> 'ScheduleBuilder':
         """Add cached inputs with TTL.
         
@@ -79,7 +80,7 @@ class ScheduleBuilder:
             parsed = parse_inputs(**{key: prefixed_value})
             self._inputs.update(parsed)
         return self
-    
+
     def with_typed(self, **typed_inputs) -> 'ScheduleBuilder':
         """Add typed inputs.
         
@@ -100,7 +101,7 @@ class ScheduleBuilder:
             parsed = parse_inputs(**{key: prefixed_value})
             self._inputs.update(parsed)
         return self
-    
+
     def with_outputs(self, **outputs) -> 'ScheduleBuilder':
         """Add pre-set outputs.
         
@@ -115,7 +116,7 @@ class ScheduleBuilder:
             parsed = parse_inputs(**{key: prefixed_value})
             self._inputs.update(parsed)
         return self
-    
+
     def run(self) -> 'ScheduledAgent':
         """Execute the scheduling with configured inputs.
         
@@ -137,7 +138,7 @@ class ScheduleBuilder:
                 input_kwargs[key] = f"output:{scheduled_input.value}"
             else:  # variable
                 input_kwargs[key] = scheduled_input.value
-        
+
         return self._agent.schedule(self._schedule_string, **input_kwargs)
 
 

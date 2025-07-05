@@ -1,14 +1,18 @@
-import asyncio
 import threading
-from typing import Optional, Dict, Any
 from contextlib import contextmanager
+from typing import Optional
 
-from .interfaces import TracingProvider, MetricsProvider, AlertingProvider, EventProcessor
-from .config import ObservabilityConfig
-from .tracing import OpenTelemetryTracingProvider
-from .metrics import PrometheusMetricsProvider
 from .alerting import WebhookAlerting
+from .config import ObservabilityConfig
 from .events import BufferedEventProcessor
+from .interfaces import (
+    AlertingProvider,
+    EventProcessor,
+    MetricsProvider,
+    TracingProvider,
+)
+from .metrics import PrometheusMetricsProvider
+from .tracing import OpenTelemetryTracingProvider
 
 
 class ObservabilityManager:

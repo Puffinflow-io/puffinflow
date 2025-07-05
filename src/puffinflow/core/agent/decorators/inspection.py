@@ -1,9 +1,10 @@
 """Utilities for inspecting decorated states."""
 
-from typing import Optional, Dict, Any, Callable
-from src.puffinflow.core.resources.requirements import ResourceRequirements
-from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
+from typing import Any, Callable, Dict, Optional
+
 from src.puffinflow.core.agent.state import Priority
+from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
+from src.puffinflow.core.resources.requirements import ResourceRequirements
 
 
 def is_puffinflow_state(func: Callable) -> bool:
@@ -27,7 +28,7 @@ def get_state_rate_limit(func: Callable) -> Optional[Dict[str, Any]]:
         return None
 
     strategy = getattr(func, '_rate_strategy', RateLimitStrategy.TOKEN_BUCKET)
-    
+
     return {
         'rate': func._rate_limit,
         'burst': getattr(func, '_burst_limit', None),
@@ -56,7 +57,9 @@ def list_state_metadata(func: Callable) -> Dict[str, Any]:
     description = getattr(func, '_state_description', '')
     if not description and func.__doc__:
         description = func.__doc__.strip()
-    elif not description:
+
+    # If still no description, use fallback
+    if not description:
         description = f"State: {func.__name__}"
 
     return {

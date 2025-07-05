@@ -1,10 +1,9 @@
 import asyncio
-import time
 from collections import deque
-from typing import Callable, Optional
+from typing import Callable
 
-from .interfaces import EventProcessor, ObservabilityEvent
 from .config import EventsConfig
+from .interfaces import EventProcessor, ObservabilityEvent
 
 
 class BufferedEventProcessor(EventProcessor):

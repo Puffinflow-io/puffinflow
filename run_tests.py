@@ -62,7 +62,7 @@ def main():
     args = parser.parse_args()
     
     # Base pytest command
-    base_cmd = ["python", "-m", "pytest"]
+    base_cmd = ["python3", "-m", "pytest"]
     
     # Add common options
     if args.verbose:

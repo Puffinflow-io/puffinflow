@@ -89,7 +89,7 @@ exclude_detectors:
       - "placeholder[_-]?password"
 
 # Custom allowlist for known false positives
-allow:
+allowlist:
   paths:
     - "tests/**"  # Test files often contain dummy secrets
     - "examples/**"  # Example files may contain placeholder secrets

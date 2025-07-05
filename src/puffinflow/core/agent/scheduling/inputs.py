@@ -1,9 +1,9 @@
 """Input types and magic prefix parsing for scheduled agents."""
 
 import json
-from enum import Enum
-from typing import Any, Dict, Optional, Tuple
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, Optional
 
 from .exceptions import InvalidInputTypeError
 
@@ -12,7 +12,7 @@ class InputType(Enum):
     """Types of inputs for scheduled agents."""
     VARIABLE = "variable"      # Regular variables (no prefix)
     SECRET = "secret"          # secret:value
-    CONSTANT = "const"         # const:value  
+    CONSTANT = "const"         # const:value
     CACHED = "cache"           # cache:TTL:value
     TYPED = "typed"            # typed:value
     OUTPUT = "output"          # output:value
@@ -25,7 +25,7 @@ class ScheduledInput:
     value: Any
     input_type: InputType
     ttl: Optional[int] = None  # For cached inputs
-    
+
     def apply_to_context(self, context) -> None:
         """Apply this input to a context."""
         if self.input_type == InputType.SECRET:
@@ -58,63 +58,63 @@ def parse_magic_prefix(key: str, value: Any) -> ScheduledInput:
     if not isinstance(value, str):
         # Non-string values are treated as regular variables
         return ScheduledInput(key, value, InputType.VARIABLE)
-    
+
     # Check for magic prefixes
     if ":" not in value:
         # No prefix, regular variable
         return ScheduledInput(key, value, InputType.VARIABLE)
-    
+
     parts = value.split(":", 1)
     prefix = parts[0].lower()
-    
+
     if prefix == "secret":
         if len(parts) != 2 or not parts[1]:
             raise InvalidInputTypeError(prefix, "Secret format: secret:value")
         return ScheduledInput(key, parts[1], InputType.SECRET)
-    
+
     elif prefix == "const":
         if len(parts) != 2 or not parts[1]:
             raise InvalidInputTypeError(prefix, "Constant format: const:value")
         return ScheduledInput(key, parts[1], InputType.CONSTANT)
-    
+
     elif prefix == "cache":
         # Format: cache:TTL:value
         cache_parts = value.split(":", 2)
         if len(cache_parts) != 3:
             raise InvalidInputTypeError(prefix, "Cache format: cache:TTL:value")
-        
+
         try:
             ttl = int(cache_parts[1])
         except ValueError:
             raise InvalidInputTypeError(prefix, "Cache TTL must be an integer")
-        
+
         # Try to parse value as JSON, fall back to string
         raw_value = cache_parts[2]
         try:
             parsed_value = json.loads(raw_value)
         except json.JSONDecodeError:
             parsed_value = raw_value
-            
+
         return ScheduledInput(key, parsed_value, InputType.CACHED, ttl=ttl)
-    
+
     elif prefix == "typed":
         if len(parts) != 2 or not parts[1]:
             raise InvalidInputTypeError(prefix, "Typed format: typed:value")
-        
+
         # Try to parse value as JSON for complex types
         raw_value = parts[1]
         try:
             parsed_value = json.loads(raw_value)
         except json.JSONDecodeError:
             parsed_value = raw_value
-            
+
         return ScheduledInput(key, parsed_value, InputType.TYPED)
-    
+
     elif prefix == "output":
         if len(parts) != 2 or not parts[1]:
             raise InvalidInputTypeError(prefix, "Output format: output:value")
         return ScheduledInput(key, parts[1], InputType.OUTPUT)
-    
+
     else:
         # Unknown prefix, treat as regular variable
         return ScheduledInput(key, value, InputType.VARIABLE)

@@ -1,38 +1,37 @@
 """Resource management module for workflow orchestrator."""
 
-from src.puffinflow.core.resources.pool import (
-    ResourcePool,
-    ResourceAllocationError,
-    ResourceOverflowError,
-    ResourceQuotaExceededError,
-    ResourceUsageStats
-)
-from src.puffinflow.core.resources.requirements import (
-    ResourceType,
-    ResourceRequirements
-)
-from src.puffinflow.core.resources.quotas import (
-    QuotaManager,
-    QuotaPolicy,
-    QuotaLimit,
-    QuotaScope,
-    QuotaExceededError,
-    QuotaMetrics
-)
+# Import submodules for import path tests
+from src.puffinflow.core.resources import allocation, pool, quotas, requirements
 from src.puffinflow.core.resources.allocation import (
-    AllocationStrategy,
     AllocationRequest,
     AllocationResult,
-    FirstFitAllocator,
+    AllocationStrategy,
     BestFitAllocator,
-    WorstFitAllocator,
-    PriorityAllocator,
     FairShareAllocator,
-    ResourceAllocator
+    FirstFitAllocator,
+    PriorityAllocator,
+    ResourceAllocator,
+    WorstFitAllocator,
 )
-
-# Import submodules for import path tests
-from src.puffinflow.core.resources import pool, requirements, quotas, allocation
+from src.puffinflow.core.resources.pool import (
+    ResourceAllocationError,
+    ResourceOverflowError,
+    ResourcePool,
+    ResourceQuotaExceededError,
+    ResourceUsageStats,
+)
+from src.puffinflow.core.resources.quotas import (
+    QuotaExceededError,
+    QuotaLimit,
+    QuotaManager,
+    QuotaMetrics,
+    QuotaPolicy,
+    QuotaScope,
+)
+from src.puffinflow.core.resources.requirements import (
+    ResourceRequirements,
+    ResourceType,
+)
 
 __all__ = [
     # Pool
@@ -41,11 +40,11 @@ __all__ = [
     "ResourceOverflowError",
     "ResourceQuotaExceededError",
     "ResourceUsageStats",
-    
+
     # Requirements
     "ResourceType",
     "ResourceRequirements",
-    
+
     # Quotas
     "QuotaManager",
     "QuotaPolicy",
@@ -53,7 +52,7 @@ __all__ = [
     "QuotaScope",
     "QuotaExceededError",
     "QuotaMetrics",
-    
+
     # Allocation
     "AllocationStrategy",
     "AllocationRequest",
@@ -64,7 +63,7 @@ __all__ = [
     "PriorityAllocator",
     "FairShareAllocator",
     "ResourceAllocator",
-    
+
     # Submodules
     "pool",
     "requirements",
@@ -74,6 +73,7 @@ __all__ = [
 
 # Clean up module namespace
 import sys as _sys
+
 _current_module = _sys.modules[__name__]
 for _attr_name in dir(_current_module):
     if not _attr_name.startswith('_') and _attr_name not in __all__:

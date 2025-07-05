@@ -1,8 +1,8 @@
 """Bulkhead pattern for resource isolation."""
 import asyncio
-from dataclasses import dataclass
-from typing import Dict, Set, Optional, Any
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Set
 
 
 @dataclass

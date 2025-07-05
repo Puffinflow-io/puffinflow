@@ -1,10 +1,10 @@
 """Lightweight circuit breaker implementation."""
 import asyncio
 import time
-from enum import Enum
-from dataclasses import dataclass
-from typing import Callable, Any, Optional, Dict, Set
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, Optional
 
 
 class CircuitState(Enum):
@@ -51,7 +51,7 @@ class CircuitBreaker:
         try:
             yield
             await self._record_success()
-        except Exception as e:
+        except Exception:
             await self._record_failure()
             raise
 
@@ -86,10 +86,7 @@ class CircuitBreaker:
             self._success_count = 0
 
             if (self.state == CircuitState.CLOSED and
-                    self._failure_count >= self.config.failure_threshold):
-                self.state = CircuitState.OPEN
-
-            elif self.state == CircuitState.HALF_OPEN:
+                    self._failure_count >= self.config.failure_threshold) or self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
 
     def get_metrics(self) -> Dict[str, Any]:

@@ -1,12 +1,12 @@
 import asyncio
-import json
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict
+
 import aiohttp
 
-from .interfaces import AlertingProvider, AlertSeverity
 from .config import AlertingConfig
+from .interfaces import AlertingProvider, AlertSeverity
 
 
 @dataclass

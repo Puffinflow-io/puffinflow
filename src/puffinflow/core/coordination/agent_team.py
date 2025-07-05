@@ -3,11 +3,9 @@
 import asyncio
 import logging
 import time
-import weakref
-from typing import Any, Dict, List, Optional, Callable, Set, Union
-from dataclasses import dataclass, field
-from datetime import datetime
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from ..agent.base import Agent, AgentResult
 from ..agent.state import AgentStatus

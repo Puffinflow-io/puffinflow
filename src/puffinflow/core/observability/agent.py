@@ -1,9 +1,9 @@
 import time
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from ..agent.base import Agent
-from .core import ObservabilityManager
 from .context import ObservableContext
+from .core import ObservabilityManager
 from .interfaces import SpanType
 
 
@@ -13,7 +13,7 @@ class ObservableAgent(Agent):
     def __init__(self, name: str, observability: Optional[ObservabilityManager] = None, **kwargs):
         # Extract workflow_id before passing kwargs to parent
         self.workflow_id = kwargs.pop('workflow_id', f"workflow_{int(time.time())}")
-        
+
         # Set observability BEFORE calling parent __init__
         self._observability = observability
 
@@ -21,7 +21,7 @@ class ObservableAgent(Agent):
         self._cleanup_handlers = []
 
         super().__init__(name, **kwargs)
-        
+
         # Store any additional attributes that weren't handled by the parent
         for key, value in kwargs.items():
             if not hasattr(self, key):

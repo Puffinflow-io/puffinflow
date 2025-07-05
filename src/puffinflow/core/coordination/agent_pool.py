@@ -3,10 +3,10 @@
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional, Callable, Union, Set
-from dataclasses import dataclass, field
 from collections import deque
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from ..agent.base import Agent, AgentResult
 

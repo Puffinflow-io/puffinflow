@@ -1,16 +1,16 @@
 """State management types and enums."""
-import uuid
-import time
-import random
 import asyncio
-from enum import IntEnum, Enum
+import random
+import uuid
 from dataclasses import dataclass, field
-from typing import Union, List, Tuple, Optional, Dict, Any, Callable, TYPE_CHECKING
-from typing_extensions import runtime_checkable, Protocol
+from enum import Enum, IntEnum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+from typing_extensions import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from .context import Context
     from ..resources.requirements import ResourceRequirements
+    from .context import Context
 
 try:
     from ..resources.requirements import ResourceRequirements

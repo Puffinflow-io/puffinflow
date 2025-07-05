@@ -1,7 +1,8 @@
 """
 Builder pattern for constructing state configurations.
 """
-from typing import Union, Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Union
+
 from ..state import Priority
 
 
@@ -37,7 +38,7 @@ class StateBuilder:
         self._config['network'] = weight
         return self
 
-    def resources(self, cpu: float = None, memory: float = None, 
+    def resources(self, cpu: float = None, memory: float = None,
                  gpu: float = None, io: float = None, network: float = None) -> 'StateBuilder':
         """Set multiple resources at once."""
         if cpu is not None:
@@ -139,7 +140,7 @@ class StateBuilder:
         return self.depends_on(*states)
 
     # Retry configuration
-    def retry(self, max_retries: int, initial_delay: float = 1.0, 
+    def retry(self, max_retries: int, initial_delay: float = 1.0,
              exponential_base: float = 2.0, jitter: bool = True,
              dead_letter: bool = True, circuit_breaker: bool = False) -> 'StateBuilder':
         """Set retry configuration with dead letter options and circuit breaker integration"""

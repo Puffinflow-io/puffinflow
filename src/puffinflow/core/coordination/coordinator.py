@@ -1,20 +1,21 @@
 """Coordination system with comprehensive monitoring and control."""
 
-from dataclasses import dataclass, field, asdict
-from typing import Dict, Set, Optional, List, Any, Union, Callable, Protocol
 import asyncio
-import time
 import contextlib
-import weakref
-import logging
-from datetime import datetime, timedelta
-import uuid
-from functools import wraps
 import inspect
+import logging
+import time
+import uuid
+import weakref
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, Optional, Protocol
 
-from src.puffinflow.core.coordination.primitives import CoordinationPrimitive, PrimitiveType, ResourceState
-from src.puffinflow.core.coordination.rate_limiter import RateLimiter, RateLimitStrategy
 from src.puffinflow.core.coordination.deadlock import DeadlockDetector
+from src.puffinflow.core.coordination.primitives import (
+    CoordinationPrimitive,
+    PrimitiveType,
+)
+from src.puffinflow.core.coordination.rate_limiter import RateLimiter, RateLimitStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ class AgentCoordinator:
                 logger.info(f"coordinator_started: instance_id={self.instance_id}")
 
             except Exception as e:
-                logger.error(f"coordinator_start_failed: instance_id={self.instance_id}, error={str(e)}")
+                logger.error(f"coordinator_start_failed: instance_id={self.instance_id}, error={e!s}")
                 await self._emergency_cleanup()
                 raise CoordinationError(f"Failed to start coordinator: {e}") from e
 
@@ -162,7 +163,7 @@ class AgentCoordinator:
                 )
 
             except Exception as e:
-                logger.error(f"coordinator_stop_error: instance_id={self.instance_id}, error={str(e)}")
+                logger.error(f"coordinator_stop_error: instance_id={self.instance_id}, error={e!s}")
 
     async def _emergency_cleanup(self) -> None:
         """Emergency cleanup in case of startup failure."""
@@ -170,7 +171,7 @@ class AgentCoordinator:
             if self.deadlock_detector:
                 await self.deadlock_detector.stop()
         except Exception as e:
-            logger.error(f"emergency_cleanup_failed: instance_id={self.instance_id}, error={str(e)}")
+            logger.error(f"emergency_cleanup_failed: instance_id={self.instance_id}, error={e!s}")
 
     async def _release_all_resources(self) -> None:
         """Release all coordination resources."""
@@ -185,7 +186,7 @@ class AgentCoordinator:
                         released_count += 1
             except Exception as e:
                 logger.error(
-                    f"resource_release_error: primitive={primitive.name}, error={str(e)}"
+                    f"resource_release_error: primitive={primitive.name}, error={e!s}"
                 )
 
         if released_count > 0:
@@ -328,7 +329,7 @@ class AgentCoordinator:
                     except Exception as release_error:
                         logger.error(
                             f"primitive_release_error: primitive={primitive_name}, "
-                            f"caller_id={caller_id}, error={str(release_error)}"
+                            f"caller_id={caller_id}, error={release_error!s}"
                         )
 
                 await self._log_coordination_failure(
@@ -339,7 +340,7 @@ class AgentCoordinator:
         except Exception as e:
             self._coordination_stats['failed_requests'] += 1
             await self._log_coordination_failure(
-                state_name, coordination_id, f"exception:{str(e)}"
+                state_name, coordination_id, f"exception:{e!s}"
             )
             return False
 
@@ -362,7 +363,7 @@ class AgentCoordinator:
                     f"coordination_id={coordination_id}, reason={reason}"
                 )
             except Exception as e:
-                logger.error(f"monitor_logging_error: {str(e)}")
+                logger.error(f"monitor_logging_error: {e!s}")
 
     async def release_coordination(self, state_name: str, coordination_id: Optional[str] = None) -> None:
         """Release coordination resources for a state.
@@ -393,7 +394,7 @@ class AgentCoordinator:
             except Exception as e:
                 logger.error(
                     f"coordination_release_error: primitive={primitive_name}, "
-                    f"state={state_name}, error={str(e)}"
+                    f"state={state_name}, error={e!s}"
                 )
 
         logger.debug(
@@ -445,7 +446,7 @@ class AgentCoordinator:
                             cleanup_count += before_count - after_count
                     except Exception as e:
                         logger.error(
-                            f"primitive_cleanup_error: primitive={primitive.name}, error={str(e)}"
+                            f"primitive_cleanup_error: primitive={primitive.name}, error={e!s}"
                         )
 
                 cleanup_duration = time.time() - cleanup_start
@@ -463,7 +464,7 @@ class AgentCoordinator:
                 break
             except Exception as e:
                 logger.error(
-                    f"cleanup_loop_error: instance_id={self.instance_id}, error={str(e)}"
+                    f"cleanup_loop_error: instance_id={self.instance_id}, error={e!s}"
                 )
                 # Continue the loop even on errors
                 await asyncio.sleep(1.0)
@@ -568,7 +569,7 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
                 duration = time.time() - start_time
                 agent._monitor.logger.error(
                     f"state_execution_failed: state={state_name}, "
-                    f"attempt={attempt_id}, error={str(e)}, duration={duration:.3f}"
+                    f"attempt={attempt_id}, error={e!s}, duration={duration:.3f}"
                 )
                 await agent._monitor.record_metric(
                     'state_duration',
@@ -605,7 +606,7 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
                 ) as span:
                     yield span
             except Exception as e:
-                logger.error(f"monitor_span_error: {str(e)}")
+                logger.error(f"monitor_span_error: {e!s}")
                 yield None
         else:
             yield None
@@ -628,8 +629,8 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
 
         except Exception as e:
             if hasattr(agent, '_monitor'):
-                agent._monitor.logger.error(f"cleanup_error: error={str(e)}")
-            logger.error(f"enhanced_cleanup_error: agent={agent.name}, error={str(e)}")
+                agent._monitor.logger.error(f"cleanup_error: error={e!s}")
+            logger.error(f"enhanced_cleanup_error: agent={agent.name}, error={e!s}")
             raise
 
     agent._cleanup = enhanced_cleanup

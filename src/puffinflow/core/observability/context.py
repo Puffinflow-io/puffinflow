@@ -1,16 +1,16 @@
-from typing import Dict, Any, Optional
-from contextlib import contextmanager
 import time
+from contextlib import contextmanager
+from typing import Any, Dict, Optional
 
 from ..agent.context import Context
-from .interfaces import SpanType, ObservabilityEvent, SpanContext
 from .core import ObservabilityManager
+from .interfaces import ObservabilityEvent, SpanType
 
 
 class ObservableContext(Context):
     """Context with observability integration"""
 
-    def __init__(self, shared_state: Dict[str, Any], 
+    def __init__(self, shared_state: Dict[str, Any],
                  observability: Optional[ObservabilityManager] = None):
         super().__init__(shared_state)
         self._observability = observability

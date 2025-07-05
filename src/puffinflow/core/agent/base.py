@@ -4,21 +4,26 @@ import asyncio
 import logging
 import time
 import weakref
-from typing import Any, Dict, List, Optional, Union, Callable, Set, TYPE_CHECKING
-from datetime import datetime
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
 
+from .checkpoint import AgentCheckpoint
 from .context import Context
 from .state import (
-    StateResult, Priority, AgentStatus, StateStatus, StateMetadata,
-    PrioritizedState, RetryPolicy, DeadLetter
+    AgentStatus,
+    DeadLetter,
+    PrioritizedState,
+    Priority,
+    RetryPolicy,
+    StateMetadata,
+    StateResult,
+    StateStatus,
 )
-from .checkpoint import AgentCheckpoint
 
 # Import scheduling components
 try:
-    from .scheduling.scheduler import GlobalScheduler, ScheduledAgent
     from .scheduling.builder import ScheduleBuilder
+    from .scheduling.scheduler import GlobalScheduler, ScheduledAgent
     _SCHEDULING_AVAILABLE = True
 except ImportError:
     _SCHEDULING_AVAILABLE = False
@@ -33,9 +38,9 @@ except ImportError:
 if TYPE_CHECKING:
     from ..coordination.agent_team import AgentTeam
     from ..coordination.primitives import CoordinationPrimitive
-    from ..resources.pool import ResourcePool
-    from ..reliability.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
     from ..reliability.bulkhead import Bulkhead, BulkheadConfig
+    from ..reliability.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+    from ..resources.pool import ResourcePool
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +166,10 @@ class Agent:
     def circuit_breaker(self) -> 'CircuitBreaker':
         """Get or create circuit breaker."""
         if self._circuit_breaker is None:
-            from ..reliability.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+            from ..reliability.circuit_breaker import (
+                CircuitBreaker,
+                CircuitBreakerConfig,
+            )
 
             if self._circuit_breaker_config:
                 config = self._circuit_breaker_config
@@ -971,10 +979,10 @@ class Agent:
         """
         if not _SCHEDULING_AVAILABLE:
             raise ImportError("Scheduling module not available. Install required dependencies.")
-        
+
         scheduler = GlobalScheduler.get_instance_sync()
         return scheduler.schedule_agent(self, when, **inputs)
-    
+
     def every(self, interval: str) -> 'ScheduleBuilder':
         """Start fluent API for scheduling with intervals.
         
@@ -990,16 +998,16 @@ class Agent:
         """
         if not _SCHEDULING_AVAILABLE:
             raise ImportError("Scheduling module not available. Install required dependencies.")
-        
+
         # Handle "every X" format - avoid double "every"
         if not interval.startswith("every "):
             interval = f"every {interval}"
         else:
             # If it already starts with "every", don't add another
             pass
-        
+
         return ScheduleBuilder(self, interval)
-    
+
     def daily(self, time_str: Optional[str] = None) -> 'ScheduleBuilder':
         """Start fluent API for daily scheduling.
         
@@ -1015,14 +1023,14 @@ class Agent:
         """
         if not _SCHEDULING_AVAILABLE:
             raise ImportError("Scheduling module not available. Install required dependencies.")
-        
+
         if time_str:
             schedule_str = f"daily at {time_str}"
         else:
             schedule_str = "daily"
-        
+
         return ScheduleBuilder(self, schedule_str)
-    
+
     def hourly(self, minute: Optional[int] = None) -> 'ScheduleBuilder':
         """Start fluent API for hourly scheduling.
         
@@ -1038,12 +1046,12 @@ class Agent:
         """
         if not _SCHEDULING_AVAILABLE:
             raise ImportError("Scheduling module not available. Install required dependencies.")
-        
+
         if minute is not None:
             schedule_str = f"every hour at {minute}"
         else:
             schedule_str = "hourly"
-        
+
         return ScheduleBuilder(self, schedule_str)
 
     # Main execution

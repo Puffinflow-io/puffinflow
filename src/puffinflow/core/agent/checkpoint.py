@@ -1,12 +1,16 @@
 """Checkpoint management for agents."""
 
-from dataclasses import dataclass, field
-from typing import Dict, Set, List, Any, Optional, TYPE_CHECKING
 import time
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 if TYPE_CHECKING:
     from src.puffinflow.core.agent.base import Agent
-    from src.puffinflow.core.agent.state import AgentStatus, StateMetadata, PrioritizedState
+    from src.puffinflow.core.agent.state import (
+        AgentStatus,
+        PrioritizedState,
+        StateMetadata,
+    )
 
 
 @dataclass
@@ -27,7 +31,7 @@ class AgentCheckpoint:
     def create_from_agent(cls, agent: "Agent") -> "AgentCheckpoint":
         """Create checkpoint from agent instance."""
         from copy import deepcopy
-        
+
         # Handle missing session_start gracefully
         session_start = getattr(agent, 'session_start', None)
 

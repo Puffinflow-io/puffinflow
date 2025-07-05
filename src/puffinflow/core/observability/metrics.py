@@ -1,15 +1,13 @@
 import threading
-from typing import Dict, List, Optional
-from prometheus_client import (
-    Counter as PrometheusCounter,
-    Gauge as PrometheusGauge,
-    Histogram as PrometheusHistogram,
-    generate_latest,
-    CollectorRegistry
-)
+from typing import List
 
-from .interfaces import MetricsProvider, Metric, MetricType
+from prometheus_client import CollectorRegistry, generate_latest
+from prometheus_client import Counter as PrometheusCounter
+from prometheus_client import Gauge as PrometheusGauge
+from prometheus_client import Histogram as PrometheusHistogram
+
 from .config import MetricsConfig
+from .interfaces import Metric, MetricsProvider, MetricType
 
 
 class PrometheusMetric(Metric):

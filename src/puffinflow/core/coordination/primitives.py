@@ -1,15 +1,14 @@
 """Coordination primitives for distributed systems."""
 
-from dataclasses import dataclass, field
-from typing import Dict, Set, Optional, List, Any, Union, Callable
 import asyncio
 import time
-from enum import Enum, auto
 import uuid
-import structlog
-from datetime import datetime, timedelta
-import threading
+from dataclasses import dataclass, field
+from datetime import timedelta
+from enum import Enum, auto
+from typing import Any, Dict, Optional, Set
 
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -92,7 +91,7 @@ class CoordinationPrimitive:
                     # Unify the condition's lock with the primitive's lock on first use.
                     if not hasattr(self, '_barrier_lock_unified'):
                         self._condition = asyncio.Condition(self._lock)
-                        setattr(self, '_barrier_lock_unified', True)
+                        self._barrier_lock_unified = True
 
                     self._acquire_for(caller_id)
 
@@ -461,7 +460,7 @@ class Quota(CoordinationPrimitive):
             self._quota_usage.clear()
             self._last_reset = time.time()
             logger.info("quota_reset", quota=self.name)
-    
+
     async def _reset_loop(self):
         """Periodic quota reset"""
         while True:
@@ -479,7 +478,7 @@ class Quota(CoordinationPrimitive):
                     quota=self.name,
                     error=str(e)
                 )
-    
+
     def __del__(self):
         """Cleanup reset task"""
         if self._reset_task and not self._reset_task.done():
@@ -501,9 +500,9 @@ def create_primitive(
         PrimitiveType.LOCK: Lock,
         PrimitiveType.QUOTA: Quota
     }
-    
+
     primitive_class = primitives.get(primitive_type, CoordinationPrimitive)
-    
+
     if primitive_class == CoordinationPrimitive:
         return CoordinationPrimitive(name=name, type=primitive_type, **kwargs)
     else:

@@ -10,13 +10,14 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Optional, Any, Set, List
-from enum import Flag, auto
+from typing import Any, Dict, List, Optional, Set
 
 # Import from the canonical source to ensure consistent enum instances
 from .requirements import (
-    ResourceRequirements, ResourceType, get_resource_amount,
-    RESOURCE_ATTRIBUTE_MAPPING, safe_check_resource_type
+    ResourceRequirements,
+    ResourceType,
+    get_resource_amount,
+    safe_check_resource_type,
 )
 
 # Import leak detector with fallback
@@ -240,6 +241,19 @@ class ResourcePool:
                 # Create a new valid requirements object
                 requirements = ResourceRequirements()
 
+            # Check for negative resource values
+            resource_values = {
+                'cpu_units': getattr(requirements, 'cpu_units', 0.0),
+                'memory_mb': getattr(requirements, 'memory_mb', 0.0),
+                'io_weight': getattr(requirements, 'io_weight', 0.0),
+                'network_weight': getattr(requirements, 'network_weight', 0.0),
+                'gpu_units': getattr(requirements, 'gpu_units', 0.0)
+            }
+
+            for attr_name, value in resource_values.items():
+                if value < 0:
+                    raise ValueError(f"Negative resource requirement: {attr_name}={value}")
+
             # Ensure resource_types is valid
             if not isinstance(requirements.resource_types, ResourceType):
                 logger.warning(f"Invalid resource_types: {requirements.resource_types}")
@@ -251,6 +265,9 @@ class ResourcePool:
 
             return requirements
 
+        except ValueError:
+            # Re-raise ValueError for negative resource requirements
+            raise
         except Exception as e:
             logger.error(f"Error validating requirements: {e}")
             # Create a safe fallback

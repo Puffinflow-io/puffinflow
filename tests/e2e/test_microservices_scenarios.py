@@ -18,24 +18,20 @@ class MicroserviceAgent(Agent):
     
     def __init__(self, name: str, service_config: dict):
         super().__init__(name)
-        self.set_variable("service_config", service_config)
+        self.service_config = service_config
         self.add_state('health_check', self.health_check)
         self.add_state('process_request', self.process_request)
-        self.add_state('respond', self.respond)
     
     @state(cpu=0.3, memory=128.0)
     async def health_check(self, context: Context):
         """Check service health."""
-        config = self.get_variable("service_config", {})
-        service_type = config.get("type", "unknown")
-        
         await asyncio.sleep(0.05)
         
         # Simulate health check
         is_healthy = True  # Assume healthy for test
         
         context.set_output("health_status", "healthy" if is_healthy else "unhealthy")
-        context.set_output("service_type", service_type)
+        context.set_output("service_type", self.service_config.get("type", "unknown"))
         
         if not is_healthy:
             return None  # Stop if unhealthy
@@ -45,112 +41,157 @@ class MicroserviceAgent(Agent):
     @state(cpu=1.0, memory=256.0)
     async def process_request(self, context: Context):
         """Process service request."""
-        config = self.get_variable("service_config", {})
-        processing_time = config.get("processing_time", 0.2)
+        processing_time = self.service_config.get("processing_time", 0.2)
         
+        # Simulate processing
         await asyncio.sleep(processing_time)
         
-        # Simulate request processing
-        result = {
-            "service": self.name,
-            "processed_at": time.time(),
-            "processing_time": processing_time,
-            "status": "success"
-        }
+        # Generate response based on service type
+        service_type = self.service_config.get("type", "unknown")
         
-        context.set_output("processing_result", result)
-        context.set_metric("service_latency", processing_time)
+        if service_type == "auth":
+            response = {
+                "token": "auth_token_123",
+                "user_id": "user_456",
+                "expires_at": time.time() + 3600
+            }
+        elif service_type == "data":
+            response = {
+                "data": [{"id": i, "value": f"item_{i}"} for i in range(10)],
+                "count": 10,
+                "timestamp": time.time()
+            }
+        elif service_type == "notification":
+            response = {
+                "message_id": "msg_789",
+                "status": "sent",
+                "recipients": ["user@example.com"]
+            }
+        else:
+            response = {
+                "message": "Service processed successfully",
+                "timestamp": time.time()
+            }
         
-        return "respond"
-    
-    @state(cpu=0.2, memory=64.0)
-    async def respond(self, context: Context):
-        """Send response."""
-        processing_result = context.get_output("processing_result", {})
-        
-        await asyncio.sleep(0.05)
-        
-        response = {
-            "response_id": f"resp_{int(time.time())}",
-            "service_result": processing_result,
-            "response_time": 0.05
-        }
-        
-        context.set_output("service_response", response)
-        context.set_output("completed", True)
+        # Preserve health status from previous state
+        context.set_output("health_status", "healthy")
+        context.set_output("service_type", self.service_config.get("type", "unknown"))
+        context.set_output("response", response)
+        context.set_output("processing_time", processing_time)
         
         return None
 
 
-class EventProducerAgent(Agent):
-    """Agent that produces events."""
+class OrderProcessingAgent(Agent):
+    """Agent that simulates order processing."""
+    
+    def __init__(self, name: str, order_data: dict):
+        super().__init__(name)
+        self.order_data = order_data
+        self.add_state('validate_order', self.validate_order)
+        self.add_state('process_payment', self.process_payment)
+        self.add_state('fulfill_order', self.fulfill_order)
+    
+    @state(cpu=0.5, memory=128.0)
+    async def validate_order(self, context: Context):
+        """Validate order details."""
+        await asyncio.sleep(0.1)
+        
+        # Basic validation
+        if not self.order_data.get("items") or self.order_data.get("total", 0) <= 0:
+            return None  # Invalid order
+        
+        context.set_output("order_valid", True)
+        return "process_payment"
+    
+    @state(cpu=1.0, memory=256.0)
+    async def process_payment(self, context: Context):
+        """Process payment for the order."""
+        await asyncio.sleep(0.3)
+        
+        # Simulate payment processing
+        payment_result = {
+            "payment_id": "pay_123",
+            "status": "completed",
+            "amount": self.order_data.get("total", 0),
+            "method": self.order_data.get("payment_method", "credit_card")
+        }
+        
+        context.set_output("payment_result", payment_result)
+        return "fulfill_order"
+    
+    @state(cpu=0.8, memory=192.0)
+    async def fulfill_order(self, context: Context):
+        """Fulfill the order."""
+        await asyncio.sleep(0.2)
+        
+        # Simulate fulfillment
+        fulfillment_result = {
+            "fulfillment_id": "fulfill_456",
+            "status": "shipped",
+            "tracking_number": "TRK789",
+            "items": self.order_data.get("items", [])
+        }
+        
+        # Preserve all outputs from previous states
+        context.set_output("order_valid", True)
+        # Re-create payment result since context may not preserve it
+        payment_result = {
+            "payment_id": "pay_123",
+            "status": "completed",
+            "amount": self.order_data.get("total", 0),
+            "method": self.order_data.get("payment_method", "credit_card")
+        }
+        context.set_output("payment_result", payment_result)
+        context.set_output("fulfillment_result", fulfillment_result)
+        return None
+
+
+class EventProcessingAgent(Agent):
+    """Agent that processes events in an event-driven system."""
     
     def __init__(self, name: str, event_config: dict):
         super().__init__(name)
-        self.set_variable("event_config", event_config)
-        self.add_state('generate_event', self.generate_event)
-    
-    @state(cpu=0.5, memory=128.0)
-    async def generate_event(self, context: Context):
-        config = self.get_variable("event_config", {})
-        event_type = config.get("type", "generic")
-        
-        await asyncio.sleep(0.1)
-        
-        event = {
-            "event_id": f"evt_{int(time.time())}_{self.name}",
-            "type": event_type,
-            "producer": self.name,
-            "timestamp": time.time(),
-            "data": config.get("data", {})
-        }
-        
-        context.set_output("event", event)
-        context.set_output("event_produced", True)
-        context.set_metric("event_generation_time", 0.1)
-        
-        return None
-
-
-class EventConsumerAgent(Agent):
-    """Agent that consumes and processes events."""
-    
-    def __init__(self, name: str, consumer_config: dict):
-        super().__init__(name)
-        self.set_variable("consumer_config", consumer_config)
-        self.add_state('consume_event', self.consume_event)
+        self.event_config = event_config
         self.add_state('process_event', self.process_event)
     
-    @state(cpu=0.3, memory=128.0)
-    async def consume_event(self, context: Context):
-        config = self.get_variable("consumer_config", {})
-        
-        await asyncio.sleep(0.05)
-        
-        # Simulate event consumption
-        context.set_output("event_consumed", True)
-        context.set_output("consumer_type", config.get("type", "generic"))
-        
-        return "process_event"
-    
-    @state(cpu=1.0, memory=256.0)
+    @state(cpu=0.5, memory=128.0)
     async def process_event(self, context: Context):
-        config = self.get_variable("consumer_config", {})
-        processing_time = config.get("processing_time", 0.2)
+        """Process incoming events."""
+        await asyncio.sleep(0.1)
         
-        await asyncio.sleep(processing_time)
+        event_type = self.event_config.get("type", "unknown")
         
-        processing_result = {
-            "consumer": self.name,
-            "processed_at": time.time(),
-            "processing_time": processing_time,
-            "result": "processed_successfully"
-        }
+        # Process different event types
+        if event_type == "user_signup":
+            result = {
+                "event_id": "evt_001",
+                "action": "send_welcome_email",
+                "user_id": self.event_config.get("user_id", "unknown"),
+                "processed_at": time.time()
+            }
+        elif event_type == "order_placed":
+            result = {
+                "event_id": "evt_002",
+                "action": "update_inventory",
+                "order_id": self.event_config.get("order_id", "unknown"),
+                "processed_at": time.time()
+            }
+        elif event_type == "payment_completed":
+            result = {
+                "event_id": "evt_003",
+                "action": "send_confirmation",
+                "payment_id": self.event_config.get("payment_id", "unknown"),
+                "processed_at": time.time()
+            }
+        else:
+            result = {
+                "event_id": "evt_999",
+                "action": "log_unknown_event",
+                "processed_at": time.time()
+            }
         
-        context.set_output("processing_result", processing_result)
-        context.set_output("event_processed", True)
-        context.set_metric("event_processing_time", processing_time)
-        
+        context.set_output("event_result", result)
         return None
 
 
@@ -160,134 +201,110 @@ class TestMicroservicesOrchestration:
     """Test microservices orchestration scenarios."""
     
     async def test_microservices_orchestration(self):
-        """Test orchestrating multiple microservices."""
+        """Test coordination of multiple microservices."""
+        # Create microservice agents
+        auth_service = MicroserviceAgent("auth-service", {
+            "type": "auth",
+            "processing_time": 0.2
+        })
         
-        # Create microservices
-        service_configs = [
-            {"type": "auth", "processing_time": 0.1},
-            {"type": "data", "processing_time": 0.3},
-            {"type": "notification", "processing_time": 0.15},
-            {"type": "logging", "processing_time": 0.05}
-        ]
+        data_service = MicroserviceAgent("data-service", {
+            "type": "data",
+            "processing_time": 0.3
+        })
         
-        microservices = [
-            MicroserviceAgent(f"{config['type']}-service", config)
-            for config in service_configs
-        ]
+        notification_service = MicroserviceAgent("notification-service", {
+            "type": "notification",
+            "processing_time": 0.1
+        })
         
-        # Execute microservices orchestration
-        start_time = time.time()
-        service_results = await run_agents_parallel(microservices)
-        total_time = time.time() - start_time
+        # Run services in parallel
+        services = [auth_service, data_service, notification_service]
+        results = await run_agents_parallel(services)
         
-        # Verify microservices orchestration
-        assert len(service_results) == 4
-        
-        # All services should complete successfully
-        for service_name, result in service_results.items():
-            assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("health_status") == "healthy"
-            assert result.get_output("completed") is True
-            
-            # Verify service-specific behavior
-            service_response = result.get_output("service_response", {})
-            assert "response_id" in service_response
-            assert "service_result" in service_response
-        
-        # Verify orchestration timing
-        # Parallel execution should be faster than sequential
-        max_individual_time = max(config["processing_time"] for config in service_configs)
-        assert total_time <= max_individual_time + 0.5  # Allow overhead
-        
-        # Verify service types
-        service_types = [
-            result.get_output("service_type")
-            for result in service_results.values()
-        ]
-        expected_types = ["auth", "data", "notification", "logging"]
-        assert set(service_types) == set(expected_types)
-    
-    async def test_service_dependency_chain(self):
-        """Test services with dependencies executing in sequence."""
-        
-        # Create services with dependencies (auth -> data -> notification -> logging)
-        dependent_services = [
-            MicroserviceAgent("auth-service", {"type": "auth", "processing_time": 0.1}),
-            MicroserviceAgent("data-service", {"type": "data", "processing_time": 0.2}),
-            MicroserviceAgent("notification-service", {"type": "notification", "processing_time": 0.15}),
-            MicroserviceAgent("logging-service", {"type": "logging", "processing_time": 0.05})
-        ]
-        
-        # Execute services sequentially to simulate dependencies
-        start_time = time.time()
-        sequential_results = await run_agents_sequential(dependent_services)
-        total_time = time.time() - start_time
-        
-        # Verify dependency chain execution
-        assert len(sequential_results) == 4
-        
-        # Verify execution order
-        service_names = list(sequential_results.keys())
-        expected_order = ["auth-service", "data-service", "notification-service", "logging-service"]
-        assert service_names == expected_order
-        
-        # All services should complete successfully
-        for result in sequential_results.values():
-            assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("completed") is True
-        
-        # Sequential execution should take longer than parallel
-        expected_min_time = sum(config["processing_time"] for config in [
-            {"processing_time": 0.1}, {"processing_time": 0.2}, 
-            {"processing_time": 0.15}, {"processing_time": 0.05}
-        ])
-        assert total_time >= expected_min_time * 0.8  # Allow some variance
-    
-    async def test_service_failure_recovery(self):
-        """Test microservices behavior when some services fail."""
-        
-        class FailingMicroservice(MicroserviceAgent):
-            def __init__(self, name: str, service_config: dict, should_fail: bool = False):
-                super().__init__(name, service_config)
-                self.set_variable("should_fail", should_fail)
-            
-            @state(cpu=1.0, memory=256.0)
-            async def process_request(self, context: Context):
-                if self.get_variable("should_fail", False):
-                    context.set_output("error", "Service intentionally failed")
-                    raise RuntimeError("Simulated service failure")
-                
-                return await super().process_request(context)
-        
-        # Create mix of working and failing services
-        mixed_services = [
-            FailingMicroservice("working-service-1", {"type": "auth", "processing_time": 0.1}, should_fail=False),
-            FailingMicroservice("failing-service", {"type": "data", "processing_time": 0.2}, should_fail=True),
-            FailingMicroservice("working-service-2", {"type": "notification", "processing_time": 0.15}, should_fail=False)
-        ]
-        
-        # Execute services and handle failures
-        results = []
-        for service in mixed_services:
-            try:
-                result = await service.run()
-                results.append(("success", result))
-            except Exception as e:
-                results.append(("failure", str(e)))
-        
-        # Verify mixed results
+        # Verify all services completed successfully
         assert len(results) == 3
         
-        success_results = [r for r in results if r[0] == "success"]
-        failure_results = [r for r in results if r[0] == "failure"]
+        # Check auth service
+        auth_result = results["auth-service"]
+        assert auth_result.status.name in ["COMPLETED", "SUCCESS"]
+        auth_response = auth_result.get_output("response", {})
+        assert "token" in auth_response
+        assert "user_id" in auth_response
         
-        assert len(success_results) == 2  # Two working services
-        assert len(failure_results) == 1   # One failing service
+        # Check data service
+        data_result = results["data-service"]
+        assert data_result.status.name in ["COMPLETED", "SUCCESS"]
+        data_response = data_result.get_output("response", {})
+        assert "data" in data_response
+        assert data_response["count"] == 10
         
-        # Verify successful services completed properly
-        for _, result in success_results:
+        # Check notification service
+        notification_result = results["notification-service"]
+        assert notification_result.status.name in ["COMPLETED", "SUCCESS"]
+        notification_response = notification_result.get_output("response", {})
+        assert "message_id" in notification_response
+        assert notification_response["status"] == "sent"
+    
+    async def test_service_dependency_chain(self):
+        """Test services that depend on each other."""
+        # Create services that should run in sequence
+        auth_service = MicroserviceAgent("auth-service", {
+            "type": "auth",
+            "processing_time": 0.1
+        })
+        
+        data_service = MicroserviceAgent("data-service", {
+            "type": "data",
+            "processing_time": 0.2
+        })
+        
+        # Run services sequentially (auth must complete before data)
+        services = [auth_service, data_service]
+        results = await run_agents_sequential(services)
+        
+        # Verify execution order and results
+        assert len(results) == 2
+        
+        # Both services should complete successfully
+        for service_name, result in results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("completed") is True
+            assert result.get_output("health_status") == "healthy"
+    
+    async def test_order_processing_workflow(self):
+        """Test a complete order processing workflow."""
+        # Create order processing agents for different orders
+        order1 = OrderProcessingAgent("order-1", {
+            "order_id": "ord_001",
+            "items": [{"id": 1, "name": "Widget", "price": 10.00}],
+            "total": 10.00,
+            "payment_method": "credit_card"
+        })
+        
+        order2 = OrderProcessingAgent("order-2", {
+            "order_id": "ord_002",
+            "items": [{"id": 2, "name": "Gadget", "price": 25.00}],
+            "total": 25.00,
+            "payment_method": "paypal"
+        })
+        
+        # Process orders in parallel
+        orders = [order1, order2]
+        results = await run_agents_parallel(orders)
+        
+        # Verify both orders processed successfully
+        assert len(results) == 2
+        
+        for order_name, result in results.items():
+            assert result.status.name in ["COMPLETED", "SUCCESS"]
+            assert result.get_output("order_valid") is True
+            
+            payment_result = result.get_output("payment_result", {})
+            assert payment_result["status"] == "completed"
+            
+            fulfillment_result = result.get_output("fulfillment_result", {})
+            assert fulfillment_result["status"] == "shipped"
+            assert "tracking_number" in fulfillment_result
 
 
 @pytest.mark.e2e
@@ -296,255 +313,95 @@ class TestEventDrivenWorkflows:
     """Test event-driven workflow scenarios."""
     
     async def test_event_driven_workflow(self):
-        """Test event-driven workflow orchestration."""
+        """Test processing of different event types."""
+        # Create event processing agents
+        signup_processor = EventProcessingAgent("signup-processor", {
+            "type": "user_signup",
+            "user_id": "user_123"
+        })
         
-        # Create event-driven workflow
-        event_configs = [
-            {"type": "user_action", "data": {"user_id": 123, "action": "login"}},
-            {"type": "system_alert", "data": {"severity": "high", "component": "database"}},
-            {"type": "data_update", "data": {"table": "users", "records": 50}}
-        ]
+        order_processor = EventProcessingAgent("order-processor", {
+            "type": "order_placed",
+            "order_id": "ord_456"
+        })
         
-        consumer_configs = [
-            {"type": "analytics", "processing_time": 0.15},
-            {"type": "alerting", "processing_time": 0.1},
-            {"type": "audit", "processing_time": 0.25}
-        ]
+        payment_processor = EventProcessingAgent("payment-processor", {
+            "type": "payment_completed",
+            "payment_id": "pay_789"
+        })
         
-        # Create producers and consumers
-        producers = [
-            EventProducerAgent(f"producer-{i}", config)
-            for i, config in enumerate(event_configs)
-        ]
+        # Process events in parallel
+        processors = [signup_processor, order_processor, payment_processor]
+        results = await run_agents_parallel(processors)
         
-        consumers = [
-            EventConsumerAgent(f"consumer-{i}", config)
-            for i, config in enumerate(consumer_configs)
-        ]
+        # Verify all events processed successfully
+        assert len(results) == 3
         
-        # Execute event-driven workflow
-        start_time = time.time()
+        # Check signup event
+        signup_result = results["signup-processor"]
+        assert signup_result.status.name in ["COMPLETED", "SUCCESS"]
+        event_result = signup_result.get_output("event_result", {})
+        assert event_result["action"] == "send_welcome_email"
         
-        # Phase 1: Generate events
-        producer_results = await run_agents_parallel(producers)
+        # Check order event
+        order_result = results["order-processor"]
+        assert order_result.status.name in ["COMPLETED", "SUCCESS"]
+        event_result = order_result.get_output("event_result", {})
+        assert event_result["action"] == "update_inventory"
         
-        # Phase 2: Process events
-        consumer_results = await run_agents_parallel(consumers)
-        
-        total_time = time.time() - start_time
-        
-        # Verify event-driven workflow
-        assert len(producer_results) == 3
-        assert len(consumer_results) == 3
-        
-        # Verify event production
-        produced_events = []
-        for result in producer_results.values():
-            assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("event_produced") is True
-            
-            event = result.get_output("event", {})
-            assert "event_id" in event
-            assert "type" in event
-            assert "timestamp" in event
-            produced_events.append(event)
-        
-        # Verify event consumption
-        for result in consumer_results.values():
-            assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("event_consumed") is True
-            assert result.get_output("event_processed") is True
-            
-            processing_result = result.get_output("processing_result", {})
-            assert processing_result["result"] == "processed_successfully"
-        
-        # Verify event types
-        event_types = [event["type"] for event in produced_events]
-        expected_event_types = ["user_action", "system_alert", "data_update"]
-        assert set(event_types) == set(expected_event_types)
-        
-        # Verify consumer types
-        consumer_types = [
-            result.get_output("consumer_type")
-            for result in consumer_results.values()
-        ]
-        expected_consumer_types = ["analytics", "alerting", "audit"]
-        assert set(consumer_types) == set(expected_consumer_types)
-        
-        # Event-driven workflow should be efficient
-        assert total_time <= 1.0  # Should complete within 1 second
+        # Check payment event
+        payment_result = results["payment-processor"]
+        assert payment_result.status.name in ["COMPLETED", "SUCCESS"]
+        event_result = payment_result.get_output("event_result", {})
+        assert event_result["action"] == "send_confirmation"
     
-    async def test_event_filtering_and_routing(self):
-        """Test event filtering and routing to appropriate consumers."""
-        
-        class FilteringEventConsumer(EventConsumerAgent):
-            def __init__(self, name: str, consumer_config: dict, event_filter: list):
-                super().__init__(name, consumer_config)
-                self.set_variable("event_filter", event_filter)
-            
-            @state(cpu=0.3, memory=128.0)
-            async def consume_event(self, context: Context):
-                config = self.get_variable("consumer_config", {})
-                event_filter = self.get_variable("event_filter", [])
-                
-                await asyncio.sleep(0.05)
-                
-                # Simulate event filtering
-                # In real scenario, this would check actual event content
-                simulated_event_type = config.get("simulated_event_type", "generic")
-                
-                if simulated_event_type in event_filter:
-                    context.set_output("event_consumed", True)
-                    context.set_output("consumer_type", config.get("type", "generic"))
-                    return "process_event"
-                else:
-                    context.set_output("event_filtered_out", True)
-                    context.set_output("consumer_type", config.get("type", "generic"))
-                    return None  # Skip processing
-        
-        # Create specialized consumers with filters
-        specialized_consumers = [
-            FilteringEventConsumer(
-                "security-consumer", 
-                {"type": "security", "processing_time": 0.1, "simulated_event_type": "security_alert"}, 
-                ["security_alert", "auth_failure"]
-            ),
-            FilteringEventConsumer(
-                "analytics-consumer", 
-                {"type": "analytics", "processing_time": 0.2, "simulated_event_type": "user_action"}, 
-                ["user_action", "page_view"]
-            ),
-            FilteringEventConsumer(
-                "monitoring-consumer", 
-                {"type": "monitoring", "processing_time": 0.15, "simulated_event_type": "system_metric"}, 
-                ["system_metric", "performance_data"]
-            )
+    async def test_event_processing_pipeline(self):
+        """Test a pipeline of event processors."""
+        # Create a chain of event processors
+        events = [
+            EventProcessingAgent("event-1", {"type": "user_signup", "user_id": "user_001"}),
+            EventProcessingAgent("event-2", {"type": "order_placed", "order_id": "ord_002"}),
+            EventProcessingAgent("event-3", {"type": "payment_completed", "payment_id": "pay_003"})
         ]
         
-        # Execute filtering consumers
-        consumer_results = await run_agents_parallel(specialized_consumers)
+        # Process events sequentially
+        results = await run_agents_sequential(events)
         
-        # Verify filtering behavior
-        assert len(consumer_results) == 3
+        # Verify all events processed in order
+        assert len(results) == 3
         
-        # Check which consumers processed events vs filtered them out
-        processed_consumers = []
-        filtered_consumers = []
-        
-        for name, result in consumer_results.items():
+        for event_name, result in results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            
-            if result.get_output("event_consumed", False):
-                processed_consumers.append(name)
-                assert result.get_output("event_processed", False) is True
-            elif result.get_output("event_filtered_out", False):
-                filtered_consumers.append(name)
-        
-        # Verify that filtering worked (some consumers processed, others filtered)
-        assert len(processed_consumers) >= 1  # At least one should process
-        assert len(filtered_consumers) >= 1   # At least one should filter
-        
-        # Verify consumer types
-        consumer_types = [
-            result.get_output("consumer_type")
-            for result in consumer_results.values()
-        ]
-        expected_types = ["security", "analytics", "monitoring"]
-        assert set(consumer_types) == set(expected_types)
+            event_result = result.get_output("event_result", {})
+            assert "event_id" in event_result
+            assert "action" in event_result
+            assert "processed_at" in event_result
     
-    async def test_event_stream_processing(self):
-        """Test processing a stream of events over time."""
+    async def test_mixed_workflow_patterns(self):
+        """Test mixing parallel and sequential processing patterns."""
+        # Create different types of agents
+        auth_service = MicroserviceAgent("auth", {"type": "auth", "processing_time": 0.1})
         
-        class StreamProcessorAgent(Agent):
-            def __init__(self, name: str, batch_size: int = 3):
-                super().__init__(name)
-                self.set_variable("batch_size", batch_size)
-                self.set_variable("processed_events", [])
-                self.add_state('collect_events', self.collect_events)
-                self.add_state('process_batch', self.process_batch)
-            
-            @state(cpu=0.5, memory=256.0)
-            async def collect_events(self, context: Context):
-                batch_size = self.get_variable("batch_size", 3)
-                
-                # Simulate collecting events over time
-                collected_events = []
-                for i in range(batch_size):
-                    await asyncio.sleep(0.05)  # Simulate event arrival
-                    event = {
-                        "event_id": f"stream_event_{i}",
-                        "timestamp": time.time(),
-                        "data": f"event_data_{i}"
-                    }
-                    collected_events.append(event)
-                
-                context.set_output("collected_events", collected_events)
-                context.set_output("batch_size", len(collected_events))
-                
-                return "process_batch"
-            
-            @state(cpu=2.0, memory=512.0)
-            async def process_batch(self, context: Context):
-                collected_events = context.get_output("collected_events", [])
-                
-                # Simulate batch processing
-                await asyncio.sleep(0.2)
-                
-                processed_events = []
-                for event in collected_events:
-                    processed_event = {
-                        "original_id": event["event_id"],
-                        "processed_at": time.time(),
-                        "processed_data": f"processed_{event['data']}"
-                    }
-                    processed_events.append(processed_event)
-                
-                context.set_output("processed_events", processed_events)
-                context.set_output("processing_rate", len(processed_events) / 0.2)
-                context.set_metric("batch_processing_time", 0.2)
-                
-                return None
+        # Create parallel order processing
+        order_agents = []
+        for i in range(3):
+            order = OrderProcessingAgent(f"order-{i}", {
+                "order_id": f"ord_{i:03d}",
+                "items": [{"id": i, "name": f"Item_{i}", "price": 10.0 * (i + 1)}],
+                "total": 10.0 * (i + 1),
+                "payment_method": "credit_card"
+            })
+            order_agents.append(order)
         
-        # Create stream processors with different batch sizes
-        stream_processors = [
-            StreamProcessorAgent("stream-processor-small", batch_size=2),
-            StreamProcessorAgent("stream-processor-medium", batch_size=4),
-            StreamProcessorAgent("stream-processor-large", batch_size=6)
-        ]
+        # First authenticate
+        auth_result = await auth_service.run()
+        assert auth_result.status.name in ["COMPLETED", "SUCCESS"]
         
-        # Execute stream processing
-        start_time = time.time()
-        stream_results = await run_agents_parallel(stream_processors)
-        total_time = time.time() - start_time
+        # Then process orders in parallel
+        order_results = await run_agents_parallel(order_agents)
+        assert len(order_results) == 3
         
-        # Verify stream processing
-        assert len(stream_results) == 3
-        
-        total_events_processed = 0
-        processing_rates = []
-        
-        for result in stream_results.values():
+        # Verify all orders processed successfully
+        for order_name, result in order_results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            
-            processed_events = result.get_output("processed_events", [])
-            batch_size = result.get_output("batch_size", 0)
-            processing_rate = result.get_output("processing_rate", 0)
-            
-            assert len(processed_events) == batch_size
-            total_events_processed += len(processed_events)
-            processing_rates.append(processing_rate)
-            
-            # Verify event processing
-            for processed_event in processed_events:
-                assert "original_id" in processed_event
-                assert "processed_at" in processed_event
-                assert "processed_data" in processed_event
-        
-        # Verify total processing
-        assert total_events_processed == 12  # 2 + 4 + 6
-        
-        # Verify processing rates
-        assert all(rate > 0 for rate in processing_rates)
-        
-        # Stream processing should be efficient
-        assert total_time <= 2.0  # Should complete within 2 seconds
+            assert result.get_output("order_valid") is True

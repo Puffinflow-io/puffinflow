@@ -1,33 +1,69 @@
 """Agent module with enhanced coordination features."""
 
 from .base import Agent, AgentResult, ResourceTimeoutError
-from .context import Context, StateType
-from .state import (
-    Priority, AgentStatus, StateStatus, StateMetadata,
-    PrioritizedState, RetryPolicy, DeadLetter, StateResult
-)
 from .checkpoint import AgentCheckpoint
-from .dependencies import DependencyType, DependencyLifecycle, DependencyConfig
+from .context import Context, StateType
+from .dependencies import DependencyConfig, DependencyLifecycle, DependencyType
+from .state import (
+    AgentStatus,
+    DeadLetter,
+    PrioritizedState,
+    Priority,
+    RetryPolicy,
+    StateMetadata,
+    StateResult,
+    StateStatus,
+)
 
 # Decorators
 try:
     from .decorators.builder import (
-        StateBuilder, build_state, cpu_state, memory_state, gpu_state,
-        exclusive_state, concurrent_state, high_priority_state, critical_state,
-        fault_tolerant_state, external_service_state, production_state,
-        protected_state, isolated_state
+        StateBuilder,
+        build_state,
+        concurrent_state,
+        cpu_state,
+        critical_state,
+        exclusive_state,
+        external_service_state,
+        fault_tolerant_state,
+        gpu_state,
+        high_priority_state,
+        isolated_state,
+        memory_state,
+        production_state,
+        protected_state,
     )
     from .decorators.flexible import (
-        state, minimal_state, cpu_intensive, memory_intensive, io_intensive,
-        gpu_accelerated, network_intensive, quick_state, batch_state,
-        critical_state, concurrent_state, synchronized_state, fault_tolerant,
-        external_service, high_availability, FlexibleStateDecorator,
-        StateProfile, get_profile, list_profiles, create_custom_decorator
+        FlexibleStateDecorator,
+        StateProfile,
+        batch_state,
+        concurrent_state,
+        cpu_intensive,
+        create_custom_decorator,
+        critical_state,
+        external_service,
+        fault_tolerant,
+        get_profile,
+        gpu_accelerated,
+        high_availability,
+        io_intensive,
+        list_profiles,
+        memory_intensive,
+        minimal_state,
+        network_intensive,
+        quick_state,
+        state,
+        synchronized_state,
     )
     from .decorators.inspection import (
-        is_puffinflow_state, get_state_config, get_state_requirements,
-        get_state_rate_limit, get_state_coordination, list_state_metadata,
-        compare_states, get_state_summary
+        compare_states,
+        get_state_config,
+        get_state_coordination,
+        get_state_rate_limit,
+        get_state_requirements,
+        get_state_summary,
+        is_puffinflow_state,
+        list_state_metadata,
     )
 except ImportError:
     # Decorators not available
@@ -36,10 +72,17 @@ except ImportError:
 # Scheduling components
 try:
     from .scheduling import (
-        GlobalScheduler, ScheduledAgent, ScheduleBuilder,
-        ScheduledInput, InputType, parse_magic_prefix,
-        ScheduleParser, parse_schedule_string,
-        SchedulingError, InvalidScheduleError, InvalidInputTypeError
+        GlobalScheduler,
+        InputType,
+        InvalidInputTypeError,
+        InvalidScheduleError,
+        ScheduleBuilder,
+        ScheduledAgent,
+        ScheduledInput,
+        ScheduleParser,
+        SchedulingError,
+        parse_magic_prefix,
+        parse_schedule_string,
     )
     _SCHEDULING_AVAILABLE = True
 except ImportError:
@@ -191,7 +234,7 @@ __all__ = [
     "create_service_decorator",
     "create_reliable_team_decorator",
     "create_external_team_decorator",
-    
+
     # Scheduling (if available)
     "GlobalScheduler",
     "ScheduledAgent",

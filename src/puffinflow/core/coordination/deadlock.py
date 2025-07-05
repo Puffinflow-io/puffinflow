@@ -10,20 +10,16 @@ This module provides comprehensive deadlock detection capabilities including:
 - Thread-safe operations
 """
 
-from typing import Dict, Set, Optional, List, Any, Tuple, Callable, Union
 import asyncio
-import weakref
 import logging
-import threading
 import time
 import uuid
+import weakref
+from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
-from contextlib import asynccontextmanager
-import json
-
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -484,7 +480,7 @@ class DependencyGraph:
             return []
 
         # Kahn's algorithm
-        in_degree = {node: 0 for node in all_nodes}
+        in_degree = dict.fromkeys(all_nodes, 0)
 
         # Calculate in-degrees
         for node in self.nodes:

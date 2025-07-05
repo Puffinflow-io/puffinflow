@@ -1,15 +1,14 @@
 """Rate limiting implementations."""
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Any
 import asyncio
-import time
-from enum import Enum, auto
 import math
-import structlog
+import time
 from collections import deque
-import threading
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any, Dict, List, Optional
 
+import structlog
 
 logger = structlog.get_logger(__name__)
 

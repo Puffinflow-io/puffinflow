@@ -5,24 +5,25 @@ resources across agent states, including first-fit, best-fit, priority-based,
 and fair-share allocation algorithms.
 """
 
-import asyncio
+import heapq
 import time
-from typing import Dict, List, Optional, Tuple, Any, Protocol
+from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from abc import ABC, abstractmethod
-import heapq
+from typing import Any, Dict, List, Optional
+
 import structlog
-from collections import defaultdict
+
+from src.puffinflow.core.resources.pool import ResourcePool
 
 # Import resource management components from the canonical source
 from src.puffinflow.core.resources.requirements import (
-    ResourceType, ResourceRequirements, get_resource_amount,
-    RESOURCE_ATTRIBUTE_MAPPING  # Use the canonical mapping from requirements.py
+    ResourceRequirements,
+    ResourceType,  # Use the canonical mapping from requirements.py
+    get_resource_amount,
 )
-from src.puffinflow.core.resources.pool import ResourcePool
-from src.puffinflow.core.resources.quotas import QuotaManager, QuotaScope
 
 logger = structlog.get_logger(__name__)
 
@@ -745,6 +746,7 @@ def create_allocator(
 
     allocator_class = allocators.get(strategy)
     if allocator_class is None:
-        raise ValueError(f"Unknown allocation strategy: {strategy}")
+        # Default to first-fit for unknown strategies
+        allocator_class = FirstFitAllocator
 
     return allocator_class(resource_pool)

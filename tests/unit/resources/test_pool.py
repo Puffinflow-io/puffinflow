@@ -69,8 +69,8 @@ class TestResourcePoolBasic:
         assert pool.resources[ResourceType.IO] == 200.0
         assert pool.resources[ResourceType.NETWORK] == 150.0
         assert pool.resources[ResourceType.GPU] == 2.0
-        assert pool._enable_preemption is True
-        assert pool._enable_quotas is True
+        assert pool.enable_preemption is True
+        assert pool.enable_quotas is True
 
 
 class TestResourceAllocation:

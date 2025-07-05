@@ -1,9 +1,9 @@
+import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime
-import uuid
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class SpanType(Enum):

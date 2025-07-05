@@ -1,13 +1,12 @@
 """PuffinFlow Observability System"""
 
-from .core import ObservabilityManager, get_observability, setup_observability
-from .config import ObservabilityConfig
-from .decorators import observe, trace_state
-from .context import ObservableContext
-from .agent import ObservableAgent
-
 # Import submodules for import path tests
-from . import core, config, decorators, context, agent
+from . import agent, config, context, core, decorators
+from .agent import ObservableAgent
+from .config import ObservabilityConfig
+from .context import ObservableContext
+from .core import ObservabilityManager, get_observability, setup_observability
+from .decorators import observe, trace_state
 
 # Clean up indirect imports that might leak from submodules
 try:
@@ -16,17 +15,17 @@ except NameError:
     pass  # Some modules might not be imported depending on the import order
 
 __all__ = [
-    'ObservabilityManager',
-    'get_observability',
-    'setup_observability',
     'ObservabilityConfig',
-    'observe',
-    'trace_state',
-    'ObservableContext',
+    'ObservabilityManager',
     'ObservableAgent',
-    'core',
+    'ObservableContext',
+    'agent',
     'config',
-    'decorators',
     'context',
-    'agent'
+    'core',
+    'decorators',
+    'get_observability',
+    'observe',
+    'setup_observability',
+    'trace_state'
 ]
