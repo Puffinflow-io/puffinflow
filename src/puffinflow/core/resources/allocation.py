@@ -1,7 +1,12 @@
-"""Resource allocation strategies
+"""Resource allocation strategies for PuffinFlow resource management.
+
+This module provides various allocation strategies for distributing computational
+resources across agent states, including first-fit, best-fit, priority-based,
+and fair-share allocation algorithms.
 """
 
 import asyncio
+import time
 from typing import Dict, List, Optional, Tuple, Any, Protocol
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -11,89 +16,72 @@ import heapq
 import structlog
 from collections import defaultdict
 
-from src.puffinflow.core.resources.requirements import ResourceType, ResourceRequirements
+# Import resource management components from the canonical source
+from src.puffinflow.core.resources.requirements import (
+    ResourceType, ResourceRequirements, get_resource_amount,
+    RESOURCE_ATTRIBUTE_MAPPING  # Use the canonical mapping from requirements.py
+)
 from src.puffinflow.core.resources.pool import ResourcePool
 from src.puffinflow.core.resources.quotas import QuotaManager, QuotaScope
-
 
 logger = structlog.get_logger(__name__)
 
 
 class AllocationStrategy(Enum):
-    """Resource allocation strategies."""
-    FIRST_FIT = "first_fit"  # First available slot
-    BEST_FIT = "best_fit"  # Minimizes waste
-    WORST_FIT = "worst_fit"  # Maximizes remaining space
-    PRIORITY = "priority"  # Based on priority
-    FAIR_SHARE = "fair_share"  # Equal distribution
-    ROUND_ROBIN = "round_robin"  # Rotate allocations
-    WEIGHTED = "weighted"  # Weighted by importance
+    """Enumeration of available resource allocation strategies.
 
-
-# FIXED: Proper mapping between ResourceRequirements attributes and ResourceType enums
-RESOURCE_ATTRIBUTE_MAPPING = {
-    ResourceType.CPU: 'cpu_units',
-    ResourceType.MEMORY: 'memory_mb',
-    ResourceType.IO: 'io_weight',
-    ResourceType.NETWORK: 'network_weight',
-    ResourceType.GPU: 'gpu_units'
-}
-
-
-def get_resource_amount(requirements: ResourceRequirements, resource_type: ResourceType) -> float:
+    Each strategy implements a different approach to distributing limited
+    computational resources among competing agent states.
     """
-    FIXED: Get the correct resource amount from requirements based on actual attributes.
-
-    Args:
-        requirements: ResourceRequirements object
-        resource_type: The resource type to get amount for
-
-    Returns:
-        The amount of the specified resource type
-    """
-    if resource_type == ResourceType.NONE:
-        return 0.0
-
-    if not (resource_type & requirements.resource_types):
-        return 0.0
-
-    attribute_name = RESOURCE_ATTRIBUTE_MAPPING.get(resource_type)
-    if attribute_name is None:
-        return 0.0
-
-    return getattr(requirements, attribute_name, 0.0)
+    FIRST_FIT = "first_fit"      # Allocate to first available slot
+    BEST_FIT = "best_fit"        # Minimize resource waste
+    WORST_FIT = "worst_fit"      # Maximize remaining free space
+    PRIORITY = "priority"        # Allocate based on state priority
+    FAIR_SHARE = "fair_share"    # Ensure equitable resource distribution
+    ROUND_ROBIN = "round_robin"  # Rotate allocations cyclically
+    WEIGHTED = "weighted"        # Weight allocations by importance
 
 
 @dataclass
 class AllocationRequest:
-    """Request for resource allocation."""
-    request_id: str
-    requester_id: str
-    requirements: ResourceRequirements
-    priority: int = 0
-    weight: float = 1.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    deadline: Optional[datetime] = None
+    """Represents a request for computational resource allocation.
+
+    Encapsulates all information needed to process a resource allocation
+    request, including resource requirements, priority, and metadata.
+    """
+    request_id: str                                     # Unique identifier for this request
+    requester_id: str                                   # ID of the requesting agent/state
+    requirements: ResourceRequirements                  # Detailed resource requirements
+    priority: int = 0                                   # Request priority (higher = more important)
+    weight: float = 1.0                                # Relative importance weight
+    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional request metadata
+    timestamp: datetime = field(default_factory=datetime.utcnow)  # When request was created
+    deadline: Optional[datetime] = None                 # Optional deadline for allocation
 
     def __lt__(self, other):
-        """For priority queue ordering."""
-        # Higher priority value = higher priority
+        """Define ordering for priority queue operations.
+
+        Higher priority values are considered "less than" for max-heap behavior.
+        """
         return self.priority > other.priority
 
 
 @dataclass
 class AllocationResult:
-    """Result of allocation attempt."""
-    request_id: str
-    success: bool
-    allocated: Dict[ResourceType, float] = field(default_factory=dict)
-    reason: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    allocation_time: Optional[float] = None  # Time taken to allocate
+    """Contains the outcome of a resource allocation attempt.
+
+    Provides detailed information about whether allocation succeeded,
+    what resources were allocated, and performance metrics.
+    """
+    request_id: str                                     # ID of the original request
+    success: bool                                       # Whether allocation succeeded
+    allocated: Dict[ResourceType, float] = field(default_factory=dict)  # Resources actually allocated
+    reason: Optional[str] = None                        # Reason for failure (if applicable)
+    timestamp: datetime = field(default_factory=datetime.utcnow)  # When allocation was processed
+    allocation_time: Optional[float] = None             # Time taken to process allocation
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Convert result to dictionary format for serialization."""
         return {
             "request_id": self.request_id,
             "success": self.success,
@@ -107,28 +95,40 @@ class AllocationResult:
 
 
 class AllocationMetrics:
-    """Tracks allocation metrics."""
+    """Tracks and aggregates allocation performance metrics.
+
+    Maintains statistics about allocation success rates, timing,
+    resource utilization, and queue behavior.
+    """
 
     def __init__(self):
-        self.total_requests = 0
-        self.successful_allocations = 0
-        self.failed_allocations = 0
-        self.total_allocation_time = 0.0
-        self.resource_utilization: Dict[ResourceType, float] = defaultdict(float)
-        self.queue_lengths: List[int] = []
-        self.wait_times: List[float] = []
+        """Initialize metrics tracking."""
+        self.total_requests = 0                         # Total number of allocation requests
+        self.successful_allocations = 0                 # Number of successful allocations
+        self.failed_allocations = 0                     # Number of failed allocations
+        self.total_allocation_time = 0.0               # Cumulative time spent on allocations
+        self.resource_utilization: Dict[ResourceType, float] = defaultdict(float)  # Resource usage by type
+        self.queue_lengths: List[int] = []             # Historical queue length snapshots
+        self.wait_times: List[float] = []              # Request wait times
 
     def record_allocation(self, result: AllocationResult, wait_time: float = 0.0):
-        """Record allocation metrics."""
+        """Record metrics for a completed allocation attempt.
+
+        Args:
+            result: The allocation result to record
+            wait_time: How long the request waited in queue
+        """
         self.total_requests += 1
 
         if result.success:
             self.successful_allocations += 1
+            # Track resource utilization for successful allocations
             for rt, amount in result.allocated.items():
                 self.resource_utilization[rt] += amount
         else:
             self.failed_allocations += 1
 
+        # Record timing metrics
         if result.allocation_time:
             self.total_allocation_time += result.allocation_time
 
@@ -136,7 +136,7 @@ class AllocationMetrics:
             self.wait_times.append(wait_time)
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get allocation statistics."""
+        """Calculate and return comprehensive allocation statistics."""
         success_rate = (
             self.successful_allocations / self.total_requests
             if self.total_requests > 0 else 0
@@ -164,16 +164,32 @@ class AllocationMetrics:
 
 
 class ResourceAllocator(ABC):
-    """Abstract base class for resource allocators."""
+    """Abstract base class for all resource allocation strategies.
+
+    Defines the common interface and shared functionality for different
+    allocation algorithms. Subclasses implement specific allocation logic.
+    """
 
     def __init__(self, resource_pool: ResourcePool):
+        """Initialize allocator with a resource pool.
+
+        Args:
+            resource_pool: The pool of available computational resources
+        """
         self.resource_pool = resource_pool
         self.metrics = AllocationMetrics()
         self._pending_requests: List[AllocationRequest] = []
 
     @abstractmethod
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate resources for a request."""
+        """Allocate resources for a single request.
+
+        Args:
+            request: The resource allocation request
+
+        Returns:
+            Result indicating success/failure and allocated resources
+        """
         pass
 
     @abstractmethod
@@ -181,14 +197,28 @@ class ResourceAllocator(ABC):
         self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Determine order of allocation for multiple requests."""
+        """Determine the order for processing multiple allocation requests.
+
+        Args:
+            requests: List of pending allocation requests
+
+        Returns:
+            Requests ordered according to the allocation strategy
+        """
         pass
 
     async def allocate_batch(
         self,
         requests: List[AllocationRequest]
     ) -> List[AllocationResult]:
-        """Allocate resources for multiple requests."""
+        """Allocate resources for multiple requests in optimal order.
+
+        Args:
+            requests: List of allocation requests to process
+
+        Returns:
+            List of allocation results in processing order
+        """
         ordered_requests = self.get_allocation_order(requests)
         results = []
 
@@ -200,29 +230,44 @@ class ResourceAllocator(ABC):
         return results
 
     def can_allocate(self, requirements: ResourceRequirements) -> bool:
-        """FIXED: Check if allocation is possible with current resources."""
+        """Check if the given resource requirements can be satisfied.
+
+        Args:
+            requirements: Resource requirements to check
+
+        Returns:
+            True if resources are available, False otherwise
+        """
+        # Check each resource type that is requested
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            if not (resource_type & requirements.resource_types):
-                continue
+            # Use bitwise AND to check if this resource type is requested
+            if requirements.resource_types & resource_type:
+                required = get_resource_amount(requirements, resource_type)
+                available = self.resource_pool.available.get(resource_type, 0.0)
 
-            required = get_resource_amount(requirements, resource_type)
-            available = self.resource_pool.available.get(resource_type, 0.0)
-
-            if required > available:
-                return False
+                if required > available:
+                    return False
 
         return True
 
 
 class FirstFitAllocator(ResourceAllocator):
-    """First-fit allocation strategy."""
+    """First-fit allocation strategy implementation.
+
+    Allocates resources to the first request that can be satisfied,
+    without considering optimization. Simple and fast but may lead
+    to resource fragmentation.
+    """
 
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate using first-fit strategy."""
+        """Allocate resources using first-fit strategy.
+
+        Attempts to immediately satisfy the request with available resources.
+        """
         start_time = time.time()
 
-        # Try to acquire resources
+        # Attempt non-blocking resource acquisition
         success = await self.resource_pool.acquire(
             request.request_id,
             request.requirements,
@@ -230,11 +275,12 @@ class FirstFitAllocator(ResourceAllocator):
         )
 
         if success:
-            # Track allocated resources
+            # Build dictionary of actually allocated resources
             allocated = {}
             for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                  ResourceType.NETWORK, ResourceType.GPU]:
-                if resource_type in request.requirements.resource_types:
+                # Check if this resource type was requested using bitwise AND
+                if request.requirements.resource_types & resource_type:
                     amount = get_resource_amount(request.requirements, resource_type)
                     if amount > 0:
                         allocated[resource_type] = amount
@@ -257,21 +303,26 @@ class FirstFitAllocator(ResourceAllocator):
         self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Order by arrival time (FIFO)."""
+        """Order requests by arrival time (FIFO - First In, First Out)."""
         return sorted(requests, key=lambda r: r.timestamp)
 
 
 class BestFitAllocator(ResourceAllocator):
-    """Best-fit allocation strategy - minimizes waste."""
+    """Best-fit allocation strategy implementation.
+
+    Chooses allocations that minimize resource waste by finding the
+    allocation that leaves the smallest amount of unused resources.
+    More complex than first-fit but can improve resource utilization.
+    """
 
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate using best-fit strategy."""
+        """Allocate resources using best-fit strategy."""
         start_time = time.time()
 
-        # Calculate waste for this allocation
+        # Calculate potential resource waste for this allocation
         waste = self._calculate_waste(request.requirements)
 
-        # Try to acquire resources
+        # Attempt resource acquisition
         success = await self.resource_pool.acquire(
             request.request_id,
             request.requirements,
@@ -279,11 +330,12 @@ class BestFitAllocator(ResourceAllocator):
         )
 
         if success:
-            # FIXED: Properly track allocated resources
+            # Build dictionary of allocated resources
             allocated = {}
             for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                  ResourceType.NETWORK, ResourceType.GPU]:
-                if resource_type in request.requirements.resource_types:
+                # Check if this resource type was requested
+                if request.requirements.resource_types & resource_type:
                     amount = get_resource_amount(request.requirements, resource_type)
                     if amount > 0:
                         allocated[resource_type] = amount
@@ -309,21 +361,27 @@ class BestFitAllocator(ResourceAllocator):
             )
 
     def _calculate_waste(self, requirements: ResourceRequirements) -> float:
-        """Calculate resource waste for allocation."""
+        """Calculate the amount of resource waste this allocation would cause.
+
+        Args:
+            requirements: Resource requirements to evaluate
+
+        Returns:
+            Total amount of wasted resources (lower is better)
+        """
         total_waste = 0.0
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type not in requirements.resource_types:
-                continue
+            # Only calculate waste for requested resource types
+            if requirements.resource_types & resource_type:
+                required = get_resource_amount(requirements, resource_type)
+                available = self.resource_pool.available.get(resource_type, 0.0)
 
-            required = get_resource_amount(requirements, resource_type)
-            available = self.resource_pool.available.get(resource_type, 0.0)
-
-            if available >= required:
-                # Waste is remaining resources after allocation
-                waste = available - required
-                total_waste += waste
+                if available >= required:
+                    # Waste is the unused portion after allocation
+                    waste = available - required
+                    total_waste += waste
 
         return total_waste
 
@@ -331,81 +389,101 @@ class BestFitAllocator(ResourceAllocator):
         self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Order by best fit (least waste)."""
-        # Calculate waste for each request
+        """Order requests by waste (ascending) - least waste first."""
+        # Calculate waste for each request and sort by it
         requests_with_waste = [
             (self._calculate_waste(req.requirements), req)
             for req in requests
         ]
 
-        # Sort by waste (ascending)
+        # Sort by waste amount (ascending - least waste first)
         requests_with_waste.sort(key=lambda x: x[0])
 
         return [req for _, req in requests_with_waste]
 
 
 class WorstFitAllocator(ResourceAllocator):
-    """Worst-fit allocation strategy - maximizes remaining space."""
+    """Worst-fit allocation strategy implementation.
+
+    Chooses allocations that maximize remaining free space, which can
+    help accommodate future large requests but may lead to more fragmentation.
+    """
 
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate using worst-fit strategy."""
-        # Similar to first-fit for actual allocation
-        return await FirstFitAllocator.allocate(self, request)
+        """Allocate resources using worst-fit strategy.
+
+        Uses the same allocation mechanism as first-fit but with different ordering.
+        """
+        # Delegate to first-fit allocator for actual allocation
+        first_fit = FirstFitAllocator(self.resource_pool)
+        return await first_fit.allocate(request)
 
     def get_allocation_order(
         self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Order by worst fit (most remaining space)."""
-        # Similar to best-fit but sort descending
-        requests_with_waste = [
+        """Order requests by remaining space (descending) - most remaining space first."""
+        # Calculate remaining space for each request and sort by it
+        requests_with_remaining = [
             (self._calculate_remaining(req.requirements), req)
             for req in requests
         ]
 
-        # Sort by remaining space (descending)
-        requests_with_waste.sort(key=lambda x: x[0], reverse=True)
+        # Sort by remaining space (descending - most remaining first)
+        requests_with_remaining.sort(key=lambda x: x[0], reverse=True)
 
-        return [req for _, req in requests_with_waste]
+        return [req for _, req in requests_with_remaining]
 
     def _calculate_remaining(self, requirements: ResourceRequirements) -> float:
-        """Calculate remaining resources after allocation."""
+        """Calculate remaining resources after this allocation.
+
+        Args:
+            requirements: Resource requirements to evaluate
+
+        Returns:
+            Total amount of resources that would remain free
+        """
         total_remaining = 0.0
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type not in requirements.resource_types:
-                continue
+            # Only calculate for requested resource types
+            if requirements.resource_types & resource_type:
+                required = get_resource_amount(requirements, resource_type)
+                available = self.resource_pool.available.get(resource_type, 0.0)
 
-            required = get_resource_amount(requirements, resource_type)
-            available = self.resource_pool.available.get(resource_type, 0.0)
-
-            if available >= required:
-                remaining = available - required
-                total_remaining += remaining
+                if available >= required:
+                    remaining = available - required
+                    total_remaining += remaining
 
         return total_remaining
 
 
 class PriorityAllocator(ResourceAllocator):
-    """Priority-based allocation strategy."""
+    """Priority-based allocation strategy implementation.
+
+    Maintains a priority queue and always processes the highest-priority
+    requests first. Essential for systems with critical vs. non-critical workloads.
+    """
 
     def __init__(self, resource_pool: ResourcePool):
+        """Initialize priority allocator with a priority queue."""
         super().__init__(resource_pool)
         self._priority_queue: List[AllocationRequest] = []
 
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate based on priority."""
+        """Allocate resources based on priority using a priority queue."""
         start_time = time.time()
 
-        # Add to priority queue
+        # Add request to priority queue (heapq maintains min-heap, so we negate priority)
         heapq.heappush(self._priority_queue, request)
 
-        # Try to process queue
+        # Process queue starting with highest priority requests
         processed = []
         while self._priority_queue:
             next_request = heapq.heappop(self._priority_queue)
 
+            # Check if we can allocate to this request
             if self.can_allocate(next_request.requirements):
                 success = await self.resource_pool.acquire(
                     next_request.request_id,
@@ -416,12 +494,13 @@ class PriorityAllocator(ResourceAllocator):
                 if success:
                     processed.append(next_request)
 
+                    # If this was our original request, return success
                     if next_request.request_id == request.request_id:
-                        # This was our request - FIXED: properly track allocated resources
+                        # Build allocated resources dictionary
                         allocated = {}
                         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                              ResourceType.NETWORK, ResourceType.GPU]:
-                            if resource_type in request.requirements.resource_types:
+                            if request.requirements.resource_types & resource_type:
                                 amount = get_resource_amount(request.requirements, resource_type)
                                 if amount > 0:
                                     allocated[resource_type] = amount
@@ -433,15 +512,15 @@ class PriorityAllocator(ResourceAllocator):
                             allocation_time=time.time() - start_time
                         )
                 else:
-                    # Put back in queue
+                    # Couldn't acquire resources, put back in queue
                     heapq.heappush(self._priority_queue, next_request)
                     break
             else:
-                # Can't allocate this or any lower priority
+                # Can't allocate to this request, put it back and stop
                 heapq.heappush(self._priority_queue, next_request)
                 break
 
-        # Request not processed
+        # Request couldn't be processed immediately
         return AllocationResult(
             request_id=request.request_id,
             success=False,
@@ -453,26 +532,31 @@ class PriorityAllocator(ResourceAllocator):
         self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Order by priority."""
+        """Order requests by priority (highest first)."""
         return sorted(requests, key=lambda r: r.priority, reverse=True)
 
 
 class FairShareAllocator(ResourceAllocator):
-    """Fair-share allocation strategy."""
+    """Fair-share allocation strategy implementation.
+
+    Ensures equitable resource distribution among different requesters
+    by tracking usage history and enforcing fair share limits.
+    """
 
     def __init__(self, resource_pool: ResourcePool):
+        """Initialize fair-share allocator with usage tracking."""
         super().__init__(resource_pool)
-        self._usage_history: Dict[str, float] = defaultdict(float)
-        self._allocation_counts: Dict[str, int] = defaultdict(int)
+        self._usage_history: Dict[str, float] = defaultdict(float)  # Total resources used by each requester
+        self._allocation_counts: Dict[str, int] = defaultdict(int)   # Number of allocations per requester
 
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate with fair-share strategy."""
+        """Allocate resources with fair-share constraints."""
         start_time = time.time()
 
-        # Calculate fair share for requester
+        # Calculate fair share limit for this requester
         fair_share = self._calculate_fair_share(request.requester_id)
 
-        # Check if within fair share
+        # Check if request would exceed fair share
         current_usage = self._usage_history[request.requester_id]
         requested_total = self._calculate_resource_total(request.requirements)
 
@@ -485,7 +569,7 @@ class FairShareAllocator(ResourceAllocator):
                 allocation_time=time.time() - start_time
             )
 
-        # Try to allocate
+        # Attempt allocation within fair share limits
         success = await self.resource_pool.acquire(
             request.request_id,
             request.requirements,
@@ -493,15 +577,15 @@ class FairShareAllocator(ResourceAllocator):
         )
 
         if success:
-            # Update usage history
+            # Update usage tracking
             self._usage_history[request.requester_id] += requested_total
             self._allocation_counts[request.requester_id] += 1
 
-            # Track allocated resources
+            # Build allocated resources dictionary
             allocated = {}
             for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                                  ResourceType.NETWORK, ResourceType.GPU]:
-                if resource_type in request.requirements.resource_types:
+                if request.requirements.resource_types & resource_type:
                     amount = get_resource_amount(request.requirements, resource_type)
                     if amount > 0:
                         allocated[resource_type] = amount
@@ -521,62 +605,86 @@ class FairShareAllocator(ResourceAllocator):
             )
 
     def _calculate_fair_share(self, requester_id: str) -> float:
-        """Calculate fair share for a requester."""
-        # Simple fair share: total resources / number of requesters
+        """Calculate fair share limit for a specific requester.
+
+        Args:
+            requester_id: ID of the requester
+
+        Returns:
+            Fair share resource limit
+        """
+        # Simple fair share: divide total resources equally among all requesters
         total_requesters = len(self._usage_history) or 1
         total_resources = sum(self.resource_pool.resources.values())
 
         return total_resources / total_requesters
 
     def _calculate_resource_total(self, requirements: ResourceRequirements) -> float:
-        """FIXED: Calculate total resource units requested."""
+        """Calculate total resource units requested across all resource types.
+
+        Args:
+            requirements: Resource requirements to sum
+
+        Returns:
+            Total resource units requested
+        """
         total = 0.0
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            if resource_type in requirements.resource_types:
+            if requirements.resource_types & resource_type:
                 total += get_resource_amount(requirements, resource_type)
-        
+
         return total
-    
+
     def get_allocation_order(
-        self, 
+        self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Order by usage history (least used first)."""
+        """Order requests by usage history (least used requesters first)."""
         return sorted(
-            requests, 
+            requests,
             key=lambda r: self._usage_history[r.requester_id]
         )
-    
+
     def reset_usage_history(self):
-        """Reset usage history for new period."""
+        """Reset usage history for a new allocation period."""
         self._usage_history.clear()
         self._allocation_counts.clear()
 
 
 class WeightedAllocator(ResourceAllocator):
-    """Weighted allocation strategy."""
-    
+    """Weighted allocation strategy implementation.
+
+    Combines priority and weight factors to determine allocation order,
+    allowing for fine-grained control over resource distribution.
+    """
+
     def __init__(self, resource_pool: ResourcePool):
+        """Initialize weighted allocator."""
         super().__init__(resource_pool)
-        self._weights: Dict[str, float] = {}
-    
+        self._weights: Dict[str, float] = {}  # Requester-specific weights
+
     def set_weight(self, requester_id: str, weight: float):
-        """Set weight for a requester."""
+        """Set allocation weight for a specific requester.
+
+        Args:
+            requester_id: ID of the requester
+            weight: Weight factor (higher = more important)
+        """
         self._weights[requester_id] = weight
-    
+
     async def allocate(self, request: AllocationRequest) -> AllocationResult:
-        """Allocate based on weights."""
+        """Allocate resources based on weighted priority."""
         start_time = time.time()
-        
-        # Get weight for requester
+
+        # Get weight for this requester (use request weight as fallback)
         weight = self._weights.get(request.requester_id, request.weight)
-        
+
         # Calculate weighted priority
         weighted_priority = request.priority * weight
-        
-        # Create weighted request
+
+        # Create modified request with weighted priority
         weighted_request = AllocationRequest(
             request_id=request.request_id,
             requester_id=request.requester_id,
@@ -587,35 +695,45 @@ class WeightedAllocator(ResourceAllocator):
             timestamp=request.timestamp,
             deadline=request.deadline
         )
-        
-        # Use priority allocator with weighted priority
+
+        # Use priority allocator with the weighted priority
         priority_allocator = PriorityAllocator(self.resource_pool)
         return await priority_allocator.allocate(weighted_request)
-    
+
     def get_allocation_order(
-        self, 
+        self,
         requests: List[AllocationRequest]
     ) -> List[AllocationRequest]:
-        """Order by weighted priority."""
+        """Order requests by weighted priority (highest weighted priority first)."""
         weighted_requests = []
-        
+
         for req in requests:
             weight = self._weights.get(req.requester_id, req.weight)
             weighted_priority = req.priority * weight
             weighted_requests.append((weighted_priority, req))
-        
-        # Sort by weighted priority (descending)
+
+        # Sort by weighted priority (descending - highest first)
         weighted_requests.sort(key=lambda x: x[0], reverse=True)
-        
+
         return [req for _, req in weighted_requests]
 
 
-# Factory for creating allocators
 def create_allocator(
     strategy: AllocationStrategy,
     resource_pool: ResourcePool
 ) -> ResourceAllocator:
-    """Create an allocator based on strategy."""
+    """Factory function for creating resource allocators.
+
+    Args:
+        strategy: The allocation strategy to use
+        resource_pool: The pool of available resources
+
+    Returns:
+        Configured allocator instance
+
+    Raises:
+        ValueError: If strategy is not recognized
+    """
     allocators = {
         AllocationStrategy.FIRST_FIT: FirstFitAllocator,
         AllocationStrategy.BEST_FIT: BestFitAllocator,
@@ -624,9 +742,9 @@ def create_allocator(
         AllocationStrategy.FAIR_SHARE: FairShareAllocator,
         AllocationStrategy.WEIGHTED: WeightedAllocator
     }
-    
-    allocator_class = allocators.get(strategy, FirstFitAllocator)
+
+    allocator_class = allocators.get(strategy)
+    if allocator_class is None:
+        raise ValueError(f"Unknown allocation strategy: {strategy}")
+
     return allocator_class(resource_pool)
-
-
-import time

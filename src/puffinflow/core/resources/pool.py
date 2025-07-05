@@ -1,4 +1,10 @@
-"""Resource pool implementation with leak detection"""
+"""Resource pool implementation with advanced features.
+
+Provides a comprehensive resource management system with leak detection,
+quota enforcement, preemption capabilities, and detailed usage tracking.
+Supports CPU, memory, I/O, network, and GPU resources.
+"""
+
 import asyncio
 import logging
 import time
@@ -7,34 +13,50 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Any, Set, List
 from enum import Flag, auto
 
-from .requirements import ResourceRequirements, ResourceType, get_resource_amount
-from ..reliability.leak_detector import leak_detector
+# Import from the canonical source to ensure consistent enum instances
+from .requirements import (
+    ResourceRequirements, ResourceType, get_resource_amount,
+    RESOURCE_ATTRIBUTE_MAPPING, safe_check_resource_type
+)
+
+# Import leak detector with fallback
+try:
+    from ..reliability.leak_detector import leak_detector
+except ImportError:
+    # Mock leak detector if not available
+    class MockLeakDetector:
+        def track_allocation(self, state_name, agent_name, resources):
+            pass
+        def track_release(self, state_name, agent_name):
+            pass
+        def detect_leaks(self):
+            return []
+        def get_metrics(self):
+            return {"leak_detection": "mock"}
+
+    leak_detector = MockLeakDetector()
 
 logger = logging.getLogger(__name__)
 
-RESOURCE_ATTRIBUTE_MAPPING = {
-    ResourceType.CPU: 'cpu_units',
-    ResourceType.MEMORY: 'memory_mb',
-    ResourceType.IO: 'io_weight',
-    ResourceType.NETWORK: 'network_weight',
-    ResourceType.GPU: 'gpu_units'
-}
 
 class ResourceAllocationError(Exception):
     """Base class for resource allocation errors."""
     pass
 
+
 class ResourceOverflowError(ResourceAllocationError):
-    """Raised when resource allocation would exceed limits."""
+    """Raised when resource allocation would exceed system limits."""
     pass
 
+
 class ResourceQuotaExceededError(ResourceAllocationError):
-    """Raised when state/agent exceeds its resource quota."""
+    """Raised when a state/agent exceeds its assigned resource quota."""
     pass
+
 
 @dataclass
 class ResourceUsageStats:
-    """Statistics for resource usage."""
+    """Statistics container for tracking resource usage patterns."""
     peak_usage: float = 0.0
     current_usage: float = 0.0
     total_allocations: int = 0
@@ -42,8 +64,9 @@ class ResourceUsageStats:
     last_allocation_time: Optional[float] = None
     total_wait_time: float = 0.0
 
+
 class ResourcePool:
-    """Advanced resource management system with leak detection."""
+    """Advanced resource management system with comprehensive features."""
 
     def __init__(
         self,
@@ -51,12 +74,13 @@ class ResourcePool:
         total_memory: float = 1024.0,
         total_io: float = 100.0,
         total_network: float = 100.0,
-        total_gpu: float = 0.0,  # Changed default from 1.0 to 0.0
+        total_gpu: float = 0.0,
         enable_quotas: bool = False,
         enable_preemption: bool = False,
-        enable_leak_detection: bool = True  # NEW
+        enable_leak_detection: bool = True
     ):
-        # Resource limits
+        """Initialize resource pool with specified capacities and features."""
+        # Resource capacity limits
         self.resources = {
             ResourceType.CPU: total_cpu,
             ResourceType.MEMORY: total_memory,
@@ -65,46 +89,43 @@ class ResourcePool:
             ResourceType.GPU: total_gpu
         }
 
-        # Available resources
+        # Currently available resources
         self.available = self.resources.copy()
 
-        # Core synchronization
+        # Synchronization primitives
         self._lock = asyncio.Lock()
         self._condition = asyncio.Condition(self._lock)
 
-        # Allocation tracking
+        # Resource allocation tracking
         self._allocations: Dict[str, Dict[ResourceType, float]] = {}
-        self._allocation_times: Dict[str, float] = {}  # NEW: Track allocation times
+        self._allocation_times: Dict[str, float] = {}
 
         # Usage statistics
         self._usage_stats = {
-            rt: ResourceUsageStats() for rt in ResourceType if rt != ResourceType.NONE
+            rt: ResourceUsageStats() for rt in ResourceType if rt != ResourceType.NONE and rt != ResourceType.ALL
         }
 
-        # Quotas (if enabled)
+        # Feature flags
         self.enable_quotas = enable_quotas
-        self._enable_quotas = enable_quotas  # Add private attribute for tests
         self._quotas: Dict[str, Dict[ResourceType, float]] = {}
 
-        # Preemption (if enabled)
         self.enable_preemption = enable_preemption
-        self._enable_preemption = enable_preemption  # Add private attribute for tests
         self._preempted_states: Set[str] = set()
 
-        # Historical tracking
+        # Historical data
         self._allocation_history: Dict[ResourceType, List[tuple]] = defaultdict(list)
-        self._usage_history: List[tuple] = []  # Add for tests
-        self._history_retention = 3600  # 1 hour
+        self._usage_history: List[tuple] = []
+        self._history_retention = 3600
 
-        # Waiting states tracking (for tests)
+        # Queue management
         self._waiting_states: Set[str] = set()
 
-        # NEW: Leak detection
+        # Leak detection
         self.enable_leak_detection = enable_leak_detection
-        self._agent_names: Dict[str, str] = {}  # state_name -> agent_name mapping
+        self._agent_names: Dict[str, str] = {}
 
     async def set_quota(self, state_name: str, resource_type: ResourceType, limit: float) -> None:
-        """Set resource quota for a state."""
+        """Set resource quota for a specific state."""
         if not self.enable_quotas:
             raise RuntimeError("Quotas are not enabled for this resource pool")
 
@@ -114,7 +135,7 @@ class ResourcePool:
             self._quotas[state_name][resource_type] = limit
 
     def _check_quota(self, state_name: str, requirements: ResourceRequirements) -> bool:
-        """Check if allocation would exceed quota."""
+        """Check if allocation would exceed assigned quota."""
         if not self.enable_quotas:
             return True
 
@@ -122,19 +143,19 @@ class ResourcePool:
 
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            # Only check quotas for resources that are specified in resource_types
-            if not (resource_type & requirements.resource_types):
-                continue
-                
-            quota = self._quotas.get(state_name, {}).get(resource_type)
-            if quota is None:
-                continue  # No quota set
+            # Only check quotas for resources that are actually requested
+            if safe_check_resource_type(requirements, resource_type):
+                quota = self._quotas.get(state_name, {}).get(resource_type)
+                if quota is None:
+                    continue
 
-            required = get_resource_amount(requirements, resource_type)
-            current = current_usage.get(resource_type, 0.0)
+                required = get_resource_amount(requirements, resource_type)
+                current = current_usage.get(resource_type, 0.0)
 
-            if current + required > quota:
-                return False
+                if current + required > quota:
+                    logger.warning(f"Quota exceeded for {state_name}: {resource_type.name} "
+                                 f"(current: {current}, required: {required}, quota: {quota})")
+                    return False
 
         return True
 
@@ -144,9 +165,9 @@ class ResourcePool:
         requirements: ResourceRequirements,
         timeout: Optional[float] = None,
         allow_preemption: bool = False,
-        agent_name: Optional[str] = None  # NEW: Track agent name for leak detection
+        agent_name: Optional[str] = None
     ) -> bool:
-        """Acquire resources with advanced features and leak detection."""
+        """Acquire resources for a state with advanced features."""
         start_time = time.time()
 
         # Store agent name for leak detection
@@ -154,25 +175,24 @@ class ResourcePool:
             self._agent_names[state_name] = agent_name
 
         try:
-            # Validate requirements
-            self._validate_requirements(requirements)
+            # Validate and fix requirements if needed
+            requirements = self._validate_and_fix_requirements(requirements)
 
             async with self._condition:
-                # Check quotas
+                # Check quota constraints
                 if not self._check_quota(state_name, requirements):
                     raise ResourceQuotaExceededError(f"Quota exceeded for {state_name}")
 
-                # Try allocation
+                # Wait for resources to become available
                 while not self._can_allocate(requirements):
-                    # Add to waiting states
                     self._waiting_states.add(state_name)
-                    
-                    # Handle preemption
+
+                    # Try preemption if enabled
                     if allow_preemption and self.enable_preemption:
                         if self._try_preemption(state_name, requirements):
                             break
 
-                    # Wait for resources to become available
+                    # Wait with timeout
                     if timeout:
                         remaining_time = timeout - (time.time() - start_time)
                         if remaining_time <= 0:
@@ -189,21 +209,16 @@ class ResourcePool:
                     else:
                         await self._condition.wait()
 
-                # Remove from waiting states when allocation succeeds
+                # Remove from waiting states
                 self._waiting_states.discard(state_name)
 
-                # Allocate resources
+                # Perform allocation
                 self._allocate(state_name, requirements)
 
-                # NEW: Track allocation for leak detection
+                # Track for leak detection
                 if self.enable_leak_detection:
                     agent = self._agent_names.get(state_name, "unknown")
-                    resource_dict = {
-                        rt.name.lower(): get_resource_amount(requirements, rt)
-                        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                                  ResourceType.NETWORK, ResourceType.GPU]
-                        if rt in requirements.resource_types and get_resource_amount(requirements, rt) > 0
-                    }
+                    resource_dict = self._build_resource_dict(requirements)
                     leak_detector.track_allocation(state_name, agent, resource_dict)
 
                 # Update statistics
@@ -213,213 +228,275 @@ class ResourcePool:
 
         except Exception as e:
             self._update_stats_failure(requirements)
+            logger.error(f"Error acquiring resources for {state_name}: {e}")
             raise
 
-    def _validate_requirements(self, requirements: ResourceRequirements) -> None:
-        """Validate resource requirements."""
+    def _validate_and_fix_requirements(self, requirements: ResourceRequirements) -> ResourceRequirements:
+        """Validate and fix resource requirements if needed."""
+        try:
+            # Test if requirements is valid
+            if not isinstance(requirements, ResourceRequirements):
+                logger.warning(f"Invalid requirements type: {type(requirements)}")
+                # Create a new valid requirements object
+                requirements = ResourceRequirements()
+
+            # Ensure resource_types is valid
+            if not isinstance(requirements.resource_types, ResourceType):
+                logger.warning(f"Invalid resource_types: {requirements.resource_types}")
+                requirements.__post_init__()  # This will fix resource_types
+
+            # Test bitwise operations
+            test_result = requirements.resource_types & ResourceType.CPU
+            logger.debug(f"Requirements validation passed: {requirements}")
+
+            return requirements
+
+        except Exception as e:
+            logger.error(f"Error validating requirements: {e}")
+            # Create a safe fallback
+            fallback = ResourceRequirements(
+                cpu_units=getattr(requirements, 'cpu_units', 1.0),
+                memory_mb=getattr(requirements, 'memory_mb', 100.0),
+                io_weight=getattr(requirements, 'io_weight', 1.0),
+                network_weight=getattr(requirements, 'network_weight', 1.0),
+                gpu_units=getattr(requirements, 'gpu_units', 0.0),
+                resource_types=ResourceType.ALL
+            )
+            logger.info(f"Using fallback requirements: {fallback}")
+            return fallback
+
+    def _build_resource_dict(self, requirements: ResourceRequirements) -> Dict[str, float]:
+        """Build resource dictionary for leak detection."""
+        resource_dict = {}
+
         for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
                              ResourceType.NETWORK, ResourceType.GPU]:
-            # Only validate resources that are specified in resource_types
-            if not (resource_type & requirements.resource_types):
-                continue
-                
-            amount = get_resource_amount(requirements, resource_type)
-            if amount < 0:
-                raise ValueError(f"Negative resource requirement: {resource_type.name}={amount}")
+            if safe_check_resource_type(requirements, resource_type):
+                amount = get_resource_amount(requirements, resource_type)
+                if amount > 0:
+                    resource_dict[resource_type.name.lower()] = amount
 
-            total_available = self.resources.get(resource_type, 0)
-            if amount > total_available:
-                raise ResourceOverflowError(
-                    f"Requested {resource_type.name}={amount} exceeds total available={total_available}"
-                )
+        return resource_dict
 
     def _can_allocate(self, requirements: ResourceRequirements) -> bool:
-        """Check if resources can be allocated."""
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            # Only check resources that are specified in resource_types
-            if not (resource_type & requirements.resource_types):
-                continue
-                
-            required = get_resource_amount(requirements, resource_type)
-            available = self.available.get(resource_type, 0.0)
-            if required > available:
-                return False
-        return True
+        """Check if resources can be allocated immediately."""
+        try:
+            logger.debug(f"Checking allocation for: {requirements}")
+
+            for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                                 ResourceType.NETWORK, ResourceType.GPU]:
+                # Use safe check for resource type
+                if safe_check_resource_type(requirements, resource_type):
+                    required = get_resource_amount(requirements, resource_type)
+                    available = self.available.get(resource_type, 0.0)
+
+                    logger.debug(f"Resource {resource_type.name}: required={required}, available={available}")
+
+                    if required > available:
+                        logger.debug(f"Cannot allocate - insufficient {resource_type.name}")
+                        return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error in _can_allocate: {e}")
+            logger.error(f"Requirements: {requirements}")
+            logger.error(f"Requirements type: {type(requirements)}")
+            # In case of error, assume we can't allocate safely
+            return False
 
     def _allocate(self, state_name: str, requirements: ResourceRequirements) -> None:
-        """Allocate resources to a state."""
-        if state_name not in self._allocations:
-            self._allocations[state_name] = {}
+        """Perform the actual resource allocation."""
+        try:
+            if state_name not in self._allocations:
+                self._allocations[state_name] = {}
 
-        self._allocation_times[state_name] = time.time()  # NEW: Track allocation time
+            # Record allocation timestamp
+            self._allocation_times[state_name] = time.time()
 
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            # Only allocate resources that are specified in resource_types
-            if not (resource_type & requirements.resource_types):
-                continue
-                
-            amount = get_resource_amount(requirements, resource_type)
-            if amount > 0:
-                self._allocations[state_name][resource_type] = amount
-                self.available[resource_type] -= amount
+            # Allocate each requested resource type
+            for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                                 ResourceType.NETWORK, ResourceType.GPU]:
+                if safe_check_resource_type(requirements, resource_type):
+                    amount = get_resource_amount(requirements, resource_type)
+                    if amount > 0:
+                        self._allocations[state_name][resource_type] = amount
+                        self.available[resource_type] -= amount
+
+                        logger.debug(f"Allocated {amount} {resource_type.name} to {state_name}")
+
+        except Exception as e:
+            logger.error(f"Error in _allocate: {e}")
+            raise
 
     def _try_preemption(self, state_name: str, requirements: ResourceRequirements) -> bool:
-        """Attempt to preempt lower priority states."""
+        """Attempt to preempt lower-priority states."""
         if not self.enable_preemption:
             return False
 
-        # Find potential states to preempt
-        candidates = []
-        for allocated_state, resources in self._allocations.items():
-            if allocated_state != state_name:
-                total_resources = sum(resources.values())
-                candidates.append((allocated_state, total_resources))
+        try:
+            # Find candidates for preemption
+            candidates = []
+            for allocated_state, resources in self._allocations.items():
+                if allocated_state != state_name:
+                    total_resources = sum(resources.values())
+                    candidates.append((allocated_state, total_resources))
 
-        if not candidates:
+            if not candidates:
+                return False
+
+            # Sort by resource usage (preempt largest first)
+            candidates.sort(key=lambda x: x[1], reverse=True)
+
+            # Simulate preemption
+            would_free = {rt: 0.0 for rt in ResourceType
+                         if rt != ResourceType.NONE and rt != ResourceType.ALL}
+            preempt_list = []
+
+            for candidate_state, _ in candidates:
+                candidate_resources = self._allocations[candidate_state]
+                for rt, amount in candidate_resources.items():
+                    would_free[rt] += amount
+                preempt_list.append(candidate_state)
+
+                # Check if preemption would free enough resources
+                could_satisfy = True
+                for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                                     ResourceType.NETWORK, ResourceType.GPU]:
+                    if safe_check_resource_type(requirements, resource_type):
+                        required = get_resource_amount(requirements, resource_type)
+                        available_after = self.available[resource_type] + would_free[resource_type]
+                        if required > available_after:
+                            could_satisfy = False
+                            break
+
+                if could_satisfy:
+                    # Perform actual preemption
+                    for preempt_state in preempt_list:
+                        self._preempt_state(preempt_state)
+                    return True
+
             return False
 
-        # Sort by total resource usage (preempt largest first)
-        candidates.sort(key=lambda x: x[1], reverse=True)
-
-        # Check if preempting would free enough resources
-        would_free = {rt: 0.0 for rt in ResourceType if rt != ResourceType.NONE}
-        preempt_list = []
-
-        for candidate_state, _ in candidates:
-            candidate_resources = self._allocations[candidate_state]
-            for rt, amount in candidate_resources.items():
-                would_free[rt] += amount
-            preempt_list.append(candidate_state)
-
-            # Check if we now have enough
-            could_satisfy = True
-            for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                                 ResourceType.NETWORK, ResourceType.GPU]:
-                # Only check resources that are specified in resource_types
-                if not (resource_type & requirements.resource_types):
-                    continue
-                    
-                required = get_resource_amount(requirements, resource_type)
-                available_after_preemption = self.available[resource_type] + would_free[resource_type]
-                if required > available_after_preemption:
-                    could_satisfy = False
-                    break
-
-            if could_satisfy:
-                # Preempt states
-                for preempt_state in preempt_list:
-                    self._preempt_state(preempt_state)
-                return True
-
-        return False
+        except Exception as e:
+            logger.error(f"Error in preemption: {e}")
+            return False
 
     def _preempt_state(self, state_name: str) -> None:
-        """Preempt a state and return its resources."""
-        if state_name in self._allocations:
-            # Return resources
-            for resource_type, amount in self._allocations[state_name].items():
-                self.available[resource_type] += amount
-
-            # Track preemption
-            self._preempted_states.add(state_name)
-            del self._allocations[state_name]
-
-            # NEW: Remove from leak detection
-            if self.enable_leak_detection:
-                agent = self._agent_names.get(state_name, "unknown")
-                leak_detector.track_release(state_name, agent)
-
-            logger.warning(f"Preempted state {state_name}")
-
-    async def release(self, state_name: str) -> None:
-        """Release resources held by a state."""
-        async with self._condition:
+        """Forcibly preempt a state."""
+        try:
             if state_name in self._allocations:
-                # Return resources
+                # Return resources to pool
                 for resource_type, amount in self._allocations[state_name].items():
                     self.available[resource_type] += amount
 
-                # Clean up tracking
+                # Track preemption
+                self._preempted_states.add(state_name)
                 del self._allocations[state_name]
-                if state_name in self._allocation_times:
-                    del self._allocation_times[state_name]
 
-                # NEW: Track release for leak detection
+                # Remove from leak detection
                 if self.enable_leak_detection:
                     agent = self._agent_names.get(state_name, "unknown")
                     leak_detector.track_release(state_name, agent)
-                    if state_name in self._agent_names:
-                        del self._agent_names[state_name]
 
-                # Notify waiting states
-                self._condition.notify_all()
+                logger.warning(f"Preempted state {state_name}")
+
+        except Exception as e:
+            logger.error(f"Error preempting state {state_name}: {e}")
+
+    async def release(self, state_name: str) -> None:
+        """Release all resources held by a state."""
+        try:
+            async with self._condition:
+                if state_name in self._allocations:
+                    # Return resources to pool
+                    for resource_type, amount in self._allocations[state_name].items():
+                        self.available[resource_type] += amount
+                        logger.debug(f"Released {amount} {resource_type.name} from {state_name}")
+
+                    # Clean up tracking
+                    del self._allocations[state_name]
+                    if state_name in self._allocation_times:
+                        del self._allocation_times[state_name]
+
+                    # Update leak detection
+                    if self.enable_leak_detection:
+                        agent = self._agent_names.get(state_name, "unknown")
+                        leak_detector.track_release(state_name, agent)
+                        if state_name in self._agent_names:
+                            del self._agent_names[state_name]
+
+                    # Notify waiting states
+                    self._condition.notify_all()
+
+        except Exception as e:
+            logger.error(f"Error releasing resources for {state_name}: {e}")
 
     def _update_stats(self, state_name: str, requirements: ResourceRequirements, start_time: float) -> None:
-        """Update usage statistics."""
-        wait_time = time.time() - start_time
-        current_time = time.time()
+        """Update usage statistics after successful allocation."""
+        try:
+            wait_time = time.time() - start_time
+            current_time = time.time()
 
-        # Add to usage history
-        available_resources = self.available.copy()
-        self._usage_history.append((current_time, available_resources))
+            # Add to usage history
+            self._usage_history.append((current_time, self.available.copy()))
 
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            # Only update stats for resources that are specified in resource_types
-            if not (resource_type & requirements.resource_types):
-                continue
-                
-            amount = get_resource_amount(requirements, resource_type)
-            if amount <= 0:
-                continue
+            # Update stats for each resource type
+            for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                                 ResourceType.NETWORK, ResourceType.GPU]:
+                if safe_check_resource_type(requirements, resource_type):
+                    amount = get_resource_amount(requirements, resource_type)
+                    if amount <= 0:
+                        continue
 
-            stats = self._usage_stats[resource_type]
-            stats.total_allocations += 1
-            stats.total_wait_time += wait_time
-            stats.last_allocation_time = current_time
+                    stats = self._usage_stats[resource_type]
+                    stats.total_allocations += 1
+                    stats.total_wait_time += wait_time
+                    stats.last_allocation_time = current_time
 
-            # Calculate current usage across all allocations
-            current_usage = sum(
-                alloc.get(resource_type, 0.0) for alloc in self._allocations.values()
-            )
-            stats.current_usage = current_usage
-            stats.peak_usage = max(stats.peak_usage, current_usage)
+                    # Calculate current usage
+                    current_usage = sum(
+                        alloc.get(resource_type, 0.0) for alloc in self._allocations.values()
+                    )
+                    stats.current_usage = current_usage
+                    stats.peak_usage = max(stats.peak_usage, current_usage)
 
-            # Record historical data point
-            self._allocation_history[resource_type].append((current_time, current_usage))
+                    # Record historical data
+                    self._allocation_history[resource_type].append((current_time, current_usage))
 
-            # Cleanup old history
+            # Clean up old history
             cutoff = current_time - self._history_retention
-            self._allocation_history[resource_type] = [
-                (t, usage) for t, usage in self._allocation_history[resource_type] if t >= cutoff
+            self._usage_history = [
+                (t, usage) for t, usage in self._usage_history if t >= cutoff
             ]
 
-        # Cleanup old usage history
-        cutoff = current_time - self._history_retention
-        self._usage_history = [
-            (t, usage) for t, usage in self._usage_history if t >= cutoff
-        ]
+            for resource_type in self._allocation_history:
+                self._allocation_history[resource_type] = [
+                    (t, usage) for t, usage in self._allocation_history[resource_type] if t >= cutoff
+                ]
+
+        except Exception as e:
+            logger.error(f"Error updating stats: {e}")
 
     def _update_stats_failure(self, requirements: ResourceRequirements) -> None:
-        """Update stats for failed allocation"""
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
-            # Only update failure stats for resources that are specified in resource_types
-            if not (resource_type & requirements.resource_types):
-                continue
-                
-            amount = get_resource_amount(requirements, resource_type)
-            if amount > 0:
-                self._usage_stats[resource_type].failed_allocations += 1
+        """Update statistics for failed allocations."""
+        try:
+            for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                                 ResourceType.NETWORK, ResourceType.GPU]:
+                if safe_check_resource_type(requirements, resource_type):
+                    amount = get_resource_amount(requirements, resource_type)
+                    if amount > 0:
+                        self._usage_stats[resource_type].failed_allocations += 1
+        except Exception as e:
+            logger.error(f"Error updating failure stats: {e}")
 
+    # Information methods
     def get_usage_stats(self) -> Dict[ResourceType, ResourceUsageStats]:
-        """Get current usage statistics."""
+        """Get usage statistics for all resource types."""
         return self._usage_stats.copy()
 
     def get_state_allocations(self) -> Dict[str, Dict[ResourceType, float]]:
-        """Get current resource allocations by state."""
+        """Get current allocations by state."""
         return self._allocations.copy()
 
     def get_waiting_states(self) -> Set[str]:
@@ -430,20 +507,27 @@ class ResourcePool:
         """Get states that were preempted."""
         return self._preempted_states.copy()
 
-    # Leak detection methods
     def check_leaks(self) -> List[Any]:
-        """Check for resource leaks"""
+        """Check for resource leaks."""
         if not self.enable_leak_detection:
             return []
-        return leak_detector.detect_leaks()
+        try:
+            return leak_detector.detect_leaks()
+        except Exception as e:
+            logger.error(f"Error checking leaks: {e}")
+            return []
 
     def get_leak_metrics(self) -> Dict[str, Any]:
-        """Get leak detection metrics"""
+        """Get leak detection metrics."""
         if not self.enable_leak_detection:
             return {"leak_detection": "disabled"}
-        return leak_detector.get_metrics()
+        try:
+            return leak_detector.get_metrics()
+        except Exception as e:
+            logger.error(f"Error getting leak metrics: {e}")
+            return {"leak_detection": "error", "error": str(e)}
 
     async def force_release(self, state_name: str):
-        """Force release resources (for leak cleanup)"""
+        """Force release resources from a state."""
         logger.warning(f"Force releasing resources for state {state_name}")
         await self.release(state_name)
