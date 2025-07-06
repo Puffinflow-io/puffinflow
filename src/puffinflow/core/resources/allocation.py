@@ -16,10 +16,10 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from src.puffinflow.core.resources.pool import ResourcePool
+from .pool import ResourcePool
 
 # Import resource management components from the canonical source
-from src.puffinflow.core.resources.requirements import (
+from .requirements import (
     ResourceRequirements,
     ResourceType,  # Use the canonical mapping from requirements.py
     get_resource_amount,

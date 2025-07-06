@@ -5,7 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
-    from src.puffinflow.core.agent.base import Agent
+    from .base import Agent
 
 
 class DependencyType(Enum):

@@ -172,36 +172,18 @@ jobs:
           } >> $GITHUB_OUTPUT
       
       - name: Create Release
-        id: create-release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ needs.validate-tag.outputs.version }}
-          release_name: Release ${{ needs.validate-tag.outputs.version }}
+          name: Release ${{ needs.validate-tag.outputs.version }}
           body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: ${{ needs.validate-tag.outputs.is-prerelease == 'true' }}
-      
-      - name: Upload wheel to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: dist/*.whl
-          asset_name: puffinflow-${{ needs.validate-tag.outputs.version }}-py3-none-any.whl
-          asset_content_type: application/zip
-      
-      - name: Upload source distribution to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: dist/*.tar.gz
-          asset_name: puffinflow-${{ needs.validate-tag.outputs.version }}.tar.gz
-          asset_content_type: application/gzip
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
 
   publish-pypi:
     name: Publish to PyPI

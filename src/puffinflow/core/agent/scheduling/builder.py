@@ -6,6 +6,7 @@ from .inputs import ScheduledInput, parse_inputs
 
 if TYPE_CHECKING:
     from ..base import Agent
+    from .scheduler import ScheduledAgent
 
 
 class ScheduleBuilder:

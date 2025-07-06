@@ -56,8 +56,9 @@ class TestQuotaEnums:
     def test_enum_iteration(self):
         """Test that enums can be iterated."""
         scopes = list(QuotaScope)
-        assert len(scopes) == 5
+        assert len(scopes) == 6  # Updated for POOL addition
         assert QuotaScope.AGENT in scopes
+        assert QuotaScope.POOL in scopes
         assert QuotaScope.GLOBAL in scopes
 
         policies = list(QuotaPolicy)
@@ -680,6 +681,103 @@ class TestEdgeCases:
         }
 
         assert policy_result == expected
+
+    def test_quota_manager_remove_quota_all(self):
+        """Test removing all quotas for a scope_id."""
+        manager = QuotaManager()
+        
+        # Set multiple quotas
+        manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, 4.0)
+        manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.MEMORY, 1024.0)
+        
+        # Verify they exist
+        assert ResourceType.CPU in manager._limits[QuotaScope.AGENT]["test_agent"]
+        assert ResourceType.MEMORY in manager._limits[QuotaScope.AGENT]["test_agent"]
+        
+        # Remove all quotas for this agent
+        manager.remove_quota(QuotaScope.AGENT, "test_agent")
+        
+        # Verify they're gone
+        assert "test_agent" not in manager._limits[QuotaScope.AGENT]
+        assert "test_agent" not in manager._usage[QuotaScope.AGENT]
+
+    def test_quota_manager_remove_specific_quota(self):
+        """Test removing specific quota for a scope_id."""
+        manager = QuotaManager()
+        
+        # Set multiple quotas
+        manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, 4.0)
+        manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.MEMORY, 1024.0)
+        
+        # Remove only CPU quota
+        manager.remove_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU)
+        
+        # Verify CPU is gone but MEMORY remains
+        assert ResourceType.CPU not in manager._limits[QuotaScope.AGENT]["test_agent"]
+        assert ResourceType.MEMORY in manager._limits[QuotaScope.AGENT]["test_agent"]
+
+    @pytest.mark.asyncio
+    async def test_quota_manager_async_stop(self):
+        """Test async stop functionality."""
+        manager = QuotaManager()
+        await manager.start()
+        
+        # Verify cleanup task is running
+        assert manager._cleanup_task is not None
+        
+        # Stop the manager
+        await manager.stop()
+        
+        # Verify cleanup task is cancelled
+        assert manager._cleanup_task.cancelled()
+
+    @pytest.mark.asyncio
+    async def test_quota_manager_stop_without_cleanup_task(self):
+        """Test stop when no cleanup task exists."""
+        manager = QuotaManager()
+        # Don't start, so cleanup_task is None
+        
+        # Should not raise exception
+        await manager.stop()
+
+    def test_quota_limit_with_quota_limit_object(self):
+        """Test set_quota with QuotaLimit object instead of numeric value."""
+        manager = QuotaManager()
+        
+        quota_limit = QuotaLimit(
+            resource_type=ResourceType.CPU,
+            limit=8.0,
+            scope=QuotaScope.AGENT,
+            policy=QuotaPolicy.SOFT
+        )
+        
+        manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, quota_limit)
+        
+        stored_limit = manager._limits[QuotaScope.AGENT]["test_agent"][ResourceType.CPU]
+        assert stored_limit.limit == 8.0
+        assert stored_limit.policy == QuotaPolicy.SOFT
+
+    @pytest.mark.asyncio
+    async def test_quota_manager_cleanup_functionality(self):
+        """Test cleanup functionality without relying on implementation details."""
+        import time
+        manager = QuotaManager()
+        await manager.start()
+        try:
+            # Test that cleanup can run without errors
+            await manager._cleanup_expired()
+        finally:
+            await manager.stop()
+
+    def test_quota_enums_exist(self):
+        """Test QuotaScope and QuotaPolicy enums exist and have expected members."""
+        # Test that enums exist and have the basic expected members
+        assert hasattr(QuotaScope, 'AGENT')
+        assert hasattr(QuotaScope, 'POOL') 
+        assert hasattr(QuotaScope, 'GLOBAL')
+        
+        assert hasattr(QuotaPolicy, 'SOFT')
+        assert hasattr(QuotaPolicy, 'HARD')
 
 
 if __name__ == "__main__":

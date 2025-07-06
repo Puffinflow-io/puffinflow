@@ -1061,6 +1061,134 @@ class TestPerformance:
         assert function_time < 1.0
 
 
+class TestPostInitBehavior:
+    """Test __post_init__ method edge cases and error handling."""
+
+    def test_invalid_resource_types_fallback(self):
+        """Test fallback behavior when resource_types is invalid."""
+        import logging
+        from unittest.mock import patch
+        
+        # Test with non-ResourceType value
+        with patch.object(logging.getLogger("src.puffinflow.core.resources.requirements"), 'warning') as mock_warn:
+            # Create instance with invalid resource_types via manual setting
+            req = ResourceRequirements()
+            # Force invalid resource_types to trigger auto-determination
+            object.__setattr__(req, 'resource_types', 'invalid_string')
+            req.__post_init__()
+            mock_warn.assert_called()
+
+    def test_invalid_resource_types_triggers_auto_determination(self):
+        """Test that invalid resource_types triggers auto-determination."""
+        req = ResourceRequirements(cpu_units=2.0, memory_mb=0.0)
+        # Force invalid resource_types to trigger auto-determination
+        object.__setattr__(req, 'resource_types', 'invalid_string')
+        req.__post_init__()
+        
+        # Should have been auto-determined based on non-zero values
+        assert ResourceType.CPU in req.resource_types
+
+    def test_auto_determine_resource_types_all_zero(self):
+        """Test auto-determination when all resource amounts are zero."""
+        req = ResourceRequirements(
+            cpu_units=0.0,
+            memory_mb=0.0,
+            io_weight=0.0,
+            network_weight=0.0,
+            gpu_units=0.0
+        )
+        # Force auto-determination
+        req._auto_determine_resource_types()
+        
+        # Should default to ALL when no resources are requested
+        assert req.resource_types == ResourceType.ALL
+
+    def test_auto_determine_resource_types_partial(self):
+        """Test auto-determination with partial resource amounts."""
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=0.0,
+            io_weight=0.0,
+            network_weight=1.0,
+            gpu_units=0.0
+        )
+        req._auto_determine_resource_types()
+        
+        # Should include only CPU and NETWORK
+        assert ResourceType.CPU in req.resource_types
+        assert ResourceType.NETWORK in req.resource_types
+        assert ResourceType.MEMORY not in req.resource_types
+        assert ResourceType.IO not in req.resource_types
+        assert ResourceType.GPU not in req.resource_types
+
+    def test_safe_check_resource_type_fallback(self):
+        """Test safe_check_resource_type fallback mechanisms."""
+        from src.puffinflow.core.resources.requirements import safe_check_resource_type
+        import logging
+        from unittest.mock import patch, Mock
+        
+        req = ResourceRequirements(cpu_units=2.0)
+        
+        # Test TypeError fallback
+        with patch.object(logging.getLogger("src.puffinflow.core.resources.requirements"), 'warning') as mock_warn:
+            mock_resource_types = Mock()
+            mock_resource_types.__and__ = Mock(side_effect=TypeError("Bitwise failed"))
+            mock_resource_types.value = 1
+            req.resource_types = mock_resource_types
+            
+            result = safe_check_resource_type(req, ResourceType.CPU)
+            mock_warn.assert_called()
+            assert isinstance(result, bool)
+
+    def test_safe_check_resource_type_double_fallback(self):
+        """Test safe_check_resource_type double fallback to attribute check."""
+        from src.puffinflow.core.resources.requirements import safe_check_resource_type
+        import logging
+        from unittest.mock import patch, Mock
+        
+        req = ResourceRequirements(cpu_units=2.0)
+        
+        # Test double fallback when both bitwise operations fail
+        with patch.object(logging.getLogger("src.puffinflow.core.resources.requirements"), 'error') as mock_error:
+            mock_resource_types = Mock()
+            mock_resource_types.__and__ = Mock(side_effect=TypeError("Bitwise failed"))
+            mock_resource_types.value = Mock()
+            mock_resource_types.value.__and__ = Mock(side_effect=Exception("Value fallback failed"))
+            req.resource_types = mock_resource_types
+            
+            result = safe_check_resource_type(req, ResourceType.CPU)
+            mock_error.assert_called()
+            assert result is True  # Should fallback to checking cpu_units > 0
+
+    def test_get_resource_amount_disabled_resource(self):
+        """Test get_resource_amount when resource type is disabled."""
+        from src.puffinflow.core.resources.requirements import get_resource_amount
+        
+        req = ResourceRequirements(
+            cpu_units=2.0,
+            memory_mb=512.0,
+            resource_types=ResourceType.CPU  # Only CPU enabled
+        )
+        
+        # Memory should return 0 even though memory_mb is set
+        result = get_resource_amount(req, ResourceType.MEMORY)
+        assert result == 0.0
+
+    def test_get_resource_amount_combined_type_fallback(self):
+        """Test get_resource_amount with combined types using fallback logic."""
+        from src.puffinflow.core.resources.requirements import get_resource_amount
+        from unittest.mock import patch
+        
+        req = ResourceRequirements(cpu_units=2.0, memory_mb=512.0)
+        combined_type = ResourceType.CPU | ResourceType.MEMORY
+        
+        # Mock the 'in' operator to fail, forcing value-based fallback
+        with patch.object(ResourceType, '__contains__', side_effect=TypeError("Contains failed")):
+            result = get_resource_amount(req, combined_type)
+            # Should still work using value-based comparison
+            assert result > 0
+
+
 class TestComplexScenarios:
     """Test complex real-world scenarios."""
 

@@ -180,6 +180,9 @@ class ResourcePool:
             requirements = self._validate_and_fix_requirements(requirements)
 
             async with self._condition:
+                # Check if requirements exceed total available resources
+                self._validate_requirements_against_total(requirements)
+                
                 # Check quota constraints
                 if not self._check_quota(state_name, requirements):
                     raise ResourceQuotaExceededError(f"Quota exceeded for {state_name}")
@@ -281,6 +284,19 @@ class ResourcePool:
             )
             logger.info(f"Using fallback requirements: {fallback}")
             return fallback
+
+    def _validate_requirements_against_total(self, requirements: ResourceRequirements) -> None:
+        """Validate that requirements don't exceed total available resources."""
+        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
+                             ResourceType.NETWORK, ResourceType.GPU]:
+            if safe_check_resource_type(requirements, resource_type):
+                required = get_resource_amount(requirements, resource_type)
+                total_available = self.resources.get(resource_type, 0.0)
+                
+                if required > total_available:
+                    raise ResourceOverflowError(
+                        f"Required {resource_type.name} ({required}) exceeds total available ({total_available})"
+                    )
 
     def _build_resource_dict(self, requirements: ResourceRequirements) -> Dict[str, float]:
         """Build resource dictionary for leak detection."""

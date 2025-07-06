@@ -10,12 +10,12 @@ import weakref
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional, Protocol
 
-from src.puffinflow.core.coordination.deadlock import DeadlockDetector
-from src.puffinflow.core.coordination.primitives import (
+from .deadlock import DeadlockDetector
+from .primitives import (
     CoordinationPrimitive,
     PrimitiveType,
 )
-from src.puffinflow.core.coordination.rate_limiter import RateLimiter, RateLimitStrategy
+from .rate_limiter import RateLimiter, RateLimitStrategy
 
 logger = logging.getLogger(__name__)
 

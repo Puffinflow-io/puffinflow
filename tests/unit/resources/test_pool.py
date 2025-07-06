@@ -247,7 +247,7 @@ class TestPreemption:
     @pytest.mark.asyncio
     async def test_preemption_enabled(self, pool_with_preemption):
         """Test that preemption is properly enabled."""
-        assert pool_with_preemption._enable_preemption is True
+        assert pool_with_preemption.enable_preemption is True
 
     @pytest.mark.asyncio
     async def test_preemption_frees_resources(self, pool_with_preemption):
@@ -271,7 +271,7 @@ class TestPreemption:
     async def test_preemption_disabled_by_default(self):
         """Test that preemption is disabled by default."""
         pool = ResourcePool()
-        assert pool._enable_preemption is False
+        assert pool.enable_preemption is False
 
         # Fill up resources
         req1 = ResourceRequirements(cpu_units=4.0)

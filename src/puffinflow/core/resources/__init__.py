@@ -1,8 +1,8 @@
 """Resource management module for workflow orchestrator."""
 
 # Import submodules for import path tests
-from src.puffinflow.core.resources import allocation, pool, quotas, requirements
-from src.puffinflow.core.resources.allocation import (
+from . import allocation, pool, quotas, requirements
+from .allocation import (
     AllocationRequest,
     AllocationResult,
     AllocationStrategy,
@@ -13,14 +13,14 @@ from src.puffinflow.core.resources.allocation import (
     ResourceAllocator,
     WorstFitAllocator,
 )
-from src.puffinflow.core.resources.pool import (
+from .pool import (
     ResourceAllocationError,
     ResourceOverflowError,
     ResourcePool,
     ResourceQuotaExceededError,
     ResourceUsageStats,
 )
-from src.puffinflow.core.resources.quotas import (
+from .quotas import (
     QuotaExceededError,
     QuotaLimit,
     QuotaManager,
@@ -28,7 +28,7 @@ from src.puffinflow.core.resources.quotas import (
     QuotaPolicy,
     QuotaScope,
 )
-from src.puffinflow.core.resources.requirements import (
+from .requirements import (
     ResourceRequirements,
     ResourceType,
 )

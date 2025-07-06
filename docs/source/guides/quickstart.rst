@@ -38,7 +38,7 @@ Let's create a simple agent that processes data:
    from puffinflow import Agent, Context, state
 
    class HelloWorldAgent(Agent):
-       @state
+       @state(profile="quick")
        async def greet(self, ctx: Context) -> None:
            """A simple greeting state."""
            name = ctx.get('name', 'World')
@@ -48,6 +48,160 @@ Let's create a simple agent that processes data:
    async def main():
        # Create and run the agent
        agent = HelloWorldAgent()
+       
+       # Run with custom input
+       context = Context({'name': 'PuffinFlow'})
+       result = await agent.run(context)
+       print(f"Status: {result.status}")
+       print(f"Greeting: {result.context.greeting}")
+
+   if __name__ == "__main__":
+       asyncio.run(main())
+
+Multi-State Workflow
+--------------------
+
+Now let's create a more complex workflow with multiple states and dependencies:
+
+.. code-block:: python
+
+   import asyncio
+   from puffinflow import Agent, Context, state
+
+   class DataPipeline(Agent):
+       """A simple data processing pipeline."""
+       
+       @state(profile="io_intensive")
+       async def load_data(self, ctx: Context) -> None:
+           """Load data from source."""
+           # Simulate loading data
+           await asyncio.sleep(0.1)
+           ctx.raw_data = [1, 2, 3, 4, 5]
+           print(f"Loaded {len(ctx.raw_data)} records")
+
+       @state(depends_on=["load_data"], profile="cpu_intensive")
+       async def transform_data(self, ctx: Context) -> None:
+           """Transform the loaded data."""
+           # Transform data (multiply by 2)
+           ctx.processed_data = [x * 2 for x in ctx.raw_data]
+           print(f"Transformed data: {ctx.processed_data}")
+
+       @state(depends_on=["transform_data"], profile="io_intensive")
+       async def save_data(self, ctx: Context) -> None:
+           """Save processed data."""
+           # Simulate saving
+           await asyncio.sleep(0.1)
+           ctx.saved_location = "/tmp/processed_data.json"
+           ctx.records_saved = len(ctx.processed_data)
+           print(f"Saved {ctx.records_saved} records to {ctx.saved_location}")
+
+   async def main():
+       pipeline = DataPipeline()
+       result = await pipeline.run()
+       
+       print(f"\nPipeline Status: {result.status}")
+       print(f"Records processed: {result.context.records_saved}")
+       print(f"Saved to: {result.context.saved_location}")
+
+   asyncio.run(main())
+
+AI/ML Quick Examples
+--------------------
+
+Here are some quick examples for AI/ML workflows:
+
+Simple RAG Agent
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from puffinflow import Agent, Context, state
+   from puffinflow.core.coordination import RateLimiter
+
+   class SimpleRAG(Agent):
+       """A basic RAG implementation."""
+       
+       def __init__(self):
+           super().__init__()
+           self.rate_limiter = RateLimiter(max_calls=10, time_window=60)
+
+       @state(profile="cpu_intensive")
+       async def embed_query(self, ctx: Context) -> None:
+           """Generate embedding for the query."""
+           # Simulate embedding generation
+           import numpy as np
+           ctx.query_embedding = np.random.randn(384).tolist()
+
+       @state(depends_on=["embed_query"], profile="memory_intensive")
+       async def retrieve_documents(self, ctx: Context) -> None:
+           """Retrieve relevant documents."""
+           # Simulate document retrieval
+           ctx.retrieved_docs = [
+               {"text": "Sample document 1", "score": 0.9},
+               {"text": "Sample document 2", "score": 0.8}
+           ]
+
+       @state(depends_on=["retrieve_documents"], profile="external_service")
+       async def generate_response(self, ctx: Context) -> None:
+           """Generate response using LLM."""
+           async with self.rate_limiter:
+               # Simulate LLM call
+               await asyncio.sleep(1.0)
+               ctx.response = f"Answer to '{ctx.query}' based on retrieved documents"
+
+   # Usage
+   async def main():
+       rag = SimpleRAG()
+       context = Context({'query': 'What is machine learning?'})
+       result = await rag.run(context)
+       print(f"Response: {result.context.response}")
+
+   asyncio.run(main())
+
+Model Training Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from puffinflow import Agent, Context, state, AgentTeam
+
+   class DataLoader(Agent):
+       @state(profile="io_intensive")
+       async def load_training_data(self, ctx: Context) -> None:
+           """Load training data."""
+           # Simulate data loading
+           await asyncio.sleep(0.5)
+           ctx.train_data = list(range(1000))
+           ctx.val_data = list(range(100, 200))
+
+   class ModelTrainer(Agent):
+       @state(depends_on=["load_training_data"], profile="gpu_accelerated")
+       async def train_model(self, ctx: Context) -> None:
+           """Train the model."""
+           # Simulate training
+           await asyncio.sleep(2.0)
+           ctx.model_accuracy = 0.95
+           ctx.model_path = "/models/trained_model.pt"
+
+   class ModelEvaluator(Agent):
+       @state(depends_on=["train_model"], profile="cpu_intensive")
+       async def evaluate_model(self, ctx: Context) -> None:
+           """Evaluate model performance."""
+           ctx.test_accuracy = ctx.model_accuracy - 0.02  # Simulate test performance
+           ctx.evaluation_complete = True
+
+   async def main():
+       # Create training pipeline
+       training_team = AgentTeam([
+           DataLoader(),
+           ModelTrainer(),
+           ModelEvaluator()
+       ])
+       
+       result = await training_team.run()
+       print(f"Training complete! Test accuracy: {result.context.test_accuracy:.2f}")
+
+   asyncio.run(main())
        
        # Create context with input data
        context = Context({'name': 'PuffinFlow'})

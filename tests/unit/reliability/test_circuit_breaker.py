@@ -238,9 +238,15 @@ class TestCircuitBreaker:
                     raise ValueError(f"Failure {i}")
 
         assert circuit_breaker.state == CircuitState.OPEN
+        
+        # Record the time when circuit opened to ensure proper wait
+        last_failure_time = circuit_breaker._last_failure_time
+        recovery_timeout = circuit_breaker.config.recovery_timeout
 
-        # Wait for recovery timeout
-        await asyncio.sleep(1.1)  # recovery_timeout is 1.0
+        # Wait for recovery timeout with a small buffer for timing accuracy
+        elapsed = time.time() - last_failure_time
+        remaining_wait = max(0, recovery_timeout - elapsed) + 0.1
+        await asyncio.sleep(remaining_wait)
 
         # Next request should transition to HALF_OPEN
         executed = False

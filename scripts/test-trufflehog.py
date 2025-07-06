@@ -65,7 +65,6 @@ def run_trufflehog_full_scan():
     cmd = """docker run --rm -v .:/tmp -w /tmp \
 ghcr.io/trufflesecurity/trufflehog:latest \
 git file:///tmp/ \
---config=.trufflehog.yml \
 --only-verified \
 --json"""
     
@@ -104,7 +103,6 @@ def run_trufflehog_commit_range():
 ghcr.io/trufflesecurity/trufflehog:latest \
 git file:///tmp/ \
 --since-commit {base_commit} \
---config=.trufflehog.yml \
 --only-verified \
 --json"""
     

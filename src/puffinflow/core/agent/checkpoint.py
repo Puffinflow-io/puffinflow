@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 if TYPE_CHECKING:
-    from src.puffinflow.core.agent.base import Agent
-    from src.puffinflow.core.agent.state import (
+    from .base import Agent
+    from .state import (
         AgentStatus,
         PrioritizedState,
         StateMetadata,

@@ -124,13 +124,21 @@ class TestTokenBucket:
     async def test_consume_multiple_tokens(self, limiter):
         """Test consuming multiple tokens at once."""
         # Set tokens manually and consume
+        fixed_time = time.time()
         async with limiter._lock:
             limiter._tokens = 2.5
-            limiter._last_update = time.time()  # Prevent regeneration
+            limiter._last_update = fixed_time
 
+        # First consumption should succeed
         assert await limiter.consume(2)
-        # Check tokens without triggering regeneration
-        assert limiter._tokens == pytest.approx(0.5, abs=0.01)
+        
+        # Verify tokens were consumed correctly
+        # Use the same fixed time to prevent regeneration during check
+        async with limiter._lock:
+            limiter._last_update = fixed_time
+            assert limiter._tokens == pytest.approx(0.5, abs=0.01)
+        
+        # Second consumption should fail
         assert not await limiter.consume(1)
 
     @pytest.mark.asyncio

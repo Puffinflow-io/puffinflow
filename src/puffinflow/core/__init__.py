@@ -2,23 +2,23 @@
 
 __version__ = "0.1.0"
 
-from src.puffinflow.core.agent.base import Agent
-from src.puffinflow.core.agent.context import Context
-from src.puffinflow.core.agent.state import Priority, StateStatus
-from src.puffinflow.core.resources.pool import ResourcePool
-from src.puffinflow.core.resources.requirements import (
+from .agent.base import Agent
+from .agent.context import Context
+from .agent.state import Priority, StateStatus
+from .resources.pool import ResourcePool
+from .resources.requirements import (
     ResourceRequirements,
     ResourceType,
 )
 
 # Import reliability components
 try:
-    from src.puffinflow.core.reliability.bulkhead import Bulkhead, BulkheadConfig
-    from src.puffinflow.core.reliability.circuit_breaker import (
+    from .reliability.bulkhead import Bulkhead, BulkheadConfig
+    from .reliability.circuit_breaker import (
         CircuitBreaker,
         CircuitBreakerConfig,
     )
-    from src.puffinflow.core.reliability.leak_detector import ResourceLeakDetector
+    from .reliability.leak_detector import ResourceLeakDetector
 except ImportError:
     # Create mock classes if reliability module is not available
     class CircuitBreaker:
@@ -34,7 +34,7 @@ except ImportError:
 
 # Import state decorator if available
 try:
-    from src.puffinflow.core.agent.decorators.flexible import state
+    from .agent.decorators.flexible import state
 except ImportError:
     # Create a simple mock state decorator
     def state(**kwargs):

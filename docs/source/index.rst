@@ -26,15 +26,28 @@ A powerful Python workflow orchestration framework with advanced resource manage
 ✨ Features
 -----------
 
+**Core Framework:**
 - 🚀 **Async-first design** with full asyncio support
-- 🎯 **State-based workflow management** with dependency resolution
+- 🎯 **State-based workflow management** with dependency resolution and automatic transitions
 - 💾 **Built-in checkpointing** for workflow persistence and recovery
-- 🔧 **Advanced resource management** with quotas and allocation strategies
-- 🔄 **Automatic retry mechanisms** with exponential backoff
-- 📊 **Priority-based execution** with configurable scheduling
-- 🎛️ **Flexible context system** for state data management
+- 🔧 **Advanced resource management** with quotas, allocation strategies, and GPU scheduling
+- 🔄 **Automatic retry mechanisms** with exponential backoff and circuit breakers
+- 📊 **Priority-based execution** with configurable scheduling and natural language syntax
+
+**AI/ML Capabilities:**
+- 🤖 **RAG System Support** - Complete pipelines for document ingestion, embedding generation, and retrieval
+- 🧠 **LLM Integration** - Prompt routing, model selection, and fine-tuning workflows
+- 📈 **Self-RAG** - Self-improving systems with reflection and iterative enhancement
+- 🕸️ **Graph RAG** - Knowledge graph construction and graph-enhanced retrieval
+- 🔀 **Prompt Routing** - Intelligent model selection based on query analysis
+- 🎯 **Model Fine-tuning** - End-to-end pipelines for training and deployment
+
+**Enterprise Features:**
+- 🎛️ **Flexible context system** for state data management with TTL caching
 - 🔌 **Easy integration** with FastAPI, Celery, and Kubernetes
-- 📈 **Built-in monitoring** and observability features
+- 📈 **Built-in monitoring** and observability with OpenTelemetry support
+- 🛡️ **Reliability patterns** - Circuit breakers, bulkheads, and leak detection
+- 🤝 **Multi-agent coordination** - Teams, pools, groups with message passing
 - 🧪 **Comprehensive testing** with 95%+ code coverage
 - 🔒 **Security scanning** with TruffleHog secret detection
 
@@ -63,19 +76,19 @@ Basic Usage
    from puffinflow import Agent, Context, state
 
    class DataProcessor(Agent):
-       @state
+       @state(profile="io_intensive")
        async def fetch_data(self, ctx: Context) -> None:
            """Fetch data from external source."""
            data = await fetch_external_data()
            ctx.data = data
 
-       @state
+       @state(depends_on=["fetch_data"], profile="cpu_intensive")
        async def process_data(self, ctx: Context) -> None:
            """Process the fetched data."""
            processed = await process(ctx.data)
            ctx.processed_data = processed
 
-       @state
+       @state(depends_on=["process_data"], profile="io_intensive")
        async def save_results(self, ctx: Context) -> None:
            """Save processed results."""
            await save_to_database(ctx.processed_data)
@@ -87,6 +100,41 @@ Basic Usage
 
    if __name__ == "__main__":
        asyncio.run(main())
+
+AI/ML Quick Start
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from puffinflow import Agent, Context, state, AgentTeam
+   from puffinflow.core.coordination import RateLimiter
+
+   class RAGAgent(Agent):
+       """Simple RAG implementation."""
+       
+       def __init__(self):
+           super().__init__()
+           self.rate_limiter = RateLimiter(max_calls=10, time_window=60)
+
+       @state(profile="gpu_accelerated")
+       async def generate_embeddings(self, ctx: Context) -> None:
+           """Generate embeddings for documents."""
+           # Your embedding logic here
+           ctx.embeddings = await generate_embeddings(ctx.documents)
+
+       @state(depends_on=["generate_embeddings"], profile="external_service")
+       async def query_llm(self, ctx: Context) -> None:
+           """Query LLM with retrieved context."""
+           async with self.rate_limiter:
+               response = await llm_api_call(ctx.query, ctx.retrieved_docs)
+               ctx.response = response
+
+   # Usage
+   async def main():
+       rag = RAGAgent()
+       context = Context({'documents': docs, 'query': 'What is machine learning?'})
+       result = await rag.run(context)
+       print(result.context.response)
 
 📚 Documentation
 ----------------

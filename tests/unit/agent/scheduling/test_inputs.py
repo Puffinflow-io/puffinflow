@@ -237,6 +237,67 @@ class TestParseMagicPrefix:
         assert exc_info.value.prefix == "typed"
         assert "Typed format: typed:value" in str(exc_info.value)
     
+    def test_parse_invalid_prefix(self):
+        """Test parsing with unknown prefix returns VARIABLE type."""
+        # Unknown prefixes are treated as regular variables, not errors
+        result = parse_magic_prefix("key", "unknown:value")
+        
+        assert result.key == "key"
+        assert result.value == "unknown:value"
+        assert result.input_type == InputType.VARIABLE
+    
+    def test_parse_secret_prefix_empty_value(self):
+        """Test parsing secret: prefix with empty value raises error."""
+        with pytest.raises(InvalidInputTypeError) as exc_info:
+            parse_magic_prefix("key", "secret:")
+        
+        assert exc_info.value.prefix == "secret"
+        assert "Secret format: secret:value" in str(exc_info.value)
+    
+    def test_parse_const_prefix_empty_value(self):
+        """Test parsing const: prefix with empty value raises error."""
+        with pytest.raises(InvalidInputTypeError) as exc_info:
+            parse_magic_prefix("key", "const:")
+        
+        assert exc_info.value.prefix == "const"
+        assert "Constant format: const:value" in str(exc_info.value)
+    
+    def test_parse_non_string_input(self):
+        """Test parsing non-string input returns VARIABLE type."""
+        result = parse_magic_prefix("key", 123)
+        
+        assert result.key == "key"
+        assert result.value == 123
+        assert result.input_type == InputType.VARIABLE
+    
+    def test_parse_no_colon_input(self):
+        """Test parsing string without colon returns VARIABLE type."""
+        result = parse_magic_prefix("key", "simple_value")
+        
+        assert result.key == "key"
+        assert result.value == "simple_value"
+        assert result.input_type == InputType.VARIABLE
+    
+    def test_parse_empty_prefix(self):
+        """Test parsing string with empty prefix before colon."""
+        # Empty prefix is not recognized, so it should be treated as variable
+        result = parse_magic_prefix("key", ":value")
+        
+        assert result.key == "key"
+        assert result.value == ":value"
+        assert result.input_type == InputType.VARIABLE
+    
+    def test_parse_case_insensitive_prefix(self):
+        """Test that prefixes are case insensitive."""
+        result1 = parse_magic_prefix("key", "SECRET:value")
+        result2 = parse_magic_prefix("key", "Secret:value")
+        result3 = parse_magic_prefix("key", "secret:value")
+        
+        assert result1.input_type == InputType.SECRET
+        assert result2.input_type == InputType.SECRET
+        assert result3.input_type == InputType.SECRET
+        assert result1.value == result2.value == result3.value == "value"
+    
     def test_parse_output_prefix(self):
         """Test parsing output: prefix."""
         result = parse_magic_prefix("key", "output:output_value")

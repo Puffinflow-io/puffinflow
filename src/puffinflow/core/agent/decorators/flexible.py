@@ -37,10 +37,15 @@ class StateProfile:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""
+        import copy
         result = {}
         for key, value in self.__dict__.items():
             if value is not None and key != 'name':
-                result[key] = value
+                # Deep copy to avoid modifying original profile configurations
+                if isinstance(value, dict):
+                    result[key] = copy.deepcopy(value)
+                else:
+                    result[key] = value
         return result
 
 

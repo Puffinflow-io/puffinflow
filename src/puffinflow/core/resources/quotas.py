@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import structlog
 
-from src.puffinflow.core.resources.requirements import ResourceType
+from .requirements import ResourceType
 
 logger = structlog.get_logger(__name__)
 
@@ -18,6 +18,7 @@ logger = structlog.get_logger(__name__)
 class QuotaScope(Enum):
     """Scope of quota enforcement."""
     AGENT = "agent"  # Per-agent quotas
+    POOL = "pool"  # Per-pool quotas
     WORKFLOW = "workflow"  # Per-workflow quotas
     STATE = "state"  # Per-state quotas
     USER = "user"  # Per-user quotas (for multi-tenancy)
@@ -415,25 +416,28 @@ class QuotaManager:
                 for usage in self._usage[scope][scope_id].values():
                     usage.reset()
 
+    async def _cleanup_expired(self):
+        """Clean up expired usage data."""
+        current_time = time.time()
+
+        # Clean up old rate limit data
+        for scope in self._usage.values():
+            for scope_id_usage in scope.values():
+                for usage in scope_id_usage.values():
+                    # Keep only recent request times
+                    cutoff = current_time - 3600  # Keep 1 hour
+                    usage.request_times = [
+                        t for t in usage.request_times if t > cutoff
+                    ]
+
+        logger.debug("quota_cleanup_completed")
+
     async def _cleanup_loop(self):
         """Periodic cleanup of old usage data."""
         while self._running:
             try:
                 await asyncio.sleep(3600)  # Run hourly
-
-                current_time = time.time()
-
-                # Clean up old rate limit data
-                for scope in self._usage.values():
-                    for scope_id_usage in scope.values():
-                        for usage in scope_id_usage.values():
-                            # Keep only recent request times
-                            cutoff = current_time - 3600  # Keep 1 hour
-                            usage.request_times = [
-                                t for t in usage.request_times if t > cutoff
-                            ]
-
-                logger.debug("quota_cleanup_completed")
+                await self._cleanup_expired()
 
             except asyncio.CancelledError:
                 break

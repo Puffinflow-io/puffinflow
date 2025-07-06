@@ -59,8 +59,8 @@ class DataIngestionAgent(Agent):
             }
         }
         
-        context.set_output("ingested_data", ingested_data)
-        context.set_output("record_count", data_size)
+        context.set_variable("ingested_data", ingested_data)
+        context.set_variable("record_count", data_size)
         
         return None
 
@@ -116,8 +116,8 @@ class DataTransformationAgent(Agent):
             }
         }
         
-        context.set_output("transformed_data", transformed_data)
-        context.set_output("output_count", len(transformed_records))
+        context.set_variable("transformed_data", transformed_data)
+        context.set_variable("output_count", len(transformed_records))
         
         return None
 
@@ -153,8 +153,8 @@ class DataStorageAgent(Agent):
             await asyncio.sleep(0.01)
             total_stored += len(batch)
         
-        context.set_output("stored_count", total_stored)
-        context.set_output("storage_complete", True)
+        context.set_variable("stored_count", total_stored)
+        context.set_variable("storage_complete", True)
         
         return None
 
@@ -187,8 +187,8 @@ class MonitoringAgent(Agent):
             ]
         }
         
-        context.set_output("monitoring_report", report)
-        context.set_output("report_generated", True)
+        context.set_variable("monitoring_report", report)
+        context.set_variable("report_generated", True)
         
         return None
 
@@ -218,11 +218,11 @@ class FileProcessingAgent(Agent):
                 "processed_at": time.time()
             })
         
-        # Set all outputs
-        context.set_output("files_found", files)
-        context.set_output("file_count", len(files))
-        context.set_output("processed_files", processed_files)
-        context.set_output("processed_count", len(processed_files))
+        # Set all variables
+        context.set_variable("files_found", files)
+        context.set_typed_variable("file_count", len(files))
+        context.set_variable("processed_files", processed_files)
+        context.set_typed_variable("processed_count", len(processed_files))
         
         return None
 
@@ -255,8 +255,8 @@ class APIServiceAgent(Agent):
             }
         }
         
-        context.set_output("api_response", response)
-        context.set_output("items_retrieved", len(response["data"]["items"]))
+        context.set_variable("api_response", response)
+        context.set_typed_variable("items_retrieved", len(response["data"]["items"]))
         
         return None
 
@@ -309,21 +309,21 @@ class TestCompleteDataProcessingWorkflow:
         # Verify ingestion
         ingestion_result = pipeline_results["data-ingester"]
         assert ingestion_result.status.name in ["COMPLETED", "SUCCESS"]
-        assert ingestion_result.get_output("record_count") == 1000
+        assert ingestion_result.get_variable("record_count") == 1000
         
         # Verify transformation
         transformation_result = pipeline_results["data-transformer"]
         assert transformation_result.status.name in ["COMPLETED", "SUCCESS"]
-        assert transformation_result.get_output("output_count") == 800  # 80% after filtering
+        assert transformation_result.get_variable("output_count") == 800  # 80% after filtering
         
         # Verify storage
         storage_result = pipeline_results["data-storage"]
         assert storage_result.status.name in ["COMPLETED", "SUCCESS"]
-        assert storage_result.get_output("stored_count") == 800  # All transformed data stored
+        assert storage_result.get_variable("stored_count") == 800  # All transformed data stored
         
         # Verify monitoring
         assert monitoring_result.status.name in ["COMPLETED", "SUCCESS"]
-        assert monitoring_result.get_output("report_generated") is True
+        assert monitoring_result.get_variable("report_generated") is True
         
         # Verify timing is reasonable
         assert total_time >= 0.9  # Should take at least 0.9 seconds for all operations
@@ -348,8 +348,8 @@ class TestCompleteDataProcessingWorkflow:
         total_processed = 0
         for agent_name, result in results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("processed_count") == 10
-            total_processed += result.get_output("processed_count", 0)
+            assert result.get_variable("processed_count") == 10
+            total_processed += result.get_variable("processed_count", 0)
         
         # Verify parallel processing was efficient
         assert total_processed == 30  # 3 agents × 10 files each
@@ -378,7 +378,7 @@ class TestCompleteDataProcessingWorkflow:
         total_items = 0
         for agent_name, result in team_result.agent_results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            items = result.get_output("items_retrieved", 0)
+            items = result.get_variable("items_retrieved", 0)
             total_items += items
         
         assert total_items == 100  # 2 agents × 50 items each
@@ -417,9 +417,9 @@ class TestRealWorldScenarios:
         assert len(results) == 3
         
         # Check that each agent completed successfully
-        ingested = results["batch-ingester"].get_output("record_count", 0)
-        transformed = results["batch-transformer"].get_output("output_count", 0)
-        stored = results["batch-storage"].get_output("stored_count", 0)
+        ingested = results["batch-ingester"].get_variable("record_count", 0)
+        transformed = results["batch-transformer"].get_variable("output_count", 0)
+        stored = results["batch-storage"].get_variable("stored_count", 0)
         
         # Each agent should have processed its own simulated data
         assert ingested == 5000  # Ingestion agent generated 5000 records
@@ -457,4 +457,4 @@ class TestRealWorldScenarios:
         assert len(service_results) == 2
         for service_name, result in service_results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("items_retrieved", 0) > 0
+            assert result.get_variable("items_retrieved", 0) > 0

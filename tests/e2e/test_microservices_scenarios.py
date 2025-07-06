@@ -30,8 +30,8 @@ class MicroserviceAgent(Agent):
         # Simulate health check
         is_healthy = True  # Assume healthy for test
         
-        context.set_output("health_status", "healthy" if is_healthy else "unhealthy")
-        context.set_output("service_type", self.service_config.get("type", "unknown"))
+        context.set_variable("health_status", "healthy" if is_healthy else "unhealthy")
+        context.set_variable("service_type", self.service_config.get("type", "unknown"))
         
         if not is_healthy:
             return None  # Stop if unhealthy
@@ -74,10 +74,10 @@ class MicroserviceAgent(Agent):
             }
         
         # Preserve health status from previous state
-        context.set_output("health_status", "healthy")
-        context.set_output("service_type", self.service_config.get("type", "unknown"))
-        context.set_output("response", response)
-        context.set_output("processing_time", processing_time)
+        context.set_variable("health_status", "healthy")
+        context.set_variable("service_type", self.service_config.get("type", "unknown"))
+        context.set_variable("response", response)
+        context.set_typed_variable("processing_time", processing_time)
         
         return None
 
@@ -101,7 +101,7 @@ class OrderProcessingAgent(Agent):
         if not self.order_data.get("items") or self.order_data.get("total", 0) <= 0:
             return None  # Invalid order
         
-        context.set_output("order_valid", True)
+        context.set_variable("order_valid", True)
         return "process_payment"
     
     @state(cpu=1.0, memory=256.0)
@@ -117,7 +117,7 @@ class OrderProcessingAgent(Agent):
             "method": self.order_data.get("payment_method", "credit_card")
         }
         
-        context.set_output("payment_result", payment_result)
+        context.set_variable("payment_result", payment_result)
         return "fulfill_order"
     
     @state(cpu=0.8, memory=192.0)
@@ -133,8 +133,8 @@ class OrderProcessingAgent(Agent):
             "items": self.order_data.get("items", [])
         }
         
-        # Preserve all outputs from previous states
-        context.set_output("order_valid", True)
+        # Preserve all data from previous states
+        context.set_variable("order_valid", True)
         # Re-create payment result since context may not preserve it
         payment_result = {
             "payment_id": "pay_123",
@@ -142,8 +142,8 @@ class OrderProcessingAgent(Agent):
             "amount": self.order_data.get("total", 0),
             "method": self.order_data.get("payment_method", "credit_card")
         }
-        context.set_output("payment_result", payment_result)
-        context.set_output("fulfillment_result", fulfillment_result)
+        context.set_variable("payment_result", payment_result)
+        context.set_variable("fulfillment_result", fulfillment_result)
         return None
 
 
@@ -191,7 +191,7 @@ class EventProcessingAgent(Agent):
                 "processed_at": time.time()
             }
         
-        context.set_output("event_result", result)
+        context.set_variable("event_result", result)
         return None
 
 
@@ -228,21 +228,21 @@ class TestMicroservicesOrchestration:
         # Check auth service
         auth_result = results["auth-service"]
         assert auth_result.status.name in ["COMPLETED", "SUCCESS"]
-        auth_response = auth_result.get_output("response", {})
+        auth_response = auth_result.get_variable("response", {})
         assert "token" in auth_response
         assert "user_id" in auth_response
         
         # Check data service
         data_result = results["data-service"]
         assert data_result.status.name in ["COMPLETED", "SUCCESS"]
-        data_response = data_result.get_output("response", {})
+        data_response = data_result.get_variable("response", {})
         assert "data" in data_response
         assert data_response["count"] == 10
         
         # Check notification service
         notification_result = results["notification-service"]
         assert notification_result.status.name in ["COMPLETED", "SUCCESS"]
-        notification_response = notification_result.get_output("response", {})
+        notification_response = notification_result.get_variable("response", {})
         assert "message_id" in notification_response
         assert notification_response["status"] == "sent"
     
@@ -269,7 +269,7 @@ class TestMicroservicesOrchestration:
         # Both services should complete successfully
         for service_name, result in results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("health_status") == "healthy"
+            assert result.get_variable("health_status") == "healthy"
     
     async def test_order_processing_workflow(self):
         """Test a complete order processing workflow."""
@@ -297,12 +297,12 @@ class TestMicroservicesOrchestration:
         
         for order_name, result in results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("order_valid") is True
+            assert result.get_variable("order_valid") is True
             
-            payment_result = result.get_output("payment_result", {})
+            payment_result = result.get_variable("payment_result", {})
             assert payment_result["status"] == "completed"
             
-            fulfillment_result = result.get_output("fulfillment_result", {})
+            fulfillment_result = result.get_variable("fulfillment_result", {})
             assert fulfillment_result["status"] == "shipped"
             assert "tracking_number" in fulfillment_result
 
@@ -340,19 +340,19 @@ class TestEventDrivenWorkflows:
         # Check signup event
         signup_result = results["signup-processor"]
         assert signup_result.status.name in ["COMPLETED", "SUCCESS"]
-        event_result = signup_result.get_output("event_result", {})
+        event_result = signup_result.get_variable("event_result", {})
         assert event_result["action"] == "send_welcome_email"
         
         # Check order event
         order_result = results["order-processor"]
         assert order_result.status.name in ["COMPLETED", "SUCCESS"]
-        event_result = order_result.get_output("event_result", {})
+        event_result = order_result.get_variable("event_result", {})
         assert event_result["action"] == "update_inventory"
         
         # Check payment event
         payment_result = results["payment-processor"]
         assert payment_result.status.name in ["COMPLETED", "SUCCESS"]
-        event_result = payment_result.get_output("event_result", {})
+        event_result = payment_result.get_variable("event_result", {})
         assert event_result["action"] == "send_confirmation"
     
     async def test_event_processing_pipeline(self):
@@ -372,7 +372,7 @@ class TestEventDrivenWorkflows:
         
         for event_name, result in results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            event_result = result.get_output("event_result", {})
+            event_result = result.get_variable("event_result", {})
             assert "event_id" in event_result
             assert "action" in event_result
             assert "processed_at" in event_result
@@ -404,4 +404,4 @@ class TestEventDrivenWorkflows:
         # Verify all orders processed successfully
         for order_name, result in order_results.items():
             assert result.status.name in ["COMPLETED", "SUCCESS"]
-            assert result.get_output("order_valid") is True
+            assert result.get_variable("order_valid") is True

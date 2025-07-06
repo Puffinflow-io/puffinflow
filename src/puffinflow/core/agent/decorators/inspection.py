@@ -2,9 +2,9 @@
 
 from typing import Any, Callable, Dict, Optional
 
-from src.puffinflow.core.agent.state import Priority
-from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
-from src.puffinflow.core.resources.requirements import ResourceRequirements
+from ..state import Priority
+from ...coordination.rate_limiter import RateLimitStrategy
+from ...resources.requirements import ResourceRequirements
 
 
 def is_puffinflow_state(func: Callable) -> bool:

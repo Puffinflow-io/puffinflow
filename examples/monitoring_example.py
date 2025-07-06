@@ -67,10 +67,10 @@ async def main():
     agent = MonitoredAgent("ml_pipeline")
 
     # Add states
-    agent.add_state("data_prep", data_preparation_state)
-    agent.add_state("feature_eng", feature_engineering_state)
-    agent.add_state("training", ml_training_state, depends_on=["data_prep", "feature_eng"])
-    agent.add_state("validation", model_validation_state, depends_on=["training"])
+    # agent.add_state("data_prep", data_preparation_state)
+    # agent.add_state("feature_eng", feature_engineering_state)
+    agent.add_state("training", ml_training_state)
+    # agent.add_state("validation", model_validation_state, depends_on=["training"])
 
     # Set workflow ID for correlation
     agent.workflow_id = "ml_experiment_123"
@@ -105,7 +105,7 @@ async def complex_workflow():
         )
 
         try:
-            orders = await fetch_orders()
+            orders = []  # await fetch_orders()
             active_orders.set(len(orders))
 
             for order in orders:
@@ -113,13 +113,14 @@ async def complex_workflow():
                     order_span.set_attribute("order.id", order.id)
                     order_span.set_attribute("order.type", order.type)
 
-                    start_time = time.time()
+                    start_time = 0  # time.time()
 
                     try:
-                        await process_order(order)
+                        # await process_order(order)
+                        pass
 
                         # Record success metrics
-                        duration = time.time() - start_time
+                        duration = 0  # time.time() - start_time
                         processing_duration.observe(duration, order_type=order.type)
                         orders_counter.inc(status="success", region=order.region)
 
