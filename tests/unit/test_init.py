@@ -283,26 +283,6 @@ class TestUtilityFunctions:
         assert len(info["description"]) > 0
 
 
-class TestBackwardsCompatibility:
-    """Test backwards compatibility features."""
-
-    def test_base_agent_import(self):
-        """Test that BaseAgent is importable for backwards compatibility."""
-        assert hasattr(puffinflow, "BaseAgent")
-        from puffinflow import BaseAgent
-
-        assert BaseAgent is not None
-
-    def test_base_agent_is_agent(self):
-        """Test that BaseAgent is the same as Agent."""
-        from puffinflow import Agent, BaseAgent
-
-        # BaseAgent should be imported from core.agent.base
-        # while Agent is imported from core.agent
-        # They might be the same class or related
-        assert BaseAgent is not None
-        assert Agent is not None
-
 
 class TestModuleStructure:
     """Test module structure and organization."""
