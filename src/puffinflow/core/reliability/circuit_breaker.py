@@ -4,7 +4,7 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, AsyncGenerator
 
 
 class CircuitState(Enum):
@@ -40,7 +40,7 @@ class CircuitBreaker:
         self._lock = asyncio.Lock()
 
     @asynccontextmanager
-    async def protect(self):
+    async def protect(self) -> AsyncGenerator[None, None]:
         """Context manager for protecting code blocks"""
         async with self._lock:
             await self._check_state()
@@ -58,7 +58,7 @@ class CircuitBreaker:
             await self._record_failure()
             raise
 
-    async def _check_state(self):
+    async def _check_state(self) -> None:
         """Check and update circuit breaker state"""
         now = time.time()
 
@@ -74,7 +74,7 @@ class CircuitBreaker:
                 self.state = CircuitState.CLOSED
                 self._failure_count = 0
 
-    async def _record_success(self):
+    async def _record_success(self) -> None:
         """Record successful execution"""
         async with self._lock:
             if self.state == CircuitState.HALF_OPEN:
@@ -84,12 +84,12 @@ class CircuitBreaker:
                     0, self._failure_count - 1
                 )  # Gradually recover
 
-    async def _record_failure(self):
+    async def _record_failure(self) -> None:
         """Record failed execution"""
         async with self._lock:
             now = time.time()
             self._failure_count += 1
-            self._last_failure_time = now
+            self._last_failure_time = int(now)
             self._success_count = 0
 
             if (
@@ -108,13 +108,13 @@ class CircuitBreaker:
             "last_failure_time": self._last_failure_time,
         }
 
-    async def force_open(self):
+    async def force_open(self) -> None:
         """Manually open the circuit"""
         async with self._lock:
             self.state = CircuitState.OPEN
-            self._last_failure_time = time.time()
+            self._last_failure_time = int(time.time())
 
-    async def force_close(self):
+    async def force_close(self) -> None:
         """Manually close the circuit"""
         async with self._lock:
             self.state = CircuitState.CLOSED
@@ -125,7 +125,7 @@ class CircuitBreaker:
 class CircuitBreakerRegistry:
     """Simple registry for circuit breakers"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._breakers: dict[str, CircuitBreaker] = {}
 
     def get_or_create(

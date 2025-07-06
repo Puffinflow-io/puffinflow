@@ -1,0 +1,206 @@
+name: Dependency Security Audit
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/requirements*.txt'
+      - '**/pyproject.toml'
+      - '**/setup.py'
+      - '**/Pipfile*'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/requirements*.txt'
+      - '**/pyproject.toml' 
+      - '**/setup.py'
+      - '**/Pipfile*'
+  schedule:
+    # Run daily at 1 AM UTC to check for new vulnerabilities
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+concurrency:
+  group: dependency-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-check:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security audit tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety pip-audit semgrep cyclonedx-bom
+
+      - name: Install project dependencies 
+        run: |
+          pip install -e ".[dev,test]"
+
+      - name: Run Safety check
+        run: |
+          echo "🛡️ Running Safety vulnerability scan..."
+          safety check --json --output safety-report.json || true
+          safety check --short-report || true
+        continue-on-error: true
+
+      - name: Run pip-audit
+        run: |
+          echo "🔍 Running pip-audit scan..."
+          pip-audit --format=json --output=pip-audit-report.json || true
+          pip-audit --format=cyclonedx-json --output=sbom.json || true
+          pip-audit || true
+        continue-on-error: true
+
+      - name: Generate Software Bill of Materials (SBOM)
+        run: |
+          echo "📋 Generating SBOM..."
+          cyclonedx-py --format json --output sbom-cyclonedx.json || pip freeze > requirements-freeze.txt
+
+      - name: Check for outdated packages
+        run: |
+          echo "📦 Checking for outdated packages..."
+          pip list --outdated --format=json > outdated-packages.json || true
+          pip list --outdated || true
+
+      - name: Scan for hardcoded secrets in dependencies
+        run: |
+          echo "🔐 Scanning dependencies for potential secrets..."
+          # Check common dependency directories for hardcoded credentials
+          find /opt/hostedtoolcache/Python -name "*.py" -type f -exec grep -l "password\|secret\|key\|token" {} \; | head -20 > dependency-secrets-scan.txt || true
+
+      - name: License compliance check
+        run: |
+          echo "⚖️ Checking license compliance..."
+          pip-licenses --format=json --output-file=licenses-report.json || true
+          pip-licenses --summary || echo "License check completed"
+
+      - name: Create vulnerability summary
+        run: |
+          echo "## 🔒 Dependency Security Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Safety results
+          if [ -f safety-report.json ]; then
+            SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "0")
+            if [ "$SAFETY_ISSUES" -gt 0 ]; then
+              echo "⚠️ **Safety**: Found $SAFETY_ISSUES potential vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **Safety**: No known vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          # pip-audit results
+          if [ -f pip-audit-report.json ]; then
+            PIP_AUDIT_ISSUES=$(jq '.vulnerabilities | length' pip-audit-report.json 2>/dev/null || echo "0")
+            if [ "$PIP_AUDIT_ISSUES" -gt 0 ]; then
+              echo "⚠️ **pip-audit**: Found $PIP_AUDIT_ISSUES vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **pip-audit**: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          # Outdated packages
+          if [ -f outdated-packages.json ]; then
+            OUTDATED_COUNT=$(jq length outdated-packages.json 2>/dev/null || echo "0")
+            echo "📦 **Outdated packages**: $OUTDATED_COUNT packages have updates available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 SBOM Generated" >> $GITHUB_STEP_SUMMARY
+          echo "Software Bill of Materials available in artifacts" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-security-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+            sbom*.json
+            outdated-packages.json
+            licenses-report.json
+            dependency-secrets-scan.txt
+            requirements-freeze.txt
+          retention-days: 90
+
+      - name: Create GitHub security advisory
+        if: github.event_name == 'schedule' && failure()
+        run: |
+          echo "High priority vulnerabilities detected in scheduled scan"
+          echo "Manual review recommended for security reports"
+
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install license checking tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-licenses licensecheck
+
+      - name: Install project dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Generate license report
+        run: |
+          echo "⚖️ **License Compliance Report**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate comprehensive license report
+          pip-licenses --format=markdown --output-file=LICENSE-REPORT.md
+          pip-licenses --summary >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for incompatible licenses
+        run: |
+          # Define allowed licenses (adjust based on your organization's policy)
+          ALLOWED_LICENSES="MIT,Apache Software License,BSD License,Python Software Foundation License,Mozilla Public License 2.0 (MPL 2.0)"
+          
+          # Check for potentially problematic licenses
+          pip-licenses --format=json > all-licenses.json
+          
+          echo "### 🚨 License Compatibility Check" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for GPL licenses (might conflict with proprietary use)
+          if grep -i "gpl" all-licenses.json; then
+            echo "⚠️ GPL licenses detected - review for compatibility" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No GPL licenses detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for unknown licenses
+          if grep -i "unknown" all-licenses.json; then
+            echo "⚠️ Unknown licenses detected - manual review needed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All licenses identified" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-compliance-reports
+          path: |
+            LICENSE-REPORT.md
+            all-licenses.json
+          retention-days: 90

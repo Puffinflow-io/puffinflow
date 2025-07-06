@@ -1,7 +1,7 @@
 """Resource leak detection."""
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any, Dict
 
 
 @dataclass
@@ -33,7 +33,7 @@ class ResourceLeakDetector:
 
     def track_allocation(
         self, state_name: str, agent_name: str, resources: dict[str, float]
-    ):
+    ) -> None:
         """Track resource allocation"""
         key = f"{agent_name}:{state_name}"
         self.allocations[key] = ResourceAllocation(
@@ -43,7 +43,7 @@ class ResourceLeakDetector:
             allocated_at=time.time(),
         )
 
-    def track_release(self, state_name: str, agent_name: str):
+    def track_release(self, state_name: str, agent_name: str) -> None:
         """Track resource release"""
         key = f"{agent_name}:{state_name}"
         if key in self.allocations:
@@ -83,7 +83,7 @@ class ResourceLeakDetector:
 
         return current_leaks
 
-    def get_metrics(self) -> dict[str, any]:
+    def get_metrics(self) -> Dict[str, Any]:
         """Get leak detection metrics"""
         current_leaks = self.detect_leaks()
 
@@ -107,12 +107,12 @@ class ResourceLeakDetector:
 
     def _group_leaks_by_agent(self, leaks: list[ResourceLeak]) -> dict[str, int]:
         """Group leaks by agent"""
-        groups = {}
+        groups: dict[str, int] = {}
         for leak in leaks:
             groups[leak.agent_name] = groups.get(leak.agent_name, 0) + 1
         return groups
 
-    def clear_leak_history(self):
+    def clear_leak_history(self) -> None:
         """Clear leak detection history"""
         self.detected_leaks.clear()
 

@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Callable, Match, Union, Dict, Any
 
 from .exceptions import InvalidScheduleError
 
@@ -21,18 +21,18 @@ class ScheduleParser:
     """Parser for schedule strings supporting natural language and cron."""
 
     # Natural language patterns
-    NATURAL_PATTERNS = {
+    NATURAL_PATTERNS: Dict[str, Callable[[Match[str]], ParsedSchedule]] = {
         # Basic intervals
-        r"^hourly$": lambda m=None: ParsedSchedule(
+        r"^hourly$": lambda m: ParsedSchedule(
             "cron", "0 * * * *", description="Every hour"
         ),
-        r"^daily$": lambda m=None: ParsedSchedule(
+        r"^daily$": lambda m: ParsedSchedule(
             "cron", "0 0 * * *", description="Every day at midnight"
         ),
-        r"^weekly$": lambda m=None: ParsedSchedule(
+        r"^weekly$": lambda m: ParsedSchedule(
             "cron", "0 0 * * 0", description="Every Sunday at midnight"
         ),
-        r"^monthly$": lambda m=None: ParsedSchedule(
+        r"^monthly$": lambda m: ParsedSchedule(
             "cron", "0 0 1 * *", description="First day of every month"
         ),
         # Daily with time
@@ -74,7 +74,7 @@ class ScheduleParser:
             description=f"Every hour at minute {m.group(1)}",
         ),
         # Weekdays
-        r"^weekdays$": lambda m=None: ParsedSchedule(
+        r"^weekdays$": lambda m: ParsedSchedule(
             "cron", "0 9 * * 1-5", description="Weekdays at 9 AM"
         ),
         r"^weekdays\s+at\s+(\d{1,2}):(\d{2})$": lambda m: ParsedSchedule(
@@ -83,7 +83,7 @@ class ScheduleParser:
             description=f"Weekdays at {m.group(1)}:{m.group(2)}",
         ),
         # Weekends
-        r"^weekends$": lambda m=None: ParsedSchedule(
+        r"^weekends$": lambda m: ParsedSchedule(
             "cron", "0 10 * * 0,6", description="Weekends at 10 AM"
         ),
         r"^weekends\s+at\s+(\d{1,2}):(\d{2})$": lambda m: ParsedSchedule(
@@ -117,7 +117,7 @@ class ScheduleParser:
         for pattern, handler in cls.NATURAL_PATTERNS.items():
             match = re.match(pattern, schedule_string, re.IGNORECASE)
             if match:
-                return handler(match) if match else handler()
+                return handler(match)
 
         # Try as cron expression
         if cls._is_valid_cron(schedule_string):
