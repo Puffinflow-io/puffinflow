@@ -28,6 +28,11 @@ class TestObservabilityModuleImports:
             "decorators",
             "context",
             "agent",
+            "alerting",
+            "events", 
+            "interfaces",
+            "metrics",
+            "tracing",
         ]
 
         assert isinstance(__all__, list)

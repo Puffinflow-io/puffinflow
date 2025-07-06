@@ -3,7 +3,7 @@
 # Import submodules for import path tests
 # Clean up indirect imports that might leak from submodules
 
-from . import agent, config, context, core, decorators
+from . import agent, alerting, config, context, core, decorators, events, interfaces, metrics, tracing
 from .agent import ObservableAgent
 from .config import ObservabilityConfig
 from .context import ObservableContext
@@ -28,4 +28,9 @@ __all__ = [
     "decorators",
     "context",
     "agent",
+    "alerting",
+    "events", 
+    "interfaces",
+    "metrics",
+    "tracing",
 ]
