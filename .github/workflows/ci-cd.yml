@@ -171,7 +171,7 @@ jobs:
           print(f'{coverage:.2f}')
           ")
           echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
-          
+
           # Check if coverage meets threshold
           MEETS_THRESHOLD=$(python -c "
           coverage = $COVERAGE
@@ -179,7 +179,7 @@ jobs:
           print('true' if coverage >= threshold else 'false')
           ")
           echo "meets_threshold=$MEETS_THRESHOLD" >> $GITHUB_OUTPUT
-          
+
           echo "Coverage: $COVERAGE%"
           echo "Meets threshold (${{ env.MINIMUM_COVERAGE }}%): $MEETS_THRESHOLD"
 
@@ -291,7 +291,7 @@ jobs:
           if [ "${{ needs.publish-test-pypi.result }}" == "success" ]; then
             echo "✅ Successfully published to Test PyPI"
           fi
-          
+
           if [ "${{ needs.publish-pypi.result }}" == "success" ]; then
             echo "✅ Successfully published to PyPI"
           elif [ "${{ github.event_name }}" == "release" ]; then

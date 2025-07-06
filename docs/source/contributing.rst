@@ -198,8 +198,8 @@ We follow PEP 8 with some modifications:
 
    class TypedAgent(Agent):
        async def process_items(
-           self, 
-           ctx: Context, 
+           self,
+           ctx: Context,
            items: List[Dict[str, Union[str, int]]]
        ) -> Optional[List[str]]:
            """Process items and return results."""
@@ -216,15 +216,15 @@ Use Google-style docstrings:
 
    async def process_data(self, ctx: Context, batch_size: int = 100) -> None:
        """Process data in batches.
-       
+
        Args:
            ctx: The execution context containing input data.
            batch_size: Number of items to process in each batch.
-           
+
        Raises:
            ValueError: If batch_size is less than 1.
            ProcessingError: If data processing fails.
-           
+
        Example:
            >>> agent = DataProcessor()
            >>> ctx = Context({'data': [1, 2, 3, 4, 5]})
@@ -257,12 +257,12 @@ Test Structure
 
    class TestDataProcessor:
        """Test suite for DataProcessor agent."""
-       
+
        @pytest.fixture
        def agent(self):
            """Create agent instance for testing."""
            return DataProcessor()
-       
+
        @pytest.fixture
        def sample_context(self):
            """Create sample context for testing."""
@@ -270,30 +270,30 @@ Test Structure
                'input_data': [1, 2, 3, 4, 5],
                'batch_size': 2
            })
-       
+
        @pytest.mark.asyncio
        async def test_successful_processing(self, agent, sample_context):
            """Test successful data processing."""
            result = await agent.run(sample_context)
-           
+
            assert result.status == 'completed'
            assert len(result.context.processed_data) == 5
            assert all(x > 0 for x in result.context.processed_data)
-       
+
        @pytest.mark.asyncio
        async def test_empty_input_handling(self, agent):
            """Test handling of empty input data."""
            ctx = create_test_context({'input_data': []})
            result = await agent.run(ctx)
-           
+
            assert result.status == 'completed'
            assert result.context.processed_data == []
-       
+
        @pytest.mark.asyncio
        async def test_invalid_batch_size(self, agent, sample_context):
            """Test error handling for invalid batch size."""
            sample_context.batch_size = 0
-           
+
            with pytest.raises(ValueError, match="batch_size must be greater than 0"):
                await agent.run(sample_context)
 
@@ -305,7 +305,7 @@ Use provided test utilities:
 .. code-block:: python
 
    from puffinflow.testing import (
-       MockAgent, 
+       MockAgent,
        create_test_context,
        assert_agent_completed,
        assert_context_contains
@@ -317,11 +317,11 @@ Use provided test utilities:
        # Create mock agents
        mock_fetcher = MockAgent(return_data={'data': [1, 2, 3]})
        mock_processor = MockAgent(return_data={'processed': [2, 4, 6]})
-       
+
        # Test coordination
        team = AgentTeam([mock_fetcher, mock_processor])
        result = await team.run()
-       
+
        # Assertions
        assert_agent_completed(result)
        assert_context_contains(result.context, 'processed')
@@ -339,9 +339,9 @@ Performance Testing
        """Benchmark agent performance."""
        agent = DataProcessor()
        context = create_test_context({'input_data': list(range(1000))})
-       
+
        result = benchmark(agent.run, context)
-       
+
        # Performance assertions
        assert result.execution_time < 1.0  # Should complete in under 1 second
        assert result.memory_usage < 100 * 1024 * 1024  # Under 100MB

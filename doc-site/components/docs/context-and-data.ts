@@ -6,7 +6,7 @@ The **Context system** is Puffinflow's powerful data sharing mechanism that goes
 
 **The Problem:** In async workflows, sharing data between functions usually means:
 - Global variables (dangerous with concurrency)
-- Passing parameters everywhere (verbose and brittle)  
+- Passing parameters everywhere (verbose and brittle)
 - Manual serialization (error-prone)
 
 **The Solution:** Puffinflow's Context acts as a secure, typed, shared memory space that every state can safely read from and write to.
@@ -53,7 +53,7 @@ async def initialize(context):
 async def update(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
-    
+
     count = context.get_typed_variable("user_count")   # Type param optional
     print(f"Count: {count}")
 \`\`\`
@@ -157,7 +157,7 @@ Use \`set_output()\` for final workflow results:
 async def calculate(context):
     orders = [{"amount": 100}, {"amount": 200}]
     total = sum(order["amount"] for order in orders)
-    
+
     context.set_output("total_revenue", total)
     context.set_output("order_count", len(orders))
 
@@ -189,10 +189,10 @@ async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
     context.set_validated_data("order", order)
-    
+
     # Cache session
     context.set_cached("session", {"order_id": order.id}, ttl=3600)
-    
+
     # Type-safe tracking
     context.set_typed_variable("amount_charged", order.total)
 
@@ -200,7 +200,7 @@ async def send_confirmation(context):
     order = context.get_validated_data("order", Order)
     amount = context.get_typed_variable("amount_charged")  # Type param optional
     payment_key = context.get_secret("payment_key")
-    
+
     # Final outputs
     context.set_output("order_id", order.id)
     context.set_output("amount_processed", amount)
@@ -222,7 +222,7 @@ if __name__ == "__main__":
 - **\`set_constant()\`** - For configuration that shouldn't change
 - **\`set_secret()\`** - For API keys and passwords
 - **\`set_output()\`** - For final workflow results
-- **\`set_typed_variable()\`** - Only when you need strict type consistency  
+- **\`set_typed_variable()\`** - Only when you need strict type consistency
 - **\`set_validated_data()\`** - Only for complex structured data
 - **\`set_cached()\`** - Only when you need TTL expiration
 - **\`set_state()\`** - Almost never (use local variables instead)

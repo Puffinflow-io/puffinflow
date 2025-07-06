@@ -29,7 +29,7 @@ updates:
           - "pydantic*"
           - "structlog*"
           - "typing-extensions*"
-      
+
       # Development tools
       dev-tools:
         patterns:
@@ -40,27 +40,27 @@ updates:
           - "pre-commit*"
           - "tox*"
           - "coverage*"
-      
+
       # Documentation tools
       docs-tools:
         patterns:
           - "sphinx*"
           - "myst-parser*"
-      
+
       # Observability stack
       observability:
         patterns:
           - "prometheus-client*"
           - "opentelemetry*"
           - "psutil*"
-      
+
       # HTTP and networking
       networking:
         patterns:
           - "aiohttp*"
           - "httpx*"
           - "aiosmtplib*"
-      
+
       # Integration dependencies
       integrations:
         patterns:
@@ -68,17 +68,17 @@ updates:
           - "celery*"
           - "kubernetes*"
           - "redis*"
-      
+
       # Security tools
       security-tools:
         patterns:
           - "bandit*"
           - "safety*"
           - "semgrep*"
-    
+
     # Version update strategy
     versioning-strategy: "increase"
-    
+
     # Ignore specific dependencies or versions
     ignore:
       # Ignore major version updates for stable dependencies
@@ -86,11 +86,11 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "structlog"
         update-types: ["version-update:semver-major"]
-      
+
       # Ignore beta/alpha versions for production dependencies
       - dependency-name: "*"
         versions: ["*alpha*", "*beta*", "*rc*"]
-    
+
     # Allow specific dependency updates
     allow:
       - dependency-type: "direct"
@@ -123,7 +123,7 @@ updates:
         patterns:
           - "actions/*"
           - "github/*"
-    
+
     # Only allow patch and minor updates for actions
     ignore:
       - dependency-name: "*"

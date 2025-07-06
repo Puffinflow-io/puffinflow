@@ -138,7 +138,7 @@ Metrics Collection
        def __init__(self):
            super().__init__()
            self.metrics = MetricsCollector()
-           
+
            # Define custom metrics
            self.request_counter = Counter(
                "agent_requests_total",
@@ -157,10 +157,10 @@ Metrics Collection
        async def process_request(self, ctx: Context) -> None:
            self.request_counter.inc()
            self.active_tasks.inc()
-           
+
            with self.processing_time.time():
                ctx.result = await process_request(ctx.request)
-           
+
            self.active_tasks.dec()
 
 Distributed Tracing
@@ -183,7 +183,7 @@ Distributed Tracing
            with self.tracer.start_as_current_span("fetch_data") as span:
                data = await fetch_data()
                span.set_attribute("data_size", len(data))
-               
+
            with self.tracer.start_as_current_span("transform_data") as span:
                result = await transform_data(data)
                span.set_attribute("result_size", len(result))
@@ -213,7 +213,7 @@ Custom Event Tracking
            try:
                result = await process_data(ctx.input_data)
                ctx.result = result
-               
+
                await self.event_tracker.track(Event(
                    name="processing_completed",
                    data={"output_size": len(result)},
@@ -278,7 +278,7 @@ Health Checks and Monitoring
        def __init__(self):
            super().__init__()
            self.health_checker = HealthChecker()
-           
+
            # Register health checks
            self.health_checker.add_check(
                "database_connection",
@@ -341,13 +341,13 @@ Performance Monitoring
            """This method will be monitored for resource usage."""
            # Memory usage will be tracked
            large_data = await load_large_dataset()
-           
+
            # CPU usage will be tracked
            processed_data = await cpu_intensive_processing(large_data)
-           
+
            # I/O operations will be tracked
            await save_to_storage(processed_data)
-           
+
            ctx.result = processed_data
 
        async def get_performance_stats(self):
@@ -386,7 +386,7 @@ Log Correlation and Structured Logging
            try:
                result = await process_data(ctx.input_data)
                ctx.result = result
-               
+
                self.logger.info(
                    "Processing completed successfully",
                    output_size=len(result),

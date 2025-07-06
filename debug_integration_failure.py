@@ -1,23 +1,26 @@
-import pytest
 import asyncio
-import time
 import logging
+
+import pytest
+
 from puffinflow import Agent, Context, ResourcePool, ResourceRequirements, state
 
 # Add some debug logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 class DebugAgent(Agent):
     def __init__(self, name: str):
         super().__init__(name)
-        self.add_state('debug_state', self.debug_state)
+        self.add_state("debug_state", self.debug_state)
 
     @state(cpu=1.0, memory=256.0)
     async def debug_state(self, context: Context):
         logger.info("Debug state started")
         await asyncio.sleep(0.01)
         return None
+
 
 @pytest.mark.asyncio
 async def test_debug_resource_types():
@@ -26,6 +29,7 @@ async def test_debug_resource_types():
     # Test 1: Check if ResourceType imports correctly
     try:
         from puffinflow import ResourceType
+
         print(f"ResourceType class: {ResourceType}")
         print(f"ResourceType.CPU: {ResourceType.CPU}")
         print(f"ResourceType.MEMORY: {ResourceType.MEMORY}")
@@ -42,6 +46,7 @@ async def test_debug_resource_types():
         print(f"Error importing or using ResourceType: {e}")
         print(f"Error type: {type(e)}")
         import traceback
+
         traceback.print_exc()
 
     # Test 2: Check ResourceRequirements creation
@@ -58,6 +63,7 @@ async def test_debug_resource_types():
     except Exception as e:
         print(f"Error with ResourceRequirements: {e}")
         import traceback
+
         traceback.print_exc()
 
     # Test 3: Check state decorator
@@ -65,8 +71,8 @@ async def test_debug_resource_types():
         agent = DebugAgent("debug-agent")
 
         # Check if the state has resource requirements
-        state_func = agent.states['debug_state']
-        if hasattr(state_func, '_resource_requirements'):
+        state_func = agent.states["debug_state"]
+        if hasattr(state_func, "_resource_requirements"):
             req = state_func._resource_requirements
             print(f"State requirements: {req}")
             print(f"State resource_types: {req.resource_types}")
@@ -77,6 +83,7 @@ async def test_debug_resource_types():
     except Exception as e:
         print(f"Error with state decorator: {e}")
         import traceback
+
         traceback.print_exc()
 
     # Test 4: Try to run the agent
@@ -101,7 +108,9 @@ async def test_debug_resource_types():
     except Exception as e:
         print(f"Error running agent: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(test_debug_resource_types())

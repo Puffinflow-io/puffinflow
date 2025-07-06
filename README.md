@@ -15,9 +15,9 @@ PuffinFlow is a modern Python framework that transforms complex workflows into s
 
 ## Why PuffinFlow?
 
-🎯 **Start Simple, Scale Smart** - Begin with basic agents and seamlessly grow to complex multi-agent orchestrations  
-🔒 **Built for Production** - Enterprise-grade reliability patterns, observability, and resource management  
-⚡ **Performance First** - Async-native design with intelligent resource allocation and optimization  
+🎯 **Start Simple, Scale Smart** - Begin with basic agents and seamlessly grow to complex multi-agent orchestrations
+🔒 **Built for Production** - Enterprise-grade reliability patterns, observability, and resource management
+⚡ **Performance First** - Async-native design with intelligent resource allocation and optimization
 🧩 **Framework Agnostic** - Integrates beautifully with FastAPI, Celery, Kubernetes, and your existing stack
 
 ## ✨ What Makes PuffinFlow Special
@@ -25,7 +25,7 @@ PuffinFlow is a modern Python framework that transforms complex workflows into s
 ### 🎯 Agent-Based Architecture
 Transform complex logic into simple, reusable agents with state-based workflows and automatic dependency resolution.
 
-### 🚀 Production-Ready Performance  
+### 🚀 Production-Ready Performance
 - **Async-first design** with full asyncio support
 - **Intelligent resource management** with quotas and allocation strategies
 - **Built-in checkpointing** for workflow persistence and recovery
@@ -90,20 +90,20 @@ class MLPipeline(Agent):
         # Load and validate data
         context.set_output("dataset_size", 10000)
         return "preprocess"
-    
+
     @state(cpu=4.0, memory=2048.0)
     async def preprocess(self, context: Context):
         # Feature engineering and preprocessing
         await asyncio.sleep(2)  # Simulate processing
         context.set_output("features_ready", True)
         return "train_model"
-    
+
     @state(cpu=8.0, memory=4096.0)
     async def train_model(self, context: Context):
         # Model training
         context.set_output("model_accuracy", 0.94)
         return "evaluate"
-    
+
     @state(cpu=1.0, memory=512.0)
     async def evaluate(self, context: Context):
         accuracy = context.get_output("model_accuracy")
@@ -123,7 +123,7 @@ from puffinflow import create_team, run_agents_parallel
 
 # Create specialized agents
 data_collector = DataCollector("collector")
-data_processor = DataProcessor("processor") 
+data_processor = DataProcessor("processor")
 model_trainer = MLPipeline("trainer")
 
 # Run them as a coordinated team
@@ -145,7 +145,7 @@ results = await run_agents_parallel([
 ### 📊 Data Pipelines
 Build resilient ETL workflows with automatic retries, resource management, and monitoring.
 
-### 🤖 ML Workflows  
+### 🤖 ML Workflows
 Orchestrate training pipelines, model deployment, and inference workflows with checkpointing and rollback.
 
 ### 🌐 Microservices
@@ -159,7 +159,7 @@ Handle high-throughput event streams with backpressure control and automatic sca
 ## 📚 Learn More
 
 - **[📖 Documentation](https://puffinflow.readthedocs.io/)** - Complete guides and API reference
-- **[🚀 Examples](./examples/)** - Ready-to-run code examples  
+- **[🚀 Examples](./examples/)** - Ready-to-run code examples
 - **[🎯 Tutorials](./docs/source/guides/)** - Step-by-step learning path
 - **[🔧 Advanced Patterns](./docs/source/guides/advanced.rst)** - Production deployment strategies
 
@@ -181,7 +181,7 @@ Handle high-throughput event streams with backpressure control and automatic sca
 - **Secure defaults** for all configuration options
 - **Type safety** with comprehensive mypy coverage
 
-### 🚀 Quality Assurance  
+### 🚀 Quality Assurance
 - **95%+ test coverage** across unit, integration, and end-to-end tests
 - **Multi-version testing** on Python 3.9-3.12
 - **Automated linting** with ruff, black, and isort
@@ -200,7 +200,7 @@ Handle high-throughput event streams with backpressure control and automatic sca
 PuffinFlow is built for production workloads:
 
 - **10,000+ agents/second** throughput on standard hardware
-- **< 50MB memory** overhead for typical workloads  
+- **< 50MB memory** overhead for typical workloads
 - **Sub-millisecond** state transition latency
 - **Linear scaling** with coordinated agent teams
 

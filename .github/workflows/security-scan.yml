@@ -24,22 +24,22 @@ jobs:
           echo "Current branch: $(git branch --show-current)"
           echo "Total commits: $(git rev-list --count HEAD)"
           echo "Latest commit: $(git log -1 --oneline)"
-          
+
           # Check if we have enough commits for comparison
           COMMIT_COUNT=$(git rev-list --count HEAD)
           if [ "$COMMIT_COUNT" -lt 2 ]; then
             echo "Warning: Only $COMMIT_COUNT commit(s) found. TruffleHog needs at least 2 commits for comparison."
             echo "Creating a dummy commit to enable scanning..."
-            
+
             # Configure git for the action
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            
+
             # Create a dummy file and commit if needed
             echo "# Security Scan Marker" > .security-scan-marker
             git add .security-scan-marker
             git commit -m "Add security scan marker for TruffleHog"
-            
+
             echo "New commit count: $(git rev-list --count HEAD)"
           fi
 
@@ -124,19 +124,19 @@ jobs:
         run: |
           echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ needs.trufflehog-scan.result }}" == "success" ]; then
             echo "✅ **TruffleHog Secret Scan**: Passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **TruffleHog Secret Scan**: Failed or found issues" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ needs.additional-security-checks.result }}" == "success" ]; then
             echo "✅ **Additional Security Checks**: Passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Additional Security Checks**: Failed or found issues" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Recommendations" >> $GITHUB_STEP_SUMMARY
           echo "- Review any flagged secrets or security issues" >> $GITHUB_STEP_SUMMARY

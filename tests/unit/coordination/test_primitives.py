@@ -13,25 +13,23 @@ This test suite covers all coordination primitives with various scenarios:
 - State transitions and cleanup
 """
 
-import pytest
 import asyncio
-import time
-import uuid
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import timedelta
-from typing import List, Set
+from unittest.mock import patch
+
+import pytest
 
 from src.puffinflow.core.coordination.primitives import (
-    CoordinationPrimitive,
-    PrimitiveType,
-    ResourceState,
-    Mutex,
-    Semaphore,
     Barrier,
+    CoordinationPrimitive,
     Lease,
     Lock,
+    Mutex,
+    PrimitiveType,
     Quota,
-    create_primitive
+    ResourceState,
+    Semaphore,
+    create_primitive,
 )
 
 
@@ -42,28 +40,21 @@ class TestCoordinationPrimitive:
     def mutex_primitive(self):
         """Create a mutex primitive for testing."""
         return CoordinationPrimitive(
-            name="test_mutex",
-            type=PrimitiveType.MUTEX,
-            ttl=10.0
+            name="test_mutex", type=PrimitiveType.MUTEX, ttl=10.0
         )
 
     @pytest.fixture
     def semaphore_primitive(self):
         """Create a semaphore primitive for testing."""
         return CoordinationPrimitive(
-            name="test_semaphore",
-            type=PrimitiveType.SEMAPHORE,
-            max_count=3,
-            ttl=10.0
+            name="test_semaphore", type=PrimitiveType.SEMAPHORE, max_count=3, ttl=10.0
         )
 
     @pytest.fixture
     def quota_primitive(self):
         """Create a quota primitive for testing."""
         return CoordinationPrimitive(
-            name="test_quota",
-            type=PrimitiveType.QUOTA,
-            quota_limit=100.0
+            name="test_quota", type=PrimitiveType.QUOTA, quota_limit=100.0
         )
 
     @pytest.mark.asyncio
@@ -144,7 +135,7 @@ class TestCoordinationPrimitive:
             name="test_barrier",
             type=PrimitiveType.BARRIER,
             max_count=3,
-            wait_timeout=2.0  # Increased timeout for concurrent operations
+            wait_timeout=2.0,  # Increased timeout for concurrent operations
         )
 
         callers = ["caller1", "caller2", "caller3"]
@@ -174,7 +165,7 @@ class TestCoordinationPrimitive:
             name="test_barrier",
             type=PrimitiveType.BARRIER,
             max_count=3,
-            wait_timeout=0.1
+            wait_timeout=0.1,
         )
 
         # Only one caller tries to acquire - should timeout
@@ -185,9 +176,7 @@ class TestCoordinationPrimitive:
     async def test_lease_cleanup_expired(self):
         """Test lease expiration cleanup."""
         lease = CoordinationPrimitive(
-            name="test_lease",
-            type=PrimitiveType.LEASE,
-            ttl=0.1
+            name="test_lease", type=PrimitiveType.LEASE, ttl=0.1
         )
 
         caller_id = "test_caller"
@@ -222,7 +211,9 @@ class TestCoordinationPrimitive:
     @pytest.mark.asyncio
     async def test_error_handling(self, mutex_primitive):
         """Test error handling and state updates."""
-        with patch.object(mutex_primitive, '_acquire_for', side_effect=Exception("Test error")):
+        with patch.object(
+            mutex_primitive, "_acquire_for", side_effect=Exception("Test error")
+        ):
             with pytest.raises(Exception, match="Test error"):
                 await mutex_primitive.acquire("test_caller")
 
@@ -263,11 +254,11 @@ class TestMutex:
             assert m is mutex
             assert len(mutex._owners) == 1
             # Context caller ID should be stored
-            assert hasattr(mutex, '_context_caller_id')
+            assert hasattr(mutex, "_context_caller_id")
 
         # Should be released after context
         assert len(mutex._owners) == 0
-        assert not hasattr(mutex, '_context_caller_id')
+        assert not hasattr(mutex, "_context_caller_id")
 
     @pytest.mark.asyncio
     async def test_context_manager_exception(self, mutex):
@@ -382,6 +373,7 @@ class TestBarrier:
     @pytest.mark.asyncio
     async def test_automatic_caller_id(self, barrier):
         """Test barrier with automatic caller ID generation."""
+
         # Should work without explicit caller_id
         async def wait_without_id():
             return await barrier.wait()
@@ -406,7 +398,11 @@ class TestLease:
 
         async def finalizer():
             # Cleanup any running renewal tasks
-            if hasattr(lease, '_renew_task') and lease._renew_task and not lease._renew_task.done():
+            if (
+                hasattr(lease, "_renew_task")
+                and lease._renew_task
+                and not lease._renew_task.done()
+            ):
                 lease._renew_task.cancel()
                 await asyncio.gather(lease._renew_task, return_exceptions=True)
 
@@ -490,7 +486,6 @@ class TestLease:
         await auto_renew_lease.acquire(caller_id)
 
         # Patch the renewal method to raise an exception
-        original_method = auto_renew_lease._auto_renew_loop
 
         async def failing_renewal():
             await asyncio.sleep(0.05)  # Small delay before failing
@@ -590,7 +585,11 @@ class TestQuota:
 
         async def finalizer():
             # Cleanup
-            if hasattr(quota, '_reset_task') and quota._reset_task and not quota._reset_task.done():
+            if (
+                hasattr(quota, "_reset_task")
+                and quota._reset_task
+                and not quota._reset_task.done()
+            ):
                 quota._reset_task.cancel()
                 await asyncio.gather(quota._reset_task, return_exceptions=True)
 
@@ -739,6 +738,7 @@ class TestCreatePrimitive:
 
     def test_create_unknown_type(self):
         """Test creating primitive with unknown type falls back to base class."""
+
         # Create a mock enum that's not handled by factory
         class MockPrimitiveType:
             UNKNOWN = "unknown"

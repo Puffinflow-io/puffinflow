@@ -4,16 +4,16 @@ Test runner script for PuffinFlow project.
 
 This script provides convenient commands to run different test suites:
 - Unit tests
-- Integration tests  
+- Integration tests
 - End-to-end tests
 - All tests
 - Coverage reports
 """
 
-import sys
-import subprocess
 import argparse
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -23,9 +23,9 @@ def run_command(cmd, description):
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print(f"{'='*60}")
-    
+
     try:
-        result = subprocess.run(cmd, check=True, capture_output=False)
+        subprocess.run(cmd, check=True, capture_output=False)
         print(f"✅ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -41,29 +41,19 @@ def main():
     parser.add_argument(
         "test_type",
         choices=["unit", "integration", "e2e", "all", "coverage"],
-        help="Type of tests to run"
+        help="Type of tests to run",
     )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Verbose output"
+        "--fail-fast", "-x", action="store_true", help="Stop on first failure"
     )
-    parser.add_argument(
-        "--fail-fast", "-x",
-        action="store_true",
-        help="Stop on first failure"
-    )
-    parser.add_argument(
-        "--parallel", "-n",
-        type=int,
-        help="Number of parallel workers"
-    )
-    
+    parser.add_argument("--parallel", "-n", type=int, help="Number of parallel workers")
+
     args = parser.parse_args()
-    
+
     # Base pytest command
     base_cmd = ["python3", "-m", "pytest"]
-    
+
     # Add common options
     if args.verbose:
         base_cmd.append("-v")
@@ -71,45 +61,48 @@ def main():
         base_cmd.append("-x")
     if args.parallel:
         base_cmd.extend(["-n", str(args.parallel)])
-    
+
     # Determine test paths and markers
     test_commands = []
-    
+
     if args.test_type == "unit":
-        cmd = base_cmd + ["tests/unit/", "-m", "unit"]
+        cmd = [*base_cmd, "tests/unit/", "-m", "unit"]
         test_commands.append((cmd, "Unit Tests"))
-        
+
     elif args.test_type == "integration":
-        cmd = base_cmd + ["tests/integration/", "-m", "integration"]
+        cmd = [*base_cmd, "tests/integration/", "-m", "integration"]
         test_commands.append((cmd, "Integration Tests"))
-        
+
     elif args.test_type == "e2e":
-        cmd = base_cmd + ["tests/e2e/", "-m", "e2e"]
+        cmd = [*base_cmd, "tests/e2e/", "-m", "e2e"]
         test_commands.append((cmd, "End-to-End Tests"))
-        
+
     elif args.test_type == "all":
         # Run all test types in sequence
-        unit_cmd = base_cmd + ["tests/unit/", "-m", "unit"]
-        integration_cmd = base_cmd + ["tests/integration/", "-m", "integration"]
-        e2e_cmd = base_cmd + ["tests/e2e/", "-m", "e2e"]
-        
-        test_commands.extend([
-            (unit_cmd, "Unit Tests"),
-            (integration_cmd, "Integration Tests"),
-            (e2e_cmd, "End-to-End Tests")
-        ])
-        
+        unit_cmd = [*base_cmd, "tests/unit/", "-m", "unit"]
+        integration_cmd = [*base_cmd, "tests/integration/", "-m", "integration"]
+        e2e_cmd = [*base_cmd, "tests/e2e/", "-m", "e2e"]
+
+        test_commands.extend(
+            [
+                (unit_cmd, "Unit Tests"),
+                (integration_cmd, "Integration Tests"),
+                (e2e_cmd, "End-to-End Tests"),
+            ]
+        )
+
     elif args.test_type == "coverage":
         # Run tests with coverage
-        coverage_cmd = base_cmd + [
+        coverage_cmd = [
+            *base_cmd,
             "tests/",
             "--cov=src/puffinflow",
             "--cov-report=html",
             "--cov-report=term-missing",
-            "--cov-fail-under=80"
+            "--cov-fail-under=80",
         ]
         test_commands.append((coverage_cmd, "Coverage Tests"))
-    
+
     # Run the commands
     all_passed = True
     for cmd, description in test_commands:
@@ -118,7 +111,7 @@ def main():
             all_passed = False
             if args.fail_fast:
                 break
-    
+
     # Summary
     print(f"\n{'='*60}")
     if all_passed:
@@ -135,10 +128,10 @@ if __name__ == "__main__":
     # Ensure we're in the right directory
     script_dir = Path(__file__).parent
     os.chdir(script_dir)
-    
+
     # Add src to Python path for imports
     src_path = script_dir / "src"
     if src_path.exists():
         sys.path.insert(0, str(src_path))
-    
+
     main()

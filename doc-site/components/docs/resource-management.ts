@@ -117,30 +117,30 @@ async def analyze_workload(context):
     5. Does it call external services?
     """
     start_time = time.time()
-    
+
     # Your actual workload here
     # Example: data processing
     data_size = 1000000
     processed_items = []
-    
+
     for i in range(data_size):
         # CPU-intensive calculation
         result = i ** 2 + i ** 0.5
         processed_items.append(result)
-        
+
         # Simulate periodic I/O
         if i % 100000 == 0:
             await asyncio.sleep(0.01)  # I/O operation
-    
+
     execution_time = time.time() - start_time
     memory_estimate = len(processed_items) * 8  # Rough memory usage
-    
+
     print(f"📊 Workload Analysis:")
     print(f"   ⏱️ Execution time: {execution_time:.2f} seconds")
     print(f"   💾 Memory usage: ~{memory_estimate / 1024 / 1024:.1f} MB")
     print(f"   🔢 Items processed: {data_size:,}")
     print(f"   ⚡ Processing rate: {data_size / execution_time:.0f} items/sec")
-    
+
     context.set_variable("workload_profile", {
         "execution_time": execution_time,
         "memory_mb": memory_estimate / 1024 / 1024,
@@ -167,21 +167,21 @@ Based on your analysis, configure resource constraints:
 async def optimized_data_processing(context):
     """Now properly configured based on profiling"""
     start_time = time.time()
-    
+
     # Same workload as before, but now with proper resource allocation
     data_size = 1000000
     processed_items = []
-    
+
     for i in range(data_size):
         result = i ** 2 + i ** 0.5
         processed_items.append(result)
-        
+
         if i % 100000 == 0:
             await asyncio.sleep(0.01)
-    
+
     execution_time = time.time() - start_time
     print(f"✅ Optimized processing completed in {execution_time:.2f}s")
-    
+
     context.set_variable("optimized_result", {
         "execution_time": execution_time,
         "items_processed": data_size
@@ -203,10 +203,10 @@ If your operation accesses shared resources, add coordination:
 async def database_operation(context):
     """Multiple instances can run, but limited by connection pool"""
     print("🗄️ Accessing shared database...")
-    
+
     # Simulate database work
     await asyncio.sleep(2.0)
-    
+
     print("✅ Database operation completed")
     context.set_variable("db_result", "success")
 
@@ -221,10 +221,10 @@ async def database_operation(context):
 async def exclusive_system_operation(context):
     """Only one instance can run at a time"""
     print("🔒 Performing exclusive system operation...")
-    
+
     # Critical system work that requires exclusive access
     await asyncio.sleep(5.0)
-    
+
     print("✅ Exclusive operation completed")
     context.set_variable("exclusive_result", "success")
 
@@ -238,12 +238,12 @@ async def exclusive_system_operation(context):
 async def synchronized_batch_job(context):
     """Starts only when 3 instances are ready"""
     job_id = context.get_state("job_id", "unknown")
-    
+
     print(f"🚀 Starting synchronized job {job_id}...")
-    
+
     # Coordinated work
     await asyncio.sleep(3.0)
-    
+
     print(f"✅ Synchronized job {job_id} completed")
     context.set_variable(f"sync_result_{job_id}", "success")
 \`\`\`
@@ -265,12 +265,12 @@ async def high_volume_api_call(context):
     """API that can handle high volume with bursts"""
     call_id = context.get_state("api_calls", 0) + 1
     context.set_state("api_calls", call_id)
-    
+
     print(f"🌐 High-volume API call #{call_id}")
-    
+
     # Simulate API call
     await asyncio.sleep(0.1)
-    
+
     context.set_variable(f"api_result_{call_id}", "success")
 
 # Rate-limited premium service
@@ -284,12 +284,12 @@ async def premium_service_call(context):
     """Expensive external service with strict rate limits"""
     call_id = context.get_state("premium_calls", 0) + 1
     context.set_state("premium_calls", call_id)
-    
+
     print(f"💰 Premium service call #{call_id}")
-    
+
     # Simulate slower, expensive service
     await asyncio.sleep(0.5)
-    
+
     context.set_variable(f"premium_result_{call_id}", "success")
 
 # Critical service with very limited capacity
@@ -304,12 +304,12 @@ async def critical_service_call(context):
     """Critical service that must be used sparingly"""
     call_id = context.get_state("critical_calls", 0) + 1
     context.set_state("critical_calls", call_id)
-    
+
     print(f"🔥 Critical service call #{call_id}")
-    
+
     # Simulate critical service interaction
     await asyncio.sleep(2.0)
-    
+
     context.set_variable(f"critical_result_{call_id}", "success")
 \`\`\`
 
@@ -335,21 +335,21 @@ async def scientific_simulation(context):
     - Cryptographic operations
     """
     simulation_id = context.get_state("simulation_id", 1)
-    
+
     print(f"🧮 Running scientific simulation #{simulation_id}")
     print(f"   📊 Allocated: 8 CPU cores, 4GB memory")
-    
+
     # Simulate CPU-intensive scientific computation
     iterations = 1000000
     for i in range(iterations):
         # Complex mathematical operations
         result = (i ** 2.5) * 3.14159 + (i ** 0.5)
-        
+
         if i % 100000 == 0:
             progress = (i / iterations) * 100
             print(f"   🔄 Progress: {progress:.1f}%")
             await asyncio.sleep(0)  # Yield control briefly
-    
+
     print(f"✅ Scientific simulation #{simulation_id} completed")
     context.set_variable(f"simulation_result_{simulation_id}", {
         "iterations": iterations,
@@ -376,15 +376,15 @@ async def large_dataset_analysis(context):
     - In-memory databases
     """
     dataset_id = context.get_state("dataset_id", "dataset_001")
-    
+
     print(f"📊 Analyzing large dataset: {dataset_id}")
     print(f"   📊 Allocated: 2 CPU cores, 16GB memory, high I/O")
-    
+
     # Simulate loading large dataset into memory
     print("   📥 Loading dataset into memory...")
     dataset_size = 10000000  # 10M records
     dataset = []
-    
+
     for i in range(dataset_size):
         # Simulate complex data structure
         record = {
@@ -394,11 +394,11 @@ async def large_dataset_analysis(context):
             "metadata": {"processed": False, "score": i * 0.001}
         }
         dataset.append(record)
-        
+
         if i % 1000000 == 0:
             print(f"   📈 Loaded {i:,} records...")
             await asyncio.sleep(0)
-    
+
     print("   🔄 Processing dataset...")
     processed_count = 0
     for record in dataset:
@@ -406,11 +406,11 @@ async def large_dataset_analysis(context):
         record["metadata"]["processed"] = True
         record["metadata"]["score"] *= 1.1
         processed_count += 1
-        
+
         if processed_count % 1000000 == 0:
             print(f"   ⚙️ Processed {processed_count:,} records...")
             await asyncio.sleep(0)
-    
+
     print(f"✅ Dataset analysis completed: {len(dataset):,} records")
     context.set_variable(f"analysis_result_{dataset_id}", {
         "records_processed": len(dataset),
@@ -438,10 +438,10 @@ async def ml_model_training(context):
     - Scientific computing with CUDA
     """
     model_id = context.get_state("model_id", "model_v1")
-    
+
     print(f"🤖 Training ML model: {model_id}")
     print(f"   📊 Allocated: 4 CPU cores, 8GB memory, 2 GPUs")
-    
+
     # Simulate ML training pipeline
     phases = [
         ("Data Loading", 30),
@@ -451,20 +451,20 @@ async def ml_model_training(context):
         ("Model Validation", 60),
         ("Model Saving", 20)
     ]
-    
+
     total_time = sum(duration for _, duration in phases)
     elapsed = 0
-    
+
     for phase_name, duration in phases:
         print(f"   🧠 {phase_name}...")
-        
+
         # Simulate GPU-intensive work
         await asyncio.sleep(duration / 100)  # Compressed time for demo
         elapsed += duration
-        
+
         progress = (elapsed / total_time) * 100
         print(f"   📈 Overall progress: {progress:.1f}%")
-    
+
     print(f"✅ ML model training completed: {model_id}")
     context.set_variable(f"model_result_{model_id}", {
         "model_id": model_id,
@@ -493,36 +493,36 @@ async def bulk_file_processing(context):
     - Data import/export
     """
     batch_id = context.get_state("batch_id", "batch_001")
-    
+
     print(f"📁 Processing file batch: {batch_id}")
     print(f"   📊 Allocated: 1 CPU core, 1GB memory, high I/O priority")
-    
+
     # Simulate bulk file operations
     file_count = 1000
     processed_files = 0
     total_size_mb = 0
-    
+
     for file_num in range(file_count):
         file_size_mb = (file_num % 50) + 1  # 1-50MB files
-        
+
         # Simulate file I/O operations
         print(f"   📄 Processing file {file_num + 1}/{file_count} ({file_size_mb}MB)")
-        
+
         # Read operation
         await asyncio.sleep(file_size_mb * 0.001)  # Simulate read time
-        
+
         # Process operation (minimal CPU)
         await asyncio.sleep(0.001)
-        
+
         # Write operation
         await asyncio.sleep(file_size_mb * 0.001)  # Simulate write time
-        
+
         processed_files += 1
         total_size_mb += file_size_mb
-        
+
         if file_num % 100 == 0:
             print(f"   📈 Progress: {processed_files}/{file_count} files, {total_size_mb}MB")
-    
+
     print(f"✅ Bulk file processing completed: {processed_files} files, {total_size_mb}MB")
     context.set_variable(f"file_result_{batch_id}", {
         "files_processed": processed_files,
@@ -549,13 +549,13 @@ async def work_producer(context):
     """Produces work items at a controlled rate"""
     item_id = context.get_state("produced_items", 0) + 1
     context.set_state("produced_items", item_id)
-    
+
     work_item = {
         "id": item_id,
         "data": f"work_data_{item_id}",
         "created_at": time.time()
     }
-    
+
     print(f"🏭 Produced work item #{item_id}")
     context.set_variable(f"work_item_{item_id}", work_item)
 
@@ -569,16 +569,16 @@ async def work_producer(context):
 async def work_consumer(context):
     """Consumes and processes work items"""
     consumer_id = context.get_state("consumer_id", 1)
-    
+
     # Find available work item
     for i in range(1, 100):  # Look for work items
         work_item = context.get_variable(f"work_item_{i}")
         if work_item and not context.get_variable(f"processed_{i}"):
             print(f"🔧 Consumer {consumer_id} processing item #{i}")
-            
+
             # Simulate processing work
             await asyncio.sleep(2.0)
-            
+
             context.set_variable(f"processed_{i}", True)
             print(f"✅ Consumer {consumer_id} completed item #{i}")
             break
@@ -597,19 +597,19 @@ async def work_consumer(context):
 async def data_collection_phase(context):
     """Collect data from different sources"""
     collector_id = context.get_state("collector_id", 1)
-    
+
     print(f"📥 Data collector {collector_id} starting...")
-    
+
     # Simulate data collection from different sources
     collection_time = 2.0 + (collector_id * 0.5)  # Different collection times
     await asyncio.sleep(collection_time)
-    
+
     data = {
         "collector_id": collector_id,
         "data_size": collector_id * 1000,
         "collection_time": collection_time
     }
-    
+
     context.set_variable(f"collected_data_{collector_id}", data)
     print(f"✅ Data collector {collector_id} completed")
 
@@ -623,28 +623,28 @@ async def data_collection_phase(context):
 async def data_processing_phase(context):
     """Process all collected data together"""
     print("🔄 Starting data processing phase...")
-    
+
     # Gather all collected data
     all_data = []
     total_size = 0
-    
+
     for i in range(1, 4):  # 3 collectors
         data = context.get_variable(f"collected_data_{i}")
         if data:
             all_data.append(data)
             total_size += data["data_size"]
-    
+
     print(f"   📊 Processing {len(all_data)} datasets, total size: {total_size}")
-    
+
     # Simulate intensive data processing
     await asyncio.sleep(5.0)
-    
+
     result = {
         "datasets_processed": len(all_data),
         "total_size": total_size,
         "processing_time": 5.0
     }
-    
+
     context.set_variable("processing_result", result)
     print("✅ Data processing phase completed")
 \`\`\`
@@ -662,16 +662,16 @@ async def data_processing_phase(context):
 async def short_term_exclusive_access(context):
     """Brief exclusive access to shared resource"""
     task_id = context.get_state("task_id", 1)
-    
+
     print(f"🎫 Task {task_id} acquired 10-second lease")
-    
+
     # Quick operations on shared resource
     operations = ["read_config", "update_status", "write_log"]
-    
+
     for operation in operations:
         print(f"   ⚙️ Performing {operation}...")
         await asyncio.sleep(1.0)
-    
+
     print(f"✅ Task {task_id} completed within lease period")
     context.set_variable(f"lease_result_{task_id}", "completed")
 
@@ -685,9 +685,9 @@ async def short_term_exclusive_access(context):
 async def long_term_resource_reservation(context):
     """Extended exclusive access for complex operations"""
     reservation_id = context.get_state("reservation_id", 1)
-    
+
     print(f"🏗️ Reservation {reservation_id} acquired 5-minute lease")
-    
+
     # Complex operations requiring extended exclusive access
     phases = [
         ("initialization", 30),
@@ -695,11 +695,11 @@ async def long_term_resource_reservation(context):
         ("validation", 60),
         ("cleanup", 30)
     ]
-    
+
     for phase_name, duration in phases:
         print(f"   🔄 Phase: {phase_name} ({duration}s)")
         await asyncio.sleep(duration / 10)  # Compressed time
-    
+
     print(f"✅ Reservation {reservation_id} completed all phases")
     context.set_variable(f"reservation_result_{reservation_id}", "completed")
 \`\`\`
@@ -741,7 +741,7 @@ class AdvancedQuotaManager:
                 "storage_gb": 500.0
             }
         }
-        
+
         self.usage = {
             "tenant_startup": {
                 "cpu_hours": 7.5,
@@ -765,31 +765,31 @@ class AdvancedQuotaManager:
                 "storage_gb": 189.4
             }
         }
-    
+
     def check_quota(self, tenant, resource, amount):
         """Check if tenant has quota available for resource"""
         quota = self.quotas[tenant][resource]
         current = self.usage[tenant][resource]
         return current + amount <= quota
-    
+
     def consume_quota(self, tenant, resource, amount):
         """Consume quota if available"""
         if self.check_quota(tenant, resource, amount):
             self.usage[tenant][resource] += amount
             return True
         return False
-    
+
     def get_quota_status(self, tenant):
         """Get detailed quota status for tenant"""
         quota = self.quotas[tenant]
         usage = self.usage[tenant]
-        
+
         status = {}
         for resource in quota:
             used = usage[resource]
             limit = quota[resource]
             percentage = (used / limit * 100) if limit > 0 else 0
-            
+
             status[resource] = {
                 "used": used,
                 "limit": limit,
@@ -797,9 +797,9 @@ class AdvancedQuotaManager:
                 "available": limit - used,
                 "status": self._get_quota_health(percentage)
             }
-        
+
         return status
-    
+
     def _get_quota_health(self, percentage):
         """Determine quota health status"""
         if percentage >= 95:
@@ -825,16 +825,16 @@ async def api_operation_with_quotas(context):
     tenant_id = context.get_variable("tenant_id")
     operation_id = context.get_state("api_operations", 0) + 1
     context.set_state("api_operations", operation_id)
-    
+
     print(f"🌐 API operation #{operation_id} for {tenant_id}")
-    
+
     # Check multiple quota types
     quotas_needed = {
         "api_calls": 1,
         "cpu_hours": 0.01,  # Rough estimate: 2 CPU * 30s max / 3600s
         "memory_gb_hours": 0.008  # 1GB * 30s max / 3600s
     }
-    
+
     # Pre-flight quota check
     quota_available = True
     for resource, amount in quotas_needed.items():
@@ -843,15 +843,15 @@ async def api_operation_with_quotas(context):
             context.set_variable(f"api_quota_exceeded_{operation_id}", resource)
             quota_available = False
             break
-    
+
     if quota_available:
         # Consume quotas
         for resource, amount in quotas_needed.items():
             quota_manager.consume_quota(tenant_id, resource, amount)
-        
+
         # Perform the operation
         await asyncio.sleep(0.5)  # Simulate API work
-        
+
         print(f"✅ API operation #{operation_id} completed")
         context.set_variable(f"api_success_{operation_id}", True)
 
@@ -866,9 +866,9 @@ async def compute_job_with_quotas(context):
     tenant_id = context.get_variable("tenant_id")
     job_id = context.get_state("compute_jobs", 0) + 1
     context.set_state("compute_jobs", job_id)
-    
+
     print(f"💻 Compute job #{job_id} for {tenant_id}")
-    
+
     # Estimate resource consumption
     estimated_duration_hours = 0.25  # 15 minutes
     quotas_needed = {
@@ -876,7 +876,7 @@ async def compute_job_with_quotas(context):
         "memory_gb_hours": 4.0 * estimated_duration_hours,
         "gpu_hours": 1.0 * estimated_duration_hours
     }
-    
+
     # Check all quotas before starting
     quota_available = True
     for resource, amount in quotas_needed.items():
@@ -885,18 +885,18 @@ async def compute_job_with_quotas(context):
             context.set_variable(f"compute_quota_exceeded_{job_id}", resource)
             quota_available = False
             break
-    
+
     if quota_available:
         # Reserve quotas
         for resource, amount in quotas_needed.items():
             quota_manager.consume_quota(tenant_id, resource, amount)
-        
+
         print(f"   📊 Reserved: {quotas_needed['cpu_hours']:.2f} CPU hours, "
               f"{quotas_needed['gpu_hours']:.2f} GPU hours")
-        
+
         # Perform compute job
         await asyncio.sleep(2.0)  # Simulate compute work
-        
+
         print(f"✅ Compute job #{job_id} completed")
         context.set_variable(f"compute_success_{job_id}", True)
 
@@ -904,26 +904,26 @@ async def compute_job_with_quotas(context):
 async def quota_monitoring_report(context):
     """Generate comprehensive quota monitoring report"""
     tenant_id = context.get_variable("tenant_id")
-    
+
     print(f"📊 Quota Monitoring Report for {tenant_id}")
     print("=" * 60)
-    
+
     status = quota_manager.get_quota_status(tenant_id)
-    
+
     for resource, info in status.items():
         health_emoji = {
             "healthy": "🟢",
-            "moderate": "🟡", 
+            "moderate": "🟡",
             "warning": "🟠",
             "critical": "🔴"
         }.get(info["status"], "⚪")
-        
+
         print(f"{health_emoji} {resource.upper()}:")
         print(f"   Used: {info['used']:.2f} / {info['limit']:.2f} ({info['percentage']:.1f}%)")
         print(f"   Available: {info['available']:.2f}")
         print(f"   Status: {info['status']}")
         print()
-    
+
     # Generate recommendations
     recommendations = []
     for resource, info in status.items():
@@ -933,14 +933,14 @@ async def quota_monitoring_report(context):
             recommendations.append(f"⚠️ Consider upgrading {resource} quota soon")
         elif info["status"] == "moderate":
             recommendations.append(f"💡 Monitor {resource} usage closely")
-    
+
     if recommendations:
         print("📋 Recommendations:")
         for rec in recommendations:
             print(f"   {rec}")
     else:
         print("✅ All quotas are healthy")
-    
+
     context.set_variable("quota_report", status)
 
 # Test different tenant types
@@ -949,30 +949,30 @@ tenant_types = ["tenant_startup", "tenant_growth", "tenant_enterprise"]
 for tenant_type in tenant_types:
     # Setup tenant context
     setup_task = f"setup_{tenant_type}"
-    
+
     @state
     async def setup_tenant_context(context, tenant=tenant_type):
         context.set_variable("tenant_id", tenant)
         print(f"🏢 Setting up context for {tenant}")
-    
+
     agent.add_state(setup_task, setup_tenant_context)
-    
+
     # Add operations for each tenant
     api_tasks = []
     for i in range(2):
         task_name = f"api_operation_{tenant_type}_{i}"
         agent.add_state(task_name, api_operation_with_quotas, dependencies=[setup_task])
         api_tasks.append(task_name)
-    
+
     compute_tasks = []
     for i in range(1):
         task_name = f"compute_job_{tenant_type}_{i}"
         agent.add_state(task_name, compute_job_with_quotas, dependencies=[setup_task])
         compute_tasks.append(task_name)
-    
+
     # Add monitoring report
     report_task = f"quota_report_{tenant_type}"
-    agent.add_state(report_task, quota_monitoring_report, 
+    agent.add_state(report_task, quota_monitoring_report,
                     dependencies=api_tasks + compute_tasks)
 \`\`\`
 
@@ -1090,7 +1090,7 @@ async def resource_monitoring_and_optimization(context):
     Implement monitoring to continuously optimize resource allocation
     """
     print("📊 Resource utilization analysis...")
-    
+
     # Collect performance metrics
     operations_data = {
         "data_processing": {
@@ -1106,37 +1106,37 @@ async def resource_monitoring_and_optimization(context):
             "success_rate": 99.5  # 99.5% success rate
         }
     }
-    
+
     recommendations = []
-    
+
     for operation, metrics in operations_data.items():
         print(f"\n🔍 Analyzing {operation}:")
         print(f"   CPU: {metrics['avg_cpu_usage']}% utilization")
         print(f"   Memory: {metrics['avg_memory_usage']}% utilization")
         print(f"   Duration: {metrics['avg_duration']}s average")
         print(f"   Success: {metrics['success_rate']}%")
-        
+
         # Generate optimization recommendations
         if metrics['avg_cpu_usage'] > 90:
             recommendations.append(f"🔴 {operation}: Increase CPU allocation")
         elif metrics['avg_cpu_usage'] < 30:
             recommendations.append(f"🟡 {operation}: Consider reducing CPU allocation")
-            
+
         if metrics['avg_memory_usage'] > 90:
             recommendations.append(f"🔴 {operation}: Increase memory allocation")
         elif metrics['avg_memory_usage'] < 30:
             recommendations.append(f"🟡 {operation}: Consider reducing memory allocation")
-            
+
         if metrics['success_rate'] < 95:
             recommendations.append(f"🔴 {operation}: Investigate failure causes")
-    
+
     print(f"\n📋 Optimization Recommendations:")
     for rec in recommendations:
         print(f"   {rec}")
-    
+
     if not recommendations:
         print("   ✅ All operations are well-optimized")
-    
+
     context.set_variable("optimization_recommendations", recommendations)
 \`\`\`
 
@@ -1182,7 +1182,7 @@ Resource Allocation Decision Framework:
 # Example decision process
 def recommend_resources(operation_type, data_size, external_calls, duration):
     """Recommend resource configuration based on operation characteristics"""
-    
+
     recommendations = {
         "cpu": 1.0,
         "memory": 512,
@@ -1193,7 +1193,7 @@ def recommend_resources(operation_type, data_size, external_calls, duration):
         "rate_limit": None,
         "coordination": None
     }
-    
+
     # Adjust based on operation type
     if operation_type == "data_processing":
         recommendations.update({
@@ -1223,14 +1223,14 @@ def recommend_resources(operation_type, data_size, external_calls, duration):
             "timeout": 60.0,
             "rate_limit": 10.0
         })
-    
+
     # Adjust based on data size
     if data_size > 10000000:  # 10M+ records
         recommendations["memory"] *= 4
         recommendations["timeout"] *= 2
     elif data_size > 1000000:  # 1M+ records
         recommendations["memory"] *= 2
-    
+
     # Adjust based on external calls
     if external_calls > 100:
         recommendations["rate_limit"] = 20.0
@@ -1238,23 +1238,23 @@ def recommend_resources(operation_type, data_size, external_calls, duration):
     elif external_calls > 10:
         recommendations["rate_limit"] = 5.0
         recommendations["network"] = 5.0
-    
+
     # Adjust based on duration
     if duration > 3600:  # > 1 hour
         recommendations["timeout"] = duration * 1.5
         recommendations["coordination"] = "lease"
     elif duration > 300:  # > 5 minutes
         recommendations["timeout"] = duration * 1.2
-    
+
     return recommendations
 
 # Usage example
 def generate_decorator_config(operation_type, data_size=0, external_calls=0, duration=30):
     """Generate @state decorator configuration"""
     config = recommend_resources(operation_type, data_size, external_calls, duration)
-    
+
     decorator_parts = []
-    
+
     # Required resources
     if config["cpu"] != 1.0:
         decorator_parts.append(f"cpu={config['cpu']}")
@@ -1266,22 +1266,22 @@ def generate_decorator_config(operation_type, data_size=0, external_calls=0, dur
         decorator_parts.append(f"io={config['io']}")
     if config["network"] != 1.0:
         decorator_parts.append(f"network={config['network']}")
-    
+
     # Performance settings
     if config["timeout"] != 30.0:
         decorator_parts.append(f"timeout={config['timeout']}")
     if config["rate_limit"]:
         decorator_parts.append(f"rate_limit={config['rate_limit']}")
-    
+
     # Coordination
     if config["coordination"] == "lease":
         decorator_parts.append("lease=300.0")
-    
+
     decorator_config = ", ".join(decorator_parts)
-    
+
     print(f"Recommended configuration for {operation_type}:")
     print(f"@state({decorator_config})")
-    
+
     return config
 
 # Examples
@@ -1345,7 +1345,7 @@ Puffinflow provides some predefined decorators for common patterns, but you shou
 \`\`\`python
 # These are convenience decorators with predefined resource allocations:
 # @cpu_intensive     # Roughly equivalent to @state(cpu=4.0, memory=1024)
-# @memory_intensive  # Roughly equivalent to @state(cpu=2.0, memory=4096)  
+# @memory_intensive  # Roughly equivalent to @state(cpu=2.0, memory=4096)
 # @gpu_accelerated   # Roughly equivalent to @state(cpu=2.0, memory=2048, gpu=1.0)
 
 # ⚠️ Important: Always profile your workloads and adjust these as needed!

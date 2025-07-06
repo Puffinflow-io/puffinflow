@@ -69,19 +69,19 @@ Always validate and sanitize inputs to your agents:
        async def run(self, ctx: Context) -> None:
            # Validate input data
            user_input = ctx.get('user_input', '')
-           
+
            # Sanitize string inputs
            if not isinstance(user_input, str):
                raise ValueError("Input must be a string")
-           
+
            # Check for malicious patterns
            if re.search(r'[<>"\']', user_input):
                raise ValueError("Input contains potentially unsafe characters")
-           
+
            # Limit input size
            if len(user_input) > 10000:
                raise ValueError("Input too large")
-           
+
            # Process safely
            ctx.processed_input = self.safe_process(user_input)
 
@@ -103,7 +103,7 @@ Set appropriate resource limits:
                max_file_size_mb=100,
                max_concurrent_operations=10
            )
-       
+
        async def run(self, ctx: Context) -> None:
            # Agent will be automatically limited by resource constraints
            await self.process_data(ctx)
@@ -142,7 +142,7 @@ Secure network communications:
        async def run(self, ctx: Context) -> None:
            # Use TLS for all HTTP requests
            ssl_context = ssl.create_default_context()
-           
+
            async with aiohttp.ClientSession(
                connector=aiohttp.TCPConnector(ssl=ssl_context),
                timeout=aiohttp.ClientTimeout(total=30)
@@ -172,7 +172,7 @@ Implement secure error handling:
            except Exception as e:
                # Log error without exposing sensitive information
                logger.error(f"Processing failed: {type(e).__name__}")
-               
+
                # Don't expose internal details to users
                raise RuntimeError("Processing failed") from None
 
@@ -210,16 +210,16 @@ Include security tests:
        async def test_input_validation(self):
            """Test that agent validates inputs properly."""
            agent = MyAgent()
-           
+
            # Test malicious input
            with pytest.raises(ValueError):
                await agent.run(Context({'input': '<script>alert("xss")</script>'}))
-       
+
        @pytest.mark.asyncio
        async def test_resource_limits(self):
            """Test that agent respects resource limits."""
            agent = MyAgent()
-           
+
            # Test large input
            large_input = 'x' * 1000000
            with pytest.raises(ValueError, match="Input too large"):
@@ -251,7 +251,7 @@ PuffinFlow provides built-in input sanitization:
        },
        'required': ['name']
    }
-   
+
    validated_data = validate_schema(input_data, schema)
 
 **Rate Limiting**
@@ -269,7 +269,7 @@ Built-in rate limiting for agents:
                max_requests=100,
                time_window=3600  # 1 hour
            )
-       
+
        async def run(self, ctx: Context) -> None:
            await self.rate_limiter.acquire()
            # Process request
@@ -293,7 +293,7 @@ Security event logging:
                resource=ctx.resource_name,
                action='read'
            )
-           
+
            try:
                result = await self.process_data(ctx)
                security_logger.log_access_success(
@@ -319,16 +319,16 @@ Data encryption utilities:
    class EncryptedStorageAgent(Agent):
        async def run(self, ctx: Context) -> None:
            sensitive_data = ctx.get('sensitive_data')
-           
+
            # Encrypt before storage
            encrypted_data = encrypt_data(
                data=sensitive_data,
                key=self.encryption_key
            )
-           
+
            # Store encrypted data
            await self.store_data(encrypted_data)
-           
+
            # Decrypt when needed
            decrypted_data = decrypt_data(
                encrypted_data=encrypted_data,
@@ -413,13 +413,13 @@ Set security-related environment variables:
 
    # Encryption keys
    export PUFFINFLOW_ENCRYPTION_KEY="your-32-byte-key-here"
-   
+
    # Database credentials
    export DATABASE_URL="postgresql://user:pass@localhost/db"
-   
+
    # API keys
    export API_KEY="your-api-key-here"
-   
+
    # Security settings
    export PUFFINFLOW_SECURITY_LEVEL="strict"
    export PUFFINFLOW_AUDIT_ENABLED="true"
@@ -435,16 +435,16 @@ Configuration File
        enabled: true
        max_input_size: 10485760  # 10MB
        allowed_file_types: ['.txt', '.json', '.csv']
-     
+
      rate_limiting:
        enabled: true
        default_limit: 1000
        time_window: 3600
-     
+
      encryption:
        algorithm: 'AES-256-GCM'
        key_rotation_days: 90
-     
+
      audit:
        enabled: true
        log_level: 'INFO'

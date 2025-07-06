@@ -27,23 +27,23 @@ jobs:
   build-docs:
     name: Build Documentation
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[docs,observability]"
-      
+
       - name: Create docs directory if it doesn't exist
         run: |
           mkdir -p docs
@@ -51,23 +51,23 @@ jobs:
             echo "Creating basic Sphinx configuration..."
             cat > docs/conf.py << 'EOF'
           # Configuration file for the Sphinx documentation builder.
-          
+
           import os
           import sys
           sys.path.insert(0, os.path.abspath('../src'))
-          
+
           # -- Project information -----------------------------------------------------
           project = 'PuffinFlow'
           copyright = '2025, Mohamed Ahmed'
           author = 'Mohamed Ahmed'
-          
+
           # The full version, including alpha/beta/rc tags
           try:
               from puffinflow.version import __version__
               release = __version__
           except ImportError:
               release = '0.1.0'
-          
+
           # -- General configuration ---------------------------------------------------
           extensions = [
               'sphinx.ext.autodoc',
@@ -78,14 +78,14 @@ jobs:
               'sphinx_autodoc_typehints',
               'myst_parser',
           ]
-          
+
           templates_path = ['_templates']
           exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-          
+
           # -- Options for HTML output -------------------------------------------------
           html_theme = 'sphinx_rtd_theme'
           html_static_path = ['_static']
-          
+
           # -- Extension configuration -------------------------------------------------
           autodoc_default_options = {
               'members': True,
@@ -94,19 +94,19 @@ jobs:
               'undoc-members': True,
               'exclude-members': '__weakref__'
           }
-          
+
           autosummary_generate = True
           napoleon_google_docstring = True
           napoleon_numpy_docstring = True
           napoleon_include_init_with_doc = False
           napoleon_include_private_with_doc = False
-          
+
           # Intersphinx mapping
           intersphinx_mapping = {
               'python': ('https://docs.python.org/3', None),
               'pydantic': ('https://docs.pydantic.dev/latest/', None),
           }
-          
+
           # MyST configuration
           myst_enable_extensions = [
               "colon_fence",
@@ -121,7 +121,7 @@ jobs:
           ]
           EOF
           fi
-      
+
       - name: Create index.rst if it doesn't exist
         run: |
           if [ ! -f docs/index.rst ]; then
@@ -129,55 +129,55 @@ jobs:
             cat > docs/index.rst << 'EOF'
           Welcome to PuffinFlow's documentation!
           =====================================
-          
+
           PuffinFlow is a powerful Python workflow orchestration framework with advanced resource management and observability.
-          
+
           .. toctree::
              :maxdepth: 2
              :caption: Contents:
-          
+
              installation
              quickstart
              api/modules
-          
+
           Features
           --------
-          
+
           * **Agent-based Architecture**: Build complex workflows using intelligent agents
           * **Resource Management**: Advanced resource allocation and quota management
           * **Observability**: Built-in metrics, tracing, and alerting
           * **Reliability**: Circuit breakers, bulkheads, and leak detection
           * **Coordination**: Sophisticated agent coordination and team management
-          
+
           Installation
           ------------
-          
+
           .. code-block:: bash
-          
+
              pip install puffinflow
-          
+
           Quick Start
           -----------
-          
+
           .. code-block:: python
-          
+
              from puffinflow import Agent
-             
+
              # Create a simple agent
              agent = Agent(name="my-agent")
-             
+
              # Your workflow logic here
              result = agent.execute()
-          
+
           Indices and tables
           ==================
-          
+
           * :ref:`genindex`
           * :ref:`modindex`
           * :ref:`search`
           EOF
           fi
-      
+
       - name: Create API documentation structure
         run: |
           mkdir -p docs/api
@@ -186,180 +186,180 @@ jobs:
             cat > docs/api/modules.rst << 'EOF'
           API Reference
           =============
-          
+
           .. toctree::
              :maxdepth: 4
-          
+
              puffinflow
           EOF
           fi
-      
+
       - name: Generate API documentation
         run: |
           cd docs
           sphinx-apidoc -o api ../src/puffinflow --force --separate
-      
+
       - name: Create installation guide
         run: |
           if [ ! -f docs/installation.rst ]; then
             cat > docs/installation.rst << 'EOF'
           Installation
           ============
-          
+
           Requirements
           ------------
-          
+
           * Python 3.9 or higher
           * pip or conda
-          
+
           Basic Installation
           ------------------
-          
+
           Install PuffinFlow using pip:
-          
+
           .. code-block:: bash
-          
+
              pip install puffinflow
-          
+
           Development Installation
           ------------------------
-          
+
           For development, clone the repository and install in editable mode:
-          
+
           .. code-block:: bash
-          
+
              git clone https://github.com/yourusername/puffinflow.git
              cd puffinflow
              pip install -e ".[dev]"
-          
+
           Optional Dependencies
           ---------------------
-          
+
           PuffinFlow supports several optional dependency groups:
-          
+
           * ``observability``: Full monitoring and observability suite
           * ``integrations``: External system integrations
           * ``cli``: Command-line interface tools
           * ``all``: All optional dependencies
-          
+
           .. code-block:: bash
-          
+
              # Install with observability features
              pip install puffinflow[observability]
-             
+
              # Install with all features
              pip install puffinflow[all]
           EOF
           fi
-      
+
       - name: Create quickstart guide
         run: |
           if [ ! -f docs/quickstart.rst ]; then
             cat > docs/quickstart.rst << 'EOF'
           Quick Start Guide
           =================
-          
+
           This guide will help you get started with PuffinFlow quickly.
-          
+
           Basic Agent
           -----------
-          
+
           Create your first agent:
-          
+
           .. code-block:: python
-          
+
              from puffinflow.core.agent import Agent
-             
+
              # Create a simple agent
              agent = Agent(name="hello-world")
-             
+
              # Define agent behavior
              @agent.task
              async def greet(name: str) -> str:
                  return f"Hello, {name}!"
-             
+
              # Execute the task
              result = await agent.execute("greet", name="World")
              print(result)  # Output: Hello, World!
-          
+
           Agent Coordination
           ------------------
-          
+
           Coordinate multiple agents:
-          
+
           .. code-block:: python
-          
+
              from puffinflow.core.coordination import AgentTeam
-             
+
              # Create a team of agents
              team = AgentTeam(name="processing-team")
-             
+
              # Add agents to the team
              team.add_agent(agent1)
              team.add_agent(agent2)
-             
+
              # Execute coordinated tasks
              results = await team.execute_parallel(["task1", "task2"])
-          
+
           Resource Management
           -------------------
-          
+
           Manage resources efficiently:
-          
+
           .. code-block:: python
-          
+
              from puffinflow.core.resources import ResourcePool
-             
+
              # Create a resource pool
              pool = ResourcePool(
                  name="cpu-pool",
                  capacity={"cpu": 4, "memory": "8GB"}
              )
-             
+
              # Allocate resources to agents
              allocation = await pool.allocate({"cpu": 2, "memory": "4GB"})
-             
+
              # Use resources in agent execution
              agent.set_resources(allocation)
-          
+
           Observability
           -------------
-          
+
           Monitor your workflows:
-          
+
           .. code-block:: python
-          
+
              from puffinflow.core.observability import MetricsCollector
-             
+
              # Set up metrics collection
              metrics = MetricsCollector()
-             
+
              # Track agent performance
              with metrics.timer("agent_execution"):
                  result = await agent.execute("task")
-             
+
              # View collected metrics
              print(metrics.get_summary())
-          
+
           Next Steps
           ----------
-          
+
           * Explore the :doc:`api/modules` for detailed API documentation
           * Check out the examples in the repository
           * Read about advanced features in the user guide
           EOF
           fi
-      
+
       - name: Build documentation
         run: |
           cd docs
           make html SPHINXOPTS="-W --keep-going"
-      
+
       - name: Check for broken links
         run: |
           cd docs
           make linkcheck || echo "Link check completed with warnings"
-      
+
       - name: Upload documentation artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -372,31 +372,31 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-docs
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+
     permissions:
       contents: read
       pages: write
       id-token: write
-    
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Download documentation artifacts
         uses: actions/download-artifact@v4
         with:
           name: documentation
           path: docs/
-      
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      
+
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
-      
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
@@ -405,26 +405,26 @@ jobs:
     name: Check Documentation Coverage
     runs-on: ubuntu-latest
     needs: build-docs
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[docs]"
           pip install interrogate
-      
+
       - name: Check docstring coverage
         run: |
           interrogate src/puffinflow --verbose --fail-under=80 --generate-badge docs/
-      
+
       - name: Upload coverage badge
         uses: actions/upload-artifact@v4
         with:

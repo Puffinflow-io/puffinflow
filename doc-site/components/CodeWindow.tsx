@@ -46,7 +46,7 @@ const CodeWindow: React.FC<CodeWindowProps> = ({ code, language, fileName }) => 
                {copyText}
              </button>
          </div>
-         
+
          <pre className={`line-numbers language-${language} !m-0 !rounded-none`}>
              <code ref={codeRef} className={`language-${language}`}>
                 {/* Populated by useEffect */}

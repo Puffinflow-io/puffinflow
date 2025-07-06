@@ -25,29 +25,29 @@ From Airflow
    # Airflow DAG
    from airflow import DAG
    from airflow.operators.python import PythonOperator
-   
+
    dag = DAG('data_pipeline', schedule_interval='@daily')
-   
+
    def extract_data():
        # Extract logic
        pass
-   
+
    def transform_data():
        # Transform logic
        pass
-   
+
    extract_task = PythonOperator(
        task_id='extract',
        python_callable=extract_data,
        dag=dag
    )
-   
+
    transform_task = PythonOperator(
        task_id='transform',
        python_callable=transform_data,
        dag=dag
    )
-   
+
    extract_task >> transform_task
 
 .. code-block:: python
@@ -55,26 +55,26 @@ From Airflow
    # PuffinFlow equivalent
    from puffinflow import Agent, Context
    from puffinflow.core.coordination import AgentTeam
-   
+
    class ExtractAgent(Agent):
        async def run(self, ctx: Context) -> None:
            # Extract logic (now async)
            data = await self.extract_data()
            ctx.extracted_data = data
-   
+
    class TransformAgent(Agent):
        async def run(self, ctx: Context) -> None:
            # Transform logic
            data = ctx.extracted_data
            transformed = await self.transform_data(data)
            ctx.transformed_data = transformed
-   
+
    # Create team with dependencies
    team = AgentTeam([
        ExtractAgent(),
        TransformAgent()
    ])
-   
+
    # Run the pipeline
    result = await team.run()
 
@@ -84,20 +84,20 @@ From Airflow
 
    # PuffinFlow with external scheduler (e.g., APScheduler)
    from apscheduler.schedulers.asyncio import AsyncIOScheduler
-   
+
    scheduler = AsyncIOScheduler()
-   
+
    async def run_pipeline():
        team = AgentTeam([ExtractAgent(), TransformAgent()])
        await team.run()
-   
+
    scheduler.add_job(
        run_pipeline,
        'cron',
        hour=0,  # Daily at midnight
        id='data_pipeline'
    )
-   
+
    scheduler.start()
 
 From Prefect
@@ -118,15 +118,15 @@ From Prefect
 
    # Prefect flow
    from prefect import flow, task
-   
+
    @task
    def extract_data():
        return "extracted_data"
-   
+
    @task
    def transform_data(data):
        return f"transformed_{data}"
-   
+
    @flow
    def data_pipeline():
        data = extract_data()
@@ -138,14 +138,14 @@ From Prefect
    # PuffinFlow equivalent
    from puffinflow import Agent, Context
    from puffinflow.core.coordination import AgentTeam
-   
+
    class DataPipelineTeam(AgentTeam):
        def __init__(self):
            super().__init__([
                ExtractAgent(),
                TransformAgent()
            ])
-   
+
    # Usage
    pipeline = DataPipelineTeam()
    result = await pipeline.run()
@@ -168,14 +168,14 @@ From Celery
 
    # Celery tasks
    from celery import Celery
-   
+
    app = Celery('tasks')
-   
+
    @app.task
    def process_item(item_id):
        # Process item
        return f"processed_{item_id}"
-   
+
    @app.task
    def aggregate_results(results):
        return sum(results)
@@ -185,18 +185,18 @@ From Celery
    # PuffinFlow equivalent
    from puffinflow import Agent, Context
    from puffinflow.core.coordination import AgentPool
-   
+
    class ProcessItemAgent(Agent):
        async def run(self, ctx: Context) -> None:
            item_id = ctx.item_id
            result = await self.process_item(item_id)
            ctx.result = result
-   
+
    class AggregateAgent(Agent):
        async def run(self, ctx: Context) -> None:
            results = ctx.all_results
            ctx.final_result = sum(results)
-   
+
    # Process multiple items
    pool = AgentPool(ProcessItemAgent, pool_size=10)
    results = await pool.process_batch(item_contexts)
@@ -245,7 +245,7 @@ From 0.x to 1.0
 
    # v0.x
    from puffinflow.coordination import Coordinator
-   
+
    coordinator = Coordinator()
    coordinator.add_agent(agent1)
    coordinator.add_agent(agent2)
@@ -255,7 +255,7 @@ From 0.x to 1.0
 
    # v1.0
    from puffinflow.core.coordination import AgentTeam
-   
+
    team = AgentTeam([agent1, agent2])
    result = await team.run()
 
@@ -267,7 +267,7 @@ From 0.x to 1.0
    import ast
    import re
    from pathlib import Path
-   
+
    def migrate_agent_class(content):
        """Migrate agent class definitions."""
        # Replace execute method with run method
@@ -276,28 +276,28 @@ From 0.x to 1.0
            r'async def run(self, ctx: Context) -> None:',
            content
        )
-       
+
        # Replace context usage
        content = re.sub(r'context\.get_data\("([^"]+)"\)', r'ctx.\1', content)
        content = re.sub(r'context\.set_data\("([^"]+)", ([^)]+)\)', r'ctx.\1 = \2', content)
-       
+
        return content
-   
+
    def migrate_file(file_path):
        """Migrate a single Python file."""
        with open(file_path, 'r') as f:
            content = f.read()
-       
+
        # Apply migrations
        content = migrate_agent_class(content)
-       
+
        # Add necessary imports
        if 'from puffinflow' in content:
            content = 'from puffinflow import Agent, Context\n' + content
-       
+
        with open(file_path, 'w') as f:
            f.write(content)
-   
+
    # Run migration on all Python files
    for py_file in Path('.').rglob('*.py'):
        if 'puffinflow' in py_file.read_text():
@@ -316,13 +316,13 @@ State Management
 
    # Global state or external storage
    import redis
-   
+
    redis_client = redis.Redis()
-   
+
    def task1():
        result = process_data()
        redis_client.set('task1_result', result)
-   
+
    def task2():
        data = redis_client.get('task1_result')
        return transform(data)
@@ -336,7 +336,7 @@ State Management
        async def run(self, ctx: Context) -> None:
            result = await self.process_data()
            ctx.task1_result = result
-   
+
    class Task2Agent(Agent):
        async def run(self, ctx: Context) -> None:
            data = ctx.task1_result
@@ -351,7 +351,7 @@ Error Handling
 
    # Manual retry logic
    import time
-   
+
    def unreliable_task():
        max_retries = 3
        for attempt in range(max_retries):
@@ -368,7 +368,7 @@ Error Handling
 
    # Built-in reliability patterns
    from puffinflow.core.reliability import CircuitBreaker
-   
+
    class ReliableAgent(Agent):
        def __init__(self):
            super().__init__()
@@ -376,7 +376,7 @@ Error Handling
                failure_threshold=3,
                recovery_timeout=30
            )
-       
+
        async def run(self, ctx: Context) -> None:
            async with self.circuit_breaker:
                ctx.result = await self.risky_operation()
@@ -390,9 +390,9 @@ Resource Management
 
    # Manual resource management
    import asyncio
-   
+
    semaphore = asyncio.Semaphore(5)  # Limit concurrent operations
-   
+
    async def limited_task():
        async with semaphore:
            return await expensive_operation()
@@ -403,7 +403,7 @@ Resource Management
 
    # Built-in resource management
    from puffinflow.core.resources import ResourcePool
-   
+
    class ResourceManagedAgent(Agent):
        def __init__(self):
            super().__init__()
@@ -411,7 +411,7 @@ Resource Management
                max_concurrent=5,
                max_memory_mb=1024
            )
-       
+
        async def run(self, ctx: Context) -> None:
            async with self.resource_pool.acquire():
                ctx.result = await self.expensive_operation()
@@ -426,7 +426,7 @@ Testing Migration
    # Framework-specific testing
    def test_airflow_dag():
        from airflow.models import DagBag
-       
+
        dagbag = DagBag()
        dag = dagbag.get_dag('my_dag')
        assert dag is not None
@@ -438,14 +438,14 @@ Testing Migration
    # Standard async testing
    import pytest
    from puffinflow.testing import create_test_context
-   
+
    @pytest.mark.asyncio
    async def test_agent():
        agent = MyAgent()
        ctx = create_test_context({'input': 'test_data'})
-       
+
        result = await agent.run(ctx)
-       
+
        assert ctx.output == 'expected_result'
 
 Migration Checklist
@@ -499,24 +499,24 @@ Testing Strategy
    # Create comprehensive test suite
    import pytest
    from puffinflow.testing import MockAgent, create_test_context
-   
+
    class TestMigratedWorkflow:
        @pytest.mark.asyncio
        async def test_data_flow(self):
            """Test that data flows correctly between agents."""
            team = DataProcessingTeam()
            ctx = create_test_context({'input_data': sample_data})
-           
+
            result = await team.run(ctx)
-           
+
            assert ctx.final_result == expected_result
-       
+
        @pytest.mark.asyncio
        async def test_error_handling(self):
            """Test error handling in migrated workflow."""
            agent = ProcessingAgent()
            ctx = create_test_context({'invalid_data': None})
-           
+
            with pytest.raises(ValidationError):
                await agent.run(ctx)
 
@@ -527,15 +527,15 @@ Performance Monitoring
 
    # Monitor migration performance
    from puffinflow.core.observability import MetricsCollector
-   
+
    metrics = MetricsCollector()
-   
+
    class MonitoredAgent(Agent):
        async def run(self, ctx: Context) -> None:
            with metrics.timer('agent_execution_time'):
                # Agent logic here
                pass
-           
+
            metrics.increment('agent_executions')
 
 Getting Help

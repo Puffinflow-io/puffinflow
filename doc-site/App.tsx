@@ -75,7 +75,7 @@ const getRouteInfo = () => {
         const [, anchor] = hash.split('#');
         return { path: '/docs', anchor: anchor || null };
     }
-    
+
     const mainPageAnchor = hash;
     return { path: '/', anchor: mainPageAnchor || null };
 };
@@ -91,7 +91,7 @@ const App: React.FC = () => {
       window.addEventListener('hashchange', handleHashChange);
       return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
-  
+
   // Scrolling effect
   useEffect(() => {
       if (routeInfo.anchor) {
@@ -115,7 +115,7 @@ const App: React.FC = () => {
         // Spotlight effect
         document.documentElement.style.setProperty('--mouse-x', `${clientX}px`);
         document.documentElement.style.setProperty('--mouse-y', `${clientY}px`);
-        
+
         // Background grid rotation for 3D effect
         const rotateX = -((clientY / innerHeight) - 0.5) * 15; // Range: -7.5deg to 7.5deg
         const rotateY = ((clientX / innerWidth) - 0.5) * 15;  // Range: -7.5deg to 7.5deg

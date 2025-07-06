@@ -14,18 +14,19 @@ Tests cover:
 """
 
 import asyncio
-import pytest
+import contextlib
 import time
-from unittest.mock import patch, MagicMock, AsyncMock
 from dataclasses import asdict
+
+import pytest
 
 # Import the module under test
 from src.puffinflow.core.reliability.bulkhead import (
+    Bulkhead,
     BulkheadConfig,
     BulkheadFullError,
-    Bulkhead,
     BulkheadRegistry,
-    bulkhead_registry
+    bulkhead_registry,
 )
 
 
@@ -34,10 +35,7 @@ class TestBulkheadConfig:
 
     def test_bulkhead_config_creation_minimal(self):
         """Test BulkheadConfig creation with minimal required fields."""
-        config = BulkheadConfig(
-            name="test_bulkhead",
-            max_concurrent=5
-        )
+        config = BulkheadConfig(name="test_bulkhead", max_concurrent=5)
 
         assert config.name == "test_bulkhead"
         assert config.max_concurrent == 5
@@ -47,10 +45,7 @@ class TestBulkheadConfig:
     def test_bulkhead_config_creation_full(self):
         """Test BulkheadConfig creation with all fields specified."""
         config = BulkheadConfig(
-            name="custom_bulkhead",
-            max_concurrent=10,
-            max_queue_size=50,
-            timeout=60.0
+            name="custom_bulkhead", max_concurrent=10, max_queue_size=50, timeout=60.0
         )
 
         assert config.name == "custom_bulkhead"
@@ -69,13 +64,18 @@ class TestBulkheadConfig:
         assert "max_queue_size" in config_dict
         assert "timeout" in config_dict
 
-    @pytest.mark.parametrize("max_concurrent,expected_valid", [
-        (1, True),      # Minimum valid
-        (0, True),      # Edge case - zero concurrent (all queued)
-        (-1, True),     # Negative - questionable but not our validation concern
-        (1000, True),   # Large number
-    ])
-    def test_bulkhead_config_max_concurrent_values(self, max_concurrent, expected_valid):
+    @pytest.mark.parametrize(
+        "max_concurrent,expected_valid",
+        [
+            (1, True),  # Minimum valid
+            (0, True),  # Edge case - zero concurrent (all queued)
+            (-1, True),  # Negative - questionable but not our validation concern
+            (1000, True),  # Large number
+        ],
+    )
+    def test_bulkhead_config_max_concurrent_values(
+        self, max_concurrent, expected_valid
+    ):
         """Test BulkheadConfig with various max_concurrent values."""
         # BulkheadConfig doesn't validate, so all should create successfully
         config = BulkheadConfig(name="test", max_concurrent=max_concurrent)
@@ -88,7 +88,9 @@ class TestBulkheadConfig:
         # Defaults should be sensible for production use
         assert config.max_queue_size > 0
         assert config.timeout > 0
-        assert config.max_queue_size >= config.max_concurrent  # Queue should be larger than concurrent
+        assert (
+            config.max_queue_size >= config.max_concurrent
+        )  # Queue should be larger than concurrent
 
 
 class TestBulkheadFullError:
@@ -120,10 +122,7 @@ class TestBulkhead:
     def basic_config(self):
         """Basic bulkhead configuration for testing."""
         return BulkheadConfig(
-            name="test_bulkhead",
-            max_concurrent=2,
-            max_queue_size=5,
-            timeout=1.0
+            name="test_bulkhead", max_concurrent=2, max_queue_size=5, timeout=1.0
         )
 
     @pytest.fixture
@@ -136,7 +135,7 @@ class TestBulkhead:
         bulkhead = Bulkhead(basic_config)
 
         assert bulkhead.config == basic_config
-        assert hasattr(bulkhead, '_semaphore')
+        assert hasattr(bulkhead, "_semaphore")
         assert bulkhead._semaphore._value == basic_config.max_concurrent
         assert bulkhead._queue_size == 0
         assert bulkhead._active_tasks == set()
@@ -177,7 +176,7 @@ class TestBulkhead:
         tasks = [
             asyncio.create_task(task(1)),
             asyncio.create_task(task(2)),
-            asyncio.create_task(task(3))
+            asyncio.create_task(task(3)),
         ]
 
         await asyncio.gather(*tasks)
@@ -197,7 +196,7 @@ class TestBulkhead:
                 await asyncio.sleep(10)  # Hold for a long time
 
         # Start tasks to fill concurrent slots
-        for i in range(2):  # max_concurrent = 2
+        for _i in range(2):  # max_concurrent = 2
             held_tasks.append(asyncio.create_task(hold_slot()))
 
         # Give time for tasks to acquire slots
@@ -207,7 +206,7 @@ class TestBulkhead:
         # Now try to exceed queue size (max_queue_size = 5)
         # Start tasks that will queue up
         queued_tasks = []
-        for i in range(5):  # Fill the queue to capacity
+        for _i in range(5):  # Fill the queue to capacity
             queued_tasks.append(asyncio.create_task(hold_slot()))
 
         # Give time for tasks to enter queue
@@ -230,7 +229,7 @@ class TestBulkhead:
             name="timeout_test",
             max_concurrent=1,
             max_queue_size=10,
-            timeout=0.1  # Very short timeout
+            timeout=0.1,  # Very short timeout
         )
         bulkhead = Bulkhead(config)
 
@@ -299,7 +298,7 @@ class TestBulkhead:
             "available_slots": 2,
             "queue_size": 0,
             "max_queue_size": 5,
-            "active_tasks": 0
+            "active_tasks": 0,
         }
 
         assert metrics == expected
@@ -341,19 +340,24 @@ class TestBulkhead:
         bulkhead._semaphore.release()
         await task
 
-    @pytest.mark.parametrize("max_concurrent,max_queue_size,timeout", [
-        (1, 1, 0.1),        # Minimal settings
-        (10, 100, 30.0),    # Typical settings
-        (0, 1, 1.0),        # Zero concurrent
-        (5, 0, 60.0),       # Zero queue
-    ])
-    def test_bulkhead_various_configurations(self, max_concurrent, max_queue_size, timeout):
+    @pytest.mark.parametrize(
+        "max_concurrent,max_queue_size,timeout",
+        [
+            (1, 1, 0.1),  # Minimal settings
+            (10, 100, 30.0),  # Typical settings
+            (0, 1, 1.0),  # Zero concurrent
+            (5, 0, 60.0),  # Zero queue
+        ],
+    )
+    def test_bulkhead_various_configurations(
+        self, max_concurrent, max_queue_size, timeout
+    ):
         """Test Bulkhead with various configurations."""
         config = BulkheadConfig(
             name="variable_test",
             max_concurrent=max_concurrent,
             max_queue_size=max_queue_size,
-            timeout=timeout
+            timeout=timeout,
         )
         bulkhead = Bulkhead(config)
 
@@ -431,7 +435,7 @@ class TestBulkheadRegistry:
     def test_get_all_metrics_single_bulkhead(self, registry):
         """Test get_all_metrics with single bulkhead."""
         config = BulkheadConfig(name="single", max_concurrent=3)
-        bulkhead = registry.get_or_create("single", config)
+        registry.get_or_create("single", config)
 
         all_metrics = registry.get_all_metrics()
 
@@ -445,7 +449,7 @@ class TestBulkheadRegistry:
         configs = [
             BulkheadConfig(name="first", max_concurrent=2),
             BulkheadConfig(name="second", max_concurrent=5),
-            BulkheadConfig(name="third", max_concurrent=1)
+            BulkheadConfig(name="third", max_concurrent=1),
         ]
 
         for config in configs:
@@ -533,10 +537,7 @@ class TestEdgeCases:
     async def test_zero_queue_size(self):
         """Test bulkhead with zero queue size."""
         config = BulkheadConfig(
-            name="zero_queue",
-            max_concurrent=1,
-            max_queue_size=0,
-            timeout=1.0
+            name="zero_queue", max_concurrent=1, max_queue_size=0, timeout=1.0
         )
         bulkhead = Bulkhead(config)
 
@@ -557,7 +558,7 @@ class TestEdgeCases:
         config = BulkheadConfig(
             name="short_timeout",
             max_concurrent=1,
-            timeout=0.001  # 1ms
+            timeout=0.001,  # 1ms
         )
         bulkhead = Bulkhead(config)
 
@@ -583,7 +584,7 @@ class TestEdgeCases:
         config = BulkheadConfig(
             name="long_timeout",
             max_concurrent=1,
-            timeout=3600.0  # 1 hour
+            timeout=3600.0,  # 1 hour
         )
         bulkhead = Bulkhead(config)
 
@@ -644,7 +645,7 @@ class TestEdgeCases:
 
         # Should raise ValueError during initialization
         with pytest.raises(ValueError, match="Semaphore initial value must be >= 0"):
-            bulkhead = Bulkhead(config)
+            Bulkhead(config)
 
     @pytest.mark.asyncio
     async def test_large_max_concurrent(self):
@@ -678,10 +679,8 @@ class TestEdgeCases:
         # Cancel the task
         task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # Give some time for cleanup
         await asyncio.sleep(0.01)
@@ -697,10 +696,7 @@ class TestConcurrencyScenarios:
     async def test_high_concurrency_load(self):
         """Test bulkhead under high concurrent load."""
         config = BulkheadConfig(
-            name="load_test",
-            max_concurrent=5,
-            max_queue_size=20,
-            timeout=2.0
+            name="load_test", max_concurrent=5, max_queue_size=20, timeout=2.0
         )
         bulkhead = Bulkhead(config)
 
@@ -733,10 +729,7 @@ class TestConcurrencyScenarios:
     async def test_burst_traffic_pattern(self):
         """Test bulkhead handling burst traffic pattern."""
         config = BulkheadConfig(
-            name="burst_test",
-            max_concurrent=3,
-            max_queue_size=10,
-            timeout=1.0
+            name="burst_test", max_concurrent=3, max_queue_size=10, timeout=1.0
         )
         bulkhead = Bulkhead(config)
 
@@ -767,7 +760,7 @@ class TestConcurrencyScenarios:
             name="mixed_test",
             max_concurrent=2,
             max_queue_size=10,  # Increased queue size
-            timeout=3.0
+            timeout=3.0,
         )
         bulkhead = Bulkhead(config)
 
@@ -838,12 +831,11 @@ class TestIntegrationScenarios:
 
         # Create different bulkheads for different resource types
         db_bulkhead = registry.get_or_create(
-            "database",
-            BulkheadConfig(name="database", max_concurrent=2, timeout=1.0)
+            "database", BulkheadConfig(name="database", max_concurrent=2, timeout=1.0)
         )
         api_bulkhead = registry.get_or_create(
             "external_api",
-            BulkheadConfig(name="external_api", max_concurrent=3, timeout=1.0)
+            BulkheadConfig(name="external_api", max_concurrent=3, timeout=1.0),
         )
 
         results = []
@@ -882,10 +874,7 @@ class TestIntegrationScenarios:
     async def test_bulkhead_with_retry_pattern(self):
         """Test bulkhead integration with retry patterns."""
         config = BulkheadConfig(
-            name="retry_test",
-            max_concurrent=1,
-            max_queue_size=2,
-            timeout=0.5
+            name="retry_test", max_concurrent=1, max_queue_size=2, timeout=0.5
         )
         bulkhead = Bulkhead(config)
 
@@ -928,11 +917,7 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_metrics_during_load(self):
         """Test that metrics remain accurate during high load."""
-        config = BulkheadConfig(
-            name="metrics_test",
-            max_concurrent=3,
-            max_queue_size=5
-        )
+        config = BulkheadConfig(name="metrics_test", max_concurrent=3, max_queue_size=5)
         bulkhead = Bulkhead(config)
 
         async def monitored_task(task_id):
@@ -953,7 +938,7 @@ class TestIntegrationScenarios:
             assert metrics["available_slots"] <= 3
 
         # Wait for all to complete or fail
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
         # Final metrics should show full capacity
         final_metrics = bulkhead.get_metrics()
@@ -966,7 +951,7 @@ class TestIntegrationScenarios:
         config = BulkheadConfig(
             name="perf_test",
             max_concurrent=20,  # Increased concurrent limit
-            max_queue_size=100   # Increased queue size
+            max_queue_size=100,  # Increased queue size
         )
         bulkhead = Bulkhead(config)
 
@@ -984,7 +969,7 @@ class TestIntegrationScenarios:
         batch_size = 50
         all_tasks = []
 
-        for i in range(0, 100, batch_size):
+        for _i in range(0, 100, batch_size):
             batch_tasks = [asyncio.create_task(perf_task()) for _ in range(batch_size)]
             all_tasks.extend(batch_tasks)
             await asyncio.sleep(0.01)  # Small delay between batches

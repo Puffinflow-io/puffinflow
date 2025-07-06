@@ -124,7 +124,7 @@ pytest -x tests/unit/
 Tests are organized using pytest markers defined in `pytest.ini`:
 
 - `@pytest.mark.unit` - Unit tests
-- `@pytest.mark.integration` - Integration tests  
+- `@pytest.mark.integration` - Integration tests
 - `@pytest.mark.e2e` - End-to-end tests
 - `@pytest.mark.slow` - Slow running tests
 - `@pytest.mark.asyncio` - Async tests (automatically handled)
@@ -151,7 +151,7 @@ Tests are organized using pytest markers defined in `pytest.ini`:
 ### End-to-End Test Scenarios
 
 #### Complete Workflow Patterns
-- **Data Processing Pipeline**: 
+- **Data Processing Pipeline**:
   - Data ingestion from external sources
   - Data transformation and validation
   - Data storage and indexing
@@ -186,7 +186,7 @@ Tests use realistic agent implementations that simulate real-world scenarios:
 ```python
 class DataIngestionAgent(Agent):
     """Simulates data ingestion from external sources."""
-    
+
     @state(cpu=1.0, memory=512.0)
     async def ingest_data(self, context: Context):
         # Simulate data ingestion
@@ -196,7 +196,7 @@ class DataIngestionAgent(Agent):
 
 class DataTransformationAgent(Agent):
     """Simulates data transformation operations."""
-    
+
     @state(cpu=2.0, memory=1024.0)
     async def transform_data(self, context: Context):
         # Simulate data transformation
@@ -229,7 +229,7 @@ The test suite is designed for CI/CD environments:
 - name: Run Unit Tests
   run: python run_tests.py unit
 
-- name: Run Integration Tests  
+- name: Run Integration Tests
   run: python run_tests.py integration
 
 - name: Run E2E Tests

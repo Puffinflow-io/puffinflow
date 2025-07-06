@@ -21,8 +21,9 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
+        files: ^src/
         additional_dependencies:
           - pydantic>=2.0.0
           - structlog>=23.1.0
           # Removed problematic 'types-all' package
-        args: [--install-types, --non-interactive]
+        args: [--install-types, --non-interactive, --explicit-package-bases]

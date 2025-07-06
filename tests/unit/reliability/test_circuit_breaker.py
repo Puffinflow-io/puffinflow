@@ -19,19 +19,19 @@ Tests cover:
 """
 
 import asyncio
-import pytest
 import time
-from unittest.mock import patch, MagicMock, AsyncMock
 from dataclasses import asdict
+
+import pytest
 
 # Import the module under test
 from src.puffinflow.core.reliability.circuit_breaker import (
-    CircuitState,
+    CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerError,
-    CircuitBreaker,
     CircuitBreakerRegistry,
-    circuit_registry
+    CircuitState,
+    circuit_registry,
 )
 
 
@@ -82,7 +82,7 @@ class TestCircuitBreakerConfig:
             recovery_timeout=120.0,
             success_threshold=5,
             timeout=45.0,
-            name="custom_circuit"
+            name="custom_circuit",
         )
 
         assert config.failure_threshold == 10
@@ -103,12 +103,15 @@ class TestCircuitBreakerConfig:
         assert "success_threshold" in config_dict
         assert "timeout" in config_dict
 
-    @pytest.mark.parametrize("failure_threshold,expected_valid", [
-        (1, True),      # Minimum practical value
-        (0, True),      # Edge case - never opens
-        (-1, True),     # Negative - questionable but allowed
-        (100, True),    # Large number
-    ])
+    @pytest.mark.parametrize(
+        "failure_threshold,expected_valid",
+        [
+            (1, True),  # Minimum practical value
+            (0, True),  # Edge case - never opens
+            (-1, True),  # Negative - questionable but allowed
+            (100, True),  # Large number
+        ],
+    )
     def test_config_failure_threshold_values(self, failure_threshold, expected_valid):
         """Test CircuitBreakerConfig with various failure_threshold values."""
         config = CircuitBreakerConfig(failure_threshold=failure_threshold)
@@ -159,7 +162,7 @@ class TestCircuitBreaker:
             recovery_timeout=1.0,  # Short timeout for testing
             success_threshold=2,
             timeout=0.5,
-            name="test_circuit"
+            name="test_circuit",
         )
 
     @pytest.fixture
@@ -176,7 +179,7 @@ class TestCircuitBreaker:
         assert cb._failure_count == 0
         assert cb._success_count == 0
         assert cb._last_failure_time == 0
-        assert hasattr(cb, '_lock')
+        assert hasattr(cb, "_lock")
 
     @pytest.mark.asyncio
     async def test_protect_basic_success(self, circuit_breaker):
@@ -229,7 +232,9 @@ class TestCircuitBreaker:
                 pass  # This code should never execute
 
     @pytest.mark.asyncio
-    async def test_protect_recovery_timeout_transition_to_half_open(self, circuit_breaker):
+    async def test_protect_recovery_timeout_transition_to_half_open(
+        self, circuit_breaker
+    ):
         """Test transition from OPEN to HALF_OPEN after recovery timeout."""
         # Open the circuit
         for i in range(3):
@@ -238,7 +243,7 @@ class TestCircuitBreaker:
                     raise ValueError(f"Failure {i}")
 
         assert circuit_breaker.state == CircuitState.OPEN
-        
+
         # Record the time when circuit opened to ensure proper wait
         last_failure_time = circuit_breaker._last_failure_time
         recovery_timeout = circuit_breaker.config.recovery_timeout
@@ -485,20 +490,25 @@ class TestCircuitBreaker:
         # Circuit should open after threshold reached
         assert circuit_breaker.state == CircuitState.OPEN
 
-    @pytest.mark.parametrize("failure_threshold,recovery_timeout,success_threshold", [
-        (1, 0.1, 1),        # Minimal settings
-        (10, 5.0, 5),       # Typical settings
-        (0, 1.0, 1),        # Zero threshold (never opens)
-        (1, 0.0, 1),        # Zero recovery timeout
-        (5, 2.0, 10),       # Success threshold > failure threshold
-    ])
-    def test_various_configurations(self, failure_threshold, recovery_timeout, success_threshold):
+    @pytest.mark.parametrize(
+        "failure_threshold,recovery_timeout,success_threshold",
+        [
+            (1, 0.1, 1),  # Minimal settings
+            (10, 5.0, 5),  # Typical settings
+            (0, 1.0, 1),  # Zero threshold (never opens)
+            (1, 0.0, 1),  # Zero recovery timeout
+            (5, 2.0, 10),  # Success threshold > failure threshold
+        ],
+    )
+    def test_various_configurations(
+        self, failure_threshold, recovery_timeout, success_threshold
+    ):
         """Test CircuitBreaker with various configurations."""
         config = CircuitBreakerConfig(
             failure_threshold=failure_threshold,
             recovery_timeout=recovery_timeout,
             success_threshold=success_threshold,
-            name="variable_test"
+            name="variable_test",
         )
         cb = CircuitBreaker(config)
 
@@ -597,7 +607,7 @@ class TestCircuitBreakerRegistry:
     def test_get_all_metrics_single_circuit_breaker(self, registry):
         """Test get_all_metrics with single circuit breaker."""
         config = CircuitBreakerConfig(name="single", failure_threshold=3)
-        cb = registry.get_or_create("single", config)
+        registry.get_or_create("single", config)
 
         all_metrics = registry.get_all_metrics()
 
@@ -611,7 +621,7 @@ class TestCircuitBreakerRegistry:
         configs = [
             CircuitBreakerConfig(name="first", failure_threshold=2),
             CircuitBreakerConfig(name="second", failure_threshold=5),
-            CircuitBreakerConfig(name="third", failure_threshold=1)
+            CircuitBreakerConfig(name="third", failure_threshold=1),
         ]
 
         for config in configs:
@@ -701,10 +711,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_zero_recovery_timeout(self):
         """Test circuit breaker with zero recovery timeout."""
-        config = CircuitBreakerConfig(
-            failure_threshold=1,
-            recovery_timeout=0.0
-        )
+        config = CircuitBreakerConfig(failure_threshold=1, recovery_timeout=0.0)
         cb = CircuitBreaker(config)
 
         # Open circuit
@@ -724,9 +731,7 @@ class TestEdgeCases:
     async def test_zero_success_threshold(self):
         """Test circuit breaker with zero success threshold in half-open."""
         config = CircuitBreakerConfig(
-            failure_threshold=1,
-            recovery_timeout=0.1,
-            success_threshold=0
+            failure_threshold=1, recovery_timeout=0.1, success_threshold=0
         )
         cb = CircuitBreaker(config)
 
@@ -752,9 +757,7 @@ class TestEdgeCases:
     async def test_very_large_thresholds(self):
         """Test circuit breaker with very large thresholds."""
         config = CircuitBreakerConfig(
-            failure_threshold=1000000,
-            recovery_timeout=0.1,
-            success_threshold=1000000
+            failure_threshold=1000000, recovery_timeout=0.1, success_threshold=1000000
         )
         cb = CircuitBreaker(config)
 
@@ -771,9 +774,7 @@ class TestEdgeCases:
     async def test_negative_thresholds(self):
         """Test circuit breaker with negative thresholds."""
         config = CircuitBreakerConfig(
-            failure_threshold=-1,
-            recovery_timeout=0.1,
-            success_threshold=-1
+            failure_threshold=-1, recovery_timeout=0.1, success_threshold=-1
         )
         cb = CircuitBreaker(config)
 
@@ -835,9 +836,17 @@ class TestEdgeCases:
         cb = CircuitBreaker(CircuitBreakerConfig(failure_threshold=2))
 
         # Different exception types should all count as failures
-        exception_types = [ValueError, RuntimeError, TypeError, KeyError, AttributeError]
+        exception_types = [
+            ValueError,
+            RuntimeError,
+            TypeError,
+            KeyError,
+            AttributeError,
+        ]
 
-        for i, exc_type in enumerate(exception_types[:2]):  # Only first 2 to stay under threshold
+        for i, exc_type in enumerate(
+            exception_types[:2]
+        ):  # Only first 2 to stay under threshold
             with pytest.raises(exc_type):
                 async with cb.protect():
                     raise exc_type(f"Error {i}")
@@ -858,10 +867,9 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_concurrent_state_transitions(self):
         """Test concurrent state transitions are handled correctly."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=5,
-            recovery_timeout=0.1
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=5, recovery_timeout=0.1)
+        )
 
         async def state_changer():
             try:
@@ -875,7 +883,11 @@ class TestEdgeCases:
         await asyncio.gather(*tasks)
 
         # Circuit should be in consistent state
-        assert cb.state in [CircuitState.CLOSED, CircuitState.OPEN, CircuitState.HALF_OPEN]
+        assert cb.state in [
+            CircuitState.CLOSED,
+            CircuitState.OPEN,
+            CircuitState.HALF_OPEN,
+        ]
 
 
 class TestIntegrationScenarios:
@@ -884,12 +896,14 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_typical_service_failure_scenario(self):
         """Test typical service failure and recovery scenario."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=3,
-            recovery_timeout=1.0,
-            success_threshold=2,
-            name="service_api"
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(
+                failure_threshold=3,
+                recovery_timeout=1.0,
+                success_threshold=2,
+                name="service_api",
+            )
+        )
 
         results = []
 
@@ -928,11 +942,11 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_gradual_failure_recovery_pattern(self):
         """Test gradual failure and recovery pattern."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=5,
-            recovery_timeout=0.5,
-            success_threshold=3
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(
+                failure_threshold=5, recovery_timeout=0.5, success_threshold=3
+            )
+        )
 
         # Phase 1: Gradual failures (not enough to trip)
         for i in range(3):
@@ -944,7 +958,7 @@ class TestIntegrationScenarios:
         assert cb._failure_count == 3
 
         # Phase 2: Some successes (should reduce failure count)
-        for i in range(2):
+        for _i in range(2):
             async with cb.protect():
                 pass  # Success
 
@@ -971,16 +985,14 @@ class TestIntegrationScenarios:
 
         # Create circuit breakers for different services
         db_cb = registry.get_or_create(
-            "database",
-            CircuitBreakerConfig(name="database", failure_threshold=2)
+            "database", CircuitBreakerConfig(name="database", failure_threshold=2)
         )
         api_cb = registry.get_or_create(
             "external_api",
-            CircuitBreakerConfig(name="external_api", failure_threshold=3)
+            CircuitBreakerConfig(name="external_api", failure_threshold=3),
         )
         cache_cb = registry.get_or_create(
-            "cache",
-            CircuitBreakerConfig(name="cache", failure_threshold=1)
+            "cache", CircuitBreakerConfig(name="cache", failure_threshold=1)
         )
 
         results = []
@@ -1013,11 +1025,13 @@ class TestIntegrationScenarios:
         # Run operations concurrently
         tasks = []
         for i in range(4):
-            tasks.extend([
-                asyncio.create_task(db_operation(i)),
-                asyncio.create_task(api_operation(i)),
-                asyncio.create_task(cache_operation(i))
-            ])
+            tasks.extend(
+                [
+                    asyncio.create_task(db_operation(i)),
+                    asyncio.create_task(api_operation(i)),
+                    asyncio.create_task(cache_operation(i)),
+                ]
+            )
 
         await asyncio.gather(*tasks)
 
@@ -1038,10 +1052,9 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_circuit_breaker_with_retry_logic(self):
         """Test circuit breaker integration with retry logic."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=2,
-            recovery_timeout=0.5
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=2, recovery_timeout=0.5)
+        )
 
         attempt_count = 0
 
@@ -1049,7 +1062,7 @@ class TestIntegrationScenarios:
             nonlocal attempt_count
             max_retries = 5
 
-            for attempt in range(max_retries):
+            for _attempt in range(max_retries):
                 try:
                     async with cb.protect():
                         attempt_count += 1
@@ -1074,10 +1087,12 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_performance_under_load(self):
         """Test circuit breaker performance under high load."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=100,  # High threshold to avoid opening
-            name="load_test"
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(
+                failure_threshold=100,  # High threshold to avoid opening
+                name="load_test",
+            )
+        )
 
         async def load_test_operation(op_id):
             async with cb.protect():
@@ -1107,10 +1122,9 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_metrics_accuracy_under_load(self):
         """Test that metrics remain accurate under concurrent load."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=50,
-            name="metrics_test"
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=50, name="metrics_test")
+        )
 
         success_count = 0
         failure_count = 0

@@ -40,7 +40,7 @@ const ScalingProblem: React.FC = () => {
                 <li className="flex items-start gap-3"><CrossIcon className="h-5 w-5 text-red-400 flex-shrink-0 mt-1" /><span>High operational overhead, often over-engineered.</span></li>
             </ul>
           </div>
-          
+
           {/* Card 3: Puffinflow */}
           <div className="border border-orange-500/40 rounded-lg p-6 shadow-xl shadow-orange-900/20 bg-gradient-to-br from-orange-900/20 to-orange-900/5 flex flex-col ring-1 ring-orange-500/40 transform md:scale-105 transition-all duration-300 hover:shadow-orange-600/40 hover:scale-[1.07]">
             <div className="flex items-center gap-3 mb-6">

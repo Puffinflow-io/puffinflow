@@ -3,30 +3,31 @@ Comprehensive unit tests for the deadlock detection module.
 Tests all components including data classes, graphs, and the main detector.
 """
 
-import pytest
-import asyncio
-import time
-import uuid
-import logging
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional, List
 import sys
-import os
+from pathlib import Path
 
 # Add the project root to the path to ensure imports work
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, str((Path(__file__).parent / ".." / "..").resolve()))
 
-# Import the modules under test
+import asyncio
+import builtins
+import contextlib
+import logging
+import time
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from src.puffinflow.core.coordination.deadlock import (
-    DeadlockResolutionStrategy,
-    DeadlockError,
-    ResourceNode,
-    ProcessNode,
     CycleDetectionResult,
+    DeadlockDetector,
+    DeadlockError,
+    DeadlockResolutionStrategy,
     DependencyGraph,
+    ProcessNode,
+    ResourceNode,
     ResourceWaitGraph,
-    DeadlockDetector
 )
 
 
@@ -47,12 +48,12 @@ class TestDeadlockResolutionStrategy:
     def test_strategy_values(self):
         """Test that all strategy values are available."""
         expected_strategies = [
-            'RAISE_EXCEPTION',
-            'KILL_YOUNGEST',
-            'KILL_OLDEST',
-            'PREEMPT_RESOURCES',
-            'ROLLBACK_TRANSACTION',
-            'LOG_ONLY'
+            "RAISE_EXCEPTION",
+            "KILL_YOUNGEST",
+            "KILL_OLDEST",
+            "PREEMPT_RESOURCES",
+            "ROLLBACK_TRANSACTION",
+            "LOG_ONLY",
         ]
 
         for strategy_name in expected_strategies:
@@ -68,7 +69,7 @@ class TestDeadlockResolutionStrategy:
 
         assert strategy1 == strategy2
         assert strategy1 != strategy3
-        assert strategy1.name == 'KILL_YOUNGEST'
+        assert strategy1.name == "KILL_YOUNGEST"
 
 
 class TestDeadlockError:
@@ -76,18 +77,18 @@ class TestDeadlockError:
 
     def test_basic_deadlock_error(self):
         """Test basic deadlock error creation."""
-        cycle = ['proc1', 'proc2', 'proc1']
+        cycle = ["proc1", "proc2", "proc1"]
         error = DeadlockError(cycle)
 
         assert error.cycle == cycle
         assert error.detection_id is not None
         assert len(error.detection_id) > 0
-        assert 'Deadlock detected' in str(error)
-        assert 'proc1 -> proc2 -> proc1' in str(error)
+        assert "Deadlock detected" in str(error)
+        assert "proc1 -> proc2 -> proc1" in str(error)
 
     def test_deadlock_error_with_custom_id(self):
         """Test deadlock error with custom detection ID."""
-        cycle = ['a', 'b', 'c']
+        cycle = ["a", "b", "c"]
         detection_id = "custom_id_123"
         error = DeadlockError(cycle, detection_id)
 
@@ -97,7 +98,7 @@ class TestDeadlockError:
 
     def test_deadlock_error_with_custom_message(self):
         """Test deadlock error with custom message."""
-        cycle = ['x', 'y']
+        cycle = ["x", "y"]
         custom_message = "Critical deadlock found"
         error = DeadlockError(cycle, message=custom_message)
 
@@ -106,7 +107,7 @@ class TestDeadlockError:
 
     def test_deadlock_error_inheritance(self):
         """Test that DeadlockError is a proper exception."""
-        cycle = ['test']
+        cycle = ["test"]
         error = DeadlockError(cycle)
 
         assert isinstance(error, Exception)
@@ -293,12 +294,9 @@ class TestCycleDetectionResult:
 
     def test_cycle_detection_result_creation(self):
         """Test basic cycle detection result creation."""
-        cycles = [['a', 'b', 'a'], ['x', 'y', 'z', 'x']]
+        cycles = [["a", "b", "a"], ["x", "y", "z", "x"]]
         result = CycleDetectionResult(
-            has_cycle=True,
-            cycles=cycles,
-            graph_size=10,
-            detection_duration_ms=15.5
+            has_cycle=True, cycles=cycles, graph_size=10, detection_duration_ms=15.5
         )
 
         assert result.has_cycle is True
@@ -319,26 +317,26 @@ class TestCycleDetectionResult:
     def test_get_shortest_cycle(self):
         """Test getting the shortest cycle."""
         cycles = [
-            ['a', 'b', 'c', 'a'],  # Length 4
-            ['x', 'y', 'x'],  # Length 3 (shortest)
-            ['p', 'q', 'r', 's', 'p']  # Length 5
+            ["a", "b", "c", "a"],  # Length 4
+            ["x", "y", "x"],  # Length 3 (shortest)
+            ["p", "q", "r", "s", "p"],  # Length 5
         ]
         result = CycleDetectionResult(has_cycle=True, cycles=cycles)
 
         shortest = result.get_shortest_cycle()
-        assert shortest == ['x', 'y', 'x']
+        assert shortest == ["x", "y", "x"]
 
     def test_get_longest_cycle(self):
         """Test getting the longest cycle."""
         cycles = [
-            ['a', 'b', 'c', 'a'],  # Length 4
-            ['x', 'y', 'x'],  # Length 3
-            ['p', 'q', 'r', 's', 'p']  # Length 5 (longest)
+            ["a", "b", "c", "a"],  # Length 4
+            ["x", "y", "x"],  # Length 3
+            ["p", "q", "r", "s", "p"],  # Length 5 (longest)
         ]
         result = CycleDetectionResult(has_cycle=True, cycles=cycles)
 
         longest = result.get_longest_cycle()
-        assert longest == ['p', 'q', 'r', 's', 'p']
+        assert longest == ["p", "q", "r", "s", "p"]
 
     def test_get_cycles_no_cycles(self):
         """Test getting cycles when none exist."""
@@ -349,7 +347,7 @@ class TestCycleDetectionResult:
 
     def test_get_cycles_single_cycle(self):
         """Test getting cycles when only one exists."""
-        cycle = ['a', 'b', 'a']
+        cycle = ["a", "b", "a"]
         result = CycleDetectionResult(has_cycle=True, cycles=[cycle])
 
         assert result.get_shortest_cycle() == cycle
@@ -468,7 +466,7 @@ class TestDependencyGraph:
         # Check that we found the cycle
         found_cycle = False
         for cycle in result.cycles:
-            if 'A' in cycle and 'B' in cycle:
+            if "A" in cycle and "B" in cycle:
                 found_cycle = True
                 break
         assert found_cycle
@@ -803,7 +801,7 @@ class TestDeadlockDetector:
             detection_interval=0.5,
             max_cycles=50,
             resolution_strategy=DeadlockResolutionStrategy.KILL_YOUNGEST,
-            enable_metrics=False
+            enable_metrics=False,
         )
 
         assert detector.detection_interval == 0.5
@@ -848,10 +846,8 @@ class TestDeadlockDetector:
 
         except Exception:
             # Clean up in case of failure
-            try:
+            with contextlib.suppress(builtins.BaseException):
                 await detector.stop()
-            except:
-                pass
 
     @pytest.mark.asyncio
     async def test_add_remove_dependency(self):
@@ -900,7 +896,7 @@ class TestDeadlockDetector:
         detector = DeadlockDetector(
             mock_agent,
             detection_interval=0.1,
-            resolution_strategy=DeadlockResolutionStrategy.LOG_ONLY
+            resolution_strategy=DeadlockResolutionStrategy.LOG_ONLY,
         )
 
         try:
@@ -940,7 +936,7 @@ class TestDeadlockDetector:
         detector.add_resolution_callback(resolution_callback)
 
         # Simulate deadlock detection and handling
-        test_cycle = ['proc1', 'proc2', 'proc1']
+        test_cycle = ["proc1", "proc2", "proc1"]
         from src.puffinflow.core.coordination.deadlock import CycleDetectionResult
 
         result = CycleDetectionResult(has_cycle=True, cycles=[test_cycle])
@@ -962,9 +958,16 @@ class TestDeadlockDetector:
             status = detector.get_status()
 
             required_keys = [
-                "cycle_count", "last_cycle", "active", "graph_size",
-                "resource_count", "process_count", "blocked_processes",
-                "metrics", "resolution_strategy", "detection_interval"
+                "cycle_count",
+                "last_cycle",
+                "active",
+                "graph_size",
+                "resource_count",
+                "process_count",
+                "blocked_processes",
+                "metrics",
+                "resolution_strategy",
+                "detection_interval",
             ]
 
             for key in required_keys:
@@ -1023,20 +1026,29 @@ class TestDeadlockDetector:
         """Test metrics tracking functionality."""
         mock_agent = create_mock_agent()
         # Use a very short detection interval for testing
-        detector = DeadlockDetector(mock_agent, enable_metrics=True, detection_interval=0.01)
+        detector = DeadlockDetector(
+            mock_agent, enable_metrics=True, detection_interval=0.01
+        )
 
         try:
             await detector.start()
 
             # Let it run for a bit to accumulate metrics
-            await asyncio.sleep(0.2)  # Now 0.2s should be enough for 20 detection cycles
+            await asyncio.sleep(
+                0.2
+            )  # Now 0.2s should be enough for 20 detection cycles
 
             metrics = detector.get_metrics()
 
             required_metrics = [
-                "total_detections", "deadlocks_found", "deadlocks_resolved",
-                "detection_errors", "avg_detection_time_ms", "active_processes",
-                "active_resources", "blocked_processes"
+                "total_detections",
+                "deadlocks_found",
+                "deadlocks_resolved",
+                "detection_errors",
+                "avg_detection_time_ms",
+                "active_processes",
+                "active_resources",
+                "blocked_processes",
             ]
 
             for metric in required_metrics:
@@ -1072,7 +1084,7 @@ class TestDeadlockDetector:
             await asyncio.sleep(0.3)
 
             # Should still be running despite errors
-            status = detector.get_status()
+            detector.get_status()
 
             # Check error metrics
             metrics = detector.get_metrics()
@@ -1090,11 +1102,10 @@ class TestResolutionStrategies:
         """Test LOG_ONLY resolution strategy."""
         mock_agent = create_mock_agent()
         detector = DeadlockDetector(
-            mock_agent,
-            resolution_strategy=DeadlockResolutionStrategy.LOG_ONLY
+            mock_agent, resolution_strategy=DeadlockResolutionStrategy.LOG_ONLY
         )
 
-        test_cycle = ['proc1', 'proc2', 'proc1']
+        test_cycle = ["proc1", "proc2", "proc1"]
         detection_id = "test_123"
 
         # Should just log and return True
@@ -1106,8 +1117,7 @@ class TestResolutionStrategies:
         """Test KILL_YOUNGEST resolution strategy."""
         mock_agent = create_mock_agent()
         detector = DeadlockDetector(
-            mock_agent,
-            resolution_strategy=DeadlockResolutionStrategy.KILL_YOUNGEST
+            mock_agent, resolution_strategy=DeadlockResolutionStrategy.KILL_YOUNGEST
         )
 
         # Create processes with different ages
@@ -1115,13 +1125,13 @@ class TestResolutionStrategies:
         await asyncio.sleep(0.01)  # Make it slightly older
         await detector.acquire_resource("young_proc", "resource2", "YoungProcess")
 
-        test_cycle = ['old_proc', 'young_proc']
+        test_cycle = ["old_proc", "young_proc"]
         detection_id = "test_123"
 
         # Mock the terminate process method
         detector._terminate_process = AsyncMock()
 
-        resolved = await detector._apply_resolution_strategy(test_cycle, detection_id)
+        await detector._apply_resolution_strategy(test_cycle, detection_id)
 
         # Should attempt to kill the youngest process
         detector._terminate_process.assert_called_once()
@@ -1133,8 +1143,7 @@ class TestResolutionStrategies:
         """Test KILL_OLDEST resolution strategy."""
         mock_agent = create_mock_agent()
         detector = DeadlockDetector(
-            mock_agent,
-            resolution_strategy=DeadlockResolutionStrategy.KILL_OLDEST
+            mock_agent, resolution_strategy=DeadlockResolutionStrategy.KILL_OLDEST
         )
 
         # Create processes with different ages
@@ -1142,13 +1151,13 @@ class TestResolutionStrategies:
         await asyncio.sleep(0.01)  # Make it older
         await detector.acquire_resource("young_proc", "resource2", "YoungProcess")
 
-        test_cycle = ['old_proc', 'young_proc']
+        test_cycle = ["old_proc", "young_proc"]
         detection_id = "test_123"
 
         # Mock the terminate process method
         detector._terminate_process = AsyncMock()
 
-        resolved = await detector._apply_resolution_strategy(test_cycle, detection_id)
+        await detector._apply_resolution_strategy(test_cycle, detection_id)
 
         # Should attempt to kill the oldest process
         detector._terminate_process.assert_called_once()
@@ -1160,16 +1169,19 @@ class TestResolutionStrategies:
         """Test PREEMPT_RESOURCES resolution strategy."""
         mock_agent = create_mock_agent()
         detector = DeadlockDetector(
-            mock_agent,
-            resolution_strategy=DeadlockResolutionStrategy.PREEMPT_RESOURCES
+            mock_agent, resolution_strategy=DeadlockResolutionStrategy.PREEMPT_RESOURCES
         )
 
         # Create processes holding resources
         await detector.acquire_resource("proc1", "resource1", "Process1")
-        await detector.acquire_resource("proc1", "resource2", "Process1")  # proc1 holds 2 resources
-        await detector.acquire_resource("proc2", "resource3", "Process2")  # proc2 holds 1 resource
+        await detector.acquire_resource(
+            "proc1", "resource2", "Process1"
+        )  # proc1 holds 2 resources
+        await detector.acquire_resource(
+            "proc2", "resource3", "Process2"
+        )  # proc2 holds 1 resource
 
-        test_cycle = ['proc1', 'proc2']
+        test_cycle = ["proc1", "proc2"]
         detection_id = "test_123"
 
         resolved = await detector._apply_resolution_strategy(test_cycle, detection_id)
@@ -1188,13 +1200,13 @@ class TestResolutionStrategies:
         """Test RAISE_EXCEPTION resolution strategy."""
         mock_agent = create_mock_agent()
         detector = DeadlockDetector(
-            mock_agent,
-            resolution_strategy=DeadlockResolutionStrategy.RAISE_EXCEPTION
+            mock_agent, resolution_strategy=DeadlockResolutionStrategy.RAISE_EXCEPTION
         )
 
-        test_cycle = ['proc1', 'proc2', 'proc1']
+        test_cycle = ["proc1", "proc2", "proc1"]
 
         from src.puffinflow.core.coordination.deadlock import CycleDetectionResult
+
         result = CycleDetectionResult(has_cycle=True, cycles=[test_cycle])
 
         # Should raise DeadlockError
@@ -1239,7 +1251,9 @@ class TestPerformanceAndStress:
         # Create large graph
         num_nodes = 100
         for i in range(num_nodes):
-            for j in range(min(5, num_nodes - i - 1)):  # Each node depends on up to 5 others
+            for j in range(
+                min(5, num_nodes - i - 1)
+            ):  # Each node depends on up to 5 others
                 await graph.add_dependency(f"node_{i}", f"node_{i + j + 1}")
 
         # Test cycle detection performance
@@ -1286,7 +1300,9 @@ class TestPerformanceAndStress:
     async def test_deadlock_detector_stress(self):
         """Test deadlock detector under stress."""
         mock_agent = create_mock_agent()
-        detector = DeadlockDetector(mock_agent, detection_interval=0.01)  # Very frequent detection
+        detector = DeadlockDetector(
+            mock_agent, detection_interval=0.01
+        )  # Very frequent detection
 
         try:
             await detector.start()
@@ -1295,7 +1311,9 @@ class TestPerformanceAndStress:
             tasks = []
             for i in range(20):
                 task = asyncio.create_task(
-                    detector.acquire_resource(f"proc_{i}", f"resource_{i % 5}", f"Process{i}")
+                    detector.acquire_resource(
+                        f"proc_{i}", f"resource_{i % 5}", f"Process{i}"
+                    )
                 )
                 tasks.append(task)
 
@@ -1327,7 +1345,9 @@ class TestPerformanceAndStress:
 
             # Trigger cleanup by exceeding max_nodes
             for i in range(60):  # This should trigger cleanup
-                await graph.add_dependency(f"overflow_{cycle}_{i}", f"overflow_{cycle}_{i + 1}")
+                await graph.add_dependency(
+                    f"overflow_{cycle}_{i}", f"overflow_{cycle}_{i + 1}"
+                )
 
             # Verify size is controlled
             assert len(graph.nodes) <= 70  # Some cleanup should occur
@@ -1355,8 +1375,7 @@ class TestPerformanceAndStress:
 
             # Run many concurrent scenarios
             tasks = [
-                asyncio.create_task(create_deadlock_scenario(i))
-                for i in range(10)
+                asyncio.create_task(create_deadlock_scenario(i)) for i in range(10)
             ]
 
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -1406,7 +1425,9 @@ class TestEdgeCases:
         assert result.has_cycle is True
 
         # Should find the self-loop
-        found_self_loop = any('A' in cycle and len(cycle) == 2 for cycle in result.cycles)
+        found_self_loop = any(
+            "A" in cycle and len(cycle) == 2 for cycle in result.cycles
+        )
         assert found_self_loop
 
     @pytest.mark.asyncio
@@ -1415,7 +1436,7 @@ class TestEdgeCases:
         graph = ResourceWaitGraph()
 
         # Try to acquire nonexistent resource
-        success = await graph.acquire_resource("nonexistent_proc", "nonexistent_resource")
+        await graph.acquire_resource("nonexistent_proc", "nonexistent_resource")
         # Should auto-create them
         assert "nonexistent_proc" in graph.processes
         assert "nonexistent_resource" in graph.resources
@@ -1514,7 +1535,7 @@ class TestEdgeCases:
         detector.add_resolution_callback(working_callback)
 
         # Should handle exception and continue to next callback
-        test_cycle = ['proc1', 'proc2']
+        test_cycle = ["proc1", "proc2"]
         from src.puffinflow.core.coordination.deadlock import CycleDetectionResult
 
         result = CycleDetectionResult(has_cycle=True, cycles=[test_cycle])
@@ -1529,7 +1550,9 @@ class TestEdgeCases:
 
 if __name__ == "__main__":
     # Configure logging for tests
-    logging.basicConfig(level=logging.WARNING, format='%(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.WARNING, format="%(name)s - %(levelname)s - %(message)s"
+    )
 
     # Run tests
     pytest.main([__file__, "-v", "--asyncio-mode=auto", "--tb=short"])

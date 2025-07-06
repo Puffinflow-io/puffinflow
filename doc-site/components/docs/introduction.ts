@@ -15,7 +15,7 @@ Whether you're orchestrating OpenAI calls, vector-store pipelines, or long-runni
 
 **Key Benefits:**
 - **🚀 Simple**: Define states as async functions, wire them together
-- **🔒 Safe**: Built-in context management prevents race conditions  
+- **🔒 Safe**: Built-in context management prevents race conditions
 - **⚡ Fast**: Optimized for high-concurrency AI workloads
 - **🛡️ Reliable**: Automatic checkpointing and recovery
 - **📊 Observable**: Rich metrics and monitoring out of the box
@@ -32,7 +32,7 @@ Whether you're orchestrating OpenAI calls, vector-store pipelines, or long-runni
 
 ### ✅ Perfect for:
 - **Multi-step LLM chains** with tight token budgets and API quotas
-- **Hundreds of concurrent autonomous agents** that coordinate through shared resources  
+- **Hundreds of concurrent autonomous agents** that coordinate through shared resources
 - **Exact resumption after interruption** (cloud pre-emptible nodes, CI jobs)
 - **Typed shared memory** to avoid prompt-format drift between states
 
@@ -64,7 +64,7 @@ async def gather_info(context):
     context.set_variable("raw_results", results)
     return "analyze_results"
 
-@agent.state  
+@agent.state
 async def analyze_results(context):
     results = context.get_variable("raw_results")
     analysis = await llm.analyze(results)
@@ -73,7 +73,7 @@ async def analyze_results(context):
 
 @agent.state
 async def generate_report(context):
-    analysis = context.get_variable("analysis") 
+    analysis = context.get_variable("analysis")
     report = await llm.generate_report(analysis)
     context.set_variable("final_report", report)
     return None  # End of workflow

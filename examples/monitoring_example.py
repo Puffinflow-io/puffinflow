@@ -1,11 +1,12 @@
 # examples/monitoring_examples.py
 import asyncio
+
 from puffinflow.core.monitoring import (
-    get_monitoring_system,
-    setup_monitoring_from_env,
     MonitoredAgent,
+    get_monitoring_system,
+    monitored,
     monitored_state,
-    monitored
+    setup_monitoring_from_env,
 )
 from puffinflow.core.monitoring.interfaces import SpanKind
 
@@ -19,7 +20,7 @@ monitoring = get_monitoring_system()
     trace_name="data_processing",
     span_kind=SpanKind.INTERNAL,
     metrics=["duration", "calls"],
-    business_process="data_ingestion"
+    business_process="data_ingestion",
 )
 async def process_data(data_id: str):
     # Simulate processing
@@ -35,8 +36,8 @@ async def process_data(data_id: str):
     monitoring_config={
         "span_kind": SpanKind.INTERNAL,
         "log_entry": True,
-        "metrics": ["duration", "resource_usage"]
-    }
+        "metrics": ["duration", "resource_usage"],
+    },
 )
 async def ml_training_state(context):
     """ML model training state with monitoring"""
@@ -83,25 +84,26 @@ async def main():
 async def complex_workflow():
     """Example of manual monitoring instrumentation"""
 
-    with monitoring.trace("workflow.complex_processing", SpanKind.SERVER) as workflow_span:
+    with monitoring.trace(
+        "workflow.complex_processing", SpanKind.SERVER
+    ) as workflow_span:
         workflow_span.set_attribute("workflow.type", "batch_processing")
 
         # Business metrics
         orders_counter = monitoring.counter(
             "orders_processed_total",
             "Total orders processed",
-            labels=["status", "region"]
+            labels=["status", "region"],
         )
 
         processing_duration = monitoring.histogram(
             "order_processing_duration_seconds",
             "Order processing duration",
-            labels=["order_type"]
+            labels=["order_type"],
         )
 
         active_orders = monitoring.gauge(
-            "active_orders_count",
-            "Currently processing orders"
+            "active_orders_count", "Currently processing orders"
         )
 
         try:
@@ -109,11 +111,11 @@ async def complex_workflow():
             active_orders.set(len(orders))
 
             for order in orders:
-                with monitoring.trace(f"order.processing", SpanKind.INTERNAL) as order_span:
+                with monitoring.trace(
+                    "order.processing", SpanKind.INTERNAL
+                ) as order_span:
                     order_span.set_attribute("order.id", order.id)
                     order_span.set_attribute("order.type", order.type)
-
-                    start_time = 0  # time.time()
 
                     try:
                         # await process_order(order)
@@ -128,16 +130,14 @@ async def complex_workflow():
                         monitoring.logger.info(
                             "Order processed successfully",
                             order_id=order.id,
-                            duration=duration
+                            duration=duration,
                         )
 
                     except Exception as e:
                         orders_counter.inc(status="error", region=order.region)
                         order_span.record_exception(e)
                         monitoring.logger.error(
-                            "Order processing failed",
-                            order_id=order.id,
-                            error=str(e)
+                            "Order processing failed", order_id=order.id, error=str(e)
                         )
                         raise
 

@@ -1,13 +1,12 @@
 import os
-import pytest
 from unittest.mock import patch
 
 from src.puffinflow.core.observability.config import (
-    TracingConfig,
-    MetricsConfig,
     AlertingConfig,
     EventsConfig,
-    ObservabilityConfig
+    MetricsConfig,
+    ObservabilityConfig,
+    TracingConfig,
 )
 
 
@@ -17,7 +16,7 @@ class TestTracingConfig:
     def test_default_values(self):
         """Test default configuration values"""
         config = TracingConfig()
-        
+
         assert config.enabled is True
         assert config.service_name == "puffinflow"
         assert config.service_version == "1.0.0"
@@ -35,9 +34,9 @@ class TestTracingConfig:
             sample_rate=0.5,
             otlp_endpoint="http://localhost:4317",
             jaeger_endpoint="http://localhost:14268",
-            console_enabled=True
+            console_enabled=True,
         )
-        
+
         assert config.enabled is False
         assert config.service_name == "test-service"
         assert config.service_version == "2.0.0"
@@ -50,7 +49,7 @@ class TestTracingConfig:
         """Test from_env with default values"""
         with patch.dict(os.environ, {}, clear=True):
             config = TracingConfig.from_env()
-            
+
             assert config.enabled is True
             assert config.service_name == "puffinflow"
             assert config.service_version == "1.0.0"
@@ -62,18 +61,18 @@ class TestTracingConfig:
     def test_from_env_custom(self):
         """Test from_env with custom environment variables"""
         env_vars = {
-            'TRACING_ENABLED': 'false',
-            'SERVICE_NAME': 'custom-service',
-            'SERVICE_VERSION': '3.0.0',
-            'TRACE_SAMPLE_RATE': '0.25',
-            'OTLP_ENDPOINT': 'http://custom:4317',
-            'JAEGER_ENDPOINT': 'http://custom:14268',
-            'TRACE_CONSOLE': 'true'
+            "TRACING_ENABLED": "false",
+            "SERVICE_NAME": "custom-service",
+            "SERVICE_VERSION": "3.0.0",
+            "TRACE_SAMPLE_RATE": "0.25",
+            "OTLP_ENDPOINT": "http://custom:4317",
+            "JAEGER_ENDPOINT": "http://custom:14268",
+            "TRACE_CONSOLE": "true",
         }
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = TracingConfig.from_env()
-            
+
             assert config.enabled is False
             assert config.service_name == "custom-service"
             assert config.service_version == "3.0.0"
@@ -89,7 +88,7 @@ class TestMetricsConfig:
     def test_default_values(self):
         """Test default configuration values"""
         config = MetricsConfig()
-        
+
         assert config.enabled is True
         assert config.namespace == "puffinflow"
         assert config.prometheus_port == 9090
@@ -105,9 +104,9 @@ class TestMetricsConfig:
             prometheus_port=8080,
             prometheus_path="/custom-metrics",
             collection_interval=30.0,
-            cardinality_limit=5000
+            cardinality_limit=5000,
         )
-        
+
         assert config.enabled is False
         assert config.namespace == "test-namespace"
         assert config.prometheus_port == 8080
@@ -119,7 +118,7 @@ class TestMetricsConfig:
         """Test from_env with default values"""
         with patch.dict(os.environ, {}, clear=True):
             config = MetricsConfig.from_env()
-            
+
             assert config.enabled is True
             assert config.namespace == "puffinflow"
             assert config.prometheus_port == 9090
@@ -130,17 +129,17 @@ class TestMetricsConfig:
     def test_from_env_custom(self):
         """Test from_env with custom environment variables"""
         env_vars = {
-            'METRICS_ENABLED': 'false',
-            'METRICS_NAMESPACE': 'custom-namespace',
-            'METRICS_PORT': '8080',
-            'METRICS_PATH': '/custom-metrics',
-            'METRICS_INTERVAL': '30.0',
-            'METRICS_CARDINALITY_LIMIT': '5000'
+            "METRICS_ENABLED": "false",
+            "METRICS_NAMESPACE": "custom-namespace",
+            "METRICS_PORT": "8080",
+            "METRICS_PATH": "/custom-metrics",
+            "METRICS_INTERVAL": "30.0",
+            "METRICS_CARDINALITY_LIMIT": "5000",
         }
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = MetricsConfig.from_env()
-            
+
             assert config.enabled is False
             assert config.namespace == "custom-namespace"
             assert config.prometheus_port == 8080
@@ -155,7 +154,7 @@ class TestAlertingConfig:
     def test_default_values(self):
         """Test default configuration values"""
         config = AlertingConfig()
-        
+
         assert config.enabled is True
         assert config.evaluation_interval == 30.0
         assert config.webhook_urls == []
@@ -169,9 +168,9 @@ class TestAlertingConfig:
             evaluation_interval=60.0,
             webhook_urls=["http://webhook1.com", "http://webhook2.com"],
             email_recipients=["user1@example.com", "user2@example.com"],
-            slack_webhook_url="http://slack-webhook.com"
+            slack_webhook_url="http://slack-webhook.com",
         )
-        
+
         assert config.enabled is False
         assert config.evaluation_interval == 60.0
         assert config.webhook_urls == ["http://webhook1.com", "http://webhook2.com"]
@@ -182,7 +181,7 @@ class TestAlertingConfig:
         """Test from_env with default values"""
         with patch.dict(os.environ, {}, clear=True):
             config = AlertingConfig.from_env()
-            
+
             assert config.enabled is True
             assert config.evaluation_interval == 30.0
             assert config.webhook_urls == []
@@ -192,16 +191,16 @@ class TestAlertingConfig:
     def test_from_env_custom(self):
         """Test from_env with custom environment variables"""
         env_vars = {
-            'ALERTING_ENABLED': 'false',
-            'ALERT_EVALUATION_INTERVAL': '60.0',
-            'ALERT_WEBHOOK_URLS': 'http://webhook1.com,http://webhook2.com',
-            'ALERT_EMAIL_RECIPIENTS': 'user1@example.com,user2@example.com',
-            'ALERT_SLACK_WEBHOOK': 'http://slack-webhook.com'
+            "ALERTING_ENABLED": "false",
+            "ALERT_EVALUATION_INTERVAL": "60.0",
+            "ALERT_WEBHOOK_URLS": "http://webhook1.com,http://webhook2.com",
+            "ALERT_EMAIL_RECIPIENTS": "user1@example.com,user2@example.com",
+            "ALERT_SLACK_WEBHOOK": "http://slack-webhook.com",
         }
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = AlertingConfig.from_env()
-            
+
             assert config.enabled is False
             assert config.evaluation_interval == 60.0
             assert config.webhook_urls == ["http://webhook1.com", "http://webhook2.com"]
@@ -210,27 +209,24 @@ class TestAlertingConfig:
 
     def test_from_env_empty_lists(self):
         """Test from_env with empty webhook and email lists"""
-        env_vars = {
-            'ALERT_WEBHOOK_URLS': '',
-            'ALERT_EMAIL_RECIPIENTS': ''
-        }
-        
+        env_vars = {"ALERT_WEBHOOK_URLS": "", "ALERT_EMAIL_RECIPIENTS": ""}
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = AlertingConfig.from_env()
-            
+
             assert config.webhook_urls == []
             assert config.email_recipients == []
 
     def test_from_env_whitespace_handling(self):
         """Test from_env handles whitespace in lists"""
         env_vars = {
-            'ALERT_WEBHOOK_URLS': ' http://webhook1.com , http://webhook2.com ',
-            'ALERT_EMAIL_RECIPIENTS': ' user1@example.com , user2@example.com '
+            "ALERT_WEBHOOK_URLS": " http://webhook1.com , http://webhook2.com ",
+            "ALERT_EMAIL_RECIPIENTS": " user1@example.com , user2@example.com ",
         }
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = AlertingConfig.from_env()
-            
+
             assert config.webhook_urls == ["http://webhook1.com", "http://webhook2.com"]
             assert config.email_recipients == ["user1@example.com", "user2@example.com"]
 
@@ -241,7 +237,7 @@ class TestEventsConfig:
     def test_default_values(self):
         """Test default configuration values"""
         config = EventsConfig()
-        
+
         assert config.enabled is True
         assert config.buffer_size == 1000
         assert config.batch_size == 100
@@ -250,12 +246,9 @@ class TestEventsConfig:
     def test_custom_values(self):
         """Test custom configuration values"""
         config = EventsConfig(
-            enabled=False,
-            buffer_size=500,
-            batch_size=50,
-            flush_interval=10.0
+            enabled=False, buffer_size=500, batch_size=50, flush_interval=10.0
         )
-        
+
         assert config.enabled is False
         assert config.buffer_size == 500
         assert config.batch_size == 50
@@ -265,7 +258,7 @@ class TestEventsConfig:
         """Test from_env with default values"""
         with patch.dict(os.environ, {}, clear=True):
             config = EventsConfig.from_env()
-            
+
             assert config.enabled is True
             assert config.buffer_size == 1000
             assert config.batch_size == 100
@@ -274,15 +267,15 @@ class TestEventsConfig:
     def test_from_env_custom(self):
         """Test from_env with custom environment variables"""
         env_vars = {
-            'EVENTS_ENABLED': 'false',
-            'EVENT_BUFFER_SIZE': '500',
-            'EVENT_BATCH_SIZE': '50',
-            'EVENT_FLUSH_INTERVAL': '10.0'
+            "EVENTS_ENABLED": "false",
+            "EVENT_BUFFER_SIZE": "500",
+            "EVENT_BATCH_SIZE": "50",
+            "EVENT_FLUSH_INTERVAL": "10.0",
         }
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = EventsConfig.from_env()
-            
+
             assert config.enabled is False
             assert config.buffer_size == 500
             assert config.batch_size == 50
@@ -295,7 +288,7 @@ class TestObservabilityConfig:
     def test_default_values(self):
         """Test default configuration values"""
         config = ObservabilityConfig()
-        
+
         assert config.enabled is True
         assert config.environment == "development"
         assert isinstance(config.tracing, TracingConfig)
@@ -309,16 +302,16 @@ class TestObservabilityConfig:
         metrics = MetricsConfig(enabled=False)
         alerting = AlertingConfig(enabled=False)
         events = EventsConfig(enabled=False)
-        
+
         config = ObservabilityConfig(
             enabled=False,
             environment="production",
             tracing=tracing,
             metrics=metrics,
             alerting=alerting,
-            events=events
+            events=events,
         )
-        
+
         assert config.enabled is False
         assert config.environment == "production"
         assert config.tracing is tracing
@@ -330,7 +323,7 @@ class TestObservabilityConfig:
         """Test from_env with default values"""
         with patch.dict(os.environ, {}, clear=True):
             config = ObservabilityConfig.from_env()
-            
+
             assert config.enabled is True
             assert config.environment == "development"
             assert isinstance(config.tracing, TracingConfig)
@@ -341,17 +334,17 @@ class TestObservabilityConfig:
     def test_from_env_custom(self):
         """Test from_env with custom environment variables"""
         env_vars = {
-            'OBSERVABILITY_ENABLED': 'false',
-            'ENVIRONMENT': 'production',
-            'TRACING_ENABLED': 'false',
-            'METRICS_ENABLED': 'false',
-            'ALERTING_ENABLED': 'false',
-            'EVENTS_ENABLED': 'false'
+            "OBSERVABILITY_ENABLED": "false",
+            "ENVIRONMENT": "production",
+            "TRACING_ENABLED": "false",
+            "METRICS_ENABLED": "false",
+            "ALERTING_ENABLED": "false",
+            "EVENTS_ENABLED": "false",
         }
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             config = ObservabilityConfig.from_env()
-            
+
             assert config.enabled is False
             assert config.environment == "production"
             assert config.tracing.enabled is False

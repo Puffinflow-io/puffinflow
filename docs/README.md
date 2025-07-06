@@ -152,7 +152,7 @@ Subsection
 .. code-block:: python
 
    from puffinflow import Agent, Context
-   
+
    class MyAgent(Agent):
        async def run(self, ctx: Context) -> None:
            print("Hello, PuffinFlow!")
@@ -185,15 +185,15 @@ API documentation is automatically generated from docstrings using Sphinx autodo
 ```python
 async def process_data(self, ctx: Context, batch_size: int = 100) -> None:
     """Process data in batches.
-    
+
     Args:
         ctx: The execution context containing input data.
         batch_size: Number of items to process in each batch.
-        
+
     Raises:
         ValueError: If batch_size is less than 1.
         ProcessingError: If data processing fails.
-        
+
     Example:
         >>> agent = DataProcessor()
         >>> ctx = Context({'data': [1, 2, 3, 4, 5]})

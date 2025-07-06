@@ -14,13 +14,13 @@ jobs:
   trufflehog:
     name: TruffleHog Secret Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch full history for better scanning
-          
+
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
         with:
@@ -30,7 +30,7 @@ jobs:
           head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           extra_args: --only-verified --config=.trufflehog.yml --no-update
         continue-on-error: true
-          
+
       - name: Upload TruffleHog results
         if: always()
         uses: actions/upload-artifact@v4

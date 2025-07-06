@@ -1,12 +1,15 @@
 """Tests for tracing functionality"""
 
-import pytest
-import time
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
 
-from src.puffinflow.core.observability.tracing import OpenTelemetrySpan, OpenTelemetryTracingProvider
-from src.puffinflow.core.observability.interfaces import SpanContext, SpanType
+import pytest
+
 from src.puffinflow.core.observability.config import TracingConfig
+from src.puffinflow.core.observability.interfaces import SpanContext, SpanType
+from src.puffinflow.core.observability.tracing import (
+    OpenTelemetrySpan,
+    OpenTelemetryTracingProvider,
+)
 
 
 class TestOpenTelemetrySpan:
@@ -19,20 +22,20 @@ class TestOpenTelemetrySpan:
             workflow_id="workflow-123",
             agent_name="test-agent",
             state_name="test-state",
-            user_id="user-456"
+            user_id="user-456",
         )
-        
+
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         assert span._span == mock_otel_span
         assert span._context == span_context
-        
+
         # Check that workflow context attributes were set
         expected_calls = [
             call("workflow.id", "workflow-123"),
             call("agent.name", "test-agent"),
             call("state.name", "test-state"),
-            call("user.id", "user-456")
+            call("user.id", "user-456"),
         ]
         mock_otel_span.set_attribute.assert_has_calls(expected_calls, any_order=True)
 
@@ -40,11 +43,11 @@ class TestOpenTelemetrySpan:
         """Test OpenTelemetrySpan creation with minimal context"""
         mock_otel_span = Mock()
         span_context = SpanContext()
-        
+
         span = OpenTelemetrySpan(mock_otel_span, span_context)
         assert span._span == mock_otel_span
         assert span._context == span_context
-        
+
         # Should not set any workflow attributes
         mock_otel_span.set_attribute.assert_not_called()
 
@@ -53,7 +56,7 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         span.set_attribute("test.key", "test.value")
         mock_otel_span.set_attribute.assert_called_with("test.key", "test.value")
 
@@ -62,7 +65,7 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         test_dict = {"key": "value"}
         span.set_attribute("test.dict", test_dict)
         mock_otel_span.set_attribute.assert_called_with("test.dict", str(test_dict))
@@ -72,7 +75,7 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         test_list = ["item1", "item2"]
         span.set_attribute("test.list", test_list)
         mock_otel_span.set_attribute.assert_called_with("test.list", str(test_list))
@@ -82,11 +85,11 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         span.set_attribute(None, "value")
         span.set_attribute("key", None)
         span.set_attribute("", "value")
-        
+
         # Should not call otel span set_attribute for None/empty keys or None values
         mock_otel_span.set_attribute.assert_not_called()
 
@@ -95,9 +98,11 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
-        with patch('src.puffinflow.core.observability.tracing.Status') as mock_status:
-            with patch('src.puffinflow.core.observability.tracing.StatusCode') as mock_status_code:
+
+        with patch("src.puffinflow.core.observability.tracing.Status") as mock_status:
+            with patch(
+                "src.puffinflow.core.observability.tracing.StatusCode"
+            ) as mock_status_code:
                 span.set_status("ok", "Success")
                 mock_status.assert_called_once_with(mock_status_code.OK, "Success")
 
@@ -106,9 +111,11 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
-        with patch('src.puffinflow.core.observability.tracing.Status') as mock_status:
-            with patch('src.puffinflow.core.observability.tracing.StatusCode') as mock_status_code:
+
+        with patch("src.puffinflow.core.observability.tracing.Status") as mock_status:
+            with patch(
+                "src.puffinflow.core.observability.tracing.StatusCode"
+            ) as mock_status_code:
                 span.set_status("error", "Failed")
                 mock_status.assert_called_once_with(mock_status_code.ERROR, "Failed")
 
@@ -117,10 +124,10 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         attributes = {"key1": "value1", "key2": None, "key3": "value3"}
         span.add_event("test.event", attributes)
-        
+
         # Should filter out None values
         expected_attrs = {"key1": "value1", "key3": "value3"}
         mock_otel_span.add_event.assert_called_once_with("test.event", expected_attrs)
@@ -130,7 +137,7 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         span.add_event("test.event")
         mock_otel_span.add_event.assert_called_once_with("test.event", {})
 
@@ -139,10 +146,10 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         exception = Exception("Test error")
-        
-        with patch.object(span, 'set_status') as mock_set_status:
+
+        with patch.object(span, "set_status") as mock_set_status:
             span.record_exception(exception)
             mock_otel_span.record_exception.assert_called_once_with(exception)
             mock_set_status.assert_called_once_with("error", "Test error")
@@ -152,8 +159,8 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
-        with patch.object(span, 'set_attribute') as mock_set_attribute:
+
+        with patch.object(span, "set_attribute") as mock_set_attribute:
             span.end()
             mock_otel_span.end.assert_called_once()
             # Should set duration attribute
@@ -167,198 +174,216 @@ class TestOpenTelemetrySpan:
         mock_otel_span = Mock()
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
-        
+
         assert span.context == span_context
 
 
 class TestOpenTelemetryTracingProvider:
     """Test OpenTelemetryTracingProvider class"""
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
-    def test_tracing_provider_creation(self, mock_resource, mock_tracer_provider, mock_trace):
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
+    def test_tracing_provider_creation(
+        self, mock_resource, mock_tracer_provider, mock_trace
+    ):
         """Test OpenTelemetryTracingProvider creation"""
         config = TracingConfig()
-        
+
         mock_resource_instance = Mock()
         mock_resource.create.return_value = mock_resource_instance
-        
+
         mock_provider_instance = Mock()
         mock_tracer_provider.return_value = mock_provider_instance
-        
+
         mock_tracer = Mock()
         mock_trace.get_tracer.return_value = mock_tracer
-        
+
         provider = OpenTelemetryTracingProvider(config)
-        
+
         # Check resource creation
-        mock_resource.create.assert_called_once_with({
-            "service.name": config.service_name,
-            "service.version": config.service_version
-        })
-        
+        mock_resource.create.assert_called_once_with(
+            {
+                "service.name": config.service_name,
+                "service.version": config.service_version,
+            }
+        )
+
         # Check tracer provider setup
         mock_tracer_provider.assert_called_once_with(resource=mock_resource_instance)
         mock_trace.set_tracer_provider.assert_called_once_with(mock_provider_instance)
-        
+
         assert provider._tracer == mock_tracer
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
-    @patch('src.puffinflow.core.observability.tracing.BatchSpanProcessor')
-    @patch('src.puffinflow.core.observability.tracing.ConsoleSpanExporter')
-    def test_console_exporter_setup(self, mock_console_exporter, mock_batch_processor, 
-                                   mock_resource, mock_tracer_provider, mock_trace):
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("src.puffinflow.core.observability.tracing.BatchSpanProcessor")
+    @patch("src.puffinflow.core.observability.tracing.ConsoleSpanExporter")
+    def test_console_exporter_setup(
+        self,
+        mock_console_exporter,
+        mock_batch_processor,
+        mock_resource,
+        mock_tracer_provider,
+        mock_trace,
+    ):
         """Test console exporter setup"""
         config = TracingConfig(console_enabled=True)
-        
+
         mock_resource_instance = Mock()
         mock_resource.create.return_value = mock_resource_instance
-        
+
         mock_provider_instance = Mock()
         mock_tracer_provider.return_value = mock_provider_instance
-        
+
         mock_console_exporter_instance = Mock()
         mock_console_exporter.return_value = mock_console_exporter_instance
-        
+
         mock_processor_instance = Mock()
         mock_batch_processor.return_value = mock_processor_instance
-        
-        provider = OpenTelemetryTracingProvider(config)
-        
+
+        OpenTelemetryTracingProvider(config)
+
         mock_console_exporter.assert_called_once()
         mock_batch_processor.assert_called_with(mock_console_exporter_instance)
-        mock_provider_instance.add_span_processor.assert_called_with(mock_processor_instance)
+        mock_provider_instance.add_span_processor.assert_called_with(
+            mock_processor_instance
+        )
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
     def test_start_span(self, mock_resource, mock_tracer_provider, mock_trace):
         """Test start_span method"""
         config = TracingConfig()
-        
+
         mock_resource_instance = Mock()
         mock_resource.create.return_value = mock_resource_instance
-        
+
         mock_provider_instance = Mock()
         mock_tracer_provider.return_value = mock_provider_instance
-        
+
         mock_tracer = Mock()
         mock_otel_span = Mock()
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
-        
+
         provider = OpenTelemetryTracingProvider(config)
-        
+
         span = provider.start_span("test.span", SpanType.BUSINESS, test_attr="value")
-        
+
         assert isinstance(span, OpenTelemetrySpan)
         mock_tracer.start_span.assert_called_once_with("test.span")
-        
+
         # Check that attributes were set
         span.set_attribute("span.type", SpanType.BUSINESS.value)
         span.set_attribute("test_attr", "value")
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
     def test_get_current_span(self, mock_resource, mock_tracer_provider, mock_trace):
         """Test get_current_span method"""
         config = TracingConfig()
         provider = OpenTelemetryTracingProvider(config)
-        
+
         # Initially should return None
         assert provider.get_current_span() is None
-        
+
         # Set a span and test retrieval
         mock_span = Mock()
         provider._set_current_span(mock_span)
         assert provider.get_current_span() == mock_span
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
-    def test_span_context_manager(self, mock_resource, mock_tracer_provider, mock_trace):
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
+    def test_span_context_manager(
+        self, mock_resource, mock_tracer_provider, mock_trace
+    ):
         """Test span context manager"""
         config = TracingConfig()
-        
+
         mock_resource_instance = Mock()
         mock_resource.create.return_value = mock_resource_instance
-        
+
         mock_provider_instance = Mock()
         mock_tracer_provider.return_value = mock_provider_instance
-        
+
         mock_tracer = Mock()
         mock_otel_span = Mock()
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
-        
+
         provider = OpenTelemetryTracingProvider(config)
-        
+
         with provider.span("test.span", SpanType.SYSTEM) as span:
             assert isinstance(span, OpenTelemetrySpan)
             assert span._span == mock_otel_span
-        
+
         # Span should be ended and status set on the underlying otel span
         mock_otel_span.end.assert_called_once()
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
-    def test_span_context_manager_with_exception(self, mock_resource, mock_tracer_provider, mock_trace):
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
+    def test_span_context_manager_with_exception(
+        self, mock_resource, mock_tracer_provider, mock_trace
+    ):
         """Test span context manager with exception"""
         config = TracingConfig()
-        
+
         mock_resource_instance = Mock()
         mock_resource.create.return_value = mock_resource_instance
-        
+
         mock_provider_instance = Mock()
         mock_tracer_provider.return_value = mock_provider_instance
-        
+
         mock_tracer = Mock()
         mock_otel_span = Mock()
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
-        
+
         provider = OpenTelemetryTracingProvider(config)
-        
+
         test_exception = Exception("Test error")
-        
+
         with pytest.raises(Exception, match="Test error"):
-            with provider.span("test.span") as span:
+            with provider.span("test.span"):
                 raise test_exception
-        
+
         # Exception should be recorded and span ended on the underlying otel span
         mock_otel_span.record_exception.assert_called_once_with(test_exception)
         mock_otel_span.end.assert_called_once()
 
-    @patch('src.puffinflow.core.observability.tracing.trace')
-    @patch('src.puffinflow.core.observability.tracing.TracerProvider')
-    @patch('src.puffinflow.core.observability.tracing.Resource')
-    def test_start_span_with_parent(self, mock_resource, mock_tracer_provider, mock_trace):
+    @patch("src.puffinflow.core.observability.tracing.trace")
+    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
+    @patch("src.puffinflow.core.observability.tracing.Resource")
+    def test_start_span_with_parent(
+        self, mock_resource, mock_tracer_provider, mock_trace
+    ):
         """Test start_span with parent context"""
         config = TracingConfig()
-        
+
         mock_resource_instance = Mock()
         mock_resource.create.return_value = mock_resource_instance
-        
+
         mock_provider_instance = Mock()
         mock_tracer_provider.return_value = mock_provider_instance
-        
+
         mock_tracer = Mock()
         mock_otel_span = Mock()
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
-        
+
         provider = OpenTelemetryTracingProvider(config)
-        
+
         # Create parent context
         parent_context = SpanContext()
-        
+
         span = provider.start_span("child.span", parent=parent_context)
-        
+
         assert isinstance(span, OpenTelemetrySpan)
         # Child span should have parent's trace_id
         assert span.context.trace_id == parent_context.trace_id
@@ -384,7 +409,7 @@ class TestOpenTelemetryTracingProvider:
             agent_name="test-agent",
             state_name="test-state",
             user_id="user-456",
-            session_id="session-789"
+            session_id="session-789",
         )
         assert context.workflow_id == "workflow-123"
         assert context.agent_name == "test-agent"

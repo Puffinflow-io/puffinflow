@@ -84,7 +84,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMar
         e.preventDefault();
         window.location.hash = hash;
     };
-    
+
     const docsNavLinks = [
         { href: '#docs', label: 'Introduction', page: 'introduction' },
         { href: '#docs/getting-started', label: 'Getting Started', page: 'getting-started' },
@@ -107,7 +107,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMar
                         <ul className="space-y-2 mb-4">
                             {docsNavLinks.map(link => (
                                 <li key={link.page}>
-                                    <a 
+                                    <a
                                         href={link.href}
                                         onClick={(e) => handleNavClick(e, link.href)}
                                         className={`block transition-colors duration-200 text-base font-medium ${currentPage === link.page ? 'active' : ''}`}
@@ -121,7 +121,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMar
                         <ul className="space-y-2 mb-8 border-b dark:border-white/10 pb-6">
                              {recipesNavLinks.map(link => (
                                 <li key={link.page}>
-                                    <a 
+                                    <a
                                         href={link.href}
                                         onClick={(e) => handleNavClick(e, link.href)}
                                         className={`block transition-colors duration-200 text-base font-medium ${currentPage === link.page ? 'active' : ''}`}
@@ -179,7 +179,7 @@ export const DocsPage: React.FC = () => {
         { id: 'why-another-tool', label: 'Why Another Tool?' },
         { id: 'when-to-choose', label: 'When to Choose' },
     ];
-    
+
     const headacheData = [
         { headache: "Async spaghetti – callback hell, tangled asyncio tasks", solution: "Register tiny, focused states; Puffinflow's scheduler runs them safely and in order" },
         { headache: "Global variables & race-conditions", solution: "A built-in, type-locked Context lets every step pass data without the foot-guns" },
@@ -244,7 +244,7 @@ export const GettingStartedPage: React.FC = () => {
         { id: 'when-to-use-decorator', label: 'When to Use the Decorator' },
         { id: 'quick-reference', label: 'Quick Reference' },
     ];
-    
+
     return (
         <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={gettingStartedMarkdown} currentPage="getting-started" pageKey="docs/getting-started">
             <section id="getting-started">
@@ -276,7 +276,7 @@ agent.add_state("hello_world", hello_world)
 if __name__ == "__main__":
     asyncio.run(agent.run())`} fileName="my_workflow.py" />
             </section>
-            
+
             <section id="defining-states">
                 <h2>Two Ways to Define States</h2>
                 <p>For simple workflows, both approaches work identically:</p>
@@ -295,7 +295,7 @@ async def process_data(context):
                     <p className="!text-sky-200 !m-0"><strong>The difference?</strong> None for basic workflows! The decorator becomes useful when you later want to add resource management, priorities, rate limiting, etc. Start simple, add the decorator when you need advanced features.</p>
                 </div>
             </section>
-            
+
             <section id="sharing-data">
                 <h2>Sharing Data Between States</h2>
                  <CodeWindow language="python" code={`async def fetch_data(context):
@@ -307,7 +307,7 @@ async def calculate_metrics(context):
     # Get data from context
     users = context.get_variable("user_count")
     revenue = context.get_variable("revenue")
-    
+
     # Calculate and store result
     revenue_per_user = revenue / users
     context.set_variable("revenue_per_user", revenue_per_user)
@@ -342,7 +342,7 @@ async def step_three(context):
 agent.add_state("step_one", step_one)
 agent.add_state("step_two", step_two)
 agent.add_state("step_three", step_three)`} fileName="sequential_flow.py" />
-                
+
                 <h3>2. Static Dependencies</h3>
                 <p>Explicitly declare what must complete before each state runs:</p>
                 <CodeWindow language="python" code={`async def fetch_user_data(context):
@@ -365,7 +365,7 @@ async def generate_report(context):
 # generate_report waits for BOTH to complete
 agent.add_state("fetch_user_data", fetch_user_data)
 agent.add_state("fetch_sales_data", fetch_sales_data)
-agent.add_state("generate_report", generate_report, 
+agent.add_state("generate_report", generate_report,
                 dependencies=["fetch_user_data", "fetch_sales_data"])`} fileName="dependencies_flow.py" />
 
                 <h3>3. Dynamic Flow Control</h3>
@@ -374,7 +374,7 @@ agent.add_state("generate_report", generate_report,
     print("🔍 Checking user type...")
     user_type = "premium"  # Could come from database
     context.set_variable("user_type", user_type)
-    
+
     # Dynamic routing based on data
     if user_type == "premium":
         return "premium_flow"
@@ -407,7 +407,7 @@ agent.add_state("send_welcome", send_welcome)`} fileName="dynamic_flow.py" />
                  <CodeWindow language="python" code={`async def process_order(context):
     print("📦 Processing order...")
     context.set_variable("order_id", "ORD-123")
-    
+
     # Run these three states in parallel
     return ["send_confirmation", "update_inventory", "charge_payment"]
 
@@ -422,7 +422,7 @@ async def charge_payment(context):
     order_id = context.get_variable("order_id")
     print(f"💳 Payment processed for {order_id}")`} fileName="parallel_flow.py" />
             </section>
-            
+
             <section id="complete-example">
                 <h2>Complete Example: Data Pipeline</h2>
                 <CodeWindow language="python" code={`import asyncio
@@ -439,13 +439,13 @@ async def transform(context):
     raw_data = context.get_variable("raw_data")
     total_sales = sum(raw_data["sales"])
     customer_count = len(raw_data["customers"])
-    
+
     transformed = {
         "total_sales": total_sales,
         "customer_count": customer_count,
         "avg_sale": total_sales / customer_count
     }
-    
+
     context.set_variable("processed_data", transformed)
     print("✅ Data transformed")
 
@@ -461,7 +461,7 @@ agent.add_state("load", load, dependencies=["transform"])
 if __name__ == "__main__":
     asyncio.run(agent.run())`} fileName="data_pipeline_example.py" />
             </section>
-            
+
             <section id="when-to-use-decorator">
                 <h2>When to Use the Decorator</h2>
                 <p>Add the <InlineCode>@state</InlineCode> decorator when you need advanced features later:</p>
@@ -481,7 +481,7 @@ async def intensive_task(context):
 agent.add_state("first", first_function)
 agent.add_state("second", second_function)
 
-# Dependencies  
+# Dependencies
 agent.add_state("dependent", function, dependencies=["first", "second"])
 
 # Dynamic routing
@@ -530,17 +530,17 @@ export const ContextAndDataPage: React.FC = () => {
     ];
 
     return (
-        <DocsLayout 
-            sidebarLinks={sidebarLinks} 
-            pageMarkdown={contextAndDataMarkdown} 
-            currentPage="context-and-data" 
+        <DocsLayout
+            sidebarLinks={sidebarLinks}
+            pageMarkdown={contextAndDataMarkdown}
+            currentPage="context-and-data"
             pageKey="docs/context-and-data"
         >
             <section id="context-and-data">
                 <h1>Context and Data</h1>
                 <p>The Context system is Puffinflow's powerful data sharing mechanism that goes far beyond simple variables. It provides type safety, validation, caching, secrets management, and more - all designed to make your workflows robust and maintainable.</p>
             </section>
-            
+
             <section id="quick-overview">
                 <h2>Quick Overview</h2>
                 <p>The Context object provides several data storage mechanisms:</p>
@@ -590,7 +590,7 @@ async def process_data(context):
 async def update(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
-    
+
     count = context.get_typed_variable("user_count")   # Type param optional
     print(f"Count: {count}")`} fileName="typed_variables.py" />
                 <div className="not-prose my-6 p-4 rounded-lg bg-sky-900/40 border border-sky-500/30">
@@ -644,7 +644,7 @@ async def use_secrets(context):
     # Use for API calls (don't print real secrets!)
     print(f"API key loaded: {api_key[:8]}...")`} fileName="secrets.py" />
             </section>
-            
+
             <section id="cached-data">
                 <h2>Cached Data with TTL</h2>
                 <p>Use <InlineCode>set_cached()</InlineCode> for temporary data that expires:</p>
@@ -675,14 +675,14 @@ async def state_b(context):
                     <p className="!text-sky-200 !m-0">Only use <InlineCode>set_state()</InlineCode> if you need to inspect a state's internal data from outside for debugging/monitoring purposes.</p>
                 </div>
             </section>
-            
+
             <section id="output-data">
                 <h2>Output Data Management</h2>
                 <p>Use <InlineCode>set_output()</InlineCode> for final workflow results:</p>
                 <CodeWindow language="python" code={`async def calculate(context):
     orders = [{"amount": 100}, {"amount": 200}]
     total = sum(order["amount"] for order in orders)
-    
+
     context.set_output("total_revenue", total)
     context.set_output("order_count", len(orders))
 
@@ -691,7 +691,7 @@ async def summary(context):
     count = context.get_output("order_count")
     print(f"Revenue: \${revenue}, Orders: {count}")`} fileName="output_data.py" />
             </section>
-            
+
             <section id="complete-example">
                 <h2>Complete Example: Order Processing</h2>
                 <CodeWindow language="python" code={`import asyncio
@@ -713,10 +713,10 @@ async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
     context.set_validated_data("order", order)
-    
+
     # Cache session
     context.set_cached("session", {"order_id": order.id}, ttl=3600)
-    
+
     # Type-safe tracking
     context.set_typed_variable("amount_charged", order.total)
 
@@ -724,7 +724,7 @@ async def send_confirmation(context):
     order = context.get_validated_data("order", Order)
     amount = context.get_typed_variable("amount_charged")  # Type param optional
     payment_key = context.get_secret("payment_key")
-    
+
     # Final outputs
     context.set_output("order_id", order.id)
     context.set_output("amount_processed", amount)
@@ -737,7 +737,7 @@ agent.add_state("send_confirmation", send_confirmation, dependencies=["process_o
 if __name__ == "__main__":
     asyncio.run(agent.run())`} fileName="complete_example.py" />
             </section>
-            
+
             <section id="best-practices">
                 <h2>Best Practices</h2>
                 <h3>Choose the Right Method</h3>
@@ -746,7 +746,7 @@ if __name__ == "__main__":
                     <li><strong><InlineCode>set_constant()</InlineCode></strong> - For configuration that shouldn't change</li>
                     <li><strong><InlineCode>set_secret()</InlineCode></strong> - For API keys and passwords</li>
                     <li><strong><InlineCode>set_output()</InlineCode></strong> - For final workflow results</li>
-                    <li><strong><InlineCode>set_typed_variable()</InlineCode></strong> - Only when you need strict type consistency</li>  
+                    <li><strong><InlineCode>set_typed_variable()</InlineCode></strong> - Only when you need strict type consistency</li>
                     <li><strong><InlineCode>set_validated_data()</InlineCode></strong> - Only for complex structured data</li>
                     <li><strong><InlineCode>set_cached()</InlineCode></strong> - Only when you need TTL expiration</li>
                     <li><strong><InlineCode>set_state()</InlineCode></strong> - Almost never (use local variables instead)</li>
@@ -846,7 +846,7 @@ async def batch_processing(context):
 async def background_maintenance(context):
     # Garbage collection, statistics gathering, archiving
     pass`} fileName="performance_reqs.py" />
-                
+
                 <h3>3. What External Dependencies Do You Have?</h3>
                 <CodeWindow language="python" code={`# External API calls (need rate limiting)
 @state(rate_limit=10.0, burst_limit=20, timeout=15.0)
@@ -866,7 +866,7 @@ async def system_maintenance(context):
     # Schema migrations, system updates, configuration changes
     pass`} fileName="dependencies.py" />
             </section>
-            
+
             <section id="config-guide">
                 <h2>Step-by-Step Resource Configuration Guide</h2>
                 <h3>Step 1: Analyze Your Workload Characteristics</h3>
@@ -891,37 +891,37 @@ async def analyze_workload(context):
     5. Does it call external services?
     """
     start_time = time.time()
-    
+
     # Your actual workload here
     # Example: data processing
     data_size = 1000000
     processed_items = []
-    
+
     for i in range(data_size):
         # CPU-intensive calculation
         result = i ** 2 + i ** 0.5
         processed_items.append(result)
-        
+
         # Simulate periodic I/O
         if i % 100000 == 0:
             await asyncio.sleep(0.01)  # I/O operation
-    
+
     execution_time = time.time() - start_time
     memory_estimate = len(processed_items) * 8  # Rough memory usage
-    
+
     print(f"📊 Workload Analysis:")
     print(f"   ⏱️ Execution time: {execution_time:.2f} seconds")
     print(f"   💾 Memory usage: ~{memory_estimate / 1024 / 1024:.1f} MB")
     print(f"   🔢 Items processed: {data_size:,}")
     print(f"   ⚡ Processing rate: {data_size / execution_time:.0f} items/sec")
-    
+
     context.set_variable("workload_profile", {
         "execution_time": execution_time,
         "memory_mb": memory_estimate / 1024 / 1024,
         "processing_rate": data_size / execution_time,
         "io_operations": data_size // 100000
     })`} fileName="analyze_workload.py" />
-                
+
                 <h3>Step 2: Set Appropriate Resource Limits</h3>
                 <p>Based on your analysis, configure resource constraints:</p>
                 <CodeWindow language="python" code={`# Based on profiling, this operation needs:
@@ -1026,7 +1026,7 @@ async def ml_model_training(context):
 async def bulk_file_processing(context):
     # ...`} fileName="io_intensive.py" />
             </section>
-            
+
             <section id="advanced-coordination">
                 <h2>Advanced Coordination Patterns</h2>
                 <h3>Pattern 1: Producer-Consumer with Semaphore</h3>
@@ -1074,7 +1074,7 @@ class AdvancedQuotaManager:
 # ... (rest of the quota management example) ...
 `} fileName="quota_management.py" />
             </section>
-            
+
              <section id="best-practices">
                 <h2>Best Practices for Resource Configuration</h2>
                 <h3>1. Start Conservative, Then Optimize</h3>
@@ -1129,7 +1129,7 @@ async def resource_monitoring_and_optimization(context):
     Implement monitoring to continuously optimize resource allocation
     """
     print("📊 Resource utilization analysis...")
-    
+
     # Collect performance metrics
     operations_data = {
         "data_processing": {
@@ -1145,37 +1145,37 @@ async def resource_monitoring_and_optimization(context):
             "success_rate": 99.5  # 99.5% success rate
         }
     }
-    
+
     recommendations = []
-    
+
     for operation, metrics in operations_data.items():
         print(f"\n🔍 Analyzing {operation}:")
         print(f"   CPU: {metrics['avg_cpu_usage']}% utilization")
         print(f"   Memory: {metrics['avg_memory_usage']}% utilization")
         print(f"   Duration: {metrics['avg_duration']}s average")
         print(f"   Success: {metrics['success_rate']}%")
-        
+
         # Generate optimization recommendations
         if metrics['avg_cpu_usage'] > 90:
             recommendations.append(f"🔴 {operation}: Increase CPU allocation")
         elif metrics['avg_cpu_usage'] < 30:
             recommendations.append(f"🟡 {operation}: Consider reducing CPU allocation")
-            
+
         if metrics['avg_memory_usage'] > 90:
             recommendations.append(f"🔴 {operation}: Increase memory allocation")
         elif metrics['avg_memory_usage'] < 30:
             recommendations.append(f"🟡 {operation}: Consider reducing memory allocation")
-            
+
         if metrics['success_rate'] < 95:
             recommendations.append(f"🔴 {operation}: Investigate failure causes")
-    
+
     print(f"\n📋 Optimization Recommendations:")
     for rec in recommendations:
         print(f"   {rec}")
-    
+
     if not recommendations:
         print("   ✅ All operations are well-optimized")
-    
+
     context.set_variable("optimization_recommendations", recommendations)
 `} fileName="monitoring.py" />
             </section>
@@ -1218,7 +1218,7 @@ Resource Allocation Decision Framework:
 # Example decision process
 def recommend_resources(operation_type, data_size, external_calls, duration):
     """Recommend resource configuration based on operation characteristics"""
-    
+
     recommendations = {
         "cpu": 1.0,
         "memory": 512,
@@ -1229,7 +1229,7 @@ def recommend_resources(operation_type, data_size, external_calls, duration):
         "rate_limit": None,
         "coordination": None
     }
-    
+
     # Adjust based on operation type
     if operation_type == "data_processing":
         recommendations.update({
@@ -1259,14 +1259,14 @@ def recommend_resources(operation_type, data_size, external_calls, duration):
             "timeout": 60.0,
             "rate_limit": 10.0
         })
-    
+
     # Adjust based on data size
     if data_size > 10000000:  # 10M+ records
         recommendations["memory"] *= 4
         recommendations["timeout"] *= 2
     elif data_size > 1000000:  # 1M+ records
         recommendations["memory"] *= 2
-    
+
     # Adjust based on external calls
     if external_calls > 100:
         recommendations["rate_limit"] = 20.0
@@ -1274,23 +1274,23 @@ def recommend_resources(operation_type, data_size, external_calls, duration):
     elif external_calls > 10:
         recommendations["rate_limit"] = 5.0
         recommendations["network"] = 5.0
-    
+
     # Adjust based on duration
     if duration > 3600:  # > 1 hour
         recommendations["timeout"] = duration * 1.5
         recommendations["coordination"] = "lease"
     elif duration > 300:  # > 5 minutes
         recommendations["timeout"] = duration * 1.2
-    
+
     return recommendations
 
 # Usage example
 def generate_decorator_config(operation_type, data_size=0, external_calls=0, duration=30):
     """Generate @state decorator configuration"""
     config = recommend_resources(operation_type, data_size, external_calls, duration)
-    
+
     decorator_parts = []
-    
+
     # Required resources
     if config["cpu"] != 1.0:
         decorator_parts.append(f"cpu={config['cpu']}")
@@ -1302,22 +1302,22 @@ def generate_decorator_config(operation_type, data_size=0, external_calls=0, dur
         decorator_parts.append(f"io={config['io']}")
     if config["network"] != 1.0:
         decorator_parts.append(f"network={config['network']}")
-    
+
     # Performance settings
     if config["timeout"] != 30.0:
         decorator_parts.append(f"timeout={config['timeout']}")
     if config["rate_limit"]:
         decorator_parts.append(f"rate_limit={config['rate_limit']}")
-    
+
     # Coordination
     if config["coordination"] == "lease":
         decorator_parts.append("lease=300.0")
-    
+
     decorator_config = ", ".join(decorator_parts)
-    
+
     print(f"Recommended configuration for {operation_type}:")
     print(f"@state({decorator_config})")
-    
+
     return config
 
 # Examples
@@ -1352,7 +1352,7 @@ generate_decorator_config("api_orchestration", external_calls=50, duration=45)`}
                  <h3>Combined Configuration</h3>
                  <CodeWindow language="python" code={`# These are convenience decorators with predefined resource allocations:
 # @cpu_intensive     # Roughly equivalent to @state(cpu=4.0, memory=1024)
-# @memory_intensive  # Roughly equivalent to @state(cpu=2.0, memory=4096)  
+# @memory_intensive  # Roughly equivalent to @state(cpu=2.0, memory=4096)
 # @gpu_accelerated   # Roughly equivalent to @state(cpu=2.0, memory=2048, gpu=1.0)
 
 # ⚠️ Important: Always profile your workloads and adjust these as needed!
@@ -1386,7 +1386,7 @@ export const ErrorHandlingPage: React.FC = () => {
         { id: 'best-practices-summary', label: 'Best Practices' },
         { id: 'quick-reference', label: 'Quick Reference' },
     ];
-    
+
     const failureTypes = [
         { type: 'Transient', characteristics: 'Temporary network issues, momentary service unavailability', approach: 'Retry with backoff' },
         { type: 'Timeout', characteristics: 'Operations taking too long', approach: 'Timeout + retry' },
@@ -1407,7 +1407,7 @@ export const ErrorHandlingPage: React.FC = () => {
         { strategy: 'Linear', when: 'Rate limiting, resource contention', examples: 'API quotas, database connections' },
         { strategy: 'Fixed', when: 'Predictable recovery times', examples: 'Scheduled maintenance windows' },
     ];
-    
+
     const timeoutValues = [
         { type: 'Health Checks', timeout: '2-5 seconds', considerations: 'Must be fast for monitoring' },
         { type: 'API Calls', timeout: '10-30 seconds', considerations: 'Balance responsiveness vs success' },
@@ -1443,7 +1443,7 @@ export const ErrorHandlingPage: React.FC = () => {
                 <h1>Error Handling & Resilience</h1>
                 <p>Building robust workflows means expecting things to go wrong and handling failures gracefully. Puffinflow provides comprehensive error handling, retry mechanisms, circuit breakers, and recovery patterns that can be configured directly in state decorators to create resilient, production-ready workflows.</p>
             </section>
-            
+
             <section id="understanding-needs">
                 <h2>Understanding Error Handling Needs</h2>
                 <p>Before diving into implementation, it's crucial to understand what types of failures your workflow might encounter and choose the appropriate resilience patterns.</p>
@@ -1464,7 +1464,7 @@ export const ErrorHandlingPage: React.FC = () => {
                     <li><strong>What happens if it ultimately fails?</strong> → Dead letter queue</li>
                 </ol>
             </section>
-            
+
             <section id="basic-retry">
                 <h2>Basic Retry Configuration</h2>
                 <p>Start with simple retry mechanisms for operations that might fail transiently.</p>
@@ -1487,14 +1487,14 @@ agent = Agent("error-handling-agent")
 @state(max_retries=3)
 async def stable_api_call(context):
     print("🌐 Calling stable API...")
-    
+
     attempts = context.get_state("attempts", 0) + 1
     context.set_state("attempts", attempts)
-    
+
     # 20% failure rate - mostly reliable
     if random.random() < 0.2:
         raise Exception(f"Temporary API error (attempt {attempts})")
-    
+
     print("✅ API call succeeded")
     context.set_variable("api_result", "success")
 
@@ -1502,14 +1502,14 @@ async def stable_api_call(context):
 @state(max_retries=5)
 async def flaky_service_call(context):
     print("🎲 Calling flaky service...")
-    
+
     attempts = context.get_state("flaky_attempts", 0) + 1
     context.set_state("flaky_attempts", attempts)
-    
+
     # 60% failure rate - needs more retries
     if random.random() < 0.6:
         raise Exception(f"Service unavailable (attempt {attempts})")
-    
+
     print("✅ Flaky service succeeded")
     context.set_variable("flaky_result", "success")
 
@@ -1517,14 +1517,14 @@ async def flaky_service_call(context):
 @state(max_retries=1)
 async def expensive_operation(context):
     print("💰 Running expensive operation...")
-    
+
     attempts = context.get_state("expensive_attempts", 0) + 1
     context.set_state("expensive_attempts", attempts)
-    
+
     # Only retry once due to cost
     if attempts == 1 and random.random() < 0.3:
         raise Exception("Expensive operation failed on first try")
-    
+
     print("✅ Expensive operation completed")
     context.set_variable("expensive_result", "success")`} />
                 <h3>Choosing Retry Counts</h3>
@@ -1535,7 +1535,7 @@ async def expensive_operation(context):
                     </table>
                 </div>
             </section>
-            
+
             <section id="custom-retry">
                 <h2>Custom Retry Policies</h2>
                 <p>When basic retry counts aren't enough, create custom retry policies with sophisticated backoff strategies.</p>
@@ -1556,7 +1556,7 @@ network_retry = RetryPolicy(
     jitter=True             # Add randomization to prevent thundering herd
 )
 
-# Conservative retry for database operations  
+# Conservative retry for database operations
 database_retry = RetryPolicy(
     max_retries=3,
     initial_delay=1.0,       # Start with 1 second
@@ -1595,7 +1595,7 @@ precise_retry = RetryPolicy(
     jitter=False  # Exact timing: 1s, 2s, 4s
 )`} />
             </section>
-            
+
             <section id="timeout-config">
                 <h2>Timeout Configuration</h2>
                 <p>Timeouts prevent operations from hanging indefinitely and ensure system responsiveness.</p>
@@ -1623,7 +1623,7 @@ async def ml_model_training(context): # ...`} />
                     </table>
                 </div>
             </section>
-            
+
             <section id="priority-handling">
                 <h2>Priority-Based Error Handling</h2>
                 <p>Use priorities to ensure critical operations get resources and attention during system stress.</p>
@@ -1747,7 +1747,7 @@ async def payment_processing(context):
                     <li><strong>Set retention</strong> - Don't let dead letters accumulate indefinitely</li>
                 </ol>
             </section>
-            
+
             <section id="comprehensive-patterns">
                 <h2>Comprehensive Error Handling Patterns</h2>
                 <p>For production systems, combine multiple resilience patterns for robust operation.</p>
@@ -1787,7 +1787,7 @@ async def orchestrate_with_fallbacks(context):
         except Exception:
             await agent.run_state("degraded_mode_operation")`} />
             </section>
-            
+
             <section id="decision-framework">
                 <h2>Decision Framework: Choosing Error Handling Strategies</h2>
                 <p>Use this step-by-step framework to determine the right error handling approach for your operations.</p>
@@ -1825,7 +1825,7 @@ async def orchestrate_with_fallbacks(context):
 async def your_operation(context):
     pass`} />
             </section>
-            
+
             <section id="monitoring">
                 <h2>Monitoring and Observability</h2>
                 <p>Track error handling effectiveness with built-in monitoring.</p>
@@ -1839,7 +1839,7 @@ async def error_handling_health_check(context):
 async def generate_error_report(context):
     # ...`} />
             </section>
-            
+
             <section id="best-practices-summary">
                 <h2>Best Practices Summary</h2>
                 <ol>
@@ -1874,7 +1874,7 @@ async def generate_error_report(context):
     max_retries=5,
     timeout=30.0,
     circuit_breaker=True,
-    bulkhead=True, 
+    bulkhead=True,
     dead_letter=True,
     rate_limit=10.0
 )
@@ -1932,7 +1932,7 @@ export const CheckpointingPage: React.FC = () => {
                     <li>Development: Test and debug workflows without losing progress</li>
                 </ul>
             </section>
-            
+
             <section id="overview">
                 <h2>Overview</h2>
                 <div className="not-prose my-8 docs-table-wrapper">
@@ -1978,11 +1978,11 @@ agent.add_state("process_data", process_data)
 async def main():
     # Run workflow
     await agent.run()
-    
+
     # Create checkpoint
     checkpoint = agent.create_checkpoint()
     print(f"Checkpoint created with {len(checkpoint.completed_states)} completed states")
-    
+
     # Later: restore from checkpoint
     agent.reset()  # Reset agent state
     await agent.restore_from_checkpoint(checkpoint)
@@ -2018,7 +2018,7 @@ async def transform_data(context):
     context.set_variable("transformed_data", transformed)
     return "load_data"
 
-@state  
+@state
 async def load_data(context):
     print("Loading data...")
     data = context.get_variable("transformed_data")
@@ -2034,16 +2034,16 @@ agent.add_state("load_data", load_data, dependencies=["transform_data"])
 async def main():
     # Run with checkpointing
     await agent.run()
-    
+
     # Save progress
     checkpoint = agent.create_checkpoint()
-    
+
     # Simulate failure and recovery
     new_agent = Agent("data-pipeline")
     new_agent.add_state("extract_data", extract_data)
     new_agent.add_state("transform_data", transform_data, dependencies=["extract_data"])
     new_agent.add_state("load_data", load_data, dependencies=["transform_data"])
-    
+
     # Restore and continue
     await new_agent.restore_from_checkpoint(checkpoint)
     print("Pipeline restored successfully!")
@@ -2051,21 +2051,21 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())`} />
             </section>
-            
+
             <section id="automatic-checkpointing">
                 <h2>Automatic Checkpointing</h2>
                 <p>For long-running operations, use automatic checkpointing to save progress at regular intervals:</p>
                 <CodeWindow language="python" fileName="auto_checkpoint.py" code={`@state(checkpoint_interval=30.0)  # Checkpoint every 30 seconds
 async def long_running_task(context):
     print("Starting long-running analysis...")
-    
+
     total_steps = 10
     for step in range(total_steps):
         print(f"   Processing step {step + 1}/{total_steps}")
-        
+
         # Simulate work
         await asyncio.sleep(5)
-        
+
         # Track progress
         progress = {
             "current_step": step + 1,
@@ -2073,24 +2073,24 @@ async def long_running_task(context):
             "completion_percentage": ((step + 1) / total_steps) * 100
         }
         context.set_variable("analysis_progress", progress)
-        
+
         # Automatic checkpoint happens every 30 seconds
         print(f"   Step {step + 1} complete ({progress['completion_percentage']:.1f}%)")
-    
+
     context.set_variable("analysis_complete", True)
     print("Analysis complete!")`} />
             </section>
-            
+
             <section id="smart-resumption">
                 <h2>Smart Resumption</h2>
                 <p>Design workflows that intelligently resume from where they left off:</p>
                 <CodeWindow language="python" fileName="smart_resumption.py" code={`@state
 async def smart_processor(context):
     """Processor that knows how to resume from any point"""
-    
+
     # Check if we're resuming
     progress = context.get_variable("processing_progress")
-    
+
     if progress:
         print(f"Resuming from item {progress['last_processed']}")
         start_from = progress["last_processed"] + 1
@@ -2098,26 +2098,26 @@ async def smart_processor(context):
         print("Starting fresh processing")
         start_from = 0
         progress = {"last_processed": -1, "total_items": 100}
-    
+
     # Process items
     for i in range(start_from, progress["total_items"]):
         print(f"   Processing item {i + 1}")
-        
+
         # Simulate work
         await asyncio.sleep(0.1)
-        
+
         # Update progress
         progress["last_processed"] = i
         context.set_variable("processing_progress", progress)
-        
+
         # Manual checkpoint every 10 items
         if (i + 1) % 10 == 0:
             checkpoint = agent.create_checkpoint()
             print(f"   Checkpoint saved at item {i + 1}")
-    
+
     print("Processing complete!")`} />
             </section>
-            
+
             <section id="cloud-resilient-workflows">
                 <h2>Cloud-Resilient Workflows</h2>
                 <p>Handle cloud interruptions gracefully with persistent checkpointing:</p>
@@ -2129,19 +2129,19 @@ class CloudResilienceManager:
     def __init__(self, agent, checkpoint_file="workflow.checkpoint"):
         self.agent = agent
         self.checkpoint_file = Path(checkpoint_file)
-        
+
         # Handle cloud interruption signals
         signal.signal(signal.SIGTERM, self.handle_interruption)
-    
+
     def handle_interruption(self, signum, frame):
         """Save checkpoint before cloud instance terminates"""
         print(f"Cloud interruption detected (signal {signum})")
         print("Saving checkpoint...")
-        
+
         checkpoint = self.agent.create_checkpoint()
         self.save_to_file(checkpoint)
         print("Checkpoint saved, ready for restart")
-        
+
     def save_to_file(self, checkpoint):
         """Save checkpoint to persistent storage"""
         data = {
@@ -2152,12 +2152,12 @@ class CloudResilienceManager:
         }
         with open(self.checkpoint_file, 'w') as f:
             json.dump(data, f, indent=2)
-    
+
     def load_from_file(self):
         """Load checkpoint from persistent storage"""
         if not self.checkpoint_file.exists():
             return None
-        
+
         with open(self.checkpoint_file, 'r') as f:
             return json.load(f)
 
@@ -2165,7 +2165,7 @@ class CloudResilienceManager:
 async def main():
     agent = Agent("cloud-workflow")
     manager = CloudResilienceManager(agent)
-    
+
     # Try to resume from previous checkpoint
     saved_state = manager.load_from_file()
     if saved_state:
@@ -2173,10 +2173,10 @@ async def main():
         # Restore logic here
     else:
         print("Starting new workflow...")
-    
+
     # Add your workflow states
     # ...
-    
+
     try:
         await agent.run()
         # Clean up checkpoint on success
@@ -2187,7 +2187,7 @@ async def main():
         checkpoint = agent.create_checkpoint()
         manager.save_to_file(checkpoint)`} />
             </section>
-            
+
             <section id="best-practices">
                 <h2>Best Practices</h2>
                 <h3>DO</h3>
@@ -2195,15 +2195,15 @@ async def main():
 @state
 async def good_processor(context):
     progress = context.get_variable("progress", {"completed": 0, "total": 1000})
-    
+
     for i in range(progress["completed"], progress["total"]):
         # Do work
         await process_item(i)
-        
+
         # Update progress frequently
         progress["completed"] = i + 1
         context.set_variable("progress", progress)
-        
+
         # Checkpoint at logical intervals
         if i % 100 == 0:
             checkpoint = agent.create_checkpoint()
@@ -2229,12 +2229,12 @@ async def bad_processor(context):
     context.set_variable("results", results)  # Only saves at the end
 
 # Ambiguous state
-@state  
+@state
 async def unclear_state(context):
     context.set_variable("status", "running")  # Not helpful for resumption
     context.set_variable("count", 42)         # What does this count?`} />
             </section>
-            
+
             <section id="configuration-options">
                 <h2>Configuration Options</h2>
                 <h3>Checkpoint Intervals</h3>
@@ -2242,7 +2242,7 @@ async def unclear_state(context):
 @state(checkpoint_interval=10.0)   # Every 10 seconds
 async def frequent_checkpoints(context): pass
 
-@state(checkpoint_interval=300.0)  # Every 5 minutes  
+@state(checkpoint_interval=300.0)  # Every 5 minutes
 async def moderate_checkpoints(context): pass
 
 # Manual checkpointing at logical points
@@ -2256,15 +2256,15 @@ async def manual_checkpoints(context):
                 <CodeWindow language="python" fileName="checkpoint_conditions.py" code={`@state
 async def conditional_checkpoints(context):
     items_processed = 0
-    
+
     for item in get_items():
         process_item(item)
         items_processed += 1
-        
+
         # Checkpoint based on conditions
         if items_processed % 100 == 0:  # Every 100 items
             checkpoint = agent.create_checkpoint()
-        
+
         if time.time() % 300 == 0:  # Every 5 minutes
             checkpoint = agent.create_checkpoint()`} />
             </section>
@@ -2275,7 +2275,7 @@ async def conditional_checkpoints(context):
                 <CodeWindow language="python" fileName="ref_core.py" code={`# Create checkpoint
 checkpoint = agent.create_checkpoint()
 
-# Restore from checkpoint  
+# Restore from checkpoint
 await agent.restore_from_checkpoint(checkpoint)
 
 # Automatic checkpointing
@@ -2320,29 +2320,29 @@ async def batch_processor(context):
         "total_batches": 10,
         "processed_items": 0
     })
-    
+
     for batch_id in range(batch_state["current_batch"], batch_state["total_batches"]):
         items = get_batch(batch_id)
         for item in items:
             process_item(item)
             batch_state["processed_items"] += 1
-        
+
         batch_state["current_batch"] = batch_id + 1
         context.set_variable("batch_state", batch_state)
-        
+
         # Checkpoint after each batch
         checkpoint = agent.create_checkpoint()
         print(f"Batch {batch_id + 1} complete, checkpoint saved")`} />
                 <h3>Time-Based Processing</h3>
-                <CodeWindow language="python" fileName="pattern_time.py" code={`@state  
+                <CodeWindow language="python" fileName="pattern_time.py" code={`@state
 async def time_based_processor(context):
     start_time = context.get_variable("start_time", time.time())
     duration = 3600  # 1 hour
-    
+
     while time.time() - start_time < duration:
         # Do work
         await process_chunk()
-        
+
         # Update progress
         elapsed = time.time() - start_time
         progress = (elapsed / duration) * 100
@@ -2351,7 +2351,7 @@ async def time_based_processor(context):
             "progress_percent": progress,
             "estimated_remaining": duration - elapsed
         })
-        
+
         await asyncio.sleep(10)  # Process every 10 seconds`} />
                  <p className="mt-8">With Puffinflow's checkpoint system, your workflows become resilient, cost-effective, and production-ready!</p>
             </section>
@@ -2369,7 +2369,7 @@ export const RAGRecipePage: React.FC = () => {
         { id: 'multi-agent', label: '5. Multi-Agent Coordination' },
         { id: 'key-takeaways', label: 'Key Takeaways' },
     ];
-    
+
     const keyTakeawaysData = [
         ['Security', '❌ Hardcoded keys', '✅ `context.set_secret()`', '✅ Secure storage', '✅ Shared secrets'],
         ['Error Handling', '❌ Basic', '✅ Try/catch', '✅ Retry policies', '✅ Isolated failures'],
@@ -2389,7 +2389,7 @@ export const RAGRecipePage: React.FC = () => {
                 <h1>Building a Production RAG System with Puffinflow</h1>
                 <p>Learn how to build a robust Retrieval-Augmented Generation (RAG) system using Puffinflow, progressing from basic functionality to production-ready features with re-ranking, error handling, and multi-agent coordination.</p>
             </section>
-            
+
             <section id="overview">
                 <h2>Overview</h2>
                 <p>This tutorial demonstrates how Puffinflow's state management, resource control, and coordination features transform a simple RAG implementation into a scalable, resilient system. We'll build incrementally, adding one feature at a time.</p>
@@ -2428,52 +2428,52 @@ rag_agent = Agent("basic-rag-agent")
 async def initialize_system(context):
     """Initialize the RAG system components"""
     print("🔧 Initializing RAG system...")
-    
+
     # Store API keys securely using context secrets
     context.set_secret("openai_api_key", "your-openai-api-key")
     context.set_secret("pinecone_api_key", "your-pinecone-api-key")
-    
+
     # Initialize components with secrets
     openai_key = context.get_secret("openai_api_key")
     embeddings = OpenAIEmbeddings(openai_api_key=openai_key)
     llm = OpenAI(openai_api_key=openai_key, temperature=0.1)
-    
+
     # Store components in context for later use
     context.set_variable("embeddings", embeddings)
     context.set_variable("llm", llm)
     context.set_constant("index_name", "rag-knowledge-base")
-    
+
     print("✅ RAG system initialized")
 
 @state
 async def load_documents(context):
     """Load documents from specified sources"""
     print("📚 Loading documents...")
-    
+
     document_paths = [
         "docs/company_handbook.pdf",
-        "docs/product_specifications.txt", 
+        "docs/product_specifications.txt",
         "docs/user_manual.pdf"
     ]
-    
+
     documents = []
     for doc_path in document_paths:
         if not Path(doc_path).exists():
             print(f"⚠️ Document not found: {doc_path}")
             continue
-            
+
         print(f"   📄 Loading {doc_path}...")
-        
+
         # Choose appropriate loader
         if doc_path.endswith('.pdf'):
             loader = PDFLoader(doc_path)
         else:
             loader = TextFileLoader(doc_path)
-        
+
         doc_data = loader.load()
         documents.extend(doc_data)
         print(f"   ✅ Loaded {len(doc_data)} pages")
-    
+
     context.set_variable("documents", documents)
     print(f"📖 Total documents loaded: {len(documents)}")
 
@@ -2481,28 +2481,28 @@ async def load_documents(context):
 async def create_embeddings(context):
     """Create vector embeddings for documents"""
     print("🔢 Creating vector embeddings...")
-    
+
     documents = context.get_variable("documents", [])
     embeddings = context.get_variable("embeddings")
-    
+
     # Split documents into chunks
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
     )
-    
+
     chunks = []
     for doc in documents:
         doc_chunks = text_splitter.split_documents([doc])
         chunks.extend(doc_chunks)
-    
+
     # Create vector store
     vectorstore = Pinecone.from_documents(
-        chunks, 
+        chunks,
         embeddings,
         index_name=context.get_constant("index_name")
     )
-    
+
     context.set_variable("vectorstore", vectorstore)
     context.set_output("total_chunks", len(chunks))
     print(f"✅ Created {len(chunks)} embeddings")
@@ -2511,45 +2511,45 @@ async def create_embeddings(context):
 async def setup_qa_chain(context):
     """Set up the question-answering chain"""
     print("🔗 Setting up QA chain...")
-    
+
     vectorstore = context.get_variable("vectorstore")
     llm = context.get_variable("llm")
-    
+
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
         return_source_documents=True
     )
-    
+
     context.set_variable("qa_chain", qa_chain)
     print("✅ QA chain ready")
 
-@state  
+@state
 async def test_system(context):
     """Test the RAG system with sample queries"""
     print("🧪 Testing RAG system...")
-    
+
     qa_chain = context.get_variable("qa_chain")
     test_queries = [
         "What is the company's vacation policy?",
         "How do I reset my password?",
         "What are the system requirements?"
     ]
-    
+
     for query in test_queries:
         print(f"   ❓ {query}")
         result = qa_chain({"query": query})
         answer = result["result"][:100] + "..." if len(result["result"]) > 100 else result["result"]
         print(f"   💭 {answer}")
         print(f"   📚 Sources: {len(result['source_documents'])}")
-    
+
     print("✅ Testing complete")
 
 # Build the workflow
 rag_agent.add_state("initialize_system", initialize_system)
 rag_agent.add_state("load_documents", load_documents, dependencies=["initialize_system"])
-rag_agent.add_state("create_embeddings", create_embeddings, dependencies=["load_documents"])  
+rag_agent.add_state("create_embeddings", create_embeddings, dependencies=["load_documents"])
 rag_agent.add_state("setup_qa_chain", setup_qa_chain, dependencies=["create_embeddings"])
 rag_agent.add_state("test_system", test_system, dependencies=["setup_qa_chain"])
 
@@ -2577,53 +2577,53 @@ if __name__ == "__main__":
 async def setup_reranker(context):
     """Initialize the re-ranking model"""
     print("🔄 Setting up re-ranker...")
-    
+
     # Use a cross-encoder model for re-ranking
     reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
     context.set_variable("reranker", reranker)
-    
+
     print("✅ Re-ranker ready")
 
 @state
 async def setup_enhanced_qa_chain(context):
     """Set up QA chain with re-ranking"""
     print("🔗 Setting up enhanced QA chain with re-ranking...")
-    
+
     vectorstore = context.get_variable("vectorstore")
     llm = context.get_variable("llm")
     reranker = context.get_variable("reranker")
-    
+
     class RerankedRetriever:
         def __init__(self, vectorstore, reranker, k=10, final_k=4):
             self.vectorstore = vectorstore
             self.reranker = reranker
             self.k = k
             self.final_k = final_k
-        
+
         def get_relevant_documents(self, query):
             # Get more documents than needed
             docs = self.vectorstore.similarity_search(query, k=self.k)
-            
+
             # Re-rank using cross-encoder
             pairs = [[query, doc.page_content] for doc in docs]
             scores = self.reranker.predict(pairs)
-            
+
             # Sort by score and take top results
             scored_docs = list(zip(docs, scores))
             scored_docs.sort(key=lambda x: x[1], reverse=True)
-            
+
             return [doc for doc, score in scored_docs[:self.final_k]]
-    
+
     # Create retriever with re-ranking
     retriever = RerankedRetriever(vectorstore, reranker)
-    
+
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
-        chain_type="stuff", 
+        chain_type="stuff",
         retriever=retriever,
         return_source_documents=True
     )
-    
+
     context.set_variable("qa_chain", qa_chain)
     print("✅ Enhanced QA chain with re-ranking ready")
 
@@ -2631,29 +2631,29 @@ async def setup_enhanced_qa_chain(context):
 async def test_enhanced_system(context):
     """Test the enhanced system and compare results"""
     print("🧪 Testing enhanced RAG system...")
-    
+
     qa_chain = context.get_variable("qa_chain")
     vectorstore = context.get_variable("vectorstore")
-    
+
     test_query = "What is the company's vacation policy?"
-    
+
     print(f"   ❓ Query: {test_query}")
-    
+
     # Test basic retrieval
     basic_docs = vectorstore.similarity_search(test_query, k=4)
     print(f"   📄 Basic retrieval: {len(basic_docs)} documents")
-    
+
     # Test enhanced retrieval with re-ranking
     result = qa_chain({"query": test_query})
     enhanced_docs = result["source_documents"]
-    
+
     print(f"   🔄 Enhanced with re-ranking: {len(enhanced_docs)} documents")
     print(f"   💭 Answer: {result['result'][:120]}...")
-    
+
     # Store results for comparison
     context.set_output("basic_retrieval_count", len(basic_docs))
     context.set_output("enhanced_retrieval_count", len(enhanced_docs))
-    
+
     print("✅ Enhanced testing complete")
 
 # Update the workflow
@@ -2663,9 +2663,9 @@ rag_agent_v2.add_state("initialize_system", initialize_system)
 rag_agent_v2.add_state("load_documents", load_documents, dependencies=["initialize_system"])
 rag_agent_v2.add_state("create_embeddings", create_embeddings, dependencies=["load_documents"])
 rag_agent_v2.add_state("setup_reranker", setup_reranker, dependencies=["create_embeddings"])
-rag_agent_v2.add_state("setup_enhanced_qa_chain", setup_enhanced_qa_chain, 
+rag_agent_v2.add_state("setup_enhanced_qa_chain", setup_enhanced_qa_chain,
                       dependencies=["setup_reranker"])
-rag_agent_v2.add_state("test_enhanced_system", test_enhanced_system, 
+rag_agent_v2.add_state("test_enhanced_system", test_enhanced_system,
                       dependencies=["setup_enhanced_qa_chain"])`} />
                  <p><strong>New concepts:</strong></p>
                 <ul>
@@ -2674,7 +2674,7 @@ rag_agent_v2.add_state("test_enhanced_system", test_enhanced_system,
                     <li>Modular state design for easy enhancement</li>
                 </ul>
             </section>
-            
+
             <section id="error-handling-recipe">
                 <h2>3. Adding Rate Limiting and Error Handling</h2>
                 <p>Now let's make our system production-ready with rate limiting and robust error handling:</p>
@@ -2695,37 +2695,37 @@ rag_agent_v3 = Agent("production-rag-agent", retry_policy=embedding_retry_policy
 async def create_embeddings_robust(context):
     """Create embeddings with rate limiting and error handling"""
     print("🔢 Creating embeddings with rate limiting...")
-    
+
     documents = context.get_variable("documents", [])
     embeddings = context.get_variable("embeddings")
-    
+
     if not documents:
         raise Exception("No documents to process")
-    
+
     # Process in batches to respect rate limits
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
     )
-    
+
     all_chunks = []
     failed_docs = []
-    
+
     batch_size = 5
     for i in range(0, len(documents), batch_size):
         batch = documents[i:i + batch_size]
         batch_num = (i // batch_size) + 1
         total_batches = len(documents) // batch_size + 1
-        
+
         try:
             print(f"   🔄 Processing batch {batch_num}/{total_batches}")
-            
+
             # Split documents in this batch
             batch_chunks = []
             for doc in batch:
                 chunks = text_splitter.split_documents([doc])
                 batch_chunks.extend(chunks)
-            
+
             # Validate chunk content
             valid_chunks = []
             for chunk in batch_chunks:
@@ -2733,35 +2733,35 @@ async def create_embeddings_robust(context):
                     valid_chunks.append(chunk)
                 else:
                     print(f"   ⚠️ Skipping short chunk")
-            
+
             all_chunks.extend(valid_chunks)
             print(f"   ✅ Batch {batch_num} complete: {len(valid_chunks)} chunks")
-            
+
         except Exception as e:
             print(f"   ❌ Batch {batch_num} failed: {e}")
             failed_docs.extend([doc.metadata.get('source', 'unknown') for doc in batch])
             continue
-    
+
     if not all_chunks:
         raise Exception("No valid chunks created")
-    
+
     # Create vector store with error handling
     try:
-        pinecone_key = context.get_secret("pinecone_api_key") 
-        
+        pinecone_key = context.get_secret("pinecone_api_key")
+
         vectorstore = Pinecone.from_documents(
             all_chunks,
             embeddings,
             index_name=context.get_constant("index_name")
         )
-        
+
         context.set_variable("vectorstore", vectorstore)
         context.set_output("successful_chunks", len(all_chunks))
         context.set_output("failed_documents", len(failed_docs))
-        
+
         success_rate = (len(all_chunks) / (len(all_chunks) + len(failed_docs))) * 100
         print(f"✅ Embeddings created: {len(all_chunks)} chunks ({success_rate:.1f}% success rate)")
-        
+
     except Exception as e:
         print(f"❌ Vector store creation failed: {e}")
         raise
@@ -2770,66 +2770,66 @@ async def create_embeddings_robust(context):
 async def test_with_error_handling(context):
     """Test system with comprehensive error handling"""
     print("🧪 Testing with error handling...")
-    
+
     qa_chain = context.get_variable("qa_chain")
-    
+
     test_queries = [
         "What is the company's vacation policy?",
-        "How do I reset my password?", 
+        "How do I reset my password?",
         "What are the product specifications?",
         "Invalid query with special chars: @#$%^&*()"
     ]
-    
+
     successful_queries = []
     failed_queries = []
-    
+
     for query in test_queries:
         try:
             print(f"   ❓ Testing: {query}")
-            
+
             # Validate query
             if len(query.strip()) < 3:
                 print(f"   ⚠️ Query too short, skipping")
                 continue
-            
+
             result = qa_chain({"query": query})
-            
+
             # Validate result quality
             if len(result["result"].strip()) < 10:
                 print(f"   ⚠️ Poor quality answer received")
                 failed_queries.append(query)
                 continue
-            
+
             successful_queries.append({
                 "query": query,
                 "answer_length": len(result["result"]),
                 "sources": len(result["source_documents"])
             })
-            
+
             print(f"   ✅ Success: {len(result['result'])} chars, {len(result['source_documents'])} sources")
-            
+
         except Exception as e:
             print(f"   ❌ Query failed: {e}")
             failed_queries.append(query)
-    
+
     # Store comprehensive metrics
     context.set_output("successful_queries", len(successful_queries))
     context.set_output("failed_queries", len(failed_queries))
     context.set_output("success_rate", len(successful_queries) / len(test_queries) * 100)
-    
+
     if successful_queries:
         avg_sources = sum(q["sources"] for q in successful_queries) / len(successful_queries)
         context.set_output("avg_sources_per_answer", avg_sources)
-    
+
     print(f"✅ Testing complete: {len(successful_queries)}/{len(test_queries)} successful")
 
 # Build robust workflow
 rag_agent_v3.add_state("initialize_system", initialize_system)
 rag_agent_v3.add_state("load_documents", load_documents, dependencies=["initialize_system"])
-rag_agent_v3.add_state("create_embeddings_robust", create_embeddings_robust, 
+rag_agent_v3.add_state("create_embeddings_robust", create_embeddings_robust,
                       dependencies=["load_documents"])
 rag_agent_v3.add_state("setup_reranker", setup_reranker, dependencies=["create_embeddings_robust"])
-rag_agent_v3.add_state("setup_enhanced_qa_chain", setup_enhanced_qa_chain, 
+rag_agent_v3.add_state("setup_enhanced_qa_chain", setup_enhanced_qa_chain,
                       dependencies=["setup_reranker"])
 rag_agent_v3.add_state("test_with_error_handling", test_with_error_handling,
                       dependencies=["setup_enhanced_qa_chain"])`} />
@@ -2852,32 +2852,32 @@ rag_agent_v3.add_state("test_with_error_handling", test_with_error_handling,
 async def process_large_corpus(context):
     """Process large document corpus with checkpointing"""
     print("📚 Processing large corpus with checkpointing...")
-    
+
     # Check if resuming from checkpoint
     processing_state = context.get_variable("corpus_state")
-    
+
     if processing_state:
         print("🔄 Resuming from checkpoint...")
         current_index = processing_state["current_index"]
         processed_count = processing_state["processed_count"]
         total_docs = processing_state["total_documents"]
-        
+
         print(f"   📊 Resume point: {current_index}/{total_docs}")
         print(f"   ✅ Previously processed: {processed_count}")
     else:
         print("🆕 Starting fresh processing...")
-        
+
         # Discover all documents
         document_dirs = ["docs/", "knowledge_base/", "manuals/"]
         all_documents = []
-        
+
         for doc_dir in document_dirs:
             dir_path = Path(doc_dir)
             if dir_path.exists():
                 for file_path in dir_path.rglob("*"):
                     if file_path.suffix.lower() in ['.pdf', '.txt', '.md']:
                         all_documents.append(str(file_path))
-        
+
         processing_state = {
             "all_documents": all_documents,
             "total_documents": len(all_documents),
@@ -2886,60 +2886,60 @@ async def process_large_corpus(context):
             "failed_count": 0,
             "start_time": asyncio.get_event_loop().time()
         }
-        
+
         context.set_variable("corpus_state", processing_state)
         print(f"   📁 Found {len(all_documents)} documents to process")
-    
+
     # Continue processing from current position
     embeddings = context.get_variable("embeddings")
     vectorstore = context.get_variable("vectorstore")
-    
+
     all_documents = processing_state["all_documents"]
     current_index = processing_state["current_index"]
     total_docs = processing_state["total_documents"]
-    
+
     for i in range(current_index, total_docs):
         doc_path = all_documents[i]
-        
+
         try:
             print(f"   📄 Processing {i+1}/{total_docs}: {Path(doc_path).name}")
-            
+
             # Load and process document
             if doc_path.endswith('.pdf'):
                 loader = PDFLoader(doc_path)
             else:
                 loader = TextFileLoader(doc_path)
-            
+
             doc_data = loader.load()
-            
+
             # Process each page
             for page in doc_data:
                 text_splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000, chunk_overlap=200
                 )
                 chunks = text_splitter.split_documents([page])
-                
+
                 # Add to vector store
                 vectorstore.add_documents(chunks)
-            
+
             processing_state["processed_count"] += 1
-            
+
         except Exception as e:
             print(f"   ❌ Failed: {e}")
             processing_state["failed_count"] += 1
-        
+
         # Update checkpoint state
         processing_state["current_index"] = i + 1
         context.set_variable("corpus_state", processing_state)
-        
+
         # Manual checkpoint every 10 documents
         if (i + 1) % 10 == 0:
             completion_pct = ((i + 1) / total_docs) * 100
             print(f"   💾 Checkpoint: {completion_pct:.1f}% complete")
-    
+
     # Final statistics
     total_time = asyncio.get_event_loop().time() - processing_state["start_time"]
-    
+
     print(f"✅ Corpus processing complete:")
     print(f"   📊 Processed: {processing_state['processed_count']}")
     print(f"   ❌ Failed: {processing_state['failed_count']}")
@@ -2949,19 +2949,19 @@ async def process_large_corpus(context):
 async def save_progress_report(context):
     """Save processing progress to disk"""
     print("💾 Saving progress report...")
-    
+
     corpus_state = context.get_variable("corpus_state")
     outputs = context.get_output_keys()
-    
+
     report = {
         "corpus_processing": corpus_state,
         "metrics": {key: context.get_output(key) for key in outputs},
         "timestamp": asyncio.get_event_loop().time()
     }
-    
+
     with open("rag_progress_report.json", "w") as f:
         json.dump(report, f, indent=2)
-    
+
     print("✅ Progress report saved")`} />
                 <p><strong>Checkpointing benefits:</strong></p>
                 <ul>
@@ -2979,7 +2979,7 @@ async def save_progress_report(context):
 
 # Coordination primitives
 embedding_semaphore = Semaphore("embedding_api", max_count=3)
-vector_store_mutex = Mutex("vector_store_writes") 
+vector_store_mutex = Mutex("vector_store_writes")
 processing_barrier = Barrier("sync_point", parties=3)
 
 # Specialized agents
@@ -2993,10 +2993,10 @@ class DocumentWorkspace:
         self.document_queue = []
         self.processed_docs = []
         self.failed_docs = []
-    
+
     async def add_documents(self, docs):
         self.document_queue.extend(docs)
-    
+
     async def get_next_batch(self, batch_size=5):
         if len(self.document_queue) >= batch_size:
             batch = self.document_queue[:batch_size]
@@ -3010,11 +3010,11 @@ workspace = DocumentWorkspace()
 async def coordinate_processing(context):
     """Coordinate document distribution"""
     print("📋 Coordinator: Distributing documents...")
-    
+
     # Discover documents
     docs = []  # Your document discovery logic here
     await workspace.add_documents(docs)
-    
+
     context.set_output("total_documents", len(docs))
     print(f"📤 Distributed {len(docs)} documents")
 
@@ -3023,32 +3023,32 @@ async def embedding_worker(context):
     """Worker for processing embeddings"""
     agent_name = context.get_variable("agent_name", "worker")
     print(f"🔢 {agent_name}: Starting...")
-    
+
     embeddings = context.get_variable("embeddings")
     processed_count = 0
-    
+
     while True:
         # Get work batch
         doc_batch = await workspace.get_next_batch(batch_size=3)
         if not doc_batch:
             break
-        
+
         print(f"   📦 {agent_name}: Processing {len(doc_batch)} documents")
-        
+
         for doc_info in doc_batch:
             try:
                 # Rate-limited embedding creation
                 print(f"   🔒 {agent_name}: Requesting API access...")
                 await embedding_semaphore.acquire(agent_name)
-                
+
                 try:
                     # Process document (your logic here)
                     print(f"   ✅ {agent_name}: Processed document")
                     processed_count += 1
-                    
+
                 finally:
                     await embedding_semaphore.release(agent_name)
-                    
+
                 # Exclusive vector store access
                 await vector_store_mutex.acquire(agent_name)
                 try:
@@ -3056,13 +3056,13 @@ async def embedding_worker(context):
                     pass
                 finally:
                     await vector_store_mutex.release(agent_name)
-                    
+
             except Exception as e:
                 print(f"   ❌ {agent_name}: Failed: {e}")
-    
+
     context.set_output(f"{agent_name}_processed", processed_count)
     print(f"🏁 {agent_name}: Completed {processed_count} documents")
-    
+
     # Wait for other workers
     await processing_barrier.wait(agent_name)
     print(f"🚀 {agent_name}: All workers complete!")
@@ -3071,11 +3071,11 @@ async def embedding_worker(context):
 coordinator_agent.add_state("coordinate_processing", coordinate_processing)
 
 embedding_agent_1.add_state("initialize_system", initialize_system)
-embedding_agent_1.add_state("embedding_worker", 
+embedding_agent_1.add_state("embedding_worker",
     lambda ctx: embedding_worker({**ctx.shared_state, "agent_name": "worker-1"}),
     dependencies=["initialize_system"])
 
-embedding_agent_2.add_state("initialize_system", initialize_system)  
+embedding_agent_2.add_state("initialize_system", initialize_system)
 embedding_agent_2.add_state("embedding_worker",
     lambda ctx: embedding_worker({**ctx.shared_state, "agent_name": "worker-2"}),
     dependencies=["initialize_system"])
@@ -3083,13 +3083,13 @@ embedding_agent_2.add_state("embedding_worker",
 async def run_multi_agent_system():
     """Run coordinated multi-agent RAG system"""
     print("🤝 Starting multi-agent RAG system...")
-    
+
     tasks = [
         asyncio.create_task(coordinator_agent.run()),
         asyncio.create_task(embedding_agent_1.run()),
         asyncio.create_task(embedding_agent_2.run())
     ]
-    
+
     await asyncio.gather(*tasks)
     print("🎉 Multi-agent processing complete!")`} />
                 <p><strong>Multi-agent benefits:</strong></p>

@@ -26,7 +26,7 @@ A complete ETL (Extract, Transform, Load) pipeline with error handling and monit
 
    class ETLPipeline(Agent):
        """Complete ETL pipeline with PuffinFlow."""
-       
+
        def __init__(self, source_url: str, output_file: str):
            super().__init__(enable_checkpointing=True)
            self.source_url = source_url
@@ -50,7 +50,7 @@ A complete ETL (Extract, Transform, Load) pipeline with error handling and monit
        async def transform_data(self, ctx: Context) -> None:
            """Transform the extracted data."""
            transformed_records = []
-           
+
            for record in ctx.raw_data:
                # Data cleaning and transformation
                cleaned_record = {
@@ -60,11 +60,11 @@ A complete ETL (Extract, Transform, Load) pipeline with error handling and monit
                    'created_at': record.get('created_at'),
                    'processed_at': ctx.extraction_timestamp.isoformat()
                }
-               
+
                # Data validation
                if cleaned_record['id'] and cleaned_record['email']:
                    transformed_records.append(cleaned_record)
-           
+
            ctx.transformed_data = transformed_records
            print(f"Transformed {len(transformed_records)} valid records")
 
@@ -75,7 +75,7 @@ A complete ETL (Extract, Transform, Load) pipeline with error handling and monit
            async with aiofiles.open(self.output_file, 'w') as f:
                import json
                await f.write(json.dumps(ctx.transformed_data, indent=2))
-           
+
            ctx.records_loaded = len(ctx.transformed_data)
            print(f"Loaded {ctx.records_loaded} records to {self.output_file}")
 
@@ -85,7 +85,7 @@ A complete ETL (Extract, Transform, Load) pipeline with error handling and monit
            source_url="https://api.example.com/users",
            output_file="processed_users.json"
        )
-       
+
        result = await pipeline.run()
        print(f"ETL Pipeline completed: {result.status}")
 
@@ -106,11 +106,11 @@ A web scraper that respects rate limits and handles failures gracefully:
 
    class WebScraperAgent(Agent):
        """Web scraper with rate limiting and circuit breaker."""
-       
+
        def __init__(self, base_url: str):
            super().__init__()
            self.base_url = base_url
-           
+
            # Circuit breaker for external requests
            self.circuit_breaker = CircuitBreaker(
                CircuitBreakerConfig(
@@ -124,7 +124,7 @@ A web scraper that respects rate limits and handles failures gracefully:
        async def scrape_page(self, ctx: Context) -> None:
            """Scrape a single page with protection."""
            url = f"{self.base_url}/{ctx.page_id}"
-           
+
            try:
                async with self.circuit_breaker:
                    async with aiohttp.ClientSession() as session:
@@ -157,7 +157,7 @@ A web scraper that respects rate limits and handles failures gracefully:
        """Run web scraping with rate limiting."""
        # Create rate limiter (10 requests per minute)
        rate_limiter = RateLimiter(max_calls=10, time_window=60)
-       
+
        # Create agent pool with rate limiting
        pool = AgentPool(
            agent_class=WebScraperAgent,
@@ -165,14 +165,14 @@ A web scraper that respects rate limits and handles failures gracefully:
            rate_limiter=rate_limiter,
            agent_kwargs={'base_url': 'https://example.com/pages'}
        )
-       
+
        # Create work items
        page_ids = [f"page_{i}" for i in range(1, 21)]
        contexts = [Context({'page_id': page_id}) for page_id in page_ids]
-       
+
        # Process all pages
        results = await pool.process_contexts(contexts)
-       
+
        # Analyze results
        successful = sum(1 for r in results if r.context.get('success', False))
        print(f"Successfully scraped {successful}/{len(results)} pages")
@@ -192,7 +192,7 @@ A machine learning training pipeline with resource management:
 
    class MLTrainingPipeline(Agent):
        """Machine learning training pipeline."""
-       
+
        def __init__(self, model_config: dict):
            super().__init__(enable_checkpointing=True)
            self.model_config = model_config
@@ -203,13 +203,13 @@ A machine learning training pipeline with resource management:
            """Load and prepare dataset."""
            # Simulate loading large dataset
            await asyncio.sleep(2)  # Simulate I/O time
-           
+
            # Generate synthetic data for example
            ctx.X_train = np.random.randn(10000, 100)
            ctx.y_train = np.random.randint(0, 2, 10000)
            ctx.X_test = np.random.randn(2000, 100)
            ctx.y_test = np.random.randint(0, 2, 2000)
-           
+
            print(f"Loaded dataset: {ctx.X_train.shape[0]} training samples")
 
        @state(depends_on=["load_dataset"])
@@ -218,12 +218,12 @@ A machine learning training pipeline with resource management:
            """Preprocess the dataset."""
            # Feature scaling
            from sklearn.preprocessing import StandardScaler
-           
+
            scaler = StandardScaler()
            ctx.X_train_scaled = scaler.fit_transform(ctx.X_train)
            ctx.X_test_scaled = scaler.transform(ctx.X_test)
            ctx.scaler = scaler
-           
+
            print("Data preprocessing completed")
 
        @state(depends_on=["preprocess_data"])
@@ -231,14 +231,14 @@ A machine learning training pipeline with resource management:
        async def train_model(self, ctx: Context) -> None:
            """Train the machine learning model."""
            from sklearn.ensemble import RandomForestClassifier
-           
+
            # Create and train model
            model = RandomForestClassifier(**self.model_config)
-           
+
            # Simulate training time
            await asyncio.sleep(5)
            model.fit(ctx.X_train_scaled, ctx.y_train)
-           
+
            ctx.trained_model = model
            print("Model training completed")
 
@@ -247,17 +247,17 @@ A machine learning training pipeline with resource management:
        async def evaluate_model(self, ctx: Context) -> None:
            """Evaluate model performance."""
            from sklearn.metrics import accuracy_score, classification_report
-           
+
            # Make predictions
            y_pred = ctx.trained_model.predict(ctx.X_test_scaled)
-           
+
            # Calculate metrics
            accuracy = accuracy_score(ctx.y_test, y_pred)
            report = classification_report(ctx.y_test, y_pred)
-           
+
            ctx.accuracy = accuracy
            ctx.classification_report = report
-           
+
            print(f"Model accuracy: {accuracy:.4f}")
 
        @state(depends_on=["evaluate_model"])
@@ -265,18 +265,18 @@ A machine learning training pipeline with resource management:
        async def save_model(self, ctx: Context) -> None:
            """Save the trained model."""
            import joblib
-           
+
            # Save model and scaler
            model_path = f"model_{ctx.accuracy:.4f}.joblib"
            scaler_path = f"scaler_{ctx.accuracy:.4f}.joblib"
-           
+
            await asyncio.sleep(1)  # Simulate save time
            # joblib.dump(ctx.trained_model, model_path)
            # joblib.dump(ctx.scaler, scaler_path)
-           
+
            ctx.model_path = model_path
            ctx.scaler_path = scaler_path
-           
+
            print(f"Model saved to {model_path}")
 
    # Usage
@@ -286,10 +286,10 @@ A machine learning training pipeline with resource management:
            'max_depth': 10,
            'random_state': 42
        }
-       
+
        pipeline = MLTrainingPipeline(config)
        result = await pipeline.run()
-       
+
        print(f"ML Pipeline completed: {result.status}")
        print(f"Final accuracy: {result.context.accuracy:.4f}")
 
@@ -309,12 +309,12 @@ Orchestrate multiple microservices with fault tolerance:
 
    class MicroserviceAgent(Agent):
        """Base agent for microservice calls."""
-       
+
        def __init__(self, service_name: str, base_url: str):
            super().__init__()
            self.service_name = service_name
            self.base_url = base_url
-           
+
            # Circuit breaker per service
            self.circuit_breaker = CircuitBreaker(
                CircuitBreakerConfig(
@@ -327,7 +327,7 @@ Orchestrate multiple microservices with fault tolerance:
        async def call_service(self, endpoint: str, data: dict = None) -> dict:
            """Make a call to the microservice."""
            url = f"{self.base_url}/{endpoint}"
-           
+
            async with self.circuit_breaker:
                async with aiohttp.ClientSession() as session:
                    if data:
@@ -339,7 +339,7 @@ Orchestrate multiple microservices with fault tolerance:
 
    class UserServiceAgent(MicroserviceAgent):
        """Agent for user service operations."""
-       
+
        def __init__(self):
            super().__init__("user-service", "http://user-service:8080")
 
@@ -356,7 +356,7 @@ Orchestrate multiple microservices with fault tolerance:
 
    class OrderServiceAgent(MicroserviceAgent):
        """Agent for order service operations."""
-       
+
        def __init__(self):
            super().__init__("order-service", "http://order-service:8080")
 
@@ -366,7 +366,7 @@ Orchestrate multiple microservices with fault tolerance:
            if not ctx.get('user_service_success', False):
                ctx.orders = []
                return
-           
+
            try:
                orders_data = await self.call_service(f"orders/user/{ctx.user_id}")
                ctx.orders = orders_data
@@ -378,7 +378,7 @@ Orchestrate multiple microservices with fault tolerance:
 
    class PaymentServiceAgent(MicroserviceAgent):
        """Agent for payment service operations."""
-       
+
        def __init__(self):
            super().__init__("payment-service", "http://payment-service:8080")
 
@@ -388,7 +388,7 @@ Orchestrate multiple microservices with fault tolerance:
            if not ctx.get('user_service_success', False):
                ctx.payment_methods = []
                return
-           
+
            try:
                payment_data = await self.call_service(f"payments/user/{ctx.user_id}")
                ctx.payment_methods = payment_data
@@ -400,7 +400,7 @@ Orchestrate multiple microservices with fault tolerance:
 
    class AggregatorAgent(Agent):
        """Aggregate data from multiple services."""
-       
+
        @state
        async def aggregate_user_data(self, ctx: Context) -> None:
            """Aggregate all user data."""
@@ -414,29 +414,29 @@ Orchestrate multiple microservices with fault tolerance:
                    'payment_service': ctx.get('payment_service_success', False)
                }
            }
-           
+
            print(f"User dashboard aggregated for user {ctx.user_id}")
 
    async def get_user_dashboard(user_id: str):
        """Get complete user dashboard by orchestrating microservices."""
-       
+
        # Create service agents
        user_agent = UserServiceAgent()
        order_agent = OrderServiceAgent()
        payment_agent = PaymentServiceAgent()
        aggregator_agent = AggregatorAgent()
-       
+
        # Create team with parallel execution for independent services
        team = AgentTeam([
            user_agent,      # Must run first
            [order_agent, payment_agent],  # Can run in parallel after user_agent
            aggregator_agent  # Runs after all services
        ])
-       
+
        # Execute with shared context
        context = Context({'user_id': user_id})
        result = await team.run(context)
-       
+
        return result.context.user_dashboard
 
    # Usage
@@ -460,7 +460,7 @@ Process multiple files with parallel execution and progress tracking:
 
    class FileProcessorAgent(Agent):
        """Process individual files."""
-       
+
        def __init__(self, file_path: Path):
            super().__init__()
            self.file_path = file_path
@@ -478,7 +478,7 @@ Process multiple files with parallel execution and progress tracking:
            # Example processing: count words, lines, characters
            lines = ctx.content.split('\n')
            words = ctx.content.split()
-           
+
            ctx.stats = {
                'lines': len(lines),
                'words': len(words),
@@ -490,17 +490,17 @@ Process multiple files with parallel execution and progress tracking:
        async def save_results(self, ctx: Context) -> None:
            """Save processing results."""
            output_path = self.file_path.with_suffix('.stats.json')
-           
+
            import json
            async with aiofiles.open(output_path, 'w') as f:
                await f.write(json.dumps(ctx.stats, indent=2))
-           
+
            ctx.output_path = output_path
            print(f"Processed {self.file_path.name}: {ctx.stats['words']} words")
 
    class BatchFileProcessor(Agent):
        """Coordinate batch file processing."""
-       
+
        def __init__(self, input_directory: Path, max_concurrent: int = 5):
            super().__init__()
            self.input_directory = input_directory
@@ -518,20 +518,20 @@ Process multiple files with parallel execution and progress tracking:
        async def process_files_batch(self, ctx: Context) -> None:
            """Process files in batches."""
            all_results = []
-           
+
            # Process files in batches to control concurrency
            for i in range(0, len(ctx.file_paths), self.max_concurrent):
                batch = ctx.file_paths[i:i + self.max_concurrent]
-               
+
                # Create agents for this batch
                batch_agents = [FileProcessorAgent(file_path) for file_path in batch]
-               
+
                # Process batch in parallel
                batch_results = await run_agents_parallel(batch_agents)
                all_results.extend(batch_results)
-               
+
                print(f"Completed batch {i//self.max_concurrent + 1}")
-           
+
            ctx.processing_results = all_results
            ctx.successful_files = sum(1 for r in all_results if r.status == 'completed')
 
@@ -539,17 +539,17 @@ Process multiple files with parallel execution and progress tracking:
        async def generate_summary(self, ctx: Context) -> None:
            """Generate processing summary."""
            total_words = sum(
-               r.context.stats['words'] 
-               for r in ctx.processing_results 
+               r.context.stats['words']
+               for r in ctx.processing_results
                if hasattr(r.context, 'stats')
            )
-           
+
            total_lines = sum(
-               r.context.stats['lines'] 
-               for r in ctx.processing_results 
+               r.context.stats['lines']
+               for r in ctx.processing_results
                if hasattr(r.context, 'stats')
            )
-           
+
            ctx.summary = {
                'total_files_processed': ctx.successful_files,
                'total_files_discovered': ctx.total_files,
@@ -557,14 +557,14 @@ Process multiple files with parallel execution and progress tracking:
                'total_lines': total_lines,
                'success_rate': ctx.successful_files / ctx.total_files if ctx.total_files > 0 else 0
            }
-           
+
            print(f"Processing Summary: {ctx.summary}")
 
    # Usage
    async def run_batch_processing():
        input_dir = Path("./input_files")
        processor = BatchFileProcessor(input_dir, max_concurrent=3)
-       
+
        result = await processor.run()
        print(f"Batch processing completed: {result.context.summary}")
 
@@ -583,15 +583,15 @@ Process real-time data streams with backpressure handling:
 
    class StreamProcessorAgent(Agent):
        """Process individual stream messages."""
-       
+
        @state
        async def process_message(self, ctx: Context) -> None:
            """Process a single stream message."""
            message = ctx.message
-           
+
            # Simulate processing time
            await asyncio.sleep(0.1)
-           
+
            # Process message (example: transform and validate)
            processed = {
                'id': message.get('id'),
@@ -599,12 +599,12 @@ Process real-time data streams with backpressure handling:
                'data': message.get('data', '').upper(),  # Transform
                'processed_at': asyncio.get_event_loop().time()
            }
-           
+
            ctx.processed_message = processed
 
    class StreamCoordinator(Agent):
        """Coordinate stream processing with backpressure."""
-       
+
        def __init__(self, max_queue_size: int = 1000, pool_size: int = 10):
            super().__init__()
            self.message_queue = Queue(maxsize=max_queue_size)
@@ -615,18 +615,18 @@ Process real-time data streams with backpressure handling:
        async def start_processing(self):
            """Start the stream processing."""
            self.running = True
-           
+
            # Create agent pool for processing
            pool = AgentPool(
                agent_class=StreamProcessorAgent,
                pool_size=self.pool_size
            )
-           
+
            # Start processing task
            processing_task = asyncio.create_task(
                self.process_stream(pool)
            )
-           
+
            return processing_task
 
        async def process_stream(self, pool: AgentPool):
@@ -635,19 +635,19 @@ Process real-time data streams with backpressure handling:
                try:
                    # Get message with timeout to allow checking running flag
                    message = await asyncio.wait_for(
-                       self.message_queue.get(), 
+                       self.message_queue.get(),
                        timeout=1.0
                    )
-                   
+
                    # Create context for processing
                    context = Context({'message': message})
-                   
+
                    # Process message using agent pool
                    result = await pool.process_single(context)
-                   
+
                    # Put processed message in output queue
                    await self.processed_queue.put(result.context.processed_message)
-                   
+
                except asyncio.TimeoutError:
                    continue  # Check running flag
                except Exception as e:
@@ -675,10 +675,10 @@ Process real-time data streams with backpressure handling:
    async def simulate_stream():
        """Simulate real-time data stream."""
        coordinator = StreamCoordinator(max_queue_size=100, pool_size=5)
-       
+
        # Start processing
        processing_task = await coordinator.start_processing()
-       
+
        # Simulate message producer
        async def produce_messages():
            for i in range(50):
@@ -689,7 +689,7 @@ Process real-time data streams with backpressure handling:
                }
                await coordinator.add_message(message)
                await asyncio.sleep(0.05)  # 20 messages per second
-       
+
        # Simulate message consumer
        async def consume_messages():
            processed_count = 0
@@ -703,13 +703,13 @@ Process real-time data streams with backpressure handling:
                    print(f"Consumed: {processed['id']} - {processed['data']}")
                except asyncio.TimeoutError:
                    break
-       
+
        # Run producer and consumer concurrently
        await asyncio.gather(
            produce_messages(),
            consume_messages()
        )
-       
+
        # Stop processing
        coordinator.stop_processing()
        await processing_task
@@ -739,7 +739,7 @@ A complete RAG system with document ingestion, embedding generation, vector stor
 
    class DocumentIngestionAgent(Agent):
        """Ingest and preprocess documents for RAG system."""
-       
+
        def __init__(self, chunk_size: int = 1000, overlap: int = 200):
            super().__init__(enable_checkpointing=True)
            self.chunk_size = chunk_size
@@ -749,7 +749,7 @@ A complete RAG system with document ingestion, embedding generation, vector stor
        async def load_documents(self, ctx: Context) -> None:
            """Load documents from various sources."""
            document_paths = ctx.document_paths
-           
+
            documents = []
            for path in document_paths:
                # Simulate document loading
@@ -759,7 +759,7 @@ A complete RAG system with document ingestion, embedding generation, vector stor
                    'content': f"Sample content from {path}",
                    'metadata': {'source': path, 'type': 'text'}
                })
-           
+
            ctx.raw_documents = documents
            print(f"Loaded {len(documents)} documents")
 
@@ -767,10 +767,10 @@ A complete RAG system with document ingestion, embedding generation, vector stor
        async def chunk_documents(self, ctx: Context) -> None:
            """Split documents into overlapping chunks."""
            chunks = []
-           
+
            for doc in ctx.raw_documents:
                content = doc['content']
-               
+
                # Simple chunking strategy
                for i in range(0, len(content), self.chunk_size - self.overlap):
                    chunk_text = content[i:i + self.chunk_size]
@@ -781,17 +781,17 @@ A complete RAG system with document ingestion, embedding generation, vector stor
                            'chunk_id': f"{doc['path']}_{i}",
                            'metadata': doc['metadata']
                        })
-           
+
            ctx.document_chunks = chunks
            print(f"Created {len(chunks)} document chunks")
 
    class EmbeddingAgent(Agent):
        """Generate embeddings for document chunks."""
-       
+
        def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
            super().__init__()
            self.model_name = model_name
-           
+
            # Circuit breaker for embedding API calls
            self.circuit_breaker = CircuitBreaker(
                CircuitBreakerConfig(
@@ -806,33 +806,33 @@ A complete RAG system with document ingestion, embedding generation, vector stor
            """Generate embeddings for document chunks."""
            chunks = ctx.document_chunks
            embeddings = []
-           
+
            try:
                async with self.circuit_breaker:
                    for chunk in chunks:
                        # Simulate embedding generation
                        await asyncio.sleep(0.01)
-                       
+
                        # Generate fake embedding (replace with actual model)
                        embedding = np.random.randn(384).tolist()  # 384-dim embedding
-                       
+
                        embeddings.append({
                            'chunk_id': chunk['chunk_id'],
                            'embedding': embedding,
                            'text': chunk['text'],
                            'metadata': chunk['metadata']
                        })
-               
+
                ctx.embeddings = embeddings
                print(f"Generated embeddings for {len(embeddings)} chunks")
-               
+
            except Exception as e:
                ctx.embedding_error = str(e)
                print(f"Embedding generation failed: {e}")
 
    class VectorStoreAgent(Agent):
        """Store and index embeddings in vector database."""
-       
+
        def __init__(self, index_type: str = "faiss"):
            super().__init__()
            self.index_type = index_type
@@ -842,17 +842,17 @@ A complete RAG system with document ingestion, embedding generation, vector stor
        async def index_embeddings(self, ctx: Context) -> None:
            """Index embeddings in vector store."""
            embeddings = ctx.embeddings
-           
+
            # Simulate indexing process
            await asyncio.sleep(0.5)
-           
+
            for emb_data in embeddings:
                self.vector_index[emb_data['chunk_id']] = {
                    'vector': np.array(emb_data['embedding']),
                    'text': emb_data['text'],
                    'metadata': emb_data['metadata']
                }
-           
+
            ctx.index_size = len(self.vector_index)
            ctx.vector_store_ready = True
            print(f"Indexed {len(embeddings)} embeddings")
@@ -862,11 +862,11 @@ A complete RAG system with document ingestion, embedding generation, vector stor
            """Search for similar documents."""
            query_embedding = np.array(ctx.query_embedding)
            top_k = ctx.get('top_k', 5)
-           
+
            if not hasattr(self, 'vector_index') or not self.vector_index:
                ctx.search_results = []
                return
-           
+
            # Simple cosine similarity search
            similarities = []
            for chunk_id, data in self.vector_index.items():
@@ -879,7 +879,7 @@ A complete RAG system with document ingestion, embedding generation, vector stor
                    'text': data['text'],
                    'metadata': data['metadata']
                })
-           
+
            # Sort by similarity and return top_k
            similarities.sort(key=lambda x: x['similarity'], reverse=True)
            ctx.search_results = similarities[:top_k]
@@ -887,14 +887,14 @@ A complete RAG system with document ingestion, embedding generation, vector stor
 
    class LLMGenerationAgent(Agent):
        """Generate responses using retrieved context."""
-       
+
        def __init__(self, model_name: str = "gpt-3.5-turbo"):
            super().__init__()
            self.model_name = model_name
-           
+
            # Rate limiter for LLM API calls
            self.rate_limiter = RateLimiter(max_calls=10, time_window=60)
-           
+
            # Circuit breaker for LLM API
            self.circuit_breaker = CircuitBreaker(
                CircuitBreakerConfig(
@@ -909,37 +909,37 @@ A complete RAG system with document ingestion, embedding generation, vector stor
            """Generate response using retrieved context."""
            query = ctx.query
            search_results = ctx.search_results
-           
+
            # Prepare context from search results
            context_text = "\n\n".join([
                f"Source: {result['metadata']['source']}\n{result['text']}"
                for result in search_results
            ])
-           
+
            prompt = f"""
            Based on the following context, answer the question:
-           
+
            Context:
            {context_text}
-           
+
            Question: {query}
-           
+
            Answer:
            """
-           
+
            try:
                async with self.rate_limiter:
                    async with self.circuit_breaker:
                        # Simulate LLM API call
                        await asyncio.sleep(1.0)
-                       
+
                        # Generate fake response (replace with actual LLM call)
                        response = f"Based on the provided context, here's the answer to '{query}': [Generated response based on {len(search_results)} retrieved documents]"
-                       
+
                        ctx.generated_response = response
                        ctx.sources_used = [r['metadata']['source'] for r in search_results]
                        print(f"Generated response using {len(search_results)} sources")
-                       
+
            except Exception as e:
                ctx.generation_error = str(e)
                print(f"Response generation failed: {e}")
@@ -947,7 +947,7 @@ A complete RAG system with document ingestion, embedding generation, vector stor
    # RAG System Orchestrator
    class RAGSystem(Agent):
        """Orchestrate the complete RAG pipeline."""
-       
+
        def __init__(self):
            super().__init__()
            self.ingestion_agent = DocumentIngestionAgent()
@@ -963,37 +963,37 @@ A complete RAG system with document ingestion, embedding generation, vector stor
                self.embedding_agent,
                self.vector_agent
            ])
-           
+
            # Setup context
            context = Context({'document_paths': document_paths})
-           
+
            # Run processing pipeline
            result = await processing_team.run(context)
            print(f"Knowledge base setup completed: {result.status}")
-           
+
            return result
 
        async def query(self, question: str, top_k: int = 5) -> Dict[str, Any]:
            """Query the RAG system."""
            # Generate query embedding
            query_embedding = np.random.randn(384).tolist()  # Replace with actual embedding
-           
+
            # Create query context
            query_context = Context({
                'query': question,
                'query_embedding': query_embedding,
                'top_k': top_k
            })
-           
+
            # Create retrieval and generation team
            query_team = AgentTeam([
                self.vector_agent,  # Search for similar documents
                self.llm_agent      # Generate response
            ])
-           
+
            # Execute query
            result = await query_team.run(query_context)
-           
+
            return {
                'question': question,
                'answer': result.context.get('generated_response'),
@@ -1006,23 +1006,23 @@ A complete RAG system with document ingestion, embedding generation, vector stor
    async def run_rag_system():
        """Demonstrate the RAG system."""
        rag = RAGSystem()
-       
+
        # Setup knowledge base
        documents = [
            "/docs/machine_learning.txt",
            "/docs/deep_learning.txt",
            "/docs/natural_language_processing.txt"
        ]
-       
+
        await rag.setup_knowledge_base(documents)
-       
+
        # Query the system
        questions = [
            "What is machine learning?",
            "How does deep learning work?",
            "What are the applications of NLP?"
        ]
-       
+
        for question in questions:
            result = await rag.query(question)
            print(f"\nQ: {result['question']}")
@@ -1040,7 +1040,7 @@ A self-improving RAG system that reflects on its responses and iteratively impro
 
    class SelfRAGAgent(Agent):
        """Self-improving RAG with reflection and iteration."""
-       
+
        def __init__(self, max_iterations: int = 3):
            super().__init__(enable_checkpointing=True)
            self.max_iterations = max_iterations
@@ -1051,7 +1051,7 @@ A self-improving RAG system that reflects on its responses and iteratively impro
            """Generate initial response."""
            query = ctx.query
            initial_result = await self.rag_system.query(query)
-           
+
            ctx.responses = [initial_result]
            ctx.current_iteration = 0
            ctx.initial_answer = initial_result['answer']
@@ -1061,42 +1061,42 @@ A self-improving RAG system that reflects on its responses and iteratively impro
            """Reflect on the quality of the response."""
            current_response = ctx.responses[-1]
            query = ctx.query
-           
+
            reflection_prompt = f"""
            Question: {query}
            Answer: {current_response['answer']}
-           
+
            Please evaluate this answer on a scale of 1-10 for:
            1. Accuracy
            2. Completeness
            3. Relevance
-           
+
            If the score is below 8, suggest specific improvements needed.
            """
-           
+
            # Simulate reflection (replace with actual LLM call)
            await asyncio.sleep(0.5)
-           
+
            # Fake reflection scores
            scores = {
                'accuracy': np.random.randint(6, 10),
                'completeness': np.random.randint(6, 10),
                'relevance': np.random.randint(6, 10)
            }
-           
+
            avg_score = sum(scores.values()) / len(scores)
-           
+
            ctx.reflection_scores = scores
            ctx.average_score = avg_score
            ctx.needs_improvement = avg_score < 8.0
-           
+
            if ctx.needs_improvement:
                ctx.improvement_suggestions = [
                    "Need more specific examples",
                    "Should include recent developments",
                    "Requires better source attribution"
                ]
-           
+
            print(f"Reflection scores: {scores}, Average: {avg_score:.1f}")
 
        @state(depends_on=["reflect_on_response"], profile="external_service")
@@ -1104,21 +1104,21 @@ A self-improving RAG system that reflects on its responses and iteratively impro
            """Improve the query based on reflection."""
            if not ctx.needs_improvement or ctx.current_iteration >= self.max_iterations:
                return  # No improvement needed or max iterations reached
-           
+
            original_query = ctx.query
            suggestions = ctx.improvement_suggestions
-           
+
            # Generate improved query
            improved_query = f"{original_query} (Focus on: {', '.join(suggestions)})"
-           
+
            # Query again with improved prompt
            improved_result = await self.rag_system.query(improved_query, top_k=8)
-           
+
            ctx.responses.append(improved_result)
            ctx.current_iteration += 1
-           
+
            print(f"Iteration {ctx.current_iteration}: Improved query and response")
-           
+
            # Continue reflection loop
            await self.reflect_on_response(ctx)
 
@@ -1126,25 +1126,25 @@ A self-improving RAG system that reflects on its responses and iteratively impro
        async def finalize_response(self, ctx: Context) -> None:
            """Finalize the best response."""
            responses = ctx.responses
-           
+
            # Select best response based on reflection scores
            best_response = responses[-1]  # Latest is typically best after improvements
-           
+
            ctx.final_answer = best_response['answer']
            ctx.final_sources = best_response['sources']
            ctx.total_iterations = len(responses)
            ctx.improvement_achieved = len(responses) > 1
-           
+
            print(f"Finalized response after {ctx.total_iterations} iterations")
 
    # Usage
    async def run_self_rag():
        """Demonstrate self-improving RAG."""
        self_rag = SelfRAGAgent(max_iterations=3)
-       
+
        context = Context({'query': "Explain the latest developments in transformer architecture"})
        result = await self_rag.run(context)
-       
+
        print(f"Final Answer: {result.context.final_answer}")
        print(f"Iterations: {result.context.total_iterations}")
        print(f"Sources: {result.context.final_sources}")
@@ -1179,45 +1179,45 @@ A Graph RAG implementation that builds knowledge graphs from documents:
 
    class EntityExtractionAgent(Agent):
        """Extract entities and relationships from text."""
-       
+
        @state(profile="gpu_accelerated")
        async def extract_entities(self, ctx: Context) -> None:
            """Extract named entities from document chunks."""
            chunks = ctx.document_chunks
            entities = {}
            relationships = []
-           
+
            for chunk in chunks:
                text = chunk['text']
-               
+
                # Simulate NER and relation extraction
                await asyncio.sleep(0.1)
-               
+
                # Fake entity extraction (replace with actual NER)
                chunk_entities = [
                    Entity("Python", "TECHNOLOGY", {"description": "Programming language"}),
                    Entity("Machine Learning", "CONCEPT", {"description": "AI technique"}),
                    Entity("TensorFlow", "FRAMEWORK", {"description": "ML framework"})
                ]
-               
+
                chunk_relationships = [
                    Relationship("Python", "Machine Learning", "USED_FOR", {}),
                    Relationship("TensorFlow", "Machine Learning", "IMPLEMENTS", {})
                ]
-               
+
                # Add to global collections
                for entity in chunk_entities:
                    entities[entity.name] = entity
-               
+
                relationships.extend(chunk_relationships)
-           
+
            ctx.entities = entities
            ctx.relationships = relationships
            print(f"Extracted {len(entities)} entities and {len(relationships)} relationships")
 
    class GraphBuilderAgent(Agent):
        """Build and maintain the knowledge graph."""
-       
+
        def __init__(self):
            super().__init__()
            self.graph = {"nodes": {}, "edges": []}
@@ -1227,7 +1227,7 @@ A Graph RAG implementation that builds knowledge graphs from documents:
            """Build knowledge graph from entities and relationships."""
            entities = ctx.entities
            relationships = ctx.relationships
-           
+
            # Add nodes (entities)
            for entity_name, entity in entities.items():
                self.graph["nodes"][entity_name] = {
@@ -1235,7 +1235,7 @@ A Graph RAG implementation that builds knowledge graphs from documents:
                    "properties": entity.properties,
                    "connections": 0
                }
-           
+
            # Add edges (relationships)
            for rel in relationships:
                if rel.source in self.graph["nodes"] and rel.target in self.graph["nodes"]:
@@ -1246,18 +1246,18 @@ A Graph RAG implementation that builds knowledge graphs from documents:
                        "properties": rel.properties
                    }
                    self.graph["edges"].append(edge)
-                   
+
                    # Update connection counts
                    self.graph["nodes"][rel.source]["connections"] += 1
                    self.graph["nodes"][rel.target]["connections"] += 1
-           
+
            ctx.knowledge_graph = self.graph
            ctx.graph_stats = {
                "nodes": len(self.graph["nodes"]),
                "edges": len(self.graph["edges"]),
                "avg_connections": sum(node["connections"] for node in self.graph["nodes"].values()) / len(self.graph["nodes"]) if self.graph["nodes"] else 0
            }
-           
+
            print(f"Built knowledge graph: {ctx.graph_stats}")
 
        @state(profile="cpu_intensive")
@@ -1265,21 +1265,21 @@ A Graph RAG implementation that builds knowledge graphs from documents:
            """Search the knowledge graph for relevant information."""
            query_entities = ctx.query_entities  # Entities extracted from query
            max_hops = ctx.get('max_hops', 2)
-           
+
            relevant_subgraph = {"nodes": {}, "edges": []}
            visited = set()
            queue = [(entity, 0) for entity in query_entities if entity in self.graph["nodes"]]
-           
+
            # BFS to find relevant subgraph
            while queue:
                current_entity, hops = queue.pop(0)
-               
+
                if current_entity in visited or hops > max_hops:
                    continue
-               
+
                visited.add(current_entity)
                relevant_subgraph["nodes"][current_entity] = self.graph["nodes"][current_entity]
-               
+
                # Find connected entities
                for edge in self.graph["edges"]:
                    if edge["source"] == current_entity and edge["target"] not in visited:
@@ -1288,13 +1288,13 @@ A Graph RAG implementation that builds knowledge graphs from documents:
                    elif edge["target"] == current_entity and edge["source"] not in visited:
                        queue.append((edge["source"], hops + 1))
                        relevant_subgraph["edges"].append(edge)
-           
+
            ctx.relevant_subgraph = relevant_subgraph
            print(f"Found relevant subgraph with {len(relevant_subgraph['nodes'])} nodes")
 
    class GraphRAGAgent(Agent):
        """Main Graph RAG orchestrator."""
-       
+
        def __init__(self):
            super().__init__()
            self.entity_agent = EntityExtractionAgent()
@@ -1307,13 +1307,13 @@ A Graph RAG implementation that builds knowledge graphs from documents:
            ingestion = DocumentIngestionAgent()
            context = Context({'document_paths': document_paths})
            await ingestion.run(context)
-           
+
            # Build graph pipeline
            graph_team = AgentTeam([
                self.entity_agent,
                self.graph_agent
            ])
-           
+
            result = await graph_team.run(context)
            self.knowledge_graph = result.context.knowledge_graph
            print("Knowledge graph construction completed")
@@ -1322,27 +1322,27 @@ A Graph RAG implementation that builds knowledge graphs from documents:
            """Answer question using graph-enhanced RAG."""
            # Extract entities from question
            query_entities = ["Python", "Machine Learning"]  # Simplified entity extraction
-           
+
            # Search graph for relevant information
            graph_context = Context({
                'query_entities': query_entities,
                'max_hops': 2
            })
-           
+
            await self.graph_agent.graph_search(graph_context)
-           
+
            # Prepare graph context for LLM
            subgraph = graph_context.relevant_subgraph
            graph_context_text = self.format_graph_context(subgraph)
-           
+
            # Generate response using graph context
            llm_context = Context({
                'query': question,
                'graph_context': graph_context_text
            })
-           
+
            await self.generate_graph_response(llm_context)
-           
+
            return {
                'question': question,
                'answer': llm_context.generated_response,
@@ -1353,17 +1353,17 @@ A Graph RAG implementation that builds knowledge graphs from documents:
        def format_graph_context(self, subgraph: Dict) -> str:
            """Format graph information for LLM context."""
            context_parts = []
-           
+
            # Add entity information
            context_parts.append("Relevant Entities:")
            for entity_name, entity_data in subgraph['nodes'].items():
                context_parts.append(f"- {entity_name} ({entity_data['type']}): {entity_data['properties'].get('description', '')}")
-           
+
            # Add relationship information
            context_parts.append("\nRelationships:")
            for edge in subgraph['edges']:
                context_parts.append(f"- {edge['source']} {edge['relation']} {edge['target']}")
-           
+
            return "\n".join(context_parts)
 
        @state(profile="external_service")
@@ -1371,36 +1371,36 @@ A Graph RAG implementation that builds knowledge graphs from documents:
            """Generate response using graph context."""
            query = ctx.query
            graph_context = ctx.graph_context
-           
+
            prompt = f"""
            Based on the following knowledge graph information, answer the question:
-           
+
            Knowledge Graph Context:
            {graph_context}
-           
+
            Question: {query}
-           
+
            Answer using the relationships and entities from the graph:
            """
-           
+
            # Simulate LLM call
            await asyncio.sleep(1.0)
            response = f"Based on the knowledge graph, here's the answer to '{query}': [Graph-enhanced response using connected entities and relationships]"
-           
+
            ctx.generated_response = response
 
    # Usage
    async def run_graph_rag():
        """Demonstrate Graph RAG system."""
        graph_rag = GraphRAGAgent()
-       
+
        # Build knowledge graph
        documents = ["/docs/ai_concepts.txt", "/docs/ml_frameworks.txt"]
        await graph_rag.build_knowledge_graph(documents)
-       
+
        # Query with graph enhancement
        result = await graph_rag.graph_rag_query("How is Python used in machine learning?")
-       
+
        print(f"Question: {result['question']}")
        print(f"Answer: {result['answer']}")
        print(f"Graph nodes used: {result['graph_nodes_used']}")
@@ -1422,15 +1422,15 @@ Intelligent prompt routing system that selects the best model based on query cha
 
    class QueryAnalysisAgent(Agent):
        """Analyze incoming queries to determine routing strategy."""
-       
+
        @state(profile="cpu_intensive")
        async def analyze_query(self, ctx: Context) -> None:
            """Analyze query characteristics for routing decisions."""
            query = ctx.query
-           
+
            # Simulate query analysis
            await asyncio.sleep(0.1)
-           
+
            # Extract features for routing decisions
            query_features = {
                'length': len(query.split()),
@@ -1442,7 +1442,7 @@ Intelligent prompt routing system that selects the best model based on query cha
                'requires_reasoning': any(word in query.lower() for word in ['why', 'how', 'explain', 'analyze']),
                'requires_creativity': any(word in query.lower() for word in ['create', 'generate', 'write', 'design'])
            }
-           
+
            ctx.query_features = query_features
            ctx.routing_score = self.calculate_routing_score(query_features)
            print(f"Query analysis: {query_features['domain']}, complexity: {query_features['complexity']}")
@@ -1472,28 +1472,28 @@ Intelligent prompt routing system that selects the best model based on query cha
                'claude-3': 0.0,
                'local-llama': 0.0
            }
-           
+
            # GPT-4 for complex reasoning and technical tasks
            if features['complexity'] == 'complex' or features['requires_reasoning']:
                scores['gpt-4'] += 0.8
-           
+
            # GPT-3.5 for general tasks and speed
            if features['complexity'] == 'simple' and features['urgency'] == 'high':
                scores['gpt-3.5-turbo'] += 0.9
-           
+
            # Claude for creative and analytical tasks
            if features['domain'] in ['creative', 'analytical']:
                scores['claude-3'] += 0.7
-           
+
            # Local model for code and privacy-sensitive tasks
            if features['has_code'] or features['domain'] == 'technical':
                scores['local-llama'] += 0.6
-           
+
            return scores
 
    class ModelRouterAgent(Agent):
        """Route queries to appropriate models based on analysis."""
-       
+
        def __init__(self):
            super().__init__()
            self.model_agents = {
@@ -1508,16 +1508,16 @@ Intelligent prompt routing system that selects the best model based on query cha
            """Route query to the best model based on analysis."""
            routing_scores = ctx.routing_score
            query = ctx.query
-           
+
            # Select best model
            best_model = max(routing_scores.items(), key=lambda x: x[1])
            selected_model, confidence = best_model
-           
+
            ctx.selected_model = selected_model
            ctx.routing_confidence = confidence
-           
+
            print(f"Routing to {selected_model} with confidence {confidence:.2f}")
-           
+
            # Execute with selected model
            model_agent = self.model_agents[selected_model]
            model_context = Context({
@@ -1525,14 +1525,14 @@ Intelligent prompt routing system that selects the best model based on query cha
                'model_name': selected_model,
                'priority': 'high' if ctx.query_features['urgency'] == 'high' else 'normal'
            })
-           
+
            result = await model_agent.run(model_context)
            ctx.model_response = result.context.response
            ctx.model_metadata = result.context.metadata
 
    class GPT4Agent(Agent):
        """GPT-4 model agent with advanced capabilities."""
-       
+
        def __init__(self):
            super().__init__()
            self.rate_limiter = RateLimiter(max_calls=3, time_window=60)
@@ -1542,7 +1542,7 @@ Intelligent prompt routing system that selects the best model based on query cha
            """Generate response using GPT-4."""
            async with self.rate_limiter:
                await asyncio.sleep(2.0)  # Simulate longer processing time
-               
+
                ctx.response = f"GPT-4 response to: {ctx.query}"
                ctx.metadata = {
                    'model': 'gpt-4',
@@ -1553,7 +1553,7 @@ Intelligent prompt routing system that selects the best model based on query cha
 
    class GPT35Agent(Agent):
        """GPT-3.5 model agent optimized for speed."""
-       
+
        def __init__(self):
            super().__init__()
            self.rate_limiter = RateLimiter(max_calls=10, time_window=60)
@@ -1563,7 +1563,7 @@ Intelligent prompt routing system that selects the best model based on query cha
            """Generate response using GPT-3.5."""
            async with self.rate_limiter:
                await asyncio.sleep(0.8)  # Faster processing
-               
+
                ctx.response = f"GPT-3.5 response to: {ctx.query}"
                ctx.metadata = {
                    'model': 'gpt-3.5-turbo',
@@ -1574,7 +1574,7 @@ Intelligent prompt routing system that selects the best model based on query cha
 
    class ClaudeAgent(Agent):
        """Claude model agent for creative and analytical tasks."""
-       
+
        def __init__(self):
            super().__init__()
            self.rate_limiter = RateLimiter(max_calls=5, time_window=60)
@@ -1584,7 +1584,7 @@ Intelligent prompt routing system that selects the best model based on query cha
            """Generate response using Claude."""
            async with self.rate_limiter:
                await asyncio.sleep(1.5)
-               
+
                ctx.response = f"Claude response to: {ctx.query}"
                ctx.metadata = {
                    'model': 'claude-3',
@@ -1595,12 +1595,12 @@ Intelligent prompt routing system that selects the best model based on query cha
 
    class LocalLlamaAgent(Agent):
        """Local Llama model for privacy-sensitive tasks."""
-       
+
        @state(profile="gpu_accelerated")
        async def generate_response(self, ctx: Context) -> None:
            """Generate response using local Llama model."""
            await asyncio.sleep(3.0)  # Longer but private
-           
+
            ctx.response = f"Local Llama response to: {ctx.query}"
            ctx.metadata = {
                'model': 'local-llama',
@@ -1611,7 +1611,7 @@ Intelligent prompt routing system that selects the best model based on query cha
 
    class PromptRoutingSystem(Agent):
        """Main prompt routing orchestrator."""
-       
+
        def __init__(self):
            super().__init__()
            self.query_analyzer = QueryAnalysisAgent()
@@ -1624,10 +1624,10 @@ Intelligent prompt routing system that selects the best model based on query cha
                self.query_analyzer,
                self.router
            ])
-           
+
            context = Context({'query': query})
            result = await routing_team.run(context)
-           
+
            return {
                'query': query,
                'selected_model': result.context.selected_model,
@@ -1640,7 +1640,7 @@ Intelligent prompt routing system that selects the best model based on query cha
    # Batch Processing with A/B Testing
    class ABTestRoutingAgent(Agent):
        """A/B test different routing strategies."""
-       
+
        def __init__(self, test_ratio: float = 0.5):
            super().__init__()
            self.test_ratio = test_ratio
@@ -1650,13 +1650,13 @@ Intelligent prompt routing system that selects the best model based on query cha
        async def process_batch_with_ab_test(self, ctx: Context) -> None:
            """Process batch of queries with A/B testing."""
            queries = ctx.queries
-           
+
            results_a = []  # Control group (original routing)
            results_b = []  # Test group (alternative routing)
-           
+
            for i, query in enumerate(queries):
                is_test_group = (hash(query) % 100) < (self.test_ratio * 100)
-               
+
                if is_test_group:
                    # Test group: force to GPT-4
                    result = await self.force_model_routing(query, 'gpt-4')
@@ -1665,7 +1665,7 @@ Intelligent prompt routing system that selects the best model based on query cha
                    # Control group: normal routing
                    result = await self.routing_system.process_query(query)
                    results_a.append(result)
-           
+
            ctx.control_results = results_a
            ctx.test_results = results_b
            ctx.test_metrics = self.calculate_ab_metrics(results_a, results_b)
@@ -1678,11 +1678,11 @@ Intelligent prompt routing system that selects the best model based on query cha
                'claude-3': ClaudeAgent(),
                'local-llama': LocalLlamaAgent()
            }
-           
+
            agent = model_agents[model]
            context = Context({'query': query})
            result = await agent.run(context)
-           
+
            return {
                'query': query,
                'selected_model': model,
@@ -1694,10 +1694,10 @@ Intelligent prompt routing system that selects the best model based on query cha
            """Calculate A/B test metrics."""
            control_cost = sum(r['metadata']['cost'] for r in control)
            test_cost = sum(r['metadata']['cost'] for r in test)
-           
+
            control_time = sum(r['metadata']['processing_time'] for r in control)
            test_time = sum(r['metadata']['processing_time'] for r in test)
-           
+
            return {
                'control_group_size': len(control),
                'test_group_size': len(test),
@@ -1712,7 +1712,7 @@ Intelligent prompt routing system that selects the best model based on query cha
    async def run_prompt_routing():
        """Demonstrate prompt routing system."""
        routing_system = PromptRoutingSystem()
-       
+
        test_queries = [
            "Write a creative story about a robot",
            "Explain quantum computing in simple terms",
@@ -1720,7 +1720,7 @@ Intelligent prompt routing system that selects the best model based on query cha
            "What's 2+2?",
            "Analyze the market trends for AI stocks"
        ]
-       
+
        for query in test_queries:
            result = await routing_system.process_query(query)
            print(f"\nQuery: {result['query']}")
@@ -1730,10 +1730,10 @@ Intelligent prompt routing system that selects the best model based on query cha
    async def run_ab_test():
        """Demonstrate A/B testing for routing strategies."""
        ab_tester = ABTestRoutingAgent(test_ratio=0.3)
-       
+
        queries = [f"Test query {i} about various topics" for i in range(20)]
        context = Context({'queries': queries})
-       
+
        await ab_tester.run(context)
        print("A/B Test Results:", context.test_metrics)
 
@@ -1754,7 +1754,7 @@ A complete pipeline for fine-tuning language models with data preparation and ev
 
    class DataPreparationAgent(Agent):
        """Prepare training data for fine-tuning."""
-       
+
        def __init__(self, task_type: str = "classification"):
            super().__init__(enable_checkpointing=True)
            self.task_type = task_type
@@ -1763,12 +1763,12 @@ A complete pipeline for fine-tuning language models with data preparation and ev
        async def load_raw_data(self, ctx: Context) -> None:
            """Load raw training data from various sources."""
            data_sources = ctx.data_sources
-           
+
            all_data = []
            for source in data_sources:
                # Simulate data loading
                await asyncio.sleep(0.2)
-               
+
                # Mock data based on task type
                if self.task_type == "classification":
                    mock_data = [
@@ -1782,9 +1782,9 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                    ]
                else:
                    mock_data = [{"text": f"Sample {i}"} for i in range(1000)]
-               
+
                all_data.extend(mock_data)
-           
+
            ctx.raw_data = all_data
            print(f"Loaded {len(all_data)} raw training examples")
 
@@ -1792,10 +1792,10 @@ A complete pipeline for fine-tuning language models with data preparation and ev
        async def clean_and_validate(self, ctx: Context) -> None:
            """Clean and validate the training data."""
            raw_data = ctx.raw_data
-           
+
            cleaned_data = []
            validation_errors = []
-           
+
            for i, item in enumerate(raw_data):
                try:
                    # Data validation and cleaning
@@ -1813,14 +1813,14 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                                "output": item["output"].strip()
                            }
                            cleaned_data.append(cleaned_item)
-                   
+
                except Exception as e:
                    validation_errors.append(f"Row {i}: {str(e)}")
-           
+
            ctx.cleaned_data = cleaned_data
            ctx.validation_errors = validation_errors
            ctx.data_quality_score = len(cleaned_data) / len(raw_data) if raw_data else 0
-           
+
            print(f"Cleaned data: {len(cleaned_data)} valid examples")
            print(f"Data quality score: {ctx.data_quality_score:.2f}")
 
@@ -1828,36 +1828,36 @@ A complete pipeline for fine-tuning language models with data preparation and ev
        async def split_data(self, ctx: Context) -> None:
            """Split data into train/validation/test sets."""
            cleaned_data = ctx.cleaned_data
-           
+
            # Shuffle and split
            import random
            random.shuffle(cleaned_data)
-           
+
            total_size = len(cleaned_data)
            train_size = int(0.8 * total_size)
            val_size = int(0.1 * total_size)
-           
+
            ctx.train_data = cleaned_data[:train_size]
            ctx.val_data = cleaned_data[train_size:train_size + val_size]
            ctx.test_data = cleaned_data[train_size + val_size:]
-           
+
            ctx.split_info = {
                "train_size": len(ctx.train_data),
                "val_size": len(ctx.val_data),
                "test_size": len(ctx.test_data)
            }
-           
+
            print(f"Data split: {ctx.split_info}")
 
    class ModelConfigurationAgent(Agent):
        """Configure the model and training parameters."""
-       
+
        @state(profile="cpu_intensive")
        async def setup_model_config(self, ctx: Context) -> None:
            """Setup model configuration for fine-tuning."""
            base_model = ctx.get('base_model', 'distilbert-base-uncased')
            task_type = ctx.get('task_type', 'classification')
-           
+
            # Model configuration based on task
            if task_type == "classification":
                num_labels = len(set(item['label'] for item in ctx.train_data))
@@ -1874,7 +1874,7 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                    "architecture": "AutoModelForCausalLM",
                    "max_length": 512
                }
-           
+
            # Training configuration
            training_config = {
                "learning_rate": 2e-5,
@@ -1886,15 +1886,15 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                "evaluation_strategy": "epoch",
                "logging_steps": 100
            }
-           
+
            ctx.model_config = model_config
            ctx.training_config = training_config
-           
+
            print(f"Model config: {model_config['model_name']} for {task_type}")
 
    class FineTuningAgent(Agent):
        """Execute the fine-tuning process."""
-       
+
        def __init__(self):
            super().__init__(enable_checkpointing=True)
 
@@ -1905,16 +1905,16 @@ A complete pipeline for fine-tuning language models with data preparation and ev
            training_config = ctx.training_config
            train_data = ctx.train_data
            val_data = ctx.val_data
-           
+
            print(f"Starting fine-tuning of {model_config['model_name']}")
-           
+
            # Simulate fine-tuning process
            training_metrics = []
-           
+
            for epoch in range(training_config['num_epochs']):
                # Simulate training epoch
                await asyncio.sleep(5.0)  # Simulate training time
-               
+
                epoch_metrics = {
                    "epoch": epoch + 1,
                    "train_loss": 0.5 - (epoch * 0.1),  # Decreasing loss
@@ -1923,31 +1923,31 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                    "val_accuracy": 0.65 + (epoch * 0.08),
                    "learning_rate": training_config['learning_rate'] * (0.9 ** epoch)
                }
-               
+
                training_metrics.append(epoch_metrics)
                print(f"Epoch {epoch + 1}: val_loss={epoch_metrics['val_loss']:.3f}, val_acc={epoch_metrics['val_accuracy']:.3f}")
-           
+
            ctx.training_metrics = training_metrics
            ctx.model_path = f"./fine_tuned_{model_config['model_name']}_epoch_{training_config['num_epochs']}"
            ctx.training_completed = True
-           
+
            print(f"Fine-tuning completed. Model saved to {ctx.model_path}")
 
    class ModelEvaluationAgent(Agent):
        """Evaluate the fine-tuned model."""
-       
+
        @state(depends_on=["fine_tune_model"], profile="gpu_accelerated")
        async def evaluate_model(self, ctx: Context) -> None:
            """Evaluate the fine-tuned model on test data."""
            test_data = ctx.test_data
            model_path = ctx.model_path
            task_type = ctx.model_config['task_type']
-           
+
            print(f"Evaluating model on {len(test_data)} test examples")
-           
+
            # Simulate model evaluation
            await asyncio.sleep(2.0)
-           
+
            if task_type == "classification":
                evaluation_metrics = {
                    "accuracy": 0.85,
@@ -1965,10 +1965,10 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                    "coherence_score": 0.78,
                    "fluency_score": 0.82
                }
-           
+
            ctx.evaluation_metrics = evaluation_metrics
            ctx.baseline_comparison = self.compare_with_baseline(evaluation_metrics, task_type)
-           
+
            print(f"Evaluation completed: {evaluation_metrics}")
 
        def compare_with_baseline(self, metrics: Dict, task_type: str) -> Dict:
@@ -1991,26 +1991,26 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                    "improvement": improvement,
                    "relative_improvement": improvement / baseline_perplexity
                }
-           
+
            return {}
 
    class ModelDeploymentAgent(Agent):
        """Deploy the fine-tuned model."""
-       
+
        @state(depends_on=["evaluate_model"], profile="io_intensive")
        async def prepare_deployment(self, ctx: Context) -> None:
            """Prepare model for deployment."""
            model_path = ctx.model_path
            evaluation_metrics = ctx.evaluation_metrics
-           
+
            # Check if model meets deployment criteria
            deployment_threshold = ctx.get('deployment_threshold', 0.8)
-           
+
            if ctx.model_config['task_type'] == "classification":
                meets_criteria = evaluation_metrics['accuracy'] >= deployment_threshold
            else:
                meets_criteria = evaluation_metrics['perplexity'] <= 20.0
-           
+
            if meets_criteria:
                ctx.deployment_approved = True
                ctx.deployment_config = {
@@ -2036,15 +2036,15 @@ A complete pipeline for fine-tuning language models with data preparation and ev
 
    class FineTuningPipeline(Agent):
        """Orchestrate the complete fine-tuning pipeline."""
-       
+
        def __init__(self, task_type: str = "classification"):
            super().__init__()
            self.task_type = task_type
 
-       async def run_fine_tuning(self, data_sources: List[str], base_model: str, 
+       async def run_fine_tuning(self, data_sources: List[str], base_model: str,
                                 deployment_threshold: float = 0.8) -> Dict[str, Any]:
            """Run the complete fine-tuning pipeline."""
-           
+
            # Create pipeline team
            pipeline_team = AgentTeam([
                DataPreparationAgent(self.task_type),
@@ -2053,7 +2053,7 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                ModelEvaluationAgent(),
                ModelDeploymentAgent()
            ])
-           
+
            # Setup context
            context = Context({
                'data_sources': data_sources,
@@ -2061,10 +2061,10 @@ A complete pipeline for fine-tuning language models with data preparation and ev
                'task_type': self.task_type,
                'deployment_threshold': deployment_threshold
            })
-           
+
            # Execute pipeline
            result = await pipeline_team.run(context)
-           
+
            return {
                'pipeline_status': result.status,
                'data_quality': result.context.data_quality_score,
@@ -2080,13 +2080,13 @@ A complete pipeline for fine-tuning language models with data preparation and ev
    async def run_classification_fine_tuning():
        """Demonstrate classification model fine-tuning."""
        pipeline = FineTuningPipeline(task_type="classification")
-       
+
        result = await pipeline.run_fine_tuning(
            data_sources=["/data/classification_dataset.json"],
            base_model="distilbert-base-uncased",
            deployment_threshold=0.82
        )
-       
+
        print("Fine-tuning Results:")
        print(f"Status: {result['pipeline_status']}")
        print(f"Data quality: {result['data_quality']:.2f}")
@@ -2096,12 +2096,12 @@ A complete pipeline for fine-tuning language models with data preparation and ev
    async def run_text_generation_fine_tuning():
        """Demonstrate text generation model fine-tuning."""
        pipeline = FineTuningPipeline(task_type="text_generation")
-       
+
        result = await pipeline.run_fine_tuning(
            data_sources=["/data/text_generation_dataset.json"],
            base_model="gpt2-medium"
        )
-       
+
        print("Text Generation Fine-tuning Results:")
        print(f"Final perplexity: {result['evaluation_metrics']['perplexity']:.1f}")
        print(f"BLEU score: {result['evaluation_metrics']['bleu_score']:.3f}")
@@ -2123,22 +2123,22 @@ Comprehensive data analysis pipelines for research and business intelligence:
 
    class DataIngestionAgent(Agent):
        """Ingest data from multiple sources and formats."""
-       
+
        @state(profile="io_intensive")
        async def ingest_data_sources(self, ctx: Context) -> None:
            """Ingest data from various sources."""
            data_sources = ctx.data_sources
-           
+
            ingested_datasets = {}
-           
+
            for source_name, source_config in data_sources.items():
                print(f"Ingesting data from {source_name}")
-               
+
                # Simulate data ingestion based on source type
                if source_config['type'] == 'csv':
                    # Simulate CSV loading
                    await asyncio.sleep(0.2)
-                   data = pd.DataFrame(np.random.randn(1000, 5), 
+                   data = pd.DataFrame(np.random.randn(1000, 5),
                                      columns=['feature_1', 'feature_2', 'feature_3', 'feature_4', 'target'])
                elif source_config['type'] == 'database':
                    # Simulate database query
@@ -2152,32 +2152,32 @@ Comprehensive data analysis pipelines for research and business intelligence:
                                      columns=['metric_a', 'metric_b', 'metric_c', 'label'])
                else:
                    data = pd.DataFrame()
-               
+
                ingested_datasets[source_name] = {
                    'data': data,
                    'shape': data.shape,
                    'columns': list(data.columns),
                    'source_type': source_config['type']
                }
-           
+
            ctx.ingested_datasets = ingested_datasets
            ctx.total_records = sum(dataset['shape'][0] for dataset in ingested_datasets.values())
-           
+
            print(f"Ingested {len(ingested_datasets)} datasets with {ctx.total_records} total records")
 
    class DataQualityAgent(Agent):
        """Assess and improve data quality."""
-       
+
        @state(depends_on=["ingest_data_sources"], profile="cpu_intensive")
        async def assess_data_quality(self, ctx: Context) -> None:
            """Assess data quality across all datasets."""
            datasets = ctx.ingested_datasets
-           
+
            quality_reports = {}
-           
+
            for name, dataset in datasets.items():
                data = dataset['data']
-               
+
                # Calculate quality metrics
                quality_metrics = {
                    'completeness': 1 - (data.isnull().sum().sum() / (data.shape[0] * data.shape[1])),
@@ -2187,12 +2187,12 @@ Comprehensive data analysis pipelines for research and business intelligence:
                    'missing_values': data.isnull().sum().to_dict(),
                    'data_types': data.dtypes.to_dict()
                }
-               
+
                quality_reports[name] = quality_metrics
-           
+
            ctx.quality_reports = quality_reports
            ctx.overall_quality_score = np.mean([report['completeness'] for report in quality_reports.values()])
-           
+
            print(f"Data quality assessment completed. Overall score: {ctx.overall_quality_score:.2f}")
 
        def detect_outliers(self, data: pd.DataFrame) -> float:
@@ -2200,7 +2200,7 @@ Comprehensive data analysis pipelines for research and business intelligence:
            numeric_cols = data.select_dtypes(include=[np.number]).columns
            outlier_count = 0
            total_values = 0
-           
+
            for col in numeric_cols:
                Q1 = data[col].quantile(0.25)
                Q3 = data[col].quantile(0.75)
@@ -2208,7 +2208,7 @@ Comprehensive data analysis pipelines for research and business intelligence:
                outliers = ((data[col] < (Q1 - 1.5 * IQR)) | (data[col] > (Q3 + 1.5 * IQR))).sum()
                outlier_count += outliers
                total_values += len(data[col].dropna())
-           
+
            return outlier_count / total_values if total_values > 0 else 0
 
        def check_consistency(self, data: pd.DataFrame) -> float:
@@ -2218,69 +2218,69 @@ Comprehensive data analysis pipelines for research and business intelligence:
 
    class StatisticalAnalysisAgent(Agent):
        """Perform statistical analysis on the datasets."""
-       
+
        @state(depends_on=["assess_data_quality"], profile="cpu_intensive")
        async def descriptive_statistics(self, ctx: Context) -> None:
            """Calculate descriptive statistics for all datasets."""
            datasets = ctx.ingested_datasets
-           
+
            statistical_summaries = {}
-           
+
            for name, dataset in datasets.items():
                data = dataset['data']
-               
+
                # Descriptive statistics
                numeric_cols = data.select_dtypes(include=[np.number]).columns
                categorical_cols = data.select_dtypes(include=['object', 'category']).columns
-               
+
                summary = {
                    'numeric_summary': data[numeric_cols].describe().to_dict() if len(numeric_cols) > 0 else {},
                    'categorical_summary': {col: data[col].value_counts().to_dict() for col in categorical_cols},
                    'correlations': data[numeric_cols].corr().to_dict() if len(numeric_cols) > 1 else {},
                    'distributions': self.analyze_distributions(data[numeric_cols]) if len(numeric_cols) > 0 else {}
                }
-               
+
                statistical_summaries[name] = summary
-           
+
            ctx.statistical_summaries = statistical_summaries
            print("Descriptive statistics calculated for all datasets")
 
        def analyze_distributions(self, numeric_data: pd.DataFrame) -> Dict:
            """Analyze distributions of numeric variables."""
            distributions = {}
-           
+
            for col in numeric_data.columns:
                # Simple distribution analysis
                skewness = numeric_data[col].skew()
                kurtosis = numeric_data[col].kurtosis()
-               
+
                distributions[col] = {
                    'skewness': skewness,
                    'kurtosis': kurtosis,
                    'distribution_type': 'normal' if abs(skewness) < 0.5 else 'skewed'
                }
-           
+
            return distributions
 
    class HypothesisTestingAgent(Agent):
        """Perform hypothesis testing and statistical inference."""
-       
+
        @state(depends_on=["descriptive_statistics"], profile="cpu_intensive")
        async def test_hypotheses(self, ctx: Context) -> None:
            """Perform various hypothesis tests."""
            datasets = ctx.ingested_datasets
            hypotheses = ctx.get('hypotheses', [])
-           
+
            test_results = {}
-           
+
            for hypothesis in hypotheses:
                test_name = hypothesis['name']
                test_type = hypothesis['type']
                dataset_name = hypothesis['dataset']
-               
+
                if dataset_name in datasets:
                    data = datasets[dataset_name]['data']
-                   
+
                    if test_type == 'correlation':
                        result = await self.test_correlation(data, hypothesis['variables'])
                    elif test_type == 'mean_difference':
@@ -2289,9 +2289,9 @@ Comprehensive data analysis pipelines for research and business intelligence:
                        result = await self.test_distribution(data, hypothesis['variable'])
                    else:
                        result = {'error': f'Unknown test type: {test_type}'}
-                   
+
                    test_results[test_name] = result
-           
+
            ctx.hypothesis_test_results = test_results
            print(f"Completed {len(test_results)} hypothesis tests")
 
@@ -2299,10 +2299,10 @@ Comprehensive data analysis pipelines for research and business intelligence:
            """Test correlation between variables."""
            if len(variables) >= 2 and all(var in data.columns for var in variables):
                correlation = data[variables[0]].corr(data[variables[1]])
-               
+
                # Simulate p-value calculation
                p_value = np.random.uniform(0.001, 0.1)
-               
+
                return {
                    'correlation': correlation,
                    'p_value': p_value,
@@ -2316,10 +2316,10 @@ Comprehensive data analysis pipelines for research and business intelligence:
            if len(groups) == 2 and variable in data.columns:
                group1_data = data[data[groups[0]] == True][variable]
                group2_data = data[data[groups[0]] == False][variable]
-               
+
                mean_diff = group1_data.mean() - group2_data.mean()
                p_value = np.random.uniform(0.001, 0.1)
-               
+
                return {
                    'mean_difference': mean_diff,
                    'group1_mean': group1_data.mean(),
@@ -2334,7 +2334,7 @@ Comprehensive data analysis pipelines for research and business intelligence:
            if variable in data.columns:
                # Simulate normality test
                p_value = np.random.uniform(0.001, 0.5)
-               
+
                return {
                    'test_type': 'normality',
                    'p_value': p_value,
@@ -2345,25 +2345,25 @@ Comprehensive data analysis pipelines for research and business intelligence:
 
    class PredictiveModelingAgent(Agent):
        """Build and evaluate predictive models."""
-       
+
        @state(depends_on=["test_hypotheses"], profile="memory_intensive")
        async def build_predictive_models(self, ctx: Context) -> None:
            """Build predictive models for specified targets."""
            datasets = ctx.ingested_datasets
            modeling_configs = ctx.get('modeling_configs', [])
-           
+
            model_results = {}
-           
+
            for config in modeling_configs:
                dataset_name = config['dataset']
                target_variable = config['target']
                model_types = config.get('models', ['linear_regression', 'random_forest'])
-               
+
                if dataset_name in datasets:
                    data = datasets[dataset_name]['data']
                    results = await self.train_and_evaluate_models(data, target_variable, model_types)
                    model_results[f"{dataset_name}_{target_variable}"] = results
-           
+
            ctx.model_results = model_results
            print(f"Built and evaluated models for {len(model_results)} targets")
 
@@ -2371,12 +2371,12 @@ Comprehensive data analysis pipelines for research and business intelligence:
            """Train and evaluate multiple model types."""
            if target not in data.columns:
                return {'error': f'Target variable {target} not found'}
-           
+
            # Simulate model training and evaluation
            await asyncio.sleep(1.0)  # Simulate training time
-           
+
            results = {}
-           
+
            for model_type in model_types:
                # Simulate model performance metrics
                if model_type == 'linear_regression':
@@ -2394,22 +2394,22 @@ Comprehensive data analysis pipelines for research and business intelligence:
                    }
                else:
                    metrics = {'error': f'Unknown model type: {model_type}'}
-               
+
                results[model_type] = metrics
-           
+
            # Select best model
            best_model = max(results.keys(), key=lambda k: results[k].get('r2_score', 0))
            results['best_model'] = best_model
-           
+
            return results
 
    class ReportGenerationAgent(Agent):
        """Generate comprehensive analysis reports."""
-       
+
        @state(depends_on=["build_predictive_models"], profile="cpu_intensive")
        async def generate_analysis_report(self, ctx: Context) -> None:
            """Generate comprehensive analysis report."""
-           
+
            report = {
                'executive_summary': self.create_executive_summary(ctx),
                'data_overview': self.create_data_overview(ctx),
@@ -2420,10 +2420,10 @@ Comprehensive data analysis pipelines for research and business intelligence:
                'recommendations': self.generate_recommendations(ctx),
                'methodology': self.document_methodology(ctx)
            }
-           
+
            ctx.analysis_report = report
            ctx.report_generated = True
-           
+
            print("Comprehensive analysis report generated")
 
        def create_executive_summary(self, ctx: Context) -> Dict:
@@ -2444,71 +2444,71 @@ Comprehensive data analysis pipelines for research and business intelligence:
        def create_data_overview(self, ctx: Context) -> Dict:
            """Create overview of all datasets."""
            overview = {}
-           
+
            for name, dataset in ctx.ingested_datasets.items():
                overview[name] = {
                    'shape': dataset['shape'],
                    'columns': dataset['columns'],
                    'source_type': dataset['source_type']
                }
-           
+
            return overview
 
        def summarize_statistical_findings(self, ctx: Context) -> Dict:
            """Summarize key statistical findings."""
            findings = {}
-           
+
            for dataset_name, summary in ctx.statistical_summaries.items():
                key_insights = []
-               
+
                # Extract key insights from correlations
                if summary['correlations']:
-                   strong_correlations = [(k, v) for k, corr_dict in summary['correlations'].items() 
+                   strong_correlations = [(k, v) for k, corr_dict in summary['correlations'].items()
                                         for v_k, v in corr_dict.items() if abs(v) > 0.7 and k != v_k]
                    if strong_correlations:
                        key_insights.append(f"Found {len(strong_correlations)} strong correlations")
-               
+
                findings[dataset_name] = {
                    'key_insights': key_insights,
                    'data_characteristics': summary['distributions']
                }
-           
+
            return findings
 
        def summarize_model_results(self, ctx: Context) -> Dict:
            """Summarize predictive modeling results."""
            summary = {}
-           
+
            for target, results in ctx.model_results.items():
                if 'best_model' in results:
                    best_model = results['best_model']
                    best_performance = results[best_model]
-                   
+
                    summary[target] = {
                        'best_model': best_model,
                        'performance': best_performance,
-                       'model_comparison': {model: metrics.get('r2_score', 0) 
-                                          for model, metrics in results.items() 
+                       'model_comparison': {model: metrics.get('r2_score', 0)
+                                          for model, metrics in results.items()
                                           if model != 'best_model'}
                    }
-           
+
            return summary
 
        def generate_recommendations(self, ctx: Context) -> List[str]:
            """Generate actionable recommendations."""
            recommendations = []
-           
+
            # Data quality recommendations
            if ctx.overall_quality_score < 0.8:
                recommendations.append("Improve data quality processes to achieve >80% quality score")
-           
+
            # Model performance recommendations
            for target, results in ctx.model_results.items():
                if 'best_model' in results:
                    best_score = results[results['best_model']].get('r2_score', 0)
                    if best_score < 0.7:
                        recommendations.append(f"Consider feature engineering for {target} to improve model performance")
-           
+
            return recommendations
 
        def document_methodology(self, ctx: Context) -> Dict:
@@ -2524,11 +2524,11 @@ Comprehensive data analysis pipelines for research and business intelligence:
 
    class ResearchWorkflowOrchestrator(Agent):
        """Orchestrate the complete research and analysis workflow."""
-       
-       async def run_analysis_pipeline(self, data_sources: Dict, hypotheses: List[Dict], 
+
+       async def run_analysis_pipeline(self, data_sources: Dict, hypotheses: List[Dict],
                                      modeling_configs: List[Dict]) -> Dict[str, Any]:
            """Run the complete analysis pipeline."""
-           
+
            # Create analysis team
            analysis_team = AgentTeam([
                DataIngestionAgent(),
@@ -2538,17 +2538,17 @@ Comprehensive data analysis pipelines for research and business intelligence:
                PredictiveModelingAgent(),
                ReportGenerationAgent()
            ])
-           
+
            # Setup context
            context = Context({
                'data_sources': data_sources,
                'hypotheses': hypotheses,
                'modeling_configs': modeling_configs
            })
-           
+
            # Execute pipeline
            result = await analysis_team.run(context)
-           
+
            return {
                'pipeline_status': result.status,
                'analysis_report': result.context.analysis_report,
@@ -2562,14 +2562,14 @@ Comprehensive data analysis pipelines for research and business intelligence:
    # Usage Example
    async def run_comprehensive_analysis():
        """Demonstrate comprehensive data analysis workflow."""
-       
+
        # Define data sources
        data_sources = {
            'customer_data': {'type': 'csv', 'path': '/data/customers.csv'},
            'transaction_data': {'type': 'database', 'query': 'SELECT * FROM transactions'},
            'market_data': {'type': 'api', 'endpoint': 'https://api.market.com/data'}
        }
-       
+
        # Define hypotheses to test
        hypotheses = [
            {
@@ -2586,7 +2586,7 @@ Comprehensive data analysis pipelines for research and business intelligence:
                'variable': 'sales_amount'
            }
        ]
-       
+
        # Define modeling configurations
        modeling_configs = [
            {
@@ -2595,11 +2595,11 @@ Comprehensive data analysis pipelines for research and business intelligence:
                'models': ['linear_regression', 'random_forest']
            }
        ]
-       
+
        # Run analysis
        orchestrator = ResearchWorkflowOrchestrator()
        results = await orchestrator.run_analysis_pipeline(data_sources, hypotheses, modeling_configs)
-       
+
        print("Analysis Pipeline Results:")
        print(f"Status: {results['pipeline_status']}")
        print(f"Records analyzed: {results['total_records_analyzed']}")

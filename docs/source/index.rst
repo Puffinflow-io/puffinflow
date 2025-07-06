@@ -111,7 +111,7 @@ AI/ML Quick Start
 
    class RAGAgent(Agent):
        """Simple RAG implementation."""
-       
+
        def __init__(self):
            super().__init__()
            self.rate_limiter = RateLimiter(max_calls=10, time_window=60)

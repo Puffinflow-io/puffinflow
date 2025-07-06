@@ -14,33 +14,33 @@ Tests cover:
 - Error handling and edge cases
 """
 
-import pytest
 import asyncio
-import time
-import importlib
 import sys
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
+import time
+from typing import Any, Optional
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Import the module to test
-from src.puffinflow.core.agent.context import Context, StateType, TypedContextData
+from src.puffinflow.core.agent.context import Context, StateType
 
 # Test Pydantic models for validation testing
 try:
     from pydantic import BaseModel
+
     PYDANTIC_AVAILABLE = True
-    
+
     class TestUser(BaseModel):
         name: str
         age: int
         email: Optional[str] = None
-    
+
     class TestProduct(BaseModel):
         id: int
         name: str
         price: float
-        
+
 except ImportError:
     PYDANTIC_AVAILABLE = False
     TestUser = None
@@ -51,13 +51,14 @@ except ImportError:
 # FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 def shared_state():
     """Basic shared state dictionary for testing."""
     return {
         "existing_key": "existing_value",
         "const_test_constant": "constant_value",
-        "secret_test_secret": "secret_value"
+        "secret_test_secret": "secret_value",
     }
 
 
@@ -70,30 +71,42 @@ def context(shared_state):
 @pytest.fixture
 def context_with_metadata(shared_state):
     """Context with pre-existing metadata for testing restoration."""
-    shared_state.update({
-        "_meta_typed_test_var": "builtins.str",
-        "test_var": "test_value",
-        "_meta_validated_user_data": "tests.unit.agent.test_context.TestUser" if PYDANTIC_AVAILABLE else "dict",
-    })
-    
+    shared_state.update(
+        {
+            "_meta_typed_test_var": "builtins.str",
+            "test_var": "test_value",
+            "_meta_validated_user_data": "tests.unit.agent.test_context.TestUser"
+            if PYDANTIC_AVAILABLE
+            else "dict",
+        }
+    )
+
     if PYDANTIC_AVAILABLE:
         shared_state["user_data"] = TestUser(name="John", age=30)
-    
+
     return Context(shared_state=shared_state)
 
 
 @pytest.fixture
 def mock_pydantic_unavailable():
     """Mock Pydantic being unavailable for testing error handling."""
-    with patch.object(sys.modules['src.puffinflow.core.agent.context'], '_PYD_VER', 0):
-        with patch.object(sys.modules['src.puffinflow.core.agent.context'], '_PBM', None):
-            with patch.object(sys.modules['src.puffinflow.core.agent.context'], '_PYD_ERR', ImportError("No module named 'pydantic'"), create=True):
+    with patch.object(sys.modules["src.puffinflow.core.agent.context"], "_PYD_VER", 0):
+        with patch.object(
+            sys.modules["src.puffinflow.core.agent.context"], "_PBM", None
+        ):
+            with patch.object(
+                sys.modules["src.puffinflow.core.agent.context"],
+                "_PYD_ERR",
+                ImportError("No module named 'pydantic'"),
+                create=True,
+            ):
                 yield
 
 
 # ============================================================================
 # CONTEXT INITIALIZATION TESTS
 # ============================================================================
+
 
 class TestContextInitialization:
     """Test cases for Context initialization."""
@@ -135,7 +148,7 @@ class TestContextInitialization:
         """Test metadata restoration with orphaned metadata keys."""
         shared_state = {
             "_meta_typed_missing_var": "builtins.str",  # No corresponding var
-            "_meta_validated_missing_data": "dict"      # No corresponding data
+            "_meta_validated_missing_data": "dict",  # No corresponding data
         }
         context = Context(shared_state=shared_state)
 
@@ -147,6 +160,7 @@ class TestContextInitialization:
 # ============================================================================
 # PER-STATE SCRATCH DATA TESTS
 # ============================================================================
+
 
 class TestPerStateScratchData:
     """Test cases for per-state scratch data management."""
@@ -163,7 +177,10 @@ class TestPerStateScratchData:
 
     def test_set_state_overwrite_protected_key_error(self, context):
         """Test that setting state on protected keys raises error."""
-        with pytest.raises(ValueError, match="Cannot set variable with reserved prefix: const_protected_key"):
+        with pytest.raises(
+            ValueError,
+            match="Cannot set variable with reserved prefix: const_protected_key",
+        ):
             context.set_variable("const_protected_key", "value")
 
     def test_get_state_protected_key_error(self, context):
@@ -182,7 +199,9 @@ class TestPerStateScratchData:
     @pytest.mark.skipif(not PYDANTIC_AVAILABLE, reason="Pydantic not available")
     def test_set_typed_invalid_type(self, context):
         """Test setting typed data with non-Pydantic object."""
-        with pytest.raises(TypeError, match="Value must be a Pydantic model, got <class 'str'>"):
+        with pytest.raises(
+            TypeError, match="Value must be a Pydantic model, got <class 'str'>"
+        ):
             context.set_typed("invalid", "not a model")
 
     def test_set_typed_pydantic_unavailable(self, context, mock_pydantic_unavailable):
@@ -239,7 +258,9 @@ class TestPerStateScratchData:
         context.update_typed("nonexistent", name="test")
         assert True
 
-    def test_update_typed_pydantic_unavailable(self, context, mock_pydantic_unavailable):
+    def test_update_typed_pydantic_unavailable(
+        self, context, mock_pydantic_unavailable
+    ):
         """Test update_typed when Pydantic is unavailable."""
         with pytest.raises(ImportError, match="Pydantic is required"):
             context.update_typed("test", field="value")
@@ -248,6 +269,7 @@ class TestPerStateScratchData:
 # ============================================================================
 # FREE VARIABLES TESTS
 # ============================================================================
+
 
 class TestFreeVariables:
     """Test cases for free variable management."""
@@ -270,12 +292,16 @@ class TestFreeVariables:
 
     def test_set_variable_reserved_prefix_const(self, context):
         """Test setting variable with reserved const_ prefix."""
-        with pytest.raises(ValueError, match="Cannot set variable with reserved prefix: const_test"):
+        with pytest.raises(
+            ValueError, match="Cannot set variable with reserved prefix: const_test"
+        ):
             context.set_variable("const_test", "value")
 
     def test_set_variable_reserved_prefix_secret(self, context):
         """Test setting variable with reserved secret_ prefix."""
-        with pytest.raises(ValueError, match="Cannot set variable with reserved prefix: secret_test"):
+        with pytest.raises(
+            ValueError, match="Cannot set variable with reserved prefix: secret_test"
+        ):
             context.set_variable("secret_test", "value")
 
     def test_get_variable_keys_filters_reserved(self, context):
@@ -298,6 +324,7 @@ class TestFreeVariables:
 # TYPED VARIABLES TESTS
 # ============================================================================
 
+
 class TestTypedVariables:
     """Test cases for typed variable management."""
 
@@ -306,7 +333,7 @@ class TestTypedVariables:
         context.set_typed_variable("test_var", "string_value")
 
         assert context.get_variable("test_var") == "string_value"
-        assert context._typed_var_types["test_var"] == str
+        assert context._typed_var_types["test_var"] is str
         context.set_typed_variable("test_var", "string_value")
         assert f"{context._META_TYPED}test_var" in context.shared_state
 
@@ -321,12 +348,18 @@ class TestTypedVariables:
         """Test setting typed variable with different type raises error."""
         context.set_typed_variable("test_var", "string_value")
 
-        with pytest.raises(TypeError, match="Type mismatch for test_var: expected <class 'str'>, got <class 'int'>"):
+        with pytest.raises(
+            TypeError,
+            match="Type mismatch for test_var: expected <class 'str'>, got <class 'int'>",
+        ):
             context.set_typed_variable("test_var", 123)
 
     def test_set_typed_variable_reserved_prefix(self, context):
         """Test setting typed variable with reserved prefix."""
-        with pytest.raises(ValueError, match="Cannot set typed variable with reserved prefix: const_test"):
+        with pytest.raises(
+            ValueError,
+            match="Cannot set typed variable with reserved prefix: const_test",
+        ):
             context.set_typed_variable("const_test", "value")
 
     def test_get_typed_variable_correct_type(self, context):
@@ -359,6 +392,7 @@ class TestTypedVariables:
 # VALIDATED DATA TESTS
 # ============================================================================
 
+
 @pytest.mark.skipif(not PYDANTIC_AVAILABLE, reason="Pydantic not available")
 class TestValidatedData:
     """Test cases for validated data management."""
@@ -389,12 +423,17 @@ class TestValidatedData:
 
         context.set_validated_data("item", user)
 
-        with pytest.raises(TypeError, match="Type mismatch for item: expected .*TestUser'>, got .*TestProduct'>"):
+        with pytest.raises(
+            TypeError,
+            match="Type mismatch for item: expected .*TestUser'>, got .*TestProduct'>",
+        ):
             context.set_validated_data("item", product)
 
     def test_set_validated_data_non_pydantic_error(self, context):
         """Test setting validated data with non-Pydantic object."""
-        with pytest.raises(TypeError, match="Value must be a Pydantic model, got <class 'str'>"):
+        with pytest.raises(
+            TypeError, match="Value must be a Pydantic model, got <class 'str'>"
+        ):
             context.set_validated_data("invalid", "not a model")
 
     def test_set_validated_data_reserved_prefix(self, context):
@@ -437,12 +476,16 @@ class TestValidatedData:
 class TestValidatedDataWithoutPydantic:
     """Test validated data methods when Pydantic is unavailable."""
 
-    def test_set_validated_data_pydantic_unavailable(self, context, mock_pydantic_unavailable):
+    def test_set_validated_data_pydantic_unavailable(
+        self, context, mock_pydantic_unavailable
+    ):
         """Test set_validated_data when Pydantic is unavailable."""
         with pytest.raises(ImportError, match="Pydantic is required"):
             context.set_validated_data("test", "value")
 
-    def test_get_validated_data_pydantic_unavailable(self, context, mock_pydantic_unavailable):
+    def test_get_validated_data_pydantic_unavailable(
+        self, context, mock_pydantic_unavailable
+    ):
         """Test get_validated_data when Pydantic is unavailable."""
         with pytest.raises(ImportError, match="Pydantic is required"):
             context.get_validated_data("test", str)
@@ -451,6 +494,7 @@ class TestValidatedDataWithoutPydantic:
 # ============================================================================
 # CONSTANTS AND SECRETS TESTS
 # ============================================================================
+
 
 class TestConstantsAndSecrets:
     """Test cases for constants and secrets management."""
@@ -465,7 +509,9 @@ class TestConstantsAndSecrets:
         """Test setting constant that already exists raises error."""
         context.set_constant("api_version", "v1.0")
 
-        with pytest.raises(ValueError, match="Immutable key api_version already exists"):
+        with pytest.raises(
+            ValueError, match="Immutable key api_version already exists"
+        ):
             context.set_constant("api_version", "v2.0")
 
     def test_get_constant_with_default(self, context):
@@ -503,6 +549,7 @@ class TestConstantsAndSecrets:
 # OUTPUT HELPERS TESTS
 # ============================================================================
 
+
 class TestOutputHelpers:
     """Test cases for output helper methods."""
 
@@ -537,6 +584,7 @@ class TestOutputHelpers:
 # ============================================================================
 # TTL CACHE TESTS
 # ============================================================================
+
 
 class TestTTLCache:
     """Test cases for TTL cache functionality."""
@@ -600,6 +648,7 @@ class TestTTLCache:
 # ============================================================================
 # HOUSEKEEPING TESTS
 # ============================================================================
+
 
 class TestHousekeeping:
     """Test cases for state management and housekeeping."""
@@ -718,6 +767,7 @@ class TestHousekeeping:
 # HUMAN-IN-THE-LOOP TESTS
 # ============================================================================
 
+
 class TestHumanInTheLoop:
     """Test cases for human-in-the-loop functionality."""
 
@@ -726,9 +776,11 @@ class TestHumanInTheLoop:
         """Test basic human-in-the-loop functionality."""
         mock_input = Mock(return_value="user_response")
 
-        with patch('builtins.input', mock_input):
-            with patch('asyncio.get_event_loop') as mock_loop:
-                mock_loop.return_value.run_in_executor = AsyncMock(return_value="user_response")
+        with patch("builtins.input", mock_input):
+            with patch("asyncio.get_event_loop") as mock_loop:
+                mock_loop.return_value.run_in_executor = AsyncMock(
+                    return_value="user_response"
+                )
 
                 result = await context.human_in_the_loop("Enter value: ")
                 assert result == "user_response"
@@ -736,8 +788,10 @@ class TestHumanInTheLoop:
     @pytest.mark.asyncio
     async def test_human_in_the_loop_with_timeout_success(self, context):
         """Test human-in-the-loop with timeout that succeeds."""
-        with patch('asyncio.get_event_loop') as mock_loop:
-            mock_loop.return_value.run_in_executor = AsyncMock(return_value="quick_response")
+        with patch("asyncio.get_event_loop") as mock_loop:
+            mock_loop.return_value.run_in_executor = AsyncMock(
+                return_value="quick_response"
+            )
 
             result = await context.human_in_the_loop("Enter value: ", timeout=1.0)
             assert result == "quick_response"
@@ -745,28 +799,28 @@ class TestHumanInTheLoop:
     @pytest.mark.asyncio
     async def test_human_in_the_loop_with_timeout_expires(self, context):
         """Test human-in-the-loop with timeout that expires."""
+
         async def slow_response(*args):
             await asyncio.sleep(2.0)
             return "slow_response"
 
-        with patch('asyncio.wait_for', side_effect=asyncio.TimeoutError):
+        with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
             result = await context.human_in_the_loop(
-                "Enter value: ",
-                timeout=0.1,
-                default="timeout_default"
+                "Enter value: ", timeout=0.1, default="timeout_default"
             )
             assert result == "timeout_default"
 
     @pytest.mark.asyncio
     async def test_human_in_the_loop_timeout_no_default(self, context):
         """Test human-in-the-loop timeout with no default returns empty string."""
-        with patch('asyncio.wait_for', side_effect=asyncio.TimeoutError):
+        with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
             result = await context.human_in_the_loop("Enter value: ", timeout=0.1)
             assert result is None
 
     @pytest.mark.asyncio
     async def test_human_in_the_loop_with_validator_valid(self, context):
         """Test human-in-the-loop with validator that passes."""
+
         def is_number(value):
             try:
                 int(value)
@@ -776,16 +830,21 @@ class TestHumanInTheLoop:
 
         mock_input_responses = ["123"]  # Valid number
 
-        with patch('builtins.input', side_effect=mock_input_responses):
-            with patch('asyncio.get_event_loop') as mock_loop:
-                mock_loop.return_value.run_in_executor = AsyncMock(side_effect=mock_input_responses)
+        with patch("builtins.input", side_effect=mock_input_responses):
+            with patch("asyncio.get_event_loop") as mock_loop:
+                mock_loop.return_value.run_in_executor = AsyncMock(
+                    side_effect=mock_input_responses
+                )
 
-                result = await context.human_in_the_loop("Enter number: ", validator=is_number)
+                result = await context.human_in_the_loop(
+                    "Enter number: ", validator=is_number
+                )
                 assert result == "123"
 
     @pytest.mark.asyncio
     async def test_human_in_the_loop_with_validator_retry(self, context):
         """Test human-in-the-loop with validator that requires retry."""
+
         def is_number(value):
             try:
                 int(value)
@@ -795,17 +854,21 @@ class TestHumanInTheLoop:
 
         mock_input_responses = ["abc", "def", "123"]  # Two invalid, then valid
 
-        with patch('builtins.input', side_effect=mock_input_responses):
-            with patch('asyncio.get_event_loop') as mock_loop:
-                mock_loop.return_value.run_in_executor = AsyncMock(side_effect=mock_input_responses)
+        with patch("builtins.input", side_effect=mock_input_responses):
+            with patch("asyncio.get_event_loop") as mock_loop:
+                mock_loop.return_value.run_in_executor = AsyncMock(
+                    side_effect=mock_input_responses
+                )
 
-                result = await context.human_in_the_loop("Enter number: ", validator=is_number)
+                result = await context.human_in_the_loop(
+                    "Enter number: ", validator=is_number
+                )
                 assert result == "123"
 
     @pytest.mark.asyncio
     async def test_human_in_the_loop_no_timeout_no_validator(self, context):
         """Test human-in-the-loop without timeout or validator."""
-        with patch('builtins.input', return_value="simple_response"):
+        with patch("builtins.input", return_value="simple_response"):
             result = await context.human_in_the_loop("Enter value: ")
             assert result == "simple_response"
 
@@ -813,6 +876,7 @@ class TestHumanInTheLoop:
 # ============================================================================
 # UTILITY AND HELPER TESTS
 # ============================================================================
+
 
 class TestUtilityMethods:
     """Test cases for utility and helper methods."""
@@ -861,12 +925,13 @@ class TestUtilityMethods:
 
         expected_key = "_test_prefix_test_key"
         assert expected_key in context.shared_state
-        assert context.shared_state[expected_key] == str
+        assert context.shared_state[expected_key] is str
 
 
 # ============================================================================
 # EDGE CASES AND ERROR HANDLING TESTS
 # ============================================================================
+
 
 class TestEdgeCases:
     """Test cases for edge cases and error conditions."""
@@ -897,7 +962,7 @@ class TestEdgeCases:
     def test_cache_with_negative_ttl(self, context):
         """Test cache behavior with negative TTL."""
         context.set_cached("key", "value", ttl=-1)
-        
+
         # Should expire immediately
         assert context.get_cached("key", "default") == "default"
 
@@ -910,9 +975,9 @@ class TestEdgeCases:
         """Test metadata restoration with invalid class path."""
         shared_state = {
             "_meta_validated_invalid": "nonexistent.module.Class",
-            "invalid": "some_value"
+            "invalid": "some_value",
         }
-        
+
         # Should not crash, just not restore the metadata
         context = Context(shared_state=shared_state)
         assert len(context._validated_types) == 1
@@ -920,43 +985,40 @@ class TestEdgeCases:
     def test_complex_nested_data_structures(self, context):
         """Test context with complex nested data structures."""
         complex_data = {
-            "nested": {
-                "deeply": {
-                    "nested": ["list", "with", {"mixed": "types"}]
-                }
-            },
+            "nested": {"deeply": {"nested": ["list", "with", {"mixed": "types"}]}},
             "numbers": [1, 2, 3, 4, 5],
-            "mixed_list": [1, "two", 3.0, True, None]
+            "mixed_list": [1, "two", 3.0, True, None],
         }
-        
+
         context.set_variable("complex", complex_data)
         retrieved = context.get_variable("complex")
-        
+
         assert retrieved == complex_data
         assert retrieved["nested"]["deeply"]["nested"][2]["mixed"] == "types"
 
     @pytest.mark.skipif(not PYDANTIC_AVAILABLE, reason="Pydantic not available")
     def test_pydantic_model_with_complex_validation(self, context):
         """Test context with complex Pydantic models."""
+
         class ComplexModel(BaseModel):
-            data: Dict[str, Any]
+            data: dict[str, Any]
             users: list[TestUser]
-            metadata: Optional[Dict[str, str]] = None
-        
+            metadata: Optional[dict[str, str]] = None
+
         users = [
             TestUser(name="Alice", age=25),
-            TestUser(name="Bob", age=30, email="bob@example.com")
+            TestUser(name="Bob", age=30, email="bob@example.com"),
         ]
-        
+
         complex_model = ComplexModel(
             data={"key": "value", "nested": {"inner": 42}},
             users=users,
-            metadata={"version": "1.0", "type": "test"}
+            metadata={"version": "1.0", "type": "test"},
         )
-        
+
         context.set_validated_data("complex", complex_model)
         retrieved = context.get_validated_data("complex", ComplexModel)
-        
+
         assert retrieved is complex_model
         assert len(retrieved.users) == 2
         assert retrieved.users[0].name == "Alice"
@@ -966,6 +1028,7 @@ class TestEdgeCases:
 # ============================================================================
 # INTEGRATION TESTS
 # ============================================================================
+
 
 class TestIntegration:
     """Integration tests combining multiple context features."""
@@ -977,28 +1040,28 @@ class TestIntegration:
         context.set_constant("workflow_version", "1.0")
         context.set_secret("api_key", "secret123")
         context.set_variable("step", 1)
-        
+
         # Store workflow data
         user = TestUser(name="Workflow User", age=35, email="user@workflow.com")
         context.set_validated_data("current_user", user)
-        
+
         # Set typed variable for step tracking
         context.set_typed_variable("current_step", "initialization")
-        
+
         # Cache some expensive computation result
         context.set_cached("expensive_result", {"computed": "value"}, ttl=300)
-        
+
         # Set some output
         context.set_output("status", "in_progress")
-        
+
         # Verify everything is accessible
         assert context.get_constant("workflow_version") == "1.0"
         assert context.get_secret("api_key") == "secret123"
         assert context.get_variable("step") == 1
-        
+
         retrieved_user = context.get_validated_data("current_user", TestUser)
         assert retrieved_user.name == "Workflow User"
-        
+
         assert context.get_typed_variable("current_step", str) == "initialization"
         assert context.get_cached("expensive_result")["computed"] == "value"
         assert context.get_output("status") == "in_progress"
@@ -1008,35 +1071,35 @@ class TestIntegration:
         # Create initial context
         shared_state = {}
         context1 = Context(shared_state=shared_state)
-        
+
         # Set up various types of data
         context1.set_variable("var1", "value1")
         context1.set_typed_variable("typed_var", 42)
         context1.set_constant("const1", "constant_value")
         context1.set_secret("secret1", "secret_value")
-        
+
         if PYDANTIC_AVAILABLE:
             user = TestUser(name="Persistent User", age=40)
             context1.set_validated_data("user", user)
-        
+
         # Create new context with same shared_state
         context2 = Context(shared_state=shared_state)
-        
+
         # Verify data is restored
         assert context2.get_variable("var1") == "value1"
         assert context2.get_typed_variable("typed_var", int) == 42
         assert context2.get_constant("const1") == "constant_value"
         assert context2.get_secret("secret1") == "secret_value"
-        
+
         if PYDANTIC_AVAILABLE:
             restored_user = context2.get_validated_data("user", TestUser)
             assert restored_user.name == "Persistent User"
             assert restored_user.age == 40
-        
+
         # Verify metadata was restored
         assert "typed_var" in context2._typed_var_types
-        assert context2._typed_var_types["typed_var"] == int
-        
+        assert context2._typed_var_types["typed_var"] is int
+
         if PYDANTIC_AVAILABLE:
             assert "user" in context2._validated_types
 
@@ -1044,7 +1107,7 @@ class TestIntegration:
         """Test error handling across different context features."""
         # Test reserved key errors across different methods
         reserved_keys = ["const_test", "secret_test"]
-        
+
         for key in reserved_keys:
             with pytest.raises(ValueError, match="reserved"):
                 context.set_variable(key, "value")
@@ -1060,21 +1123,22 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_concurrent_access_patterns(self, context):
         """Test context behavior under concurrent access patterns."""
+
         async def worker1():
             for i in range(10):
                 context.set_variable(f"worker1_var_{i}", f"value_{i}")
                 context.set_cached(f"worker1_cache_{i}", f"cached_{i}")
                 await asyncio.sleep(0.001)
-        
+
         async def worker2():
             for i in range(10):
                 context.set_variable(f"worker2_state_{i}", f"state_{i}")
                 context.set_output(f"worker2_output_{i}", f"output_{i}")
                 await asyncio.sleep(0.001)
-        
+
         # Run workers concurrently
         await asyncio.gather(worker1(), worker2())
-        
+
         # Verify all data was set correctly
         for i in range(10):
             assert context.get_variable(f"worker1_var_{i}") == f"value_{i}"

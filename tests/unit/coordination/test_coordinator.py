@@ -3,34 +3,33 @@ Comprehensive unit tests for the improved coordinator module.
 Final version with all remaining issues fixed.
 """
 
-import pytest
-import asyncio
-import time
-import uuid
-import logging
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from dataclasses import asdict
-from typing import Dict, Any, Optional
-import contextlib
 import sys
-import os
+from pathlib import Path
 
 # Add the project root to the path to ensure imports work
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, str((Path(__file__).parent / ".." / "..").resolve()))
 
-# Import the modules under test
+import asyncio
+import contextlib
+import logging
+import time
+import uuid
+from dataclasses import asdict
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from src.puffinflow.core.coordination.coordinator import (
     AgentCoordinator,
+    AgentProtocol,
     CoordinationConfig,
     CoordinationError,
     CoordinationTimeout,
-    enhance_agent,
     create_coordinated_agent,
-    AgentProtocol
+    enhance_agent,
 )
-from src.puffinflow.core.coordination.primitives import PrimitiveType, ResourceState
+from src.puffinflow.core.coordination.primitives import PrimitiveType
 from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
-from src.puffinflow.core.coordination.deadlock import DeadlockError
 
 
 # Simple async context manager for testing
@@ -64,6 +63,7 @@ def create_real_agent():
     """Factory function to create a real agent."""
     try:
         from src.puffinflow.core.agent.base import Agent
+
         return Agent("test_agent", max_concurrent=2)
     except ImportError:
         # Create a minimal mock if real agent not available
@@ -95,9 +95,7 @@ class TestCoordinationConfig:
     def test_custom_config(self):
         """Test custom configuration values."""
         config = CoordinationConfig(
-            detection_interval=2.0,
-            cleanup_interval=120.0,
-            enable_metrics=False
+            detection_interval=2.0, cleanup_interval=120.0, enable_metrics=False
         )
 
         assert config.detection_interval == 2.0
@@ -112,8 +110,8 @@ class TestCoordinationConfig:
         serialized = asdict(config)
 
         assert isinstance(serialized, dict)
-        assert serialized['detection_interval'] == 2.5
-        assert 'enable_metrics' in serialized
+        assert serialized["detection_interval"] == 2.5
+        assert "enable_metrics" in serialized
 
 
 class TestAgentCoordinatorInitialization:
@@ -143,7 +141,7 @@ class TestAgentCoordinatorInitialization:
             enable_metrics=True,
             enable_deadlock_detection=True,
             max_retry_attempts=2,
-            backoff_multiplier=1.2
+            backoff_multiplier=1.2,
         )
         coordinator = AgentCoordinator(mock_agent, coordination_config)
 
@@ -164,11 +162,11 @@ class TestAgentCoordinatorInitialization:
         coordinator = AgentCoordinator(mock_agent)
 
         expected_stats = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'rate_limited_requests': 0,
-            'timeout_requests': 0
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "rate_limited_requests": 0,
+            "timeout_requests": 0,
         }
 
         assert coordinator._coordination_stats == expected_stats
@@ -181,10 +179,9 @@ class TestAgentCoordinatorLifecycle:
     async def test_start_success(self):
         """Test successful coordinator start."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -202,10 +199,9 @@ class TestAgentCoordinatorLifecycle:
     async def test_start_idempotent(self):
         """Test that start can be called multiple times safely."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -224,14 +220,15 @@ class TestAgentCoordinatorLifecycle:
     async def test_start_failure_emergency_cleanup(self):
         """Test emergency cleanup on start failure."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         # Mock deadlock detector to fail
         if coordinator.deadlock_detector:
-            coordinator.deadlock_detector.start = AsyncMock(side_effect=Exception("Start failed"))
+            coordinator.deadlock_detector.start = AsyncMock(
+                side_effect=Exception("Start failed")
+            )
 
             with pytest.raises(CoordinationError, match="Failed to start coordinator"):
                 await coordinator.start()
@@ -243,13 +240,12 @@ class TestAgentCoordinatorLifecycle:
     async def test_stop_success(self):
         """Test successful coordinator stop."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         await coordinator.start()
-        uptime_before = time.time() - coordinator._start_time
+        time.time() - coordinator._start_time
 
         await coordinator.stop()
 
@@ -260,10 +256,9 @@ class TestAgentCoordinatorLifecycle:
     async def test_stop_idempotent(self):
         """Test that stop can be called multiple times safely."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         await coordinator.start()
         await coordinator.stop()
@@ -277,17 +272,18 @@ class TestAgentCoordinatorLifecycle:
     async def test_emergency_cleanup(self):
         """Test emergency cleanup functionality."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         # Set up coordinator with deadlock detector
         await coordinator.start()
 
         if coordinator.deadlock_detector:
             # Mock stop to raise exception
-            coordinator.deadlock_detector.stop = AsyncMock(side_effect=Exception("Stop failed"))
+            coordinator.deadlock_detector.stop = AsyncMock(
+                side_effect=Exception("Stop failed")
+            )
 
             # Emergency cleanup should handle exception
             await coordinator._emergency_cleanup()
@@ -310,7 +306,7 @@ class TestRateLimiterManagement:
             "test_limiter",
             max_rate=10.0,
             strategy=RateLimitStrategy.SLIDING_WINDOW,
-            window_size=60.0
+            window_size=60.0,
         )
 
         assert "test_limiter" in coordinator.rate_limiters
@@ -335,10 +331,7 @@ class TestRateLimiterManagement:
         coordinator = AgentCoordinator(mock_agent)
 
         coordinator.add_rate_limiter(
-            "custom_limiter",
-            max_rate=15.0,
-            burst_size=20,
-            window_size=30.0
+            "custom_limiter", max_rate=15.0, burst_size=20, window_size=30.0
         )
 
         limiter = coordinator.rate_limiters["custom_limiter"]
@@ -355,10 +348,7 @@ class TestPrimitiveManagement:
         coordinator = AgentCoordinator(mock_agent)
 
         coordinator.create_primitive(
-            "test_mutex",
-            PrimitiveType.SEMAPHORE,
-            max_count=3,
-            ttl=120.0
+            "test_mutex", PrimitiveType.SEMAPHORE, max_count=3, ttl=120.0
         )
 
         assert "test_mutex" in coordinator.primitives
@@ -392,7 +382,7 @@ class TestPrimitiveManagement:
             PrimitiveType.BARRIER,
             PrimitiveType.LEASE,
             PrimitiveType.LOCK,
-            PrimitiveType.QUOTA
+            PrimitiveType.QUOTA,
         ]
 
         for i, ptype in enumerate(primitive_types):
@@ -410,18 +400,17 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_success(self):
         """Test successful state execution coordination."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
             result = await coordinator.coordinate_state_execution("test_state")
 
             assert result is True
-            assert coordinator._coordination_stats['total_requests'] == 1
-            assert coordinator._coordination_stats['successful_requests'] == 1
+            assert coordinator._coordination_stats["total_requests"] == 1
+            assert coordinator._coordination_stats["successful_requests"] == 1
         finally:
             await coordinator.stop()
 
@@ -429,10 +418,9 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_with_rate_limiter_success(self):
         """Test coordination with rate limiter allowing execution."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -441,7 +429,7 @@ class TestStateCoordination:
             result = await coordinator.coordinate_state_execution("test_state")
 
             assert result is True
-            assert coordinator._coordination_stats['successful_requests'] == 1
+            assert coordinator._coordination_stats["successful_requests"] == 1
         finally:
             await coordinator.stop()
 
@@ -449,10 +437,9 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_rate_limited(self):
         """Test coordination blocked by rate limiting."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -465,7 +452,7 @@ class TestStateCoordination:
             # Second request should be rate limited
             result2 = await coordinator.coordinate_state_execution("test_state")
             assert result2 is False
-            assert coordinator._coordination_stats['rate_limited_requests'] == 1
+            assert coordinator._coordination_stats["rate_limited_requests"] == 1
         finally:
             await coordinator.stop()
 
@@ -473,15 +460,16 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_with_primitives(self):
         """Test coordination with multiple primitives."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
             coordinator.create_primitive("mutex1", PrimitiveType.MUTEX)
-            coordinator.create_primitive("semaphore1", PrimitiveType.SEMAPHORE, max_count=2)
+            coordinator.create_primitive(
+                "semaphore1", PrimitiveType.SEMAPHORE, max_count=2
+            )
 
             result = await coordinator.coordinate_state_execution("test_state")
 
@@ -498,10 +486,9 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_primitive_blocked(self):
         """Test coordination blocked by primitive."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -511,7 +498,9 @@ class TestStateCoordination:
             mutex = coordinator.primitives["blocking_mutex"]
             await mutex.acquire("external_holder")
 
-            result = await coordinator.coordinate_state_execution("test_state", timeout=0.1)
+            result = await coordinator.coordinate_state_execution(
+                "test_state", timeout=0.1
+            )
 
             assert result is False
         finally:
@@ -521,10 +510,9 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_timeout(self):
         """Test coordination timeout."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -540,10 +528,12 @@ class TestStateCoordination:
 
             mutex.acquire = slow_acquire
 
-            result = await coordinator.coordinate_state_execution("test_state", timeout=0.1)
+            result = await coordinator.coordinate_state_execution(
+                "test_state", timeout=0.1
+            )
 
             assert result is False
-            assert coordinator._coordination_stats['timeout_requests'] == 1
+            assert coordinator._coordination_stats["timeout_requests"] == 1
         finally:
             await coordinator.stop()
 
@@ -551,10 +541,9 @@ class TestStateCoordination:
     async def test_coordinate_state_execution_exception_handling(self):
         """Test exception handling during coordination."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -567,7 +556,7 @@ class TestStateCoordination:
             result = await coordinator.coordinate_state_execution("test_state")
 
             assert result is False
-            assert coordinator._coordination_stats['failed_requests'] == 1
+            assert coordinator._coordination_stats["failed_requests"] == 1
         finally:
             await coordinator.stop()
 
@@ -583,8 +572,15 @@ class TestStatusAndMetrics:
         status = coordinator.get_status()
 
         required_keys = [
-            "instance_id", "agent_name", "uptime", "shutting_down",
-            "config", "stats", "rate_limiters", "primitives", "deadlock_detector"
+            "instance_id",
+            "agent_name",
+            "uptime",
+            "shutting_down",
+            "config",
+            "stats",
+            "rate_limiters",
+            "primitives",
+            "deadlock_detector",
         ]
 
         for key in required_keys:
@@ -615,10 +611,9 @@ class TestStatusAndMetrics:
     async def test_get_status_with_uptime(self):
         """Test status reporting includes uptime after start."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -645,10 +640,9 @@ class TestStatusAndMetrics:
     async def test_coordination_stats_tracking(self):
         """Test that coordination statistics are properly tracked."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -662,9 +656,9 @@ class TestStatusAndMetrics:
             await coordinator.coordinate_state_execution("limited_state")
 
             stats = coordinator._coordination_stats
-            assert stats['total_requests'] == 3
-            assert stats['successful_requests'] == 2
-            assert stats['rate_limited_requests'] == 1
+            assert stats["total_requests"] == 3
+            assert stats["successful_requests"] == 2
+            assert stats["rate_limited_requests"] == 1
         finally:
             await coordinator.stop()
 
@@ -678,7 +672,9 @@ class TestAgentEnhancement:
         real_agent = create_real_agent()
 
         # Mock the coordinator start to avoid event loop issues
-        with patch('src.puffinflow.core.coordination.coordinator.AgentCoordinator') as mock_coordinator_class:
+        with patch(
+            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+        ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.start = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
@@ -686,21 +682,23 @@ class TestAgentEnhancement:
             enhanced_agent = enhance_agent(real_agent)
 
             # Verify coordinator was added
-            assert hasattr(enhanced_agent, '_coordinator')
+            assert hasattr(enhanced_agent, "_coordinator")
             assert enhanced_agent._coordinator is mock_coordinator
 
             # Verify utility methods were added
-            assert hasattr(enhanced_agent, 'get_coordination_status')
-            assert hasattr(enhanced_agent, 'reset_coordination')
-            assert hasattr(enhanced_agent, 'add_state_rate_limit')
-            assert hasattr(enhanced_agent, 'add_state_coordination')
+            assert hasattr(enhanced_agent, "get_coordination_status")
+            assert hasattr(enhanced_agent, "reset_coordination")
+            assert hasattr(enhanced_agent, "add_state_rate_limit")
+            assert hasattr(enhanced_agent, "add_state_coordination")
 
     @pytest.mark.asyncio
     async def test_enhanced_run_state_success(self):
         """Test enhanced run_state method with successful execution."""
         real_agent = create_real_agent()
 
-        with patch('src.puffinflow.core.coordination.coordinator.AgentCoordinator') as mock_coordinator_class:
+        with patch(
+            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+        ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.coordinate_state_execution = AsyncMock(return_value=True)
             mock_coordinator.release_coordination = AsyncMock()
@@ -723,7 +721,9 @@ class TestAgentEnhancement:
             await enhanced_agent.run_state("test_state")
 
             # Verify coordination was called
-            mock_coordinator.coordinate_state_execution.assert_called_once_with("test_state")
+            mock_coordinator.coordinate_state_execution.assert_called_once_with(
+                "test_state"
+            )
             mock_coordinator.release_coordination.assert_called_once()
 
     @pytest.mark.asyncio
@@ -731,7 +731,9 @@ class TestAgentEnhancement:
         """Test enhanced run_state when coordination fails."""
         real_agent = create_real_agent()
 
-        with patch('src.puffinflow.core.coordination.coordinator.AgentCoordinator') as mock_coordinator_class:
+        with patch(
+            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+        ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.coordinate_state_execution = AsyncMock(return_value=False)
             mock_coordinator.release_coordination = AsyncMock()
@@ -763,7 +765,9 @@ class TestAgentEnhancement:
         # Store the original run_state method
         original_run_state = real_agent.run_state
 
-        with patch('src.puffinflow.core.coordination.coordinator.AgentCoordinator') as mock_coordinator_class:
+        with patch(
+            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+        ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.coordinate_state_execution = AsyncMock(return_value=True)
             mock_coordinator.release_coordination = AsyncMock()
@@ -795,8 +799,6 @@ class TestAgentEnhancement:
                     await original_run_state(state_name)
 
             # Replace the original run_state in the enhancement function's closure
-            import types
-            enhanced_run_state = enhanced_agent.run_state
 
             # Create a new function with our mock
             async def test_enhanced_run_state(state_name: str) -> None:
@@ -806,7 +808,9 @@ class TestAgentEnhancement:
 
                 try:
                     # Check coordination and rate limits
-                    if not await enhanced_agent._coordinator.coordinate_state_execution(state_name):
+                    if not await enhanced_agent._coordinator.coordinate_state_execution(
+                        state_name
+                    ):
                         return
 
                     # Execute original state with monitoring span
@@ -814,30 +818,32 @@ class TestAgentEnhancement:
                         await mock_original_run_state(state_name)
 
                     # Record success metrics
-                    if hasattr(enhanced_agent, '_monitor'):
+                    if hasattr(enhanced_agent, "_monitor"):
                         duration = time.time() - start_time
                         await enhanced_agent._monitor.record_metric(
-                            'state_duration',
+                            "state_duration",
                             duration,
-                            {'state': state_name, 'status': 'success'}
+                            {"state": state_name, "status": "success"},
                         )
 
                 except Exception as e:
                     # Handle failure with monitoring
-                    if hasattr(enhanced_agent, '_monitor'):
+                    if hasattr(enhanced_agent, "_monitor"):
                         duration = time.time() - start_time
                         enhanced_agent._monitor.logger.error(
-                            f"state_execution_failed: state={state_name}, error={str(e)}"
+                            f"state_execution_failed: state={state_name}, error={e!s}"
                         )
                         await enhanced_agent._monitor.record_metric(
-                            'state_duration',
+                            "state_duration",
                             duration,
-                            {'state': state_name, 'status': 'error'}
+                            {"state": state_name, "status": "error"},
                         )
                     raise
                 finally:
                     # Always release coordination
-                    await enhanced_agent._coordinator.release_coordination(state_name, attempt_id)
+                    await enhanced_agent._coordinator.release_coordination(
+                        state_name, attempt_id
+                    )
 
             enhanced_agent.run_state = test_enhanced_run_state
 
@@ -857,14 +863,14 @@ class TestCreateCoordinatedAgent:
     def test_create_coordinated_agent_basic(self):
         """Test creating a coordinated agent."""
         # Patch the import in the function where it's used
-        with patch('src.puffinflow.core.agent.base.Agent') as mock_agent_class, \
-             patch('src.puffinflow.core.coordination.coordinator.enhance_agent') as mock_enhance:
-
+        with patch("src.puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
+            "src.puffinflow.core.coordination.coordinator.enhance_agent"
+        ) as mock_enhance:
             mock_agent_instance = Mock()
             mock_agent_class.return_value = mock_agent_instance
             mock_enhance.return_value = mock_agent_instance
 
-            result = create_coordinated_agent("test_agent")
+            create_coordinated_agent("test_agent")
 
             # Verify agent was created
             mock_agent_class.assert_called_once_with("test_agent")
@@ -883,20 +889,18 @@ class TestCreateCoordinatedAgent:
             enable_metrics=True,
             enable_deadlock_detection=True,
             max_retry_attempts=2,
-            backoff_multiplier=1.2
+            backoff_multiplier=1.2,
         )
 
-        with patch('src.puffinflow.core.agent.base.Agent') as mock_agent_class, \
-             patch('src.puffinflow.core.coordination.coordinator.enhance_agent') as mock_enhance:
-
+        with patch("src.puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
+            "src.puffinflow.core.coordination.coordinator.enhance_agent"
+        ) as mock_enhance:
             mock_agent_instance = Mock()
             mock_agent_class.return_value = mock_agent_instance
             mock_enhance.return_value = mock_agent_instance
 
-            result = create_coordinated_agent(
-                "test_agent",
-                config=coordination_config,
-                max_concurrent=5
+            create_coordinated_agent(
+                "test_agent", config=coordination_config, max_concurrent=5
             )
 
             # Verify agent was created with kwargs
@@ -930,8 +934,7 @@ class TestErrorHandling:
         # No _monitor attribute
 
         coordination_config = CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
+            detection_interval=0.1, cleanup_interval=0.5
         )
         coordinator = AgentCoordinator(agent, coordination_config)
 
@@ -948,17 +951,16 @@ class TestErrorHandling:
     async def test_log_coordination_failure_without_monitor(self):
         """Test logging coordination failure when agent has no monitor."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
 
             # Remove monitor
-            if hasattr(coordinator.agent, '_monitor'):
-                delattr(coordinator.agent, '_monitor')
+            if hasattr(coordinator.agent, "_monitor"):
+                delattr(coordinator.agent, "_monitor")
 
             # Should not raise exception
             await coordinator._log_coordination_failure(
@@ -971,10 +973,9 @@ class TestErrorHandling:
     async def test_release_coordination_with_exceptions(self):
         """Test coordination release with multiple primitive failures."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -1005,10 +1006,9 @@ class TestPerformanceAndStress:
     async def test_high_frequency_coordination_requests(self):
         """Test coordinator under high frequency coordination requests."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -1030,7 +1030,7 @@ class TestPerformanceAndStress:
 
             # Verify stats
             stats = coordinator._coordination_stats
-            assert stats['total_requests'] == 10
+            assert stats["total_requests"] == 10
         finally:
             await coordinator.stop()
 
@@ -1038,14 +1038,15 @@ class TestPerformanceAndStress:
     async def test_concurrent_coordination_and_release(self):
         """Test concurrent coordination and release operations."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
-            coordinator.create_primitive("concurrent_mutex", PrimitiveType.SEMAPHORE, max_count=5)
+            coordinator.create_primitive(
+                "concurrent_mutex", PrimitiveType.SEMAPHORE, max_count=5
+            )
 
             async def coordinate_and_release(state_name):
                 if await coordinator.coordinate_state_execution(state_name):
@@ -1072,10 +1073,9 @@ class TestPerformanceAndStress:
     async def test_memory_usage_stability(self):
         """Test that coordinator doesn't accumulate memory over time."""
         mock_agent = create_mock_agent()
-        coordinator = AgentCoordinator(mock_agent, CoordinationConfig(
-            detection_interval=0.1,
-            cleanup_interval=0.5
-        ))
+        coordinator = AgentCoordinator(
+            mock_agent, CoordinationConfig(detection_interval=0.1, cleanup_interval=0.5)
+        )
 
         try:
             await coordinator.start()
@@ -1100,8 +1100,7 @@ class TestPerformanceAndStress:
             # All temporary states should be released
             for primitive in coordinator.primitives.values():
                 temp_owners = [
-                    owner for owner in primitive._owners
-                    if "temp_state_" in owner
+                    owner for owner in primitive._owners if "temp_state_" in owner
                 ]
                 assert len(temp_owners) == 0
         finally:
@@ -1110,7 +1109,9 @@ class TestPerformanceAndStress:
 
 if __name__ == "__main__":
     # Configure logging for tests
-    logging.basicConfig(level=logging.WARNING, format='%(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.WARNING, format="%(name)s - %(levelname)s - %(message)s"
+    )
 
     # Run tests
     pytest.main([__file__, "-v", "--asyncio-mode=auto", "--tb=short"])

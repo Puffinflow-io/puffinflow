@@ -36,13 +36,13 @@ from puffinflow import Agent
 
 ## Environment Information
 
-**PuffinFlow version:** 
+**PuffinFlow version:**
 <!-- Run: pip show puffinflow -->
 
-**Python version:** 
+**Python version:**
 <!-- Run: python --version -->
 
-**Operating System:** 
+**Operating System:**
 <!-- e.g., Ubuntu 20.04, Windows 10, macOS 12.0 -->
 
 **Installation method:**

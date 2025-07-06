@@ -47,7 +47,7 @@ Circuit Breaker Pattern
    class ResilientAgent(Agent):
        def __init__(self):
            super().__init__()
-           
+
            # Configure circuit breaker for external API calls
            self.api_circuit_breaker = CircuitBreaker(
                CircuitBreakerConfig(
@@ -107,7 +107,7 @@ Bulkhead Pattern
    class IsolatedAgent(Agent):
        def __init__(self):
            super().__init__()
-           
+
            # Create separate bulkheads for different operations
            self.cpu_bulkhead = Bulkhead(
                BulkheadConfig(
@@ -116,7 +116,7 @@ Bulkhead Pattern
                    name="cpu_intensive_operations"
                )
            )
-           
+
            self.io_bulkhead = Bulkhead(
                BulkheadConfig(
                    max_concurrent_calls=20,
@@ -153,7 +153,7 @@ Resource Leak Detection
                file_handle_threshold=1000, # Alert if file handles > 1000
                connection_threshold=100    # Alert if connections > 100
            )
-           
+
            # Start monitoring
            self.leak_detector.start_monitoring()
 
@@ -163,11 +163,11 @@ Resource Leak Detection
            # Open file with proper cleanup
            async with aiofiles.open('data.txt', 'r') as file:
                data = await file.read()
-               
+
            # Database connection with proper cleanup
            async with database.connection() as conn:
                result = await conn.execute(query)
-               
+
            ctx.result = result
 
        async def cleanup(self):
@@ -189,7 +189,7 @@ Combined Reliability Patterns
    class HighlyResilientAgent(Agent):
        def __init__(self):
            super().__init__()
-           
+
            # Circuit breaker for external dependencies
            self.external_service_cb = CircuitBreaker(
                CircuitBreakerConfig(
@@ -198,7 +198,7 @@ Combined Reliability Patterns
                    expected_exception=ServiceUnavailableError
                )
            )
-           
+
            # Bulkhead for resource isolation
            self.processing_bulkhead = Bulkhead(
                BulkheadConfig(
@@ -206,7 +206,7 @@ Combined Reliability Patterns
                    max_wait_duration=15
                )
            )
-           
+
            # Resource leak detection
            self.leak_detector = ResourceLeakDetector()
            self.leak_detector.start_monitoring()
@@ -220,15 +220,15 @@ Combined Reliability Patterns
                    # Use circuit breaker for external calls
                    async with self.external_service_cb:
                        external_data = await fetch_external_data()
-                       
+
                    # Process data locally
                    processed_data = await process_data(external_data)
                    ctx.result = processed_data
-                   
+
            except BulkheadFullError:
                # Bulkhead is full, queue for later processing
                await self.queue_for_retry(ctx)
-               
+
            except CircuitBreakerOpenError:
                # Circuit breaker is open, use cached data
                ctx.result = await get_cached_data()
@@ -253,23 +253,23 @@ Retry Mechanisms with Reliability Patterns
            """Operation with retry logic and circuit breaker."""
            max_retries = 3
            base_delay = 1
-           
+
            for attempt in range(max_retries + 1):
                try:
                    async with self.circuit_breaker:
                        ctx.result = await unreliable_operation()
                        return  # Success, exit retry loop
-                       
+
                except CircuitBreakerOpenError:
                    # Circuit breaker is open, don't retry
                    ctx.result = await get_fallback_result()
                    return
-                   
+
                except TransientError as e:
                    if attempt == max_retries:
                        # Last attempt failed, re-raise
                        raise
-                       
+
                    # Calculate delay with exponential backoff
                    delay = base_delay * (2 ** attempt)
                    await asyncio.sleep(delay)
@@ -285,7 +285,7 @@ Health Checks and Monitoring
        def __init__(self):
            super().__init__()
            self.health_checker = HealthChecker()
-           
+
            # Register health checks
            self.health_checker.add_check("database", self.check_database)
            self.health_checker.add_check("external_api", self.check_external_api)
@@ -327,14 +327,14 @@ Health Checks and Monitoring
            """Check memory usage."""
            import psutil
            memory_percent = psutil.virtual_memory().percent
-           
+
            if memory_percent > 90:
                status = "unhealthy"
            elif memory_percent > 80:
                status = "degraded"
            else:
                status = "healthy"
-               
+
            return HealthCheck(
                name="memory_usage",
                status=status,
@@ -346,12 +346,12 @@ Health Checks and Monitoring
            """Processing with health monitoring."""
            # Check health before processing
            health_status = await self.health_checker.check_all()
-           
+
            if not health_status.is_healthy():
                raise HealthCheckFailedError(
                    f"Health checks failed: {health_status.failed_checks}"
                )
-           
+
            # Proceed with processing
            ctx.result = await process_data()
 
@@ -371,19 +371,19 @@ Graceful Degradation
        async def adaptive_processing(self, ctx: Context) -> None:
            """Processing that adapts based on system health."""
            system_health = await self.check_system_health()
-           
+
            if system_health.cpu_usage > 90:
                # High CPU usage - use simplified processing
                ctx.result = await self.simple_processing(ctx.input_data)
-               
+
            elif system_health.memory_usage > 85:
                # High memory usage - process in smaller batches
                ctx.result = await self.batch_processing(ctx.input_data)
-               
+
            elif not system_health.external_services_available:
                # External services down - use cached data
                ctx.result = await self.offline_processing(ctx.input_data)
-               
+
            else:
                # Normal processing
                ctx.result = await self.full_processing(ctx.input_data)
@@ -408,7 +408,7 @@ Timeout and Deadline Management
                # Set operation timeout
                async with self.timeout_manager.timeout(30):  # 30 seconds max
                    ctx.result = await long_running_operation()
-                   
+
            except asyncio.TimeoutError:
                # Handle timeout gracefully
                ctx.result = await get_partial_result()
@@ -420,10 +420,10 @@ Timeout and Deadline Management
            deadline = ctx.get('deadline')
            if deadline:
                remaining_time = (deadline - datetime.utcnow()).total_seconds()
-               
+
                if remaining_time <= 0:
                    raise DeadlineExceededError("Processing deadline exceeded")
-               
+
                # Adjust processing based on remaining time
                if remaining_time < 10:
                    ctx.result = await quick_processing(ctx.input_data)

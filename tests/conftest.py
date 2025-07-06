@@ -3,21 +3,26 @@
 Global test configuration and fixtures for Puffinflow tests.
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import Mock, AsyncMock
-from typing import Generator, Dict, Any, Optional
+from collections.abc import Generator
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # Try to import the modules, with fallbacks for missing dependencies
 try:
     from puffinflow.core.agent.base import Agent, RetryPolicy
-    from puffinflow.core.agent.state import (
-        StateStatus, AgentStatus, StateMetadata, PrioritizedState, Priority
-    )
     from puffinflow.core.agent.context import Context
-    from puffinflow.core.resources.requirements import ResourceRequirements
+    from puffinflow.core.agent.state import (
+        AgentStatus,
+        PrioritizedState,
+        Priority,
+        StateMetadata,
+        StateStatus,
+    )
     from puffinflow.core.resources.pool import ResourcePool
+    from puffinflow.core.resources.requirements import ResourceRequirements
 except ImportError:
     # Fallback if modules don't exist yet
     Agent = Mock
@@ -88,10 +93,7 @@ def retry_policy():
         return policy
     else:
         return RetryPolicy(
-            max_retries=3,
-            initial_delay=0.01,
-            exponential_base=2.0,
-            jitter=False
+            max_retries=3, initial_delay=0.01, exponential_base=2.0, jitter=False
         )
 
 
@@ -128,7 +130,7 @@ def resource_requirements():
             memory_mb=100.0,
             io_weight=1.0,
             network_weight=1.0,
-            gpu_units=0.0
+            gpu_units=0.0,
         )
 
 
@@ -144,7 +146,7 @@ def mock_resource_pool():
             "MEMORY": 1024.0,
             "IO": 100.0,
             "NETWORK": 100.0,
-            "GPU": 0.0
+            "GPU": 0.0,
         }
         return pool
     else:
@@ -153,7 +155,7 @@ def mock_resource_pool():
             total_memory=1024.0,
             total_io=100.0,
             total_network=100.0,
-            total_gpu=0.0
+            total_gpu=0.0,
         )
 
 
@@ -201,14 +203,16 @@ def sample_state_metadata():
             status=StateStatus.PENDING if StateStatus != Mock else Mock(),
             attempts=0,
             max_retries=3,
-            resources=ResourceRequirements() if ResourceRequirements != Mock else Mock(),
+            resources=ResourceRequirements()
+            if ResourceRequirements != Mock
+            else Mock(),
             dependencies={},
             satisfied_dependencies=set(),
             last_execution=None,
             last_success=None,
             state_id="test-state-id",
             retry_policy=None,
-            priority=Priority.NORMAL if Priority != Mock else Mock()
+            priority=Priority.NORMAL if Priority != Mock else Mock(),
         )
 
 
@@ -223,7 +227,7 @@ def sample_agent():
             name="test_agent",
             max_concurrent=2,
             retry_policy=RetryPolicy(max_retries=2, initial_delay=0.01),
-            state_timeout=1.0
+            state_timeout=1.0,
         )
 
 
@@ -254,8 +258,7 @@ def setup_test_environment():
 @pytest.fixture
 def mock_time():
     """Mock time for testing."""
-    import time
-    original_time = time.time
+
     mock_time_value = 1234567890.0
 
     def mock_time_func():
@@ -263,7 +266,8 @@ def mock_time():
 
     # Patch time.time
     import unittest.mock
-    with unittest.mock.patch('time.time', side_effect=mock_time_func):
+
+    with unittest.mock.patch("time.time", side_effect=mock_time_func):
         yield mock_time_func
 
 
@@ -276,13 +280,13 @@ def test_data():
             "workflow_id": "test-workflow-123",
             "user_id": "test-user",
             "timestamp": time.time(),
-            "data": {"key": "value"}
+            "data": {"key": "value"},
         },
         "state_results": {
             "success": "completed",
             "failure": None,
-            "next_states": ["state2", "state3"]
-        }
+            "next_states": ["state2", "state3"],
+        },
     }
 
 
@@ -290,8 +294,4 @@ def test_data():
 @pytest.fixture
 def benchmark_config():
     """Configuration for benchmark tests."""
-    return {
-        "iterations": 100,
-        "timeout": 5.0,
-        "warmup": 10
-    }
+    return {"iterations": 100, "timeout": 5.0, "warmup": 10}

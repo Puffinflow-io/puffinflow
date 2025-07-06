@@ -95,7 +95,7 @@ Custom Allocation Strategies
 
    class PriorityAllocationStrategy(AllocationStrategy):
        """Custom allocation strategy based on agent priority."""
-       
+
        async def allocate(self, requirements, available_resources):
            # Custom allocation logic
            if requirements.priority == "high":
@@ -119,7 +119,7 @@ Quota Management
 
    # Set up quota management
    quota_manager = QuotaManager()
-   
+
    # Define quotas for different users/teams
    await quota_manager.set_quota("team_a", ResourceType.CPU_CORES, 8)
    await quota_manager.set_quota("team_a", ResourceType.MEMORY_MB, 16384)
@@ -128,7 +128,7 @@ Quota Management
 
    # Check quota before allocation
    can_allocate = await quota_manager.check_quota(
-       "team_a", 
+       "team_a",
        ResourceRequirements(cpu_cores=6, memory_mb=12288)
    )
 
@@ -173,7 +173,7 @@ Dynamic Resource Scaling
        async def adapt_resources(self, ctx: Context) -> ResourceRequirements:
            """Dynamically adjust resource requirements based on workload."""
            workload_size = len(ctx.input_data)
-           
+
            if workload_size > 10000:
                return ResourceRequirements(
                    cpu_cores=8,

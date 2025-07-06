@@ -46,16 +46,16 @@ const UseCases: React.FC = () => {
                     </p>
                 </div>
                 <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                    <CaseList 
-                        title="Perfect For..." 
-                        items={perfectFor} 
+                    <CaseList
+                        title="Perfect For..."
+                        items={perfectFor}
                         icon={<CheckIcon className="h-7 w-7 text-green-400" />}
                         borderColor="border-green-500/20"
                     />
-                    <CaseList 
-                        title="Great For..." 
-                        items={greatFor} 
-                        icon={<SparkleIcon className="h-7 w-7 text-amber-400" />} 
+                    <CaseList
+                        title="Great For..."
+                        items={greatFor}
+                        icon={<SparkleIcon className="h-7 w-7 text-amber-400" />}
                         borderColor="border-amber-500/20"
                     />
                 </div>

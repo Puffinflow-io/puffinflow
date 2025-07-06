@@ -1,6 +1,5 @@
 """Sphinx configuration file for PuffinFlow documentation."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -16,6 +15,7 @@ author = "Mohamed Ahmed"
 # The version info from the module
 try:
     from puffinflow import __version__
+
     version = __version__
     release = __version__
 except ImportError:

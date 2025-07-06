@@ -13,13 +13,13 @@ async def classify_request(context):
     user_msg = context.get_variable("user_message")
     classification = await llm.classify(user_msg)
     context.set_variable("intent", classification)
-    
+
     # Dynamic routing based on AI decision
     return f"handle_{classification}"
 
 @agent.state(rate_limit=50.0, timeout=30.0)  # Quota-aware
 async def handle_technical(context):
-    intent = context.get_variable("intent") 
+    intent = context.get_variable("intent")
     response = await llm.technical_support(intent)
     context.set_variable("response", response)
     return "send_response"

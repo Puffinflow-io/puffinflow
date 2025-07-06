@@ -12,23 +12,29 @@ Tests cover:
 - Checkpoint data validation
 """
 
-import pytest
-import time
 import copy
-from unittest.mock import Mock, MagicMock, patch
-from typing import Dict, Set, List, Any, Optional
-from dataclasses import FrozenInstanceError
+import time
+from unittest.mock import Mock, patch
+
+import pytest
+
+from src.puffinflow.core.agent.base import Agent, RetryPolicy
 
 # Import the modules to test
 from src.puffinflow.core.agent.checkpoint import AgentCheckpoint
-from src.puffinflow.core.agent.state import AgentStatus, StateMetadata, PrioritizedState, StateStatus, Priority
-from src.puffinflow.core.agent.base import Agent, RetryPolicy
+from src.puffinflow.core.agent.state import (
+    AgentStatus,
+    PrioritizedState,
+    Priority,
+    StateMetadata,
+    StateStatus,
+)
 from src.puffinflow.core.resources.requirements import ResourceRequirements
-
 
 # ============================================================================
 # FIXTURES
 # ============================================================================
+
 
 @pytest.fixture
 def mock_agent():
@@ -60,7 +66,7 @@ def sample_state_metadata():
             last_execution=time.time(),
             last_success=time.time(),
             state_id="state1-id",
-            retry_policy=None
+            retry_policy=None,
         ),
         "state2": StateMetadata(
             status=StateStatus.RUNNING,
@@ -72,38 +78,30 @@ def sample_state_metadata():
             last_execution=None,
             last_success=None,
             state_id="state2-id",
-            retry_policy=None
-        )
+            retry_policy=None,
+        ),
     }
 
 
 @pytest.fixture
 def sample_priority_queue():
     """Create sample priority queue items for testing."""
-    metadata1 = StateMetadata(
-        status=StateStatus.PENDING,
-        attempts=0,
-        max_retries=3
-    )
-    metadata2 = StateMetadata(
-        status=StateStatus.PENDING,
-        attempts=1,
-        max_retries=3
-    )
+    metadata1 = StateMetadata(status=StateStatus.PENDING, attempts=0, max_retries=3)
+    metadata2 = StateMetadata(status=StateStatus.PENDING, attempts=1, max_retries=3)
 
     return [
         PrioritizedState(
             priority=-Priority.HIGH.value,
             timestamp=time.time(),
             state_name="high_priority_state",
-            metadata=metadata1
+            metadata=metadata1,
         ),
         PrioritizedState(
             priority=-Priority.NORMAL.value,
             timestamp=time.time() + 1,
             state_name="normal_priority_state",
-            metadata=metadata2
-        )
+            metadata=metadata2,
+        ),
     ]
 
 
@@ -117,12 +115,8 @@ def complex_shared_state():
         "none_value": None,
         "list_data": [1, 2, 3, "mixed", {"nested": "dict"}],
         "dict_data": {
-            "nested": {
-                "deeply": {
-                    "nested": ["list", "in", "dict"]
-                }
-            },
-            "mixed_types": [1, "two", 3.14, True, None]
+            "nested": {"deeply": {"nested": ["list", "in", "dict"]}},
+            "mixed_types": [1, "two", 3.14, True, None],
         },
         "set_data": {1, 2, 3, 4, 5},
         "tuple_data": (1, "two", 3.0),
@@ -134,7 +128,7 @@ def complex_shared_state():
         "_meta_validated_user": "test.models.User",
         # Regular variables
         "counter": 5,
-        "user_id": "user123"
+        "user_id": "user123",
     }
 
 
@@ -145,7 +139,7 @@ def real_agent():
         name="real_test_agent",
         max_concurrent=3,
         retry_policy=RetryPolicy(max_retries=2, initial_delay=0.1),
-        state_timeout=30.0
+        state_timeout=30.0,
     )
 
     # Add some states
@@ -158,12 +152,14 @@ def real_agent():
     # Simulate some execution state
     agent.completed_states.add("test_state1")
     agent.completed_once.add("test_state1")
-    agent.shared_state.update({
-        "execution_count": 1,
-        "last_run": time.time(),
-        "const_version": "1.0",
-        "secret_token": "token123"
-    })
+    agent.shared_state.update(
+        {
+            "execution_count": 1,
+            "last_run": time.time(),
+            "const_version": "1.0",
+            "secret_token": "token123",
+        }
+    )
 
     return agent
 
@@ -171,6 +167,7 @@ def real_agent():
 # ============================================================================
 # BASIC CHECKPOINT CREATION TESTS
 # ============================================================================
+
 
 class TestAgentCheckpointBasic:
     """Test basic checkpoint creation and initialization."""
@@ -190,7 +187,7 @@ class TestAgentCheckpointBasic:
             completed_states={"state1"},
             completed_once={"state1"},
             shared_state={"key": "value"},
-            session_start=session_start
+            session_start=session_start,
         )
 
         assert checkpoint.timestamp == timestamp
@@ -216,7 +213,7 @@ class TestAgentCheckpointBasic:
             completed_states=set(),
             completed_once=set(),
             shared_state={},
-            session_start=None
+            session_start=None,
         )
 
         # Should be able to access all fields
@@ -240,7 +237,7 @@ class TestAgentCheckpointBasic:
             completed_states=set(),
             completed_once=set(),
             shared_state={},
-            session_start=None
+            session_start=None,
         )
 
         assert checkpoint.session_start is None
@@ -259,7 +256,7 @@ class TestAgentCheckpointBasic:
             completed_states=set(),
             completed_once=set(),
             shared_state={},
-            session_start=None
+            session_start=None,
         )
 
         assert checkpoint.timestamp == precise_time
@@ -270,6 +267,7 @@ class TestAgentCheckpointBasic:
 # ============================================================================
 # CREATE FROM AGENT TESTS
 # ============================================================================
+
 
 class TestCreateFromAgent:
     """Test creating checkpoints from agent instances."""
@@ -284,9 +282,11 @@ class TestCreateFromAgent:
         mock_agent.completed_states = set()
         mock_agent.completed_once = set()
         mock_agent.shared_state = {"test": "value"}
-        mock_agent.session_start = 12345.67  # Changed from _session_start to session_start
+        mock_agent.session_start = (
+            12345.67  # Changed from _session_start to session_start
+        )
 
-        with patch('time.time', return_value=99999.99):
+        with patch("time.time", return_value=99999.99):
             checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
 
         assert checkpoint.timestamp == 99999.99
@@ -300,8 +300,13 @@ class TestCreateFromAgent:
         assert checkpoint.shared_state == {"test": "value"}
         assert checkpoint.session_start == 12345.67
 
-    def test_create_from_agent_with_complex_data(self, mock_agent, sample_state_metadata,
-                                                  sample_priority_queue, complex_shared_state):
+    def test_create_from_agent_with_complex_data(
+        self,
+        mock_agent,
+        sample_state_metadata,
+        sample_priority_queue,
+        complex_shared_state,
+    ):
         """Test creating checkpoint from agent with complex data structures."""
         mock_agent.state_metadata = sample_state_metadata
         mock_agent.priority_queue = sample_priority_queue
@@ -328,7 +333,11 @@ class TestCreateFromAgent:
         # Verify complex shared state preservation
         assert checkpoint.shared_state["simple_string"] == "test_value"
         assert checkpoint.shared_state["number"] == 42
-        assert checkpoint.shared_state["dict_data"]["nested"]["deeply"]["nested"] == ["list", "in", "dict"]
+        assert checkpoint.shared_state["dict_data"]["nested"]["deeply"]["nested"] == [
+            "list",
+            "in",
+            "dict",
+        ]
         assert checkpoint.shared_state["set_data"] == {1, 2, 3, 4, 5}
         assert checkpoint.shared_state["tuple_data"] == (1, "two", 3.0)
 
@@ -337,14 +346,14 @@ class TestCreateFromAgent:
         original_metadata = StateMetadata(
             status=StateStatus.RUNNING,
             attempts=1,
-            satisfied_dependencies={"dep1", "dep2"}
+            satisfied_dependencies={"dep1", "dep2"},
         )
 
         original_queue_item = PrioritizedState(
             priority=-1,
             timestamp=time.time(),
             state_name="test_state",
-            metadata=original_metadata
+            metadata=original_metadata,
         )
 
         mock_agent.state_metadata = {"test": original_metadata}
@@ -381,7 +390,7 @@ class TestCreateFromAgent:
             attempts=2,
             max_retries=5,
             resources=ResourceRequirements(),
-            last_execution=time.time()
+            last_execution=time.time(),
         )
 
         mock_agent.state_metadata = {"test": metadata}
@@ -394,7 +403,7 @@ class TestCreateFromAgent:
             "list": [1, 2, 3],
             "dict": {"key": "value"},
             "set": {1, 2, 3},
-            "tuple": (1, 2, 3)
+            "tuple": (1, 2, 3),
         }
 
         checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
@@ -418,13 +427,13 @@ class TestCreateFromAgent:
     def test_create_from_agent_handles_missing_session_start(self, mock_agent):
         """Test checkpoint creation when agent has no _session_start attribute."""
         # Remove _session_start attribute
-        delattr(mock_agent, '_session_start')
+        delattr(mock_agent, "_session_start")
 
         checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
 
         # Should handle gracefully, likely with None or some default
         # The exact behavior depends on implementation, but it shouldn't crash
-        assert hasattr(checkpoint, 'session_start')
+        assert hasattr(checkpoint, "session_start")
 
     def test_create_from_agent_with_empty_collections(self, mock_agent):
         """Test checkpoint creation with empty collections."""
@@ -463,6 +472,7 @@ class TestCreateFromAgent:
 # REAL AGENT INTEGRATION TESTS
 # ============================================================================
 
+
 class TestRealAgentIntegration:
     """Test checkpoint creation with real agent instances."""
 
@@ -492,7 +502,7 @@ class TestRealAgentIntegration:
             AgentStatus.RUNNING,
             AgentStatus.PAUSED,
             AgentStatus.COMPLETED,
-            AgentStatus.FAILED
+            AgentStatus.FAILED,
         ]
 
         for status in test_states:
@@ -552,6 +562,7 @@ class TestRealAgentIntegration:
 # DEEP COPY AND MEMORY TESTS
 # ============================================================================
 
+
 class TestDeepCopyAndMemory:
     """Test deep copying behavior and memory usage."""
 
@@ -564,7 +575,7 @@ class TestDeepCopyAndMemory:
         mock_agent.shared_state = {
             "list": original_list,
             "dict": original_dict,
-            "set": original_set
+            "set": original_set,
         }
 
         checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
@@ -601,17 +612,14 @@ class TestDeepCopyAndMemory:
             "level1": {
                 "level2": {
                     "level3": {
-                        "level4": {
-                            "data": [1, 2, 3],
-                            "more_data": {"a": 1, "b": 2}
-                        }
+                        "level4": {"data": [1, 2, 3], "more_data": {"a": 1, "b": 2}}
                     }
                 }
             },
             "parallel_structure": [
                 {"item1": [1, 2, 3]},
-                {"item2": {"nested": {"deep": "value"}}}
-            ]
+                {"item2": {"nested": {"deep": "value"}}},
+            ],
         }
 
         mock_agent.shared_state = {"complex": complex_structure}
@@ -619,12 +627,24 @@ class TestDeepCopyAndMemory:
         checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
 
         # Verify deep structure is preserved
-        assert checkpoint.shared_state["complex"]["level1"]["level2"]["level3"]["level4"]["data"] == [1, 2, 3]
-        assert checkpoint.shared_state["complex"]["parallel_structure"][1]["item2"]["nested"]["deep"] == "value"
+        assert checkpoint.shared_state["complex"]["level1"]["level2"]["level3"][
+            "level4"
+        ]["data"] == [1, 2, 3]
+        assert (
+            checkpoint.shared_state["complex"]["parallel_structure"][1]["item2"][
+                "nested"
+            ]["deep"]
+            == "value"
+        )
 
         # Verify independence
         complex_structure["level1"]["level2"]["level3"]["level4"]["data"].append(4)
-        assert 4 not in checkpoint.shared_state["complex"]["level1"]["level2"]["level3"]["level4"]["data"]
+        assert (
+            4
+            not in checkpoint.shared_state["complex"]["level1"]["level2"]["level3"][
+                "level4"
+            ]["data"]
+        )
 
     def test_memory_efficiency_with_large_data(self, mock_agent):
         """Test memory efficiency with large data structures."""
@@ -632,10 +652,7 @@ class TestDeepCopyAndMemory:
         large_list = list(range(1000))
         large_dict = {f"key_{i}": f"value_{i}" for i in range(500)}
 
-        mock_agent.shared_state = {
-            "large_list": large_list,
-            "large_dict": large_dict
-        }
+        mock_agent.shared_state = {"large_list": large_list, "large_dict": large_dict}
 
         checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
 
@@ -649,6 +666,7 @@ class TestDeepCopyAndMemory:
 # ============================================================================
 # ERROR HANDLING AND EDGE CASES
 # ============================================================================
+
 
 class TestErrorHandlingEdgeCases:
     """Test error handling and edge cases."""
@@ -666,8 +684,8 @@ class TestErrorHandlingEdgeCases:
         try:
             checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
             # If it succeeds, verify the checkpoint is valid
-            assert hasattr(checkpoint, 'timestamp')
-            assert hasattr(checkpoint, 'agent_name')
+            assert hasattr(checkpoint, "timestamp")
+            assert hasattr(checkpoint, "agent_name")
         except (TypeError, AttributeError):
             # Expected if the implementation doesn't handle None values
             pass
@@ -675,14 +693,14 @@ class TestErrorHandlingEdgeCases:
     def test_create_from_agent_missing_attributes(self, mock_agent):
         """Test checkpoint creation when agent is missing expected attributes."""
         # Remove some expected attributes
-        delattr(mock_agent, 'priority_queue')
-        delattr(mock_agent, 'running_states')
+        delattr(mock_agent, "priority_queue")
+        delattr(mock_agent, "running_states")
 
         # Should either handle gracefully or raise AttributeError
         try:
             checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
             # If it succeeds, verify basic structure
-            assert hasattr(checkpoint, 'timestamp')
+            assert hasattr(checkpoint, "timestamp")
         except AttributeError:
             # Expected if implementation requires these attributes
             pass
@@ -695,20 +713,21 @@ class TestErrorHandlingEdgeCases:
         mock_agent.shared_state = {
             "file_object": io.StringIO("test"),
             "lambda": lambda x: x,
-            "generator": (x for x in range(5))
+            "generator": (x for x in range(5)),
         }
 
         # Deepcopy should handle or fail appropriately
         try:
             checkpoint = AgentCheckpoint.create_from_agent(mock_agent)
             # If successful, verify checkpoint is created
-            assert hasattr(checkpoint, 'shared_state')
+            assert hasattr(checkpoint, "shared_state")
         except (TypeError, copy.Error):
             # Expected for truly non-copyable objects
             pass
 
     def test_create_from_agent_with_custom_objects(self, mock_agent):
         """Test checkpoint creation with custom objects in agent state."""
+
         class CustomObject:
             def __init__(self, value):
                 self.value = value
@@ -737,7 +756,7 @@ class TestErrorHandlingEdgeCases:
         mock_agent.shared_state = {"counter": 0}
 
         def modify_agent():
-            for i in range(100):
+            for _i in range(100):
                 mock_agent.shared_state["counter"] += 1
                 time.sleep(0.001)
 
@@ -760,6 +779,7 @@ class TestErrorHandlingEdgeCases:
 # PERFORMANCE AND BENCHMARKING TESTS
 # ============================================================================
 
+
 class TestPerformance:
     """Test performance characteristics of checkpoint creation."""
 
@@ -768,15 +788,12 @@ class TestPerformance:
         # Create reasonably complex agent state
         mock_agent.state_metadata = {
             f"state_{i}": StateMetadata(
-                status=StateStatus.COMPLETED,
-                attempts=i % 3,
-                max_retries=3
-            ) for i in range(100)
+                status=StateStatus.COMPLETED, attempts=i % 3, max_retries=3
+            )
+            for i in range(100)
         }
 
-        mock_agent.shared_state = {
-            f"key_{i}": f"value_{i}" for i in range(1000)
-        }
+        mock_agent.shared_state = {f"key_{i}": f"value_{i}" for i in range(1000)}
 
         mock_agent.completed_states = {f"completed_{i}" for i in range(50)}
         mock_agent.completed_once = {f"once_{i}" for i in range(50)}
@@ -803,7 +820,7 @@ class TestPerformance:
         # Create large data structure
         large_data = {
             "big_list": list(range(10000)),
-            "big_dict": {f"key_{i}": f"value_{i}" * 10 for i in range(1000)}
+            "big_dict": {f"key_{i}": f"value_{i}" * 10 for i in range(1000)},
         }
 
         mock_agent.shared_state = large_data
@@ -853,6 +870,7 @@ class TestPerformance:
 # INTEGRATION AND WORKFLOW TESTS
 # ============================================================================
 
+
 class TestIntegrationWorkflow:
     """Test checkpoint integration with agent workflows."""
 
@@ -878,9 +896,16 @@ class TestIntegrationWorkflow:
 
         # Checkpoint should have all necessary data for restoration
         required_fields = [
-            'timestamp', 'agent_name', 'agent_status', 'priority_queue',
-            'state_metadata', 'running_states', 'completed_states',
-            'completed_once', 'shared_state', 'session_start'
+            "timestamp",
+            "agent_name",
+            "agent_status",
+            "priority_queue",
+            "state_metadata",
+            "running_states",
+            "completed_states",
+            "completed_once",
+            "shared_state",
+            "session_start",
         ]
 
         for field in required_fields:
@@ -909,6 +934,7 @@ class TestIntegrationWorkflow:
         # Test basic serialization compatibility
         try:
             import pickle
+
             serialized = pickle.dumps(checkpoint)
             deserialized = pickle.loads(serialized)
 

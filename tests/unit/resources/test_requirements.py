@@ -14,16 +14,21 @@ Tests cover:
 - Performance and stress testing
 """
 
-import pytest
 import sys
 import threading
 import time
-from unittest.mock import patch, MagicMock
-from dataclasses import fields, asdict
+from dataclasses import asdict, fields
+
+import pytest
+
+from src.puffinflow.core.agent.state import Priority
 
 # Import the classes under test
-from src.puffinflow.core.resources.requirements import ResourceRequirements, ResourceType, get_resource_amount
-from src.puffinflow.core.agent.state import Priority
+from src.puffinflow.core.resources.requirements import (
+    ResourceRequirements,
+    ResourceType,
+    get_resource_amount,
+)
 
 
 class TestResourceType:
@@ -41,12 +46,20 @@ class TestResourceType:
         # Verify they are proper flags (powers of 2)
         for rt in ResourceType:
             if rt != ResourceType.NONE and rt != ResourceType.ALL:
-                assert (rt.value & (rt.value - 1)) == 0, f"{rt.name} is not a power of 2"
+                assert (
+                    rt.value & (rt.value - 1)
+                ) == 0, f"{rt.name} is not a power of 2"
 
     def test_resource_type_all_combination(self):
         """Test ResourceType.ALL includes all resource types."""
-        expected = ResourceType.CPU | ResourceType.MEMORY | ResourceType.IO | ResourceType.NETWORK | ResourceType.GPU
-        assert ResourceType.ALL == expected
+        expected = (
+            ResourceType.CPU
+            | ResourceType.MEMORY
+            | ResourceType.IO
+            | ResourceType.NETWORK
+            | ResourceType.GPU
+        )
+        assert expected == ResourceType.ALL
         assert ResourceType.ALL.value == 31  # 1 + 2 + 4 + 8 + 16
 
     def test_resource_type_flag_operations(self):
@@ -63,8 +76,13 @@ class TestResourceType:
         assert ResourceType.IO not in cpu_and_memory
 
         # All types
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert rt in ResourceType.ALL
 
     def test_resource_type_operations_comprehensive(self):
@@ -82,7 +100,12 @@ class TestResourceType:
         # Test negation
         not_cpu = ResourceType.ALL & ~ResourceType.CPU
         assert ResourceType.CPU not in not_cpu
-        for rt in [ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert rt in not_cpu
 
     def test_resource_type_combinations(self):
@@ -110,8 +133,13 @@ class TestResourceType:
     def test_resource_type_none(self):
         """Test ResourceType.NONE behavior."""
         assert ResourceType.NONE.value == 0
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert rt not in ResourceType.NONE
 
         # NONE with other types
@@ -134,8 +162,13 @@ class TestResourceType:
 
         # Flag enums only include non-zero power-of-2 members when iterating
         # NONE (0) and composite flags like ALL are excluded from iteration
-        expected_basic_types = [ResourceType.CPU, ResourceType.MEMORY,
-                                ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]
+        expected_basic_types = [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]
 
         assert len(all_types) == len(expected_basic_types)
 
@@ -143,14 +176,24 @@ class TestResourceType:
             assert rt in all_types, f"{rt} not found in ResourceType iteration"
 
         # Verify NONE and ALL exist but aren't in iteration (this is correct behavior)
-        assert ResourceType.NONE not in all_types  # NONE (0) excluded from Flag iteration
-        assert ResourceType.ALL not in all_types  # Composite flags excluded from iteration
+        assert (
+            ResourceType.NONE not in all_types
+        )  # NONE (0) excluded from Flag iteration
+        assert (
+            ResourceType.ALL not in all_types
+        )  # Composite flags excluded from iteration
 
         # But they should still be accessible
         assert ResourceType.NONE.value == 0
-        assert ResourceType.ALL == (ResourceType.CPU | ResourceType.MEMORY |
-                                    ResourceType.IO | ResourceType.NETWORK | ResourceType.GPU)
+        assert (
+            ResourceType.CPU
+            | ResourceType.MEMORY
+            | ResourceType.IO
+            | ResourceType.NETWORK
+            | ResourceType.GPU
+        ) == ResourceType.ALL
         assert ResourceType.ALL.value == 31
+
 
 class TestGetResourceAmount:
     """Test get_resource_amount function."""
@@ -162,7 +205,7 @@ class TestGetResourceAmount:
             memory_mb=512.0,
             io_weight=3.0,
             network_weight=2.5,
-            gpu_units=1.0
+            gpu_units=1.0,
         )
 
         assert get_resource_amount(req, ResourceType.CPU) == 2.0
@@ -189,11 +232,16 @@ class TestGetResourceAmount:
             memory_mb=0.0,
             io_weight=0.0,
             network_weight=0.0,
-            gpu_units=0.0
+            gpu_units=0.0,
         )
 
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert get_resource_amount(req, rt) == 0.0
 
     def test_get_resource_amount_invalid_type(self):
@@ -238,7 +286,7 @@ class TestResourceRequirementsInitialization:
             gpu_units=1.0,
             priority_boost=2,
             timeout=30.0,
-            resource_types=ResourceType.CPU | ResourceType.MEMORY
+            resource_types=ResourceType.CPU | ResourceType.MEMORY,
         )
 
         assert req.cpu_units == 2.5
@@ -253,11 +301,7 @@ class TestResourceRequirementsInitialization:
     def test_keyword_only_initialization(self):
         """Test that initialization works with keyword arguments only."""
         # This tests the dataclass behavior
-        req = ResourceRequirements(
-            cpu_units=4.0,
-            memory_mb=1024.0,
-            gpu_units=2.0
-        )
+        req = ResourceRequirements(cpu_units=4.0, memory_mb=1024.0, gpu_units=2.0)
 
         assert req.cpu_units == 4.0
         assert req.memory_mb == 1024.0
@@ -288,7 +332,7 @@ class TestResourceRequirementsInitialization:
             io_weight=0.0,
             network_weight=0.0,
             gpu_units=0.0,
-            priority_boost=0
+            priority_boost=0,
         )
 
         assert req.cpu_units == 0.0
@@ -302,8 +346,14 @@ class TestResourceRequirementsInitialization:
         """Test that ResourceRequirements has expected dataclass fields."""
         req_fields = {field.name for field in fields(ResourceRequirements)}
         expected_fields = {
-            'cpu_units', 'memory_mb', 'io_weight', 'network_weight',
-            'gpu_units', 'priority_boost', 'timeout', 'resource_types'
+            "cpu_units",
+            "memory_mb",
+            "io_weight",
+            "network_weight",
+            "gpu_units",
+            "priority_boost",
+            "timeout",
+            "resource_types",
         }
         assert req_fields == expected_fields
 
@@ -324,12 +374,14 @@ class TestPriorityProperty:
             (2, Priority.HIGH),
             (3, Priority.CRITICAL),
             (5, Priority.CRITICAL),  # Any value >= 3 should be CRITICAL
-            (100, Priority.CRITICAL)
+            (100, Priority.CRITICAL),
         ]
 
         for boost_value, expected_priority in test_cases:
             req = ResourceRequirements(priority_boost=boost_value)
-            assert req.priority == expected_priority, f"Failed for boost_value={boost_value}"
+            assert (
+                req.priority == expected_priority
+            ), f"Failed for boost_value={boost_value}"
 
     def test_priority_getter_negative_values(self):
         """Test priority property getter with negative priority_boost values."""
@@ -356,7 +408,7 @@ class TestPriorityProperty:
             (1, Priority.NORMAL),
             (2, Priority.HIGH),
             (3, Priority.CRITICAL),
-            (10, Priority.CRITICAL)  # High values map to CRITICAL
+            (10, Priority.CRITICAL),  # High values map to CRITICAL
         ]
 
         for int_value, expected_priority in test_cases:
@@ -407,20 +459,38 @@ class TestResourceTypesHandling:
         assert req.resource_types == ResourceType.ALL
 
         # All types should be included
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert rt in req.resource_types
 
     def test_custom_resource_types(self):
         """Test custom resource_types combinations."""
         test_cases = [
-            (ResourceType.CPU, [ResourceType.CPU], [ResourceType.MEMORY, ResourceType.IO]),
-            (ResourceType.CPU | ResourceType.MEMORY,
-             [ResourceType.CPU, ResourceType.MEMORY],
-             [ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]),
-            (ResourceType.ALL & ~ResourceType.GPU,
-             [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK],
-             [ResourceType.GPU])
+            (
+                ResourceType.CPU,
+                [ResourceType.CPU],
+                [ResourceType.MEMORY, ResourceType.IO],
+            ),
+            (
+                ResourceType.CPU | ResourceType.MEMORY,
+                [ResourceType.CPU, ResourceType.MEMORY],
+                [ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU],
+            ),
+            (
+                ResourceType.ALL & ~ResourceType.GPU,
+                [
+                    ResourceType.CPU,
+                    ResourceType.MEMORY,
+                    ResourceType.IO,
+                    ResourceType.NETWORK,
+                ],
+                [ResourceType.GPU],
+            ),
         ]
 
         for resource_types, should_include, should_exclude in test_cases:
@@ -438,8 +508,13 @@ class TestResourceTypesHandling:
         assert req.resource_types == ResourceType.NONE
 
         # No types should be included
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert rt not in req.resource_types
 
     def test_resource_types_modification(self):
@@ -471,11 +546,11 @@ class TestAttributeModification:
 
         # Test each resource type
         modifications = [
-            ('cpu_units', 4.0),
-            ('memory_mb', 2048.0),
-            ('io_weight', 5.0),
-            ('network_weight', 3.5),
-            ('gpu_units', 2.0)
+            ("cpu_units", 4.0),
+            ("memory_mb", 2048.0),
+            ("io_weight", 5.0),
+            ("network_weight", 3.5),
+            ("gpu_units", 2.0),
         ]
 
         for attr, value in modifications:
@@ -535,7 +610,7 @@ class TestEdgeCases:
             io_weight=-2.0,
             network_weight=-1.5,
             gpu_units=-0.5,
-            priority_boost=-5
+            priority_boost=-5,
         )
 
         assert req.cpu_units == -1.0
@@ -555,7 +630,7 @@ class TestEdgeCases:
             io_weight=999999.9,
             network_weight=1e6,
             gpu_units=100.0,
-            priority_boost=1000
+            priority_boost=1000,
         )
 
         assert req.cpu_units == large_value
@@ -575,7 +650,7 @@ class TestEdgeCases:
             memory_mb=1e-6,
             io_weight=0.001,
             network_weight=1e-3,
-            gpu_units=0.0001
+            gpu_units=0.0001,
         )
 
         assert req.cpu_units == small_value
@@ -592,7 +667,7 @@ class TestEdgeCases:
             io_weight=1.25,
             network_weight=0.75,
             gpu_units=0.25,
-            timeout=30.5
+            timeout=30.5,
         )
 
         assert req.cpu_units == 0.5
@@ -608,7 +683,7 @@ class TestEdgeCases:
 
         # Test with infinity (should be allowed if no validation)
         try:
-            req = ResourceRequirements(cpu_units=float('inf'))
+            req = ResourceRequirements(cpu_units=float("inf"))
             assert math.isinf(req.cpu_units)
         except (ValueError, OverflowError):
             # Expected if validation rejects infinite values
@@ -616,7 +691,7 @@ class TestEdgeCases:
 
         # Test with NaN (should be rejected or handled)
         try:
-            req = ResourceRequirements(cpu_units=float('nan'))
+            req = ResourceRequirements(cpu_units=float("nan"))
             assert math.isnan(req.cpu_units)
         except (ValueError, TypeError):
             # Expected if validation rejects NaN values
@@ -642,7 +717,7 @@ class TestEdgeCases:
         # These may not be implemented, so test conditionally
         try:
             assert req1 != req2
-            assert not (req1 == req2)
+            assert req1 != req2
         except TypeError:
             # Expected if comparison operators aren't implemented
             pass
@@ -662,7 +737,7 @@ class TestEdgeCases:
         req1 = ResourceRequirements(
             cpu_units=2.0,
             memory_mb=512.0,
-            resource_types=ResourceType.CPU | ResourceType.MEMORY
+            resource_types=ResourceType.CPU | ResourceType.MEMORY,
         )
 
         # Shallow copy
@@ -677,7 +752,9 @@ class TestEdgeCases:
 
         # Modify original and verify copies are independent
         req1.cpu_units = 4.0
-        assert req2.cpu_units == 2.0  # Shallow copy should be independent for primitive values
+        assert (
+            req2.cpu_units == 2.0
+        )  # Shallow copy should be independent for primitive values
         assert req3.cpu_units == 2.0  # Deep copy should be independent
 
 
@@ -698,7 +775,7 @@ class TestIntegrationWithPriority:
             Priority.LOW: 0,
             Priority.NORMAL: 1,
             Priority.HIGH: 2,
-            Priority.CRITICAL: 3
+            Priority.CRITICAL: 3,
         }
 
         for priority, expected_value in expected_values.items():
@@ -713,7 +790,7 @@ class TestIntegrationWithPriority:
         derived_req = ResourceRequirements(
             cpu_units=base_req.cpu_units,
             memory_mb=base_req.memory_mb,
-            priority_boost=base_req.priority_boost + 1
+            priority_boost=base_req.priority_boost + 1,
         )
         assert derived_req.priority == Priority.HIGH
 
@@ -723,11 +800,11 @@ class TestIntegrationWithPriority:
 
         # Test boundary values
         boundary_tests = [
-            (-1, Priority.LOW),   # Below minimum
-            (0, Priority.LOW),    # Minimum
+            (-1, Priority.LOW),  # Below minimum
+            (0, Priority.LOW),  # Minimum
             (3, Priority.CRITICAL),  # Maximum defined
             (4, Priority.CRITICAL),  # Above maximum
-            (1000, Priority.CRITICAL)  # Very high value
+            (1000, Priority.CRITICAL),  # Very high value
         ]
 
         for boost_value, expected_priority in boundary_tests:
@@ -766,8 +843,13 @@ class TestResourceTypeCombinations:
 
     def test_single_resource_types(self):
         """Test each resource type individually."""
-        all_types = [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                    ResourceType.NETWORK, ResourceType.GPU]
+        all_types = [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]
 
         for target_type in all_types:
             req = ResourceRequirements(resource_types=target_type)
@@ -797,7 +879,12 @@ class TestResourceTypeCombinations:
         no_gpu = ResourceType.ALL & ~ResourceType.GPU
         req3 = ResourceRequirements(resource_types=no_gpu)
         assert ResourceType.GPU not in req3.resource_types
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+        ]:
             assert rt in req3.resource_types
 
     def test_resource_type_complex_combinations(self):
@@ -837,17 +924,17 @@ class TestSerialization:
             io_weight=3.0,
             priority_boost=1,
             timeout=30.0,
-            resource_types=ResourceType.CPU | ResourceType.MEMORY
+            resource_types=ResourceType.CPU | ResourceType.MEMORY,
         )
 
         req_dict = asdict(req)
 
-        assert req_dict['cpu_units'] == 2.0
-        assert req_dict['memory_mb'] == 512.0
-        assert req_dict['io_weight'] == 3.0
-        assert req_dict['priority_boost'] == 1
-        assert req_dict['timeout'] == 30.0
-        assert req_dict['resource_types'] == ResourceType.CPU | ResourceType.MEMORY
+        assert req_dict["cpu_units"] == 2.0
+        assert req_dict["memory_mb"] == 512.0
+        assert req_dict["io_weight"] == 3.0
+        assert req_dict["priority_boost"] == 1
+        assert req_dict["timeout"] == 30.0
+        assert req_dict["resource_types"] == ResourceType.CPU | ResourceType.MEMORY
 
     def test_recreation_from_dict(self):
         """Test recreating ResourceRequirements from dictionary."""
@@ -855,7 +942,7 @@ class TestSerialization:
             cpu_units=2.0,
             memory_mb=512.0,
             priority_boost=2,
-            resource_types=ResourceType.CPU | ResourceType.MEMORY
+            resource_types=ResourceType.CPU | ResourceType.MEMORY,
         )
 
         # Convert to dict and back
@@ -875,7 +962,7 @@ class TestValidation:
             memory_mb=512.0,
             io_weight=3.0,
             network_weight=2.5,
-            gpu_units=1.0
+            gpu_units=1.0,
         )
 
         # Test that get_resource_amount works correctly
@@ -888,16 +975,18 @@ class TestValidation:
     def test_validation_with_resource_pool_patterns(self):
         """Test patterns that would be used by ResourcePool."""
         req = ResourceRequirements(
-            cpu_units=2.0,
-            memory_mb=1024.0,
-            gpu_units=0.5,
-            priority_boost=2
+            cpu_units=2.0, memory_mb=1024.0, gpu_units=0.5, priority_boost=2
         )
 
         # Test patterns that ResourcePool might use
         total_resources = 0.0
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             amount = get_resource_amount(req, rt)
             assert amount >= 0.0  # Should be non-negative for typical use
             total_resources += amount
@@ -912,7 +1001,7 @@ class TestValidation:
             io_weight=0.0,  # No IO requested
             network_weight=0.0,  # No network requested
             gpu_units=1.0,
-            resource_types=ResourceType.CPU | ResourceType.GPU  # Only CPU and GPU
+            resource_types=ResourceType.CPU | ResourceType.GPU,  # Only CPU and GPU
         )
 
         # Verify that resource_types matches what's actually requested
@@ -1005,9 +1094,7 @@ class TestPerformance:
         requirements = []
         for i in range(1000):
             req = ResourceRequirements(
-                cpu_units=i * 0.1,
-                memory_mb=i * 10,
-                priority_boost=i % 4
+                cpu_units=i * 0.1, memory_mb=i * 10, priority_boost=i % 4
             )
             requirements.append(req)
 
@@ -1043,15 +1130,20 @@ class TestPerformance:
             memory_mb=512.0,
             io_weight=3.0,
             network_weight=2.5,
-            gpu_units=1.0
+            gpu_units=1.0,
         )
 
         start_time = time.time()
 
         # Call get_resource_amount many times
         for _ in range(10000):
-            for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                      ResourceType.NETWORK, ResourceType.GPU]:
+            for rt in [
+                ResourceType.CPU,
+                ResourceType.MEMORY,
+                ResourceType.IO,
+                ResourceType.NETWORK,
+                ResourceType.GPU,
+            ]:
                 _ = get_resource_amount(req, rt)
 
         end_time = time.time()
@@ -1068,13 +1160,15 @@ class TestPostInitBehavior:
         """Test fallback behavior when resource_types is invalid."""
         import logging
         from unittest.mock import patch
-        
+
         # Test with non-ResourceType value
-        with patch.object(logging.getLogger("src.puffinflow.core.resources.requirements"), 'warning') as mock_warn:
+        with patch.object(
+            logging.getLogger("src.puffinflow.core.resources.requirements"), "warning"
+        ) as mock_warn:
             # Create instance with invalid resource_types via manual setting
             req = ResourceRequirements()
             # Force invalid resource_types to trigger auto-determination
-            object.__setattr__(req, 'resource_types', 'invalid_string')
+            object.__setattr__(req, "resource_types", "invalid_string")
             req.__post_init__()
             mock_warn.assert_called()
 
@@ -1082,9 +1176,9 @@ class TestPostInitBehavior:
         """Test that invalid resource_types triggers auto-determination."""
         req = ResourceRequirements(cpu_units=2.0, memory_mb=0.0)
         # Force invalid resource_types to trigger auto-determination
-        object.__setattr__(req, 'resource_types', 'invalid_string')
+        object.__setattr__(req, "resource_types", "invalid_string")
         req.__post_init__()
-        
+
         # Should have been auto-determined based on non-zero values
         assert ResourceType.CPU in req.resource_types
 
@@ -1095,11 +1189,11 @@ class TestPostInitBehavior:
             memory_mb=0.0,
             io_weight=0.0,
             network_weight=0.0,
-            gpu_units=0.0
+            gpu_units=0.0,
         )
         # Force auto-determination
         req._auto_determine_resource_types()
-        
+
         # Should default to ALL when no resources are requested
         assert req.resource_types == ResourceType.ALL
 
@@ -1110,10 +1204,10 @@ class TestPostInitBehavior:
             memory_mb=0.0,
             io_weight=0.0,
             network_weight=1.0,
-            gpu_units=0.0
+            gpu_units=0.0,
         )
         req._auto_determine_resource_types()
-        
+
         # Should include only CPU and NETWORK
         assert ResourceType.CPU in req.resource_types
         assert ResourceType.NETWORK in req.resource_types
@@ -1123,39 +1217,47 @@ class TestPostInitBehavior:
 
     def test_safe_check_resource_type_fallback(self):
         """Test safe_check_resource_type fallback mechanisms."""
-        from src.puffinflow.core.resources.requirements import safe_check_resource_type
         import logging
-        from unittest.mock import patch, Mock
-        
+        from unittest.mock import Mock, patch
+
+        from src.puffinflow.core.resources.requirements import safe_check_resource_type
+
         req = ResourceRequirements(cpu_units=2.0)
-        
+
         # Test TypeError fallback
-        with patch.object(logging.getLogger("src.puffinflow.core.resources.requirements"), 'warning') as mock_warn:
+        with patch.object(
+            logging.getLogger("src.puffinflow.core.resources.requirements"), "warning"
+        ) as mock_warn:
             mock_resource_types = Mock()
             mock_resource_types.__and__ = Mock(side_effect=TypeError("Bitwise failed"))
             mock_resource_types.value = 1
             req.resource_types = mock_resource_types
-            
+
             result = safe_check_resource_type(req, ResourceType.CPU)
             mock_warn.assert_called()
             assert isinstance(result, bool)
 
     def test_safe_check_resource_type_double_fallback(self):
         """Test safe_check_resource_type double fallback to attribute check."""
-        from src.puffinflow.core.resources.requirements import safe_check_resource_type
         import logging
-        from unittest.mock import patch, Mock
-        
+        from unittest.mock import Mock, patch
+
+        from src.puffinflow.core.resources.requirements import safe_check_resource_type
+
         req = ResourceRequirements(cpu_units=2.0)
-        
+
         # Test double fallback when both bitwise operations fail
-        with patch.object(logging.getLogger("src.puffinflow.core.resources.requirements"), 'error') as mock_error:
+        with patch.object(
+            logging.getLogger("src.puffinflow.core.resources.requirements"), "error"
+        ) as mock_error:
             mock_resource_types = Mock()
             mock_resource_types.__and__ = Mock(side_effect=TypeError("Bitwise failed"))
             mock_resource_types.value = Mock()
-            mock_resource_types.value.__and__ = Mock(side_effect=Exception("Value fallback failed"))
+            mock_resource_types.value.__and__ = Mock(
+                side_effect=Exception("Value fallback failed")
+            )
             req.resource_types = mock_resource_types
-            
+
             result = safe_check_resource_type(req, ResourceType.CPU)
             mock_error.assert_called()
             assert result is True  # Should fallback to checking cpu_units > 0
@@ -1163,27 +1265,30 @@ class TestPostInitBehavior:
     def test_get_resource_amount_disabled_resource(self):
         """Test get_resource_amount when resource type is disabled."""
         from src.puffinflow.core.resources.requirements import get_resource_amount
-        
+
         req = ResourceRequirements(
             cpu_units=2.0,
             memory_mb=512.0,
-            resource_types=ResourceType.CPU  # Only CPU enabled
+            resource_types=ResourceType.CPU,  # Only CPU enabled
         )
-        
+
         # Memory should return 0 even though memory_mb is set
         result = get_resource_amount(req, ResourceType.MEMORY)
         assert result == 0.0
 
     def test_get_resource_amount_combined_type_fallback(self):
         """Test get_resource_amount with combined types using fallback logic."""
-        from src.puffinflow.core.resources.requirements import get_resource_amount
         from unittest.mock import patch
-        
+
+        from src.puffinflow.core.resources.requirements import get_resource_amount
+
         req = ResourceRequirements(cpu_units=2.0, memory_mb=512.0)
         combined_type = ResourceType.CPU | ResourceType.MEMORY
-        
+
         # Mock the 'in' operator to fail, forcing value-based fallback
-        with patch.object(ResourceType, '__contains__', side_effect=TypeError("Contains failed")):
+        with patch.object(
+            ResourceType, "__contains__", side_effect=TypeError("Contains failed")
+        ):
             result = get_resource_amount(req, combined_type)
             # Should still work using value-based comparison
             assert result > 0
@@ -1195,14 +1300,14 @@ class TestComplexScenarios:
     def test_machine_learning_workload_scenario(self):
         """Test scenario resembling ML workload requirements."""
         ml_req = ResourceRequirements(
-            cpu_units=4.0,      # Multi-core processing
-            memory_mb=8192.0,   # Large memory for datasets
-            gpu_units=2.0,      # GPU acceleration
-            io_weight=5.0,      # Heavy disk I/O for data loading
-            network_weight=3.0, # Network for distributed training
-            priority_boost=3,   # Critical priority
-            timeout=7200.0,     # 2 hour timeout
-            resource_types=ResourceType.ALL  # Needs all resource types
+            cpu_units=4.0,  # Multi-core processing
+            memory_mb=8192.0,  # Large memory for datasets
+            gpu_units=2.0,  # GPU acceleration
+            io_weight=5.0,  # Heavy disk I/O for data loading
+            network_weight=3.0,  # Network for distributed training
+            priority_boost=3,  # Critical priority
+            timeout=7200.0,  # 2 hour timeout
+            resource_types=ResourceType.ALL,  # Needs all resource types
         )
 
         # Verify requirements make sense
@@ -1213,22 +1318,27 @@ class TestComplexScenarios:
         assert ml_req.timeout == 7200.0
 
         # Verify all resource types are requested
-        for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                   ResourceType.NETWORK, ResourceType.GPU]:
+        for rt in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert rt in ml_req.resource_types
             assert get_resource_amount(ml_req, rt) > 0.0
 
     def test_web_service_scenario(self):
         """Test scenario resembling web service requirements."""
         web_req = ResourceRequirements(
-            cpu_units=1.0,      # Moderate CPU
-            memory_mb=512.0,    # Moderate memory
-            gpu_units=0.0,      # No GPU needed
-            io_weight=2.0,      # Some disk I/O
-            network_weight=5.0, # Heavy network usage
-            priority_boost=1,   # Normal priority
-            timeout=30.0,       # Quick timeout
-            resource_types=ResourceType.ALL & ~ResourceType.GPU  # All except GPU
+            cpu_units=1.0,  # Moderate CPU
+            memory_mb=512.0,  # Moderate memory
+            gpu_units=0.0,  # No GPU needed
+            io_weight=2.0,  # Some disk I/O
+            network_weight=5.0,  # Heavy network usage
+            priority_boost=1,  # Normal priority
+            timeout=30.0,  # Quick timeout
+            resource_types=ResourceType.ALL & ~ResourceType.GPU,  # All except GPU
         )
 
         assert web_req.priority == Priority.NORMAL
@@ -1240,14 +1350,14 @@ class TestComplexScenarios:
     def test_batch_processing_scenario(self):
         """Test scenario resembling batch processing requirements."""
         batch_req = ResourceRequirements(
-            cpu_units=8.0,      # High CPU for parallel processing
-            memory_mb=4096.0,   # Large memory for batch data
-            gpu_units=0.0,      # CPU-only processing
-            io_weight=10.0,     # Very heavy I/O
-            network_weight=1.0, # Minimal network
-            priority_boost=0,   # Low priority (can wait)
-            timeout=None,       # No timeout (can run indefinitely)
-            resource_types=ResourceType.CPU | ResourceType.MEMORY | ResourceType.IO
+            cpu_units=8.0,  # High CPU for parallel processing
+            memory_mb=4096.0,  # Large memory for batch data
+            gpu_units=0.0,  # CPU-only processing
+            io_weight=10.0,  # Very heavy I/O
+            network_weight=1.0,  # Minimal network
+            priority_boost=0,  # Low priority (can wait)
+            timeout=None,  # No timeout (can run indefinitely)
+            resource_types=ResourceType.CPU | ResourceType.MEMORY | ResourceType.IO,
         )
 
         assert batch_req.priority == Priority.LOW
@@ -1263,7 +1373,7 @@ class TestComplexScenarios:
             memory_mb=100.0,
             io_weight=1.0,
             network_weight=1.0,
-            gpu_units=0.0
+            gpu_units=0.0,
         )
 
         # Scale up by factor of 4
@@ -1276,7 +1386,7 @@ class TestComplexScenarios:
             gpu_units=base_req.gpu_units * scale_factor,
             priority_boost=base_req.priority_boost,
             timeout=base_req.timeout,
-            resource_types=base_req.resource_types
+            resource_types=base_req.resource_types,
         )
 
         assert scaled_req.cpu_units == 4.0
@@ -1287,17 +1397,10 @@ class TestComplexScenarios:
 
     def test_requirements_merging(self):
         """Test merging multiple requirements."""
-        req1 = ResourceRequirements(
-            cpu_units=2.0,
-            memory_mb=512.0,
-            priority_boost=1
-        )
+        req1 = ResourceRequirements(cpu_units=2.0, memory_mb=512.0, priority_boost=1)
 
         req2 = ResourceRequirements(
-            cpu_units=1.0,
-            memory_mb=256.0,
-            gpu_units=1.0,
-            priority_boost=2
+            cpu_units=1.0, memory_mb=256.0, gpu_units=1.0, priority_boost=2
         )
 
         # Merge by taking maximum of each resource
@@ -1309,7 +1412,7 @@ class TestComplexScenarios:
             gpu_units=max(req1.gpu_units, req2.gpu_units),
             priority_boost=max(req1.priority_boost, req2.priority_boost),
             # Combine resource types
-            resource_types=req1.resource_types | req2.resource_types
+            resource_types=req1.resource_types | req2.resource_types,
         )
 
         assert merged_req.cpu_units == 2.0  # max(2.0, 1.0)

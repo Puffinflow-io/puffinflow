@@ -10,17 +10,17 @@ Tests cover:
 - Global instance functionality
 """
 
-import pytest
-import time
-from unittest.mock import patch, MagicMock
 from dataclasses import asdict
+from unittest.mock import patch
+
+import pytest
 
 # Import the module under test
 from src.puffinflow.core.reliability.leak_detector import (
-    ResourceLeak,
     ResourceAllocation,
+    ResourceLeak,
     ResourceLeakDetector,
-    leak_detector
+    leak_detector,
 )
 
 
@@ -36,7 +36,7 @@ class TestResourceLeak:
             resources=resources,
             allocated_at=1000.0,
             held_for_seconds=350.0,
-            leak_threshold_seconds=300.0
+            leak_threshold_seconds=300.0,
         )
 
         assert leak.state_name == "test_state"
@@ -55,7 +55,7 @@ class TestResourceLeak:
             resources=resources,
             allocated_at=100.0,
             held_for_seconds=400.0,
-            leak_threshold_seconds=300.0
+            leak_threshold_seconds=300.0,
         )
 
         # Should be able to convert to dict
@@ -74,7 +74,7 @@ class TestResourceAllocation:
             state_name="compute_state",
             agent_name="worker_agent",
             resources=resources,
-            allocated_at=2000.0
+            allocated_at=2000.0,
         )
 
         assert allocation.state_name == "compute_state"
@@ -113,7 +113,7 @@ class TestResourceLeakDetector:
 
     def test_track_allocation_basic(self, detector, sample_resources):
         """Test basic resource allocation tracking."""
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         key = "agent1:state1"
@@ -129,7 +129,7 @@ class TestResourceLeakDetector:
         """Test that resource dictionaries are copied, not referenced."""
         original_resources = {"cpu": 1.0}
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", original_resources)
 
         # Modify original resources
@@ -141,7 +141,7 @@ class TestResourceLeakDetector:
 
     def test_track_allocation_multiple_states(self, detector, sample_resources):
         """Test tracking multiple allocations."""
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", sample_resources)
             detector.track_allocation("state2", "agent1", {"memory": 512})
             detector.track_allocation("state1", "agent2", {"cpu": 1.0})
@@ -154,11 +154,11 @@ class TestResourceLeakDetector:
     def test_track_allocation_overwrites_existing(self, detector, sample_resources):
         """Test that tracking same state/agent overwrites existing allocation."""
         # First allocation
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
 
         # Second allocation for same state/agent
-        with patch('time.time', return_value=2000.0):
+        with patch("time.time", return_value=2000.0):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         assert len(detector.allocations) == 1
@@ -168,7 +168,7 @@ class TestResourceLeakDetector:
 
     def test_track_release_removes_allocation(self, detector, sample_resources):
         """Test that track_release removes the allocation."""
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         assert "agent1:state1" in detector.allocations
@@ -184,7 +184,7 @@ class TestResourceLeakDetector:
 
     def test_track_release_partial(self, detector, sample_resources):
         """Test releasing one allocation while others remain."""
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", sample_resources)
             detector.track_allocation("state2", "agent1", {"memory": 256})
 
@@ -201,16 +201,16 @@ class TestResourceLeakDetector:
     def test_detect_leaks_no_leaks(self, detector, sample_resources):
         """Test leak detection when allocations are within threshold."""
         current_time = 1000.0
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         # Check immediately (0 seconds held)
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             leaks = detector.detect_leaks()
             assert leaks == []
 
         # Check just under threshold (299 seconds held)
-        with patch('time.time', return_value=current_time + 299):
+        with patch("time.time", return_value=current_time + 299):
             leaks = detector.detect_leaks()
             assert leaks == []
 
@@ -219,10 +219,10 @@ class TestResourceLeakDetector:
         allocated_time = 1000.0
         current_time = allocated_time + 350.0  # 50 seconds over threshold
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", sample_resources)
 
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             leaks = detector.detect_leaks()
 
         assert len(leaks) == 1
@@ -239,12 +239,12 @@ class TestResourceLeakDetector:
         allocated_time = 1000.0
         current_time = allocated_time + 400.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
             detector.track_allocation("state2", "agent1", {"memory": 512})
             detector.track_allocation("state3", "agent2", {"gpu": 1})
 
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             leaks = detector.detect_leaks()
 
         assert len(leaks) == 3
@@ -259,14 +259,14 @@ class TestResourceLeakDetector:
         allocated_time = 1000.0
         current_time = allocated_time + 350.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("leaked", "agent1", {"cpu": 1.0})
 
         # Add a more recent allocation that hasn't leaked
-        with patch('time.time', return_value=allocated_time + 200):
+        with patch("time.time", return_value=allocated_time + 200):
             detector.track_allocation("recent", "agent1", {"memory": 256})
 
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             leaks = detector.detect_leaks()
 
         assert len(leaks) == 1
@@ -276,32 +276,32 @@ class TestResourceLeakDetector:
         """Test that detect_leaks builds leak history."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         # First detection - adds to history
-        with patch('time.time', return_value=allocated_time + 350):
-            leaks1 = detector.detect_leaks()
+        with patch("time.time", return_value=allocated_time + 350):
+            detector.detect_leaks()
             assert len(detector.detected_leaks) == 1
 
         # Second detection - should not duplicate
-        with patch('time.time', return_value=allocated_time + 400):
-            leaks2 = detector.detect_leaks()
+        with patch("time.time", return_value=allocated_time + 400):
+            detector.detect_leaks()
             assert len(detector.detected_leaks) == 1  # Still only 1
 
     def test_detect_leaks_history_deduplication(self, detector):
         """Test that duplicate leaks are not added to history."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
 
         # Multiple detections of same leak
-        with patch('time.time', return_value=allocated_time + 350):
+        with patch("time.time", return_value=allocated_time + 350):
             detector.detect_leaks()
-        with patch('time.time', return_value=allocated_time + 400):
+        with patch("time.time", return_value=allocated_time + 400):
             detector.detect_leaks()
-        with patch('time.time', return_value=allocated_time + 450):
+        with patch("time.time", return_value=allocated_time + 450):
             detector.detect_leaks()
 
         # Should only have one entry in history
@@ -315,12 +315,12 @@ class TestResourceLeakDetector:
         allocated_time = 1000.0
 
         # Create 3 different leaks
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
             detector.track_allocation("state2", "agent2", {"memory": 256})
             detector.track_allocation("state3", "agent3", {"gpu": 1})
 
-        with patch('time.time', return_value=allocated_time + 350):
+        with patch("time.time", return_value=allocated_time + 350):
             detector.detect_leaks()
 
         # Should only keep the last 2 leaks
@@ -331,10 +331,10 @@ class TestResourceLeakDetector:
         resources = {"cpu": 1.0}
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", resources)
 
-        with patch('time.time', return_value=allocated_time + 350):
+        with patch("time.time", return_value=allocated_time + 350):
             leaks = detector.detect_leaks()
 
         # Modify original resources
@@ -343,23 +343,26 @@ class TestResourceLeakDetector:
         # Leak should have original values
         assert leaks[0].resources["cpu"] == 1.0
 
-    @pytest.mark.parametrize("threshold,hold_time,should_leak", [
-        (300, 299, False),  # Just under threshold
-        (300, 300, False),  # Exactly at threshold
-        (300, 301, True),  # Just over threshold
-        (60, 61, True),  # Short threshold
-        (3600, 3601, True),  # Long threshold
-        (0, 1, True),  # Zero threshold
-    ])
+    @pytest.mark.parametrize(
+        "threshold,hold_time,should_leak",
+        [
+            (300, 299, False),  # Just under threshold
+            (300, 300, False),  # Exactly at threshold
+            (300, 301, True),  # Just over threshold
+            (60, 61, True),  # Short threshold
+            (3600, 3601, True),  # Long threshold
+            (0, 1, True),  # Zero threshold
+        ],
+    )
     def test_detect_leaks_threshold_boundaries(self, threshold, hold_time, should_leak):
         """Test leak detection at various threshold boundaries."""
         detector = ResourceLeakDetector(leak_threshold_seconds=threshold)
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
 
-        with patch('time.time', return_value=allocated_time + hold_time):
+        with patch("time.time", return_value=allocated_time + hold_time):
             leaks = detector.detect_leaks()
 
         if should_leak:
@@ -383,12 +386,12 @@ class TestResourceLeakDetector:
         """Test get_metrics with active allocations."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", sample_resources)
             detector.track_allocation("state2", "agent2", {"memory": 256})
 
         current_time = allocated_time + 100
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             metrics = detector.get_metrics()
 
         assert metrics["total_allocations"] == 2
@@ -399,12 +402,12 @@ class TestResourceLeakDetector:
         """Test get_metrics with leaked resources."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
             detector.track_allocation("state2", "agent2", {"memory": 256})
 
         current_time = allocated_time + 350
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             metrics = detector.get_metrics()
 
         assert metrics["total_allocations"] == 2
@@ -415,7 +418,7 @@ class TestResourceLeakDetector:
         """Test get_metrics groups leaks by agent correctly."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             # agent1 has 2 leaks
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
             detector.track_allocation("state2", "agent1", {"memory": 256})
@@ -423,17 +426,14 @@ class TestResourceLeakDetector:
             detector.track_allocation("state3", "agent2", {"gpu": 1})
             # agent3 has no leaks (recent allocation)
 
-        with patch('time.time', return_value=allocated_time + 200):
+        with patch("time.time", return_value=allocated_time + 200):
             detector.track_allocation("state4", "agent3", {"disk": 100})
 
         current_time = allocated_time + 350
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             metrics = detector.get_metrics()
 
-        expected_leaks_by_agent = {
-            "agent1": 2,
-            "agent2": 1
-        }
+        expected_leaks_by_agent = {"agent1": 2, "agent2": 1}
         assert metrics["leaks_by_agent"] == expected_leaks_by_agent
 
     def test_get_oldest_allocation_age_empty(self, detector):
@@ -446,10 +446,10 @@ class TestResourceLeakDetector:
         allocated_time = 1000.0
         current_time = allocated_time + 150
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", sample_resources)
 
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             age = detector._get_oldest_allocation_age()
 
         assert age == 150.0
@@ -460,16 +460,16 @@ class TestResourceLeakDetector:
         current_time = base_time + 300
 
         # Different allocation times
-        with patch('time.time', return_value=base_time):
+        with patch("time.time", return_value=base_time):
             detector.track_allocation("oldest", "agent1", {"cpu": 1.0})
 
-        with patch('time.time', return_value=base_time + 100):
+        with patch("time.time", return_value=base_time + 100):
             detector.track_allocation("middle", "agent1", {"memory": 256})
 
-        with patch('time.time', return_value=base_time + 200):
+        with patch("time.time", return_value=base_time + 200):
             detector.track_allocation("newest", "agent1", {"gpu": 1})
 
-        with patch('time.time', return_value=current_time):
+        with patch("time.time", return_value=current_time):
             age = detector._get_oldest_allocation_age()
 
         # Should return age of oldest allocation
@@ -508,11 +508,11 @@ class TestResourceLeakDetector:
         """Test clear_leak_history removes all detected leaks."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         # Generate some leak history
-        with patch('time.time', return_value=allocated_time + 350):
+        with patch("time.time", return_value=allocated_time + 350):
             detector.detect_leaks()
 
         assert len(detector.detected_leaks) > 0
@@ -524,11 +524,11 @@ class TestResourceLeakDetector:
         """Test clear_leak_history doesn't affect current allocations."""
         allocated_time = 1000.0
 
-        with patch('time.time', return_value=allocated_time):
+        with patch("time.time", return_value=allocated_time):
             detector.track_allocation("state1", "agent1", sample_resources)
 
         # Generate leak history
-        with patch('time.time', return_value=allocated_time + 350):
+        with patch("time.time", return_value=allocated_time + 350):
             detector.detect_leaks()
 
         detector.clear_leak_history()
@@ -546,7 +546,7 @@ class TestEdgeCases:
         detector = ResourceLeakDetector()
         empty_resources = {}
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", empty_resources)
 
         allocation = detector.allocations["agent1:state1"]
@@ -557,7 +557,7 @@ class TestEdgeCases:
         detector = ResourceLeakDetector()
         resources_with_none = {"cpu": None, "memory": 1024}
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", resources_with_none)
 
         allocation = detector.allocations["agent1:state1"]
@@ -568,11 +568,11 @@ class TestEdgeCases:
         """Test detector with zero threshold - everything should leak immediately."""
         detector = ResourceLeakDetector(leak_threshold_seconds=0.0)
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
 
         # Even immediately, should be a leak with zero threshold
-        with patch('time.time', return_value=1000.001):  # 1ms later
+        with patch("time.time", return_value=1000.001):  # 1ms later
             leaks = detector.detect_leaks()
             assert len(leaks) == 1
 
@@ -580,11 +580,11 @@ class TestEdgeCases:
         """Test detector with negative threshold."""
         detector = ResourceLeakDetector(leak_threshold_seconds=-100.0)
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
 
         # Should immediately be a leak
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             leaks = detector.detect_leaks()
             assert len(leaks) == 1
 
@@ -592,11 +592,11 @@ class TestEdgeCases:
         """Test detector with very large threshold."""
         detector = ResourceLeakDetector(leak_threshold_seconds=1e10)  # ~316 years
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", {"cpu": 1.0})
 
         # Even after a long time, shouldn't leak
-        with patch('time.time', return_value=1000.0 + 86400 * 365):  # 1 year later
+        with patch("time.time", return_value=1000.0 + 86400 * 365):  # 1 year later
             leaks = detector.detect_leaks()
             assert len(leaks) == 0
 
@@ -607,7 +607,7 @@ class TestEdgeCases:
         special_state = "state-with_special.chars:123"
         special_agent = "agent@domain.com/path"
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation(special_state, special_agent, {"cpu": 1.0})
 
         key = f"{special_agent}:{special_state}"
@@ -624,7 +624,7 @@ class TestEdgeCases:
         unicode_state = "状態テスト"
         unicode_agent = "агент_тест"
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation(unicode_state, unicode_agent, {"cpu": 1.0})
 
         key = f"{unicode_agent}:{unicode_state}"
@@ -637,7 +637,7 @@ class TestEdgeCases:
         long_state = "a" * 1000
         long_agent = "b" * 1000
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation(long_state, long_agent, {"cpu": 1.0})
 
         key = f"{long_agent}:{long_state}"
@@ -650,7 +650,7 @@ class TestEdgeCases:
         # Create large resource dict
         massive_resources = {f"resource_{i}": float(i) for i in range(1000)}
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("state1", "agent1", massive_resources)
 
         allocation = detector.allocations["agent1:state1"]
@@ -678,7 +678,7 @@ class TestGlobalInstance:
         leak_detector.allocations.clear()
         leak_detector.clear_leak_history()
 
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             leak_detector.track_allocation("test_state", "test_agent", {"cpu": 1.0})
 
         assert len(leak_detector.allocations) == 1
@@ -697,16 +697,16 @@ class TestIntegrationScenarios:
         resources = {"cpu": 2.0, "memory": 1024}
 
         # 1. Allocate resources
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("workflow_state", "worker_agent", resources)
 
         # 2. Check no leaks initially
-        with patch('time.time', return_value=1050.0):  # 50s later
+        with patch("time.time", return_value=1050.0):  # 50s later
             leaks = detector.detect_leaks()
             assert len(leaks) == 0
 
         # 3. Check leak detected after threshold
-        with patch('time.time', return_value=1150.0):  # 150s later
+        with patch("time.time", return_value=1150.0):  # 150s later
             leaks = detector.detect_leaks()
             assert len(leaks) == 1
 
@@ -718,7 +718,7 @@ class TestIntegrationScenarios:
         detector.track_release("workflow_state", "worker_agent")
 
         # 5. Verify no current leaks but history preserved
-        with patch('time.time', return_value=1200.0):
+        with patch("time.time", return_value=1200.0):
             leaks = detector.detect_leaks()
             assert len(leaks) == 0
             assert len(detector.detected_leaks) == 1  # History preserved
@@ -730,19 +730,19 @@ class TestIntegrationScenarios:
         base_time = 1000.0
 
         # Agent1: Allocates early, will leak
-        with patch('time.time', return_value=base_time):
+        with patch("time.time", return_value=base_time):
             detector.track_allocation("long_task", "agent1", {"cpu": 4.0})
 
         # Agent2: Allocates later, won't leak yet
-        with patch('time.time', return_value=base_time + 100):
+        with patch("time.time", return_value=base_time + 100):
             detector.track_allocation("medium_task", "agent2", {"memory": 512})
 
         # Agent3: Allocates much later, won't leak
-        with patch('time.time', return_value=base_time + 180):
+        with patch("time.time", return_value=base_time + 180):
             detector.track_allocation("quick_task", "agent3", {"gpu": 1})
 
         # Check leaks at base_time + 250
-        with patch('time.time', return_value=base_time + 250):
+        with patch("time.time", return_value=base_time + 250):
             leaks = detector.detect_leaks()
             metrics = detector.get_metrics()
 
@@ -762,11 +762,11 @@ class TestIntegrationScenarios:
         detector = ResourceLeakDetector(leak_threshold_seconds=100.0)
 
         # First allocation cycle
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             detector.track_allocation("cycling_state", "agent1", {"cpu": 1.0})
 
         # Let it leak
-        with patch('time.time', return_value=1150.0):
+        with patch("time.time", return_value=1150.0):
             leaks = detector.detect_leaks()
             assert len(leaks) == 1
 
@@ -774,16 +774,16 @@ class TestIntegrationScenarios:
         detector.track_release("cycling_state", "agent1")
 
         # Reallocate same state/agent
-        with patch('time.time', return_value=1200.0):
+        with patch("time.time", return_value=1200.0):
             detector.track_allocation("cycling_state", "agent1", {"cpu": 2.0})
 
         # Should not leak immediately
-        with patch('time.time', return_value=1250.0):  # 50s later
+        with patch("time.time", return_value=1250.0):  # 50s later
             leaks = detector.detect_leaks()
             assert len(leaks) == 0
 
         # But should leak after threshold
-        with patch('time.time', return_value=1350.0):  # 150s later
+        with patch("time.time", return_value=1350.0):  # 150s later
             leaks = detector.detect_leaks()
             assert len(leaks) == 1
             assert leaks[0].held_for_seconds == 150.0
@@ -797,11 +797,11 @@ class TestIntegrationScenarios:
 
         # Create more leaks than history can hold
         for i in range(10):
-            with patch('time.time', return_value=base_time + i):
+            with patch("time.time", return_value=base_time + i):
                 detector.track_allocation(f"state_{i}", f"agent_{i}", {"cpu": 1.0})
 
         # Trigger leak detection
-        with patch('time.time', return_value=base_time + 100):
+        with patch("time.time", return_value=base_time + 100):
             leaks = detector.detect_leaks()
 
         # Should detect all 10 current leaks
@@ -816,14 +816,14 @@ class TestIntegrationScenarios:
         detector = ResourceLeakDetector()
 
         # Allocate many resources
-        with patch('time.time', return_value=1000.0):
+        with patch("time.time", return_value=1000.0):
             for i in range(num_allocations):
                 detector.track_allocation(f"state_{i}", f"agent_{i % 10}", {"cpu": 1.0})
 
         # Measure time for leak detection
         import time as time_module
 
-        with patch('time.time', return_value=1400.0):  # All should leak
+        with patch("time.time", return_value=1400.0):  # All should leak
             start = time_module.perf_counter()
             leaks = detector.detect_leaks()
             metrics = detector.get_metrics()

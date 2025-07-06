@@ -48,7 +48,7 @@ Let's create a simple agent that processes data:
    async def main():
        # Create and run the agent
        agent = HelloWorldAgent()
-       
+
        # Run with custom input
        context = Context({'name': 'PuffinFlow'})
        result = await agent.run(context)
@@ -70,7 +70,7 @@ Now let's create a more complex workflow with multiple states and dependencies:
 
    class DataPipeline(Agent):
        """A simple data processing pipeline."""
-       
+
        @state(profile="io_intensive")
        async def load_data(self, ctx: Context) -> None:
            """Load data from source."""
@@ -98,7 +98,7 @@ Now let's create a more complex workflow with multiple states and dependencies:
    async def main():
        pipeline = DataPipeline()
        result = await pipeline.run()
-       
+
        print(f"\nPipeline Status: {result.status}")
        print(f"Records processed: {result.context.records_saved}")
        print(f"Saved to: {result.context.saved_location}")
@@ -120,7 +120,7 @@ Simple RAG Agent
 
    class SimpleRAG(Agent):
        """A basic RAG implementation."""
-       
+
        def __init__(self):
            super().__init__()
            self.rate_limiter = RateLimiter(max_calls=10, time_window=60)
@@ -197,18 +197,18 @@ Model Training Pipeline
            ModelTrainer(),
            ModelEvaluator()
        ])
-       
+
        result = await training_team.run()
        print(f"Training complete! Test accuracy: {result.context.test_accuracy:.2f}")
 
    asyncio.run(main())
-       
+
        # Create context with input data
        context = Context({'name': 'PuffinFlow'})
-       
+
        # Run the agent
        result = await agent.run(context)
-       
+
        print(f"Agent completed with status: {result.status}")
        print(f"Final greeting: {result.context.greeting}")
 
@@ -251,7 +251,7 @@ Create an agent with multiple states and dependencies:
    async def main():
        agent = DataProcessingAgent()
        result = await agent.run()
-       
+
        print(f"Workflow completed: {result.status}")
        print(f"Final data: {result.context.processed_data}")
 
@@ -308,7 +308,7 @@ Add error handling and retry logic:
            """A task that might fail randomly."""
            if random.random() < 0.7:  # 70% chance of failure
                raise Exception("Random failure occurred!")
-           
+
            ctx.success = True
            print("Task completed successfully!")
 
@@ -369,7 +369,7 @@ Coordinate multiple agents working together:
            ProcessorAgent(),
            ConsumerAgent()
        ])
-       
+
        result = await team.run()
        print(f"Team completed: {result.status}")
 
@@ -399,10 +399,10 @@ Run multiple agents in parallel:
    async def main():
        # Create multiple worker agents
        workers = [WorkerAgent(i) for i in range(5)]
-       
+
        # Run all workers in parallel
        results = await run_agents_parallel(workers)
-       
+
        print("All workers completed:")
        for i, result in enumerate(results):
            print(f"  Worker {i}: {result.status}")
@@ -429,23 +429,23 @@ Enable checkpointing for long-running workflows:
                # Simulate work
                await asyncio.sleep(0.5)
                ctx.progress = i + 1
-               
+
                # Save checkpoint every 3 iterations
                if (i + 1) % 3 == 0:
                    await self.save_checkpoint(ctx)
                    print(f"Checkpoint saved at progress: {ctx.progress}")
-           
+
            ctx.completed = True
            print("Long-running task completed!")
 
    async def main():
        agent = CheckpointedAgent()
-       
+
        # Try to restore from checkpoint first
        restored = await agent.restore_from_checkpoint()
        if restored:
            print("Restored from checkpoint")
-       
+
        result = await agent.run()
        print(f"Agent completed: {result.status}")
 

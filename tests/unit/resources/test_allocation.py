@@ -3,29 +3,29 @@ Comprehensive unit tests for src.puffinflow.core.resources.allocation module
 """
 
 import asyncio
-import pytest
-import time
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
-from dataclasses import dataclass
-from typing import Dict, Any
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from src.puffinflow.core.resources.allocation import (
-    AllocationStrategy,
+    AllocationMetrics,
     AllocationRequest,
     AllocationResult,
-    AllocationMetrics,
-    ResourceAllocator,
-    FirstFitAllocator,
+    AllocationStrategy,
     BestFitAllocator,
-    WorstFitAllocator,
-    PriorityAllocator,
     FairShareAllocator,
+    FirstFitAllocator,
+    PriorityAllocator,
     WeightedAllocator,
+    WorstFitAllocator,
     create_allocator,
-    get_resource_amount
+    get_resource_amount,
 )
-from src.puffinflow.core.resources.requirements import ResourceType, ResourceRequirements
+from src.puffinflow.core.resources.requirements import (
+    ResourceRequirements,
+    ResourceType,
+)
 
 
 class TestAllocationStrategy:
@@ -51,7 +51,7 @@ class TestAllocationRequest:
             request_id="test-1",
             requester_id="agent-1",
             requirements=requirements,
-            priority=5
+            priority=5,
         )
 
         assert request.request_id == "test-1"
@@ -77,8 +77,7 @@ class TestAllocationRequest:
         """Test request with deadline."""
         deadline = datetime.utcnow() + timedelta(minutes=30)
         request = AllocationRequest(
-            "test-1", "agent-1", ResourceRequirements(),
-            deadline=deadline
+            "test-1", "agent-1", ResourceRequirements(), deadline=deadline
         )
 
         assert request.deadline == deadline
@@ -87,11 +86,9 @@ class TestAllocationRequest:
         """Test request default values."""
         requirements = ResourceRequirements()
         request = AllocationRequest(
-            request_id="req_123",
-            requester_id="agent_1",
-            requirements=requirements
+            request_id="req_123", requester_id="agent_1", requirements=requirements
         )
-        
+
         assert request.priority == 0
         assert request.weight == 1.0
         assert request.metadata == {}
@@ -100,10 +97,10 @@ class TestAllocationRequest:
     def test_request_comparison(self):
         """Test request comparison for priority queue."""
         requirements = ResourceRequirements()
-        
+
         req1 = AllocationRequest("req1", "agent1", requirements, priority=1)
         req2 = AllocationRequest("req2", "agent2", requirements, priority=2)
-        
+
         # Higher priority should be "less than" for min-heap behavior
         assert req2 < req1  # req2 has higher priority
 
@@ -113,15 +110,9 @@ class TestAllocationResult:
 
     def test_successful_result(self):
         """Test successful allocation result."""
-        allocated = {
-            ResourceType.CPU: 2.0,
-            ResourceType.MEMORY: 512.0
-        }
+        allocated = {ResourceType.CPU: 2.0, ResourceType.MEMORY: 512.0}
         result = AllocationResult(
-            request_id="test-1",
-            success=True,
-            allocated=allocated,
-            allocation_time=0.5
+            request_id="test-1", success=True, allocated=allocated, allocation_time=0.5
         )
 
         assert result.request_id == "test-1"
@@ -133,9 +124,7 @@ class TestAllocationResult:
     def test_failed_result(self):
         """Test failed allocation result."""
         result = AllocationResult(
-            request_id="test-1",
-            success=False,
-            reason="Insufficient resources"
+            request_id="test-1", success=False, reason="Insufficient resources"
         )
 
         assert result.request_id == "test-1"
@@ -145,15 +134,9 @@ class TestAllocationResult:
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
-        allocated = {
-            ResourceType.CPU: 2.0,
-            ResourceType.MEMORY: 512.0
-        }
+        allocated = {ResourceType.CPU: 2.0, ResourceType.MEMORY: 512.0}
         result = AllocationResult(
-            request_id="test-1",
-            success=True,
-            allocated=allocated,
-            allocation_time=0.5
+            request_id="test-1", success=True, allocated=allocated, allocation_time=0.5
         )
 
         result_dict = result.to_dict()
@@ -169,14 +152,11 @@ class TestAllocationResult:
         """Test result conversion to dictionary."""
         allocated = {ResourceType.CPU: 2.0}
         result = AllocationResult(
-            request_id="req_123",
-            success=True,
-            allocated=allocated,
-            allocation_time=0.5
+            request_id="req_123", success=True, allocated=allocated, allocation_time=0.5
         )
-        
+
         result_dict = result.to_dict()
-        
+
         assert result_dict["request_id"] == "req_123"
         assert result_dict["success"] is True
         assert result_dict["allocated"]["CPU"] == 2.0
@@ -201,15 +181,9 @@ class TestAllocationMetrics:
     def test_record_successful_allocation(self):
         """Test recording successful allocation."""
         metrics = AllocationMetrics()
-        allocated = {
-            ResourceType.CPU: 2.0,
-            ResourceType.MEMORY: 512.0
-        }
+        allocated = {ResourceType.CPU: 2.0, ResourceType.MEMORY: 512.0}
         result = AllocationResult(
-            request_id="test-1",
-            success=True,
-            allocated=allocated,
-            allocation_time=0.5
+            request_id="test-1", success=True, allocated=allocated, allocation_time=0.5
         )
 
         metrics.record_allocation(result, wait_time=1.0)
@@ -226,9 +200,7 @@ class TestAllocationMetrics:
         """Test recording failed allocation."""
         metrics = AllocationMetrics()
         result = AllocationResult(
-            request_id="test-1",
-            success=False,
-            reason="Insufficient resources"
+            request_id="test-1", success=False, reason="Insufficient resources"
         )
 
         metrics.record_allocation(result)
@@ -250,7 +222,7 @@ class TestAllocationMetrics:
                 request_id=f"test-{i}",
                 success=success,
                 allocated=allocated,
-                allocation_time=0.1 if success else None
+                allocation_time=0.1 if success else None,
             )
             metrics.record_allocation(result, wait_time=0.5)
 
@@ -277,14 +249,16 @@ class TestAllocationMetrics:
         """Test getting allocation statistics."""
         metrics = AllocationMetrics()
         # Record some allocations
-        success_result = AllocationResult("req1", True, {ResourceType.CPU: 1.0}, allocation_time=0.3)
+        success_result = AllocationResult(
+            "req1", True, {ResourceType.CPU: 1.0}, allocation_time=0.3
+        )
         fail_result = AllocationResult("req2", False)
-        
+
         metrics.record_allocation(success_result, wait_time=0.5)
         metrics.record_allocation(fail_result)
-        
+
         stats = metrics.get_stats()
-        
+
         assert stats["total_requests"] == 2
         assert stats["successful_allocations"] == 1
         assert stats["failed_allocations"] == 1
@@ -303,25 +277,40 @@ class MockResourcePool:
             ResourceType.MEMORY: 1024.0,
             ResourceType.IO: 100.0,
             ResourceType.NETWORK: 100.0,
-            ResourceType.GPU: 2.0
+            ResourceType.GPU: 2.0,
         }
         self.resources = resources or default_resources
         self.available = available or self.resources.copy()
 
         # Ensure all resource types are present in available
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
+        for resource_type in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             if resource_type not in self.available:
                 self.available[resource_type] = self.resources.get(resource_type, 0.0)
 
         self._allocations = {}
 
-    async def acquire(self, state_name: str, requirements: ResourceRequirements,
-                     timeout=None, allow_preemption=False):
+    async def acquire(
+        self,
+        state_name: str,
+        requirements: ResourceRequirements,
+        timeout=None,
+        allow_preemption=False,
+    ):
         """Mock acquire method."""
         # Check if resources are available using the fixed helper function
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
+        for resource_type in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             if resource_type not in requirements.resource_types:
                 continue
 
@@ -332,8 +321,13 @@ class MockResourcePool:
 
         # Allocate resources
         allocated = {}
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO,
-                             ResourceType.NETWORK, ResourceType.GPU]:
+        for resource_type in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             if resource_type not in requirements.resource_types:
                 continue
 
@@ -436,13 +430,13 @@ class TestFirstFitAllocator:
         pool = Mock()
         pool.acquire = AsyncMock(return_value=True)
         allocator = FirstFitAllocator(pool)
-        
+
         requirements = ResourceRequirements(cpu_units=2.0, memory_mb=1024.0)
         request = AllocationRequest("req_123", "agent_1", requirements)
-        
-        with patch('time.time', side_effect=[0.0, 0.5]):  # Mock timing
+
+        with patch("time.time", side_effect=[0.0, 0.5]):  # Mock timing
             result = await allocator.allocate(request)
-        
+
         assert result.success is True
         assert result.request_id == "req_123"
         assert result.allocation_time == 0.5
@@ -454,12 +448,12 @@ class TestFirstFitAllocator:
         pool = Mock()
         pool.acquire = AsyncMock(return_value=False)
         allocator = FirstFitAllocator(pool)
-        
+
         requirements = ResourceRequirements(cpu_units=100.0)
         request = AllocationRequest("req_123", "agent_1", requirements)
-        
+
         result = await allocator.allocate(request)
-        
+
         assert result.success is False
         assert result.reason == "Insufficient resources"
 
@@ -468,19 +462,19 @@ class TestFirstFitAllocator:
         pool = MockResourcePool()
         allocator = FirstFitAllocator(pool)
         requirements = ResourceRequirements()
-        
+
         req1 = AllocationRequest("req1", "agent1", requirements)
         req2 = AllocationRequest("req2", "agent2", requirements)
         req3 = AllocationRequest("req3", "agent3", requirements)
-        
+
         # Manually set timestamps to control order
         req1.timestamp = datetime(2023, 1, 1, 10, 0, 0)
         req2.timestamp = datetime(2023, 1, 1, 10, 0, 1)
         req3.timestamp = datetime(2023, 1, 1, 10, 0, 2)
-        
+
         requests = [req3, req1, req2]  # Out of order
         ordered = allocator.get_allocation_order(requests)
-        
+
         assert ordered == [req1, req2, req3]  # Should be in timestamp order
 
 
@@ -522,11 +516,13 @@ class TestBestFitAllocator:
     def test_get_allocation_order(self, allocator):
         """Test ordering by waste (best fit first)."""
         # Small request (less waste)
-        req1 = AllocationRequest("1", "agent-1",
-                               ResourceRequirements(cpu_units=1.0, memory_mb=100.0))
+        req1 = AllocationRequest(
+            "1", "agent-1", ResourceRequirements(cpu_units=1.0, memory_mb=100.0)
+        )
         # Large request (more waste)
-        req2 = AllocationRequest("2", "agent-2",
-                               ResourceRequirements(cpu_units=4.0, memory_mb=500.0))
+        req2 = AllocationRequest(
+            "2", "agent-2", ResourceRequirements(cpu_units=4.0, memory_mb=500.0)
+        )
 
         requests = [req2, req1]  # Large first
         ordered = allocator.get_allocation_order(requests)
@@ -552,18 +548,22 @@ class TestWorstFitAllocator:
         requirements = ResourceRequirements(cpu_units=2.0, memory_mb=256.0)
         remaining = allocator._calculate_remaining(requirements)
 
-        expected_remaining = (8.0 - 2.0) + (1024.0 - 256.0) + (100.0 - 1.0) + (100.0 - 1.0) + (2.0 - 0.0)
+        expected_remaining = (
+            (8.0 - 2.0) + (1024.0 - 256.0) + (100.0 - 1.0) + (100.0 - 1.0) + (2.0 - 0.0)
+        )
         # = 6.0 + 768.0 + 99.0 + 99.0 + 2.0 = 974.0
         assert remaining == expected_remaining
 
     def test_get_allocation_order(self, allocator):
         """Test ordering by remaining space (worst fit first)."""
         # Small request (more remaining space)
-        req1 = AllocationRequest("1", "agent-1",
-                               ResourceRequirements(cpu_units=1.0, memory_mb=100.0))
+        req1 = AllocationRequest(
+            "1", "agent-1", ResourceRequirements(cpu_units=1.0, memory_mb=100.0)
+        )
         # Large request (less remaining space)
-        req2 = AllocationRequest("2", "agent-2",
-                               ResourceRequirements(cpu_units=4.0, memory_mb=500.0))
+        req2 = AllocationRequest(
+            "2", "agent-2", ResourceRequirements(cpu_units=4.0, memory_mb=500.0)
+        )
 
         requests = [req2, req1]
         ordered = allocator.get_allocation_order(requests)
@@ -623,7 +623,7 @@ class TestPriorityAllocator:
         """Test allocator initialization."""
         pool = MockResourcePool()
         allocator = PriorityAllocator(pool)
-        assert hasattr(allocator, '_priority_queue')
+        assert hasattr(allocator, "_priority_queue")
         assert allocator._priority_queue == []
 
     def test_get_allocation_order_by_priority(self):
@@ -631,14 +631,14 @@ class TestPriorityAllocator:
         pool = MockResourcePool()
         allocator = PriorityAllocator(pool)
         requirements = ResourceRequirements()
-        
+
         req1 = AllocationRequest("req1", "agent1", requirements, priority=1)
         req2 = AllocationRequest("req2", "agent2", requirements, priority=5)
         req3 = AllocationRequest("req3", "agent3", requirements, priority=3)
-        
+
         requests = [req1, req2, req3]
         ordered = allocator.get_allocation_order(requests)
-        
+
         # Should be ordered by priority (highest first)
         assert ordered[0].priority == 5
         assert ordered[1].priority == 3
@@ -682,7 +682,9 @@ class TestFairShareAllocator:
         # Total resources = 8+1024+100+100+2 = 1234, fair share for 1 agent = 1234
         # After first allocation: agent-1 used 3+300+1+1+0 = 305
         # Try to allocate more than remaining fair share: 1234 - 305 = 929
-        requirements2 = ResourceRequirements(cpu_units=5.0, memory_mb=1000.0)  # Total: 5+1000+1+1+0 = 1007
+        requirements2 = ResourceRequirements(
+            cpu_units=5.0, memory_mb=1000.0
+        )  # Total: 5+1000+1+1+0 = 1007
         # Total usage would be 305 + 1007 = 1312 > 1234 (exceeds fair share)
         request2 = AllocationRequest("test-2", "agent-1", requirements2)
 
@@ -745,25 +747,25 @@ class TestFairShareAllocator:
         pool = MockResourcePool()
         pool.resources = {ResourceType.CPU: 10.0, ResourceType.MEMORY: 2048.0}
         allocator = FairShareAllocator(pool)
-        assert hasattr(allocator, '_usage_history')
-        assert hasattr(allocator, '_allocation_counts')
+        assert hasattr(allocator, "_usage_history")
+        assert hasattr(allocator, "_allocation_counts")
 
     def test_get_allocation_order_by_usage(self):
         """Test allocation order by usage history."""
         pool = MockResourcePool()
         allocator = FairShareAllocator(pool)
         requirements = ResourceRequirements()
-        
+
         req1 = AllocationRequest("req1", "agent1", requirements)
         req2 = AllocationRequest("req2", "agent2", requirements)
-        
+
         # Set usage history
         allocator._usage_history["agent1"] = 5.0
         allocator._usage_history["agent2"] = 2.0
-        
+
         requests = [req1, req2]
         ordered = allocator.get_allocation_order(requests)
-        
+
         # Agent with less usage should come first
         assert ordered[0].requester_id == "agent2"
         assert ordered[1].requester_id == "agent1"
@@ -791,10 +793,10 @@ class TestWeightedAllocator:
         requirements = ResourceRequirements(cpu_units=1.0, memory_mb=100.0)
         request = AllocationRequest("test-1", "agent-1", requirements, priority=3)
 
-        with patch.object(PriorityAllocator, 'allocate') as mock_allocate:
+        with patch.object(PriorityAllocator, "allocate") as mock_allocate:
             mock_allocate.return_value = AllocationResult("test-1", True)
 
-            result = await allocator.allocate(request)
+            await allocator.allocate(request)
 
             # Check that PriorityAllocator was called with weighted request
             mock_allocate.assert_called_once()
@@ -834,7 +836,9 @@ class TestResourceAllocatorBase:
         requests = [
             AllocationRequest("1", "agent-1", ResourceRequirements(cpu_units=1.0)),
             AllocationRequest("2", "agent-2", ResourceRequirements(cpu_units=1.0)),
-            AllocationRequest("3", "agent-3", ResourceRequirements(cpu_units=20.0))  # Too much
+            AllocationRequest(
+                "3", "agent-3", ResourceRequirements(cpu_units=20.0)
+            ),  # Too much
         ]
 
         results = await allocator.allocate_batch(requests)
@@ -857,23 +861,20 @@ class TestResourceAllocatorBase:
             ResourceType.MEMORY: 2048.0,
             ResourceType.IO: 100.0,
             ResourceType.NETWORK: 100.0,
-            ResourceType.GPU: 2.0
+            ResourceType.GPU: 2.0,
         }
         allocator = FirstFitAllocator(pool)
         requirements = ResourceRequirements(cpu_units=2.0, memory_mb=1024.0)
-        
+
         assert allocator.can_allocate(requirements) is True
 
     def test_can_allocate_insufficient_resources(self):
         """Test can_allocate with insufficient resources."""
         pool = MockResourcePool()
-        pool.available = {
-            ResourceType.CPU: 4.0,
-            ResourceType.MEMORY: 2048.0
-        }
+        pool.available = {ResourceType.CPU: 4.0, ResourceType.MEMORY: 2048.0}
         allocator = FirstFitAllocator(pool)
         requirements = ResourceRequirements(cpu_units=8.0, memory_mb=1024.0)
-        
+
         assert allocator.can_allocate(requirements) is False
 
     @pytest.mark.asyncio
@@ -882,16 +883,16 @@ class TestResourceAllocatorBase:
         pool = Mock()
         pool.acquire = AsyncMock(return_value=True)
         allocator = FirstFitAllocator(pool)
-        
+
         requirements = ResourceRequirements(cpu_units=1.0)
         requests = [
             AllocationRequest("req1", "agent1", requirements),
-            AllocationRequest("req2", "agent2", requirements)
+            AllocationRequest("req2", "agent2", requirements),
         ]
-        
-        with patch('time.time', return_value=0.0):
+
+        with patch("time.time", return_value=0.0):
             results = await allocator.allocate_batch(requests)
-        
+
         assert len(results) == 2
         assert all(result.success for result in results)
         assert allocator.metrics.total_requests == 2
@@ -994,7 +995,9 @@ class TestIntegration:
         requests = [
             AllocationRequest("1", "agent-1", ResourceRequirements(cpu_units=2.0)),
             AllocationRequest("2", "agent-2", ResourceRequirements(cpu_units=2.0)),
-            AllocationRequest("3", "agent-3", ResourceRequirements(cpu_units=2.0))  # Won't fit
+            AllocationRequest(
+                "3", "agent-3", ResourceRequirements(cpu_units=2.0)
+            ),  # Won't fit
         ]
 
         results = await allocator.allocate_batch(requests)
@@ -1074,8 +1077,26 @@ class TestEdgeCases:
     def test_empty_resource_pool(self):
         """Test with empty resource pool."""
         resource_pool = MockResourcePool(
-            resources={rt: 0.0 for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]},
-            available={rt: 0.0 for rt in [ResourceType.CPU, ResourceType.MEMORY, ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]}
+            resources=dict.fromkeys(
+                [
+                    ResourceType.CPU,
+                    ResourceType.MEMORY,
+                    ResourceType.IO,
+                    ResourceType.NETWORK,
+                    ResourceType.GPU,
+                ],
+                0.0,
+            ),
+            available=dict.fromkeys(
+                [
+                    ResourceType.CPU,
+                    ResourceType.MEMORY,
+                    ResourceType.IO,
+                    ResourceType.NETWORK,
+                    ResourceType.GPU,
+                ],
+                0.0,
+            ),
         )
         allocator = FirstFitAllocator(resource_pool)
 

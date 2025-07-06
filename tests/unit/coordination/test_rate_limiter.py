@@ -11,20 +11,20 @@ This test suite covers all rate limiter implementations with various scenarios:
 - Edge cases and concurrent access simulation
 """
 
-import pytest
 import asyncio
 import time
-from typing import List
+
+import pytest
 
 from src.puffinflow.core.coordination.rate_limiter import (
-    RateLimiter,
-    RateLimitStrategy,
-    TokenBucket,
-    LeakyBucket,
-    SlidingWindow,
-    FixedWindow,
     AdaptiveRateLimiter,
     CompositeRateLimiter,
+    FixedWindow,
+    LeakyBucket,
+    RateLimiter,
+    RateLimitStrategy,
+    SlidingWindow,
+    TokenBucket,
 )
 
 
@@ -33,15 +33,21 @@ class TestRateLimiter:
 
     @pytest.fixture
     def token_bucket_limiter(self):
-        return RateLimiter(max_rate=10, burst_size=3, strategy=RateLimitStrategy.TOKEN_BUCKET)
+        return RateLimiter(
+            max_rate=10, burst_size=3, strategy=RateLimitStrategy.TOKEN_BUCKET
+        )
 
     @pytest.fixture
     def fixed_window_limiter(self):
-        return RateLimiter(max_rate=2, window_size=0.2, strategy=RateLimitStrategy.FIXED_WINDOW)
+        return RateLimiter(
+            max_rate=2, window_size=0.2, strategy=RateLimitStrategy.FIXED_WINDOW
+        )
 
     @pytest.fixture
     def sliding_window_limiter(self):
-        return RateLimiter(max_rate=2, window_size=0.2, strategy=RateLimitStrategy.SLIDING_WINDOW)
+        return RateLimiter(
+            max_rate=2, window_size=0.2, strategy=RateLimitStrategy.SLIDING_WINDOW
+        )
 
     @pytest.mark.asyncio
     async def test_token_bucket_strategy(self, token_bucket_limiter):
@@ -108,9 +114,9 @@ class TestRateLimiter:
     def test_get_stats(self, token_bucket_limiter):
         """Test the get_stats method returns expected data."""
         stats = token_bucket_limiter.get_stats()
-        assert stats['strategy'] == 'TOKEN_BUCKET'
-        assert stats['max_rate'] == 10
-        assert stats['burst_size'] == 3
+        assert stats["strategy"] == "TOKEN_BUCKET"
+        assert stats["max_rate"] == 10
+        assert stats["burst_size"] == 3
 
 
 class TestTokenBucket:
@@ -131,13 +137,13 @@ class TestTokenBucket:
 
         # First consumption should succeed
         assert await limiter.consume(2)
-        
+
         # Verify tokens were consumed correctly
         # Use the same fixed time to prevent regeneration during check
         async with limiter._lock:
             limiter._last_update = fixed_time
             assert limiter._tokens == pytest.approx(0.5, abs=0.01)
-        
+
         # Second consumption should fail
         assert not await limiter.consume(1)
 

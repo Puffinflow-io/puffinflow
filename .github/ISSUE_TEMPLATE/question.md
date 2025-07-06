@@ -46,13 +46,13 @@ Describe what you want to happen or what you think should happen.
 
 ## Environment Information
 
-**PuffinFlow version:** 
+**PuffinFlow version:**
 <!-- Run: pip show puffinflow -->
 
-**Python version:** 
+**Python version:**
 <!-- Run: python --version -->
 
-**Operating System:** 
+**Operating System:**
 <!-- e.g., Ubuntu 20.04, Windows 10, macOS 12.0 -->
 
 **Optional dependencies:**

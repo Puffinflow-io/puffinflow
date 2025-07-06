@@ -13,21 +13,23 @@ Tests cover:
 - Historical tracking
 """
 
-import pytest
 import asyncio
+import contextlib
 import time
-from unittest.mock import Mock, patch
-from typing import Dict, Any
+from unittest.mock import patch
+
+import pytest
 
 # Import the classes under test
 from src.puffinflow.core.resources.pool import (
-    ResourcePool,
-    ResourceAllocationError,
     ResourceOverflowError,
+    ResourcePool,
     ResourceQuotaExceededError,
-    ResourceUsageStats
 )
-from src.puffinflow.core.resources.requirements import ResourceRequirements, ResourceType
+from src.puffinflow.core.resources.requirements import (
+    ResourceRequirements,
+    ResourceType,
+)
 
 
 class TestResourcePoolBasic:
@@ -61,7 +63,7 @@ class TestResourcePoolBasic:
             total_network=150.0,
             total_gpu=2.0,
             enable_preemption=True,
-            enable_quotas=True
+            enable_quotas=True,
         )
 
         assert pool.resources[ResourceType.CPU] == 8.0
@@ -84,7 +86,7 @@ class TestResourceAllocation:
             total_memory=1024.0,
             total_io=100.0,
             total_network=100.0,
-            total_gpu=0.0
+            total_gpu=0.0,
         )
 
     @pytest.fixture
@@ -95,7 +97,7 @@ class TestResourceAllocation:
             memory_mb=256.0,
             io_weight=10.0,
             network_weight=10.0,
-            gpu_units=0.0
+            gpu_units=0.0,
         )
 
     @pytest.mark.asyncio
@@ -146,15 +148,17 @@ class TestResourceAllocation:
         success = await pool.acquire("test_state", basic_requirements)
         assert success is True
 
-        initial_cpu = pool.available[ResourceType.CPU]
-        initial_memory = pool.available[ResourceType.MEMORY]
+        pool.available[ResourceType.CPU]
+        pool.available[ResourceType.MEMORY]
 
         # Release resources
         await pool.release("test_state")
 
         assert "test_state" not in pool._allocations
         assert pool.available[ResourceType.CPU] == pool.resources[ResourceType.CPU]
-        assert pool.available[ResourceType.MEMORY] == pool.resources[ResourceType.MEMORY]
+        assert (
+            pool.available[ResourceType.MEMORY] == pool.resources[ResourceType.MEMORY]
+        )
 
     @pytest.mark.asyncio
     async def test_release_nonexistent_state(self, pool):
@@ -238,11 +242,7 @@ class TestPreemption:
 
     @pytest.fixture
     def pool_with_preemption(self):
-        return ResourcePool(
-            total_cpu=4.0,
-            total_memory=1024.0,
-            enable_preemption=True
-        )
+        return ResourcePool(total_cpu=4.0, total_memory=1024.0, enable_preemption=True)
 
     @pytest.mark.asyncio
     async def test_preemption_enabled(self, pool_with_preemption):
@@ -259,7 +259,9 @@ class TestPreemption:
 
         # Second state tries to allocate with preemption
         req2 = ResourceRequirements(cpu_units=2.0, memory_mb=600.0)
-        success2 = await pool_with_preemption.acquire("state2", req2, allow_preemption=True)
+        success2 = await pool_with_preemption.acquire(
+            "state2", req2, allow_preemption=True
+        )
 
         # Should succeed by preempting state1
         assert success2 is True
@@ -393,8 +395,13 @@ class TestStatistics:
         """Test initial usage statistics."""
         stats = pool.get_usage_stats()
 
-        for resource_type in [ResourceType.CPU, ResourceType.MEMORY,
-                              ResourceType.IO, ResourceType.NETWORK, ResourceType.GPU]:
+        for resource_type in [
+            ResourceType.CPU,
+            ResourceType.MEMORY,
+            ResourceType.IO,
+            ResourceType.NETWORK,
+            ResourceType.GPU,
+        ]:
             assert resource_type in stats
             stat = stats[resource_type]
             assert stat.peak_usage == 0.0
@@ -489,10 +496,8 @@ class TestInformationMethods:
 
         # Clean up
         task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
     @pytest.mark.asyncio
     async def test_get_preempted_states(self):
@@ -540,7 +545,7 @@ class TestHistoricalTracking:
     async def test_history_cleanup(self, pool):
         """Test cleanup of old history entries."""
         # Mock time to control history retention
-        with patch('time.time') as mock_time:
+        with patch("time.time") as mock_time:
             # Start at time 0
             mock_time.return_value = 0.0
 
@@ -577,14 +582,16 @@ class TestEdgeCases:
 
         # Available resources shouldn't change
         assert pool.available[ResourceType.CPU] == pool.resources[ResourceType.CPU]
-        assert pool.available[ResourceType.MEMORY] == pool.resources[ResourceType.MEMORY]
+        assert (
+            pool.available[ResourceType.MEMORY] == pool.resources[ResourceType.MEMORY]
+        )
 
     @pytest.mark.asyncio
     async def test_exact_resource_match(self, pool):
         """Test allocation that exactly matches available resources."""
         req = ResourceRequirements(
             cpu_units=4.0,  # Exactly the total CPU
-            memory_mb=1024.0  # Exactly the total memory
+            memory_mb=1024.0,  # Exactly the total memory
         )
         success = await pool.acquire("test_state", req)
         assert success is True
@@ -619,7 +626,7 @@ class TestEdgeCases:
         req = ResourceRequirements(
             cpu_units=2.0,
             memory_mb=512.0,
-            resource_types=ResourceType.CPU | ResourceType.MEMORY
+            resource_types=ResourceType.CPU | ResourceType.MEMORY,
         )
 
         success = await pool.acquire("test_state", req)

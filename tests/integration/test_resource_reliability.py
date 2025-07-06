@@ -4,16 +4,22 @@ Tests the interaction between resource allocation, circuit breakers, bulkheads,
 and other reliability patterns working together.
 """
 
-import pytest
 import asyncio
-import time
 import logging
-from unittest.mock import AsyncMock, Mock, patch
+import time
+from typing import Optional
+
+import pytest
 
 from puffinflow import (
-    Agent, Context, ResourcePool, ResourceRequirements,
-    CircuitBreaker, CircuitBreakerConfig, Bulkhead, BulkheadConfig,
-    state
+    Agent,
+    Bulkhead,
+    BulkheadConfig,
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    Context,
+    ResourcePool,
+    state,
 )
 
 # Set up logging to help debug issues
@@ -28,6 +34,7 @@ except ImportError:
     class ResourceLeakDetector:
         def __init__(self, leak_threshold_seconds=0.1):
             pass
+
         def get_metrics(self):
             return {"leak_detection": "simulated"}
 
@@ -41,7 +48,7 @@ class ResourceIntensiveAgent(Agent):
         self.set_variable("memory_req", memory_req)
 
         # Fix: Remove __func__ - use bound method instead
-        self.add_state('start', self.start)
+        self.add_state("start", self.start)
 
     @state(cpu=1.5, memory=256.0, io=10.0, network=5.0)
     async def start(self, context: Context):
@@ -76,13 +83,13 @@ class UnreliableAgent(Agent):
         self.set_variable("attempt_count", 0)
         self.set_variable("max_failures", max_failures)
 
-        self.add_state('unreliable_operation', self.unreliable_operation)
+        self.add_state("unreliable_operation", self.unreliable_operation)
 
     @state(cpu=1.0, memory=256.0)
     async def unreliable_operation(self, context: Context):
         """Operation that fails in a controlled manner."""
         try:
-            failure_rate = self.get_variable("failure_rate", 0.3)
+            self.get_variable("failure_rate", 0.3)
             attempt_count = self.get_variable("attempt_count", 0)
             max_failures = self.get_variable("max_failures", 2)
 
@@ -91,10 +98,12 @@ class UnreliableAgent(Agent):
             await asyncio.sleep(0.05)  # Shorter sleep for faster tests
 
             # Controlled failure pattern: fail first N attempts, then succeed
-            will_fail = (attempt_count < max_failures)
+            will_fail = attempt_count < max_failures
 
             if will_fail:
-                context.set_output("error", f"Simulated failure on attempt {attempt_count + 1}")
+                context.set_output(
+                    "error", f"Simulated failure on attempt {attempt_count + 1}"
+                )
                 raise RuntimeError(f"Simulated failure on attempt {attempt_count + 1}")
 
             context.set_output("success", True)
@@ -118,7 +127,7 @@ class SlowAgent(Agent):
         super().__init__(name)
         self.set_variable("execution_time", execution_time)
 
-        self.add_state('slow_operation', self.slow_operation)
+        self.add_state("slow_operation", self.slow_operation)
 
     @state(cpu=1.0, memory=256.0)
     async def slow_operation(self, context: Context):
@@ -148,7 +157,7 @@ class LeakyAgent(Agent):
         super().__init__(name)
         self.set_variable("should_leak", should_leak)
 
-        self.add_state('potentially_leak', self.potentially_leak)
+        self.add_state("potentially_leak", self.potentially_leak)
 
     @state(cpu=1.0, memory=256.0)
     async def potentially_leak(self, context: Context):
@@ -175,7 +184,7 @@ class MetricsAgent(Agent):
         super().__init__(name)
         self.set_variable("should_fail", should_fail)
 
-        self.add_state('collect_metrics', self.collect_metrics)
+        self.add_state("collect_metrics", self.collect_metrics)
 
     @state(cpu=1.0, memory=256.0)
     async def collect_metrics(self, context: Context):
@@ -206,11 +215,11 @@ class MetricsAgent(Agent):
 class TracingAgent(Agent):
     """Test agent for tracing coordination."""
 
-    def __init__(self, name: str, trace_id: str = None):
+    def __init__(self, name: str, trace_id: Optional[str] = None):
         super().__init__(name)
         self.set_variable("trace_id", trace_id or f"trace-{name}")
 
-        self.add_state('traced_operation', self.traced_operation)
+        self.add_state("traced_operation", self.traced_operation)
 
     @state(cpu=0.5, memory=128.0)
     async def traced_operation(self, context: Context):
@@ -238,8 +247,10 @@ def create_fresh_agent(agent_class, *args, **kwargs):
 
     # Force close circuit breaker to reset state
     try:
-        asyncio.create_task(agent.force_circuit_breaker_close())
-    except:
+        task = asyncio.create_task(agent.force_circuit_breaker_close())
+        # Store task reference to avoid RUF006 warning - in test context we don't need to track it
+        _ = task
+    except AttributeError:
         pass  # Ignore if method doesn't exist
 
     # Clear dead letters
@@ -257,21 +268,22 @@ class TestResourceManagement:
         """Test resource pool allocation across multiple agents."""
         # Create a resource pool
         resource_pool = ResourcePool(
-            total_cpu=4.0,
-            total_memory=1024.0,
-            total_io=100.0,
-            total_network=100.0
+            total_cpu=4.0, total_memory=1024.0, total_io=100.0, total_network=100.0
         )
 
         # Create fresh agent
-        agent = create_fresh_agent(ResourceIntensiveAgent, "test-agent", cpu_req=1.5, memory_req=256.0)
+        agent = create_fresh_agent(
+            ResourceIntensiveAgent, "test-agent", cpu_req=1.5, memory_req=256.0
+        )
         agent.resource_pool = resource_pool
 
         # Run the agent
         result = await agent.run()
 
         # Check the result
-        status = result.status.name if hasattr(result.status, 'name') else str(result.status)
+        status = (
+            result.status.name if hasattr(result.status, "name") else str(result.status)
+        )
 
         # If it failed, provide detailed debugging info
         if status.upper() not in ["COMPLETED", "SUCCESS"]:
@@ -280,11 +292,22 @@ class TestResourceManagement:
             print(f"Dead letters: {agent.get_dead_letters()}")
             print(f"Circuit breaker: {agent.circuit_breaker.get_metrics()}")
 
-        assert status.upper() in ["COMPLETED", "SUCCESS"], f"Expected COMPLETED or SUCCESS, got {status}"
-        assert "cpu_used" in result.outputs, f"cpu_used not in outputs: {result.outputs}"
-        assert "memory_used" in result.outputs, f"memory_used not in outputs: {result.outputs}"
-        assert result.outputs["cpu_used"] == 1.5, f"Expected cpu_used=1.5, got {result.outputs.get('cpu_used')}"
-        assert result.outputs["memory_used"] == 256.0, f"Expected memory_used=256.0, got {result.outputs.get('memory_used')}"
+        assert status.upper() in [
+            "COMPLETED",
+            "SUCCESS",
+        ], f"Expected COMPLETED or SUCCESS, got {status}"
+        assert (
+            "cpu_used" in result.outputs
+        ), f"cpu_used not in outputs: {result.outputs}"
+        assert (
+            "memory_used" in result.outputs
+        ), f"memory_used not in outputs: {result.outputs}"
+        assert (
+            result.outputs["cpu_used"] == 1.5
+        ), f"Expected cpu_used=1.5, got {result.outputs.get('cpu_used')}"
+        assert (
+            result.outputs["memory_used"] == 256.0
+        ), f"Expected memory_used=256.0, got {result.outputs.get('memory_used')}"
 
     async def test_resource_contention(self):
         """Test behavior when resources are over-allocated."""
@@ -293,12 +316,17 @@ class TestResourceManagement:
             total_cpu=6.0,  # Increased to handle contention better
             total_memory=1536.0,  # Increased to handle contention better
             total_io=100.0,
-            total_network=100.0
+            total_network=100.0,
         )
 
         # Create fewer agents to reduce contention complexity
         agents = [
-            create_fresh_agent(ResourceIntensiveAgent, f"contention-agent-{i}", cpu_req=1.5, memory_req=256.0)
+            create_fresh_agent(
+                ResourceIntensiveAgent,
+                f"contention-agent-{i}",
+                cpu_req=1.5,
+                memory_req=256.0,
+            )
             for i in range(3)  # Reduced from 4 to 3
         ]
 
@@ -310,7 +338,7 @@ class TestResourceManagement:
         start_time = time.time()
         tasks = [agent.run() for agent in agents]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        execution_time = time.time() - start_time
+        time.time() - start_time
 
         # Analyze results
         successful_results = []
@@ -320,19 +348,29 @@ class TestResourceManagement:
             if isinstance(result, Exception):
                 failed_results.append(result)
             else:
-                status = result.status.name if hasattr(result.status, 'name') else str(result.status)
+                status = (
+                    result.status.name
+                    if hasattr(result.status, "name")
+                    else str(result.status)
+                )
                 if status.upper() in ["COMPLETED", "SUCCESS"]:
                     successful_results.append(result)
                 else:
                     failed_results.append(result)
 
         # At least some agents should succeed
-        assert len(successful_results) >= 1, f"Expected at least 1 success, got {len(successful_results)}"
+        assert (
+            len(successful_results) >= 1
+        ), f"Expected at least 1 success, got {len(successful_results)}"
 
         # Verify successful agents used resources correctly
         for result in successful_results:
-            assert "cpu_used" in result.outputs, f"cpu_used not in outputs: {result.outputs}"
-            assert "memory_used" in result.outputs, f"memory_used not in outputs: {result.outputs}"
+            assert (
+                "cpu_used" in result.outputs
+            ), f"cpu_used not in outputs: {result.outputs}"
+            assert (
+                "memory_used" in result.outputs
+            ), f"memory_used not in outputs: {result.outputs}"
 
     async def test_resource_leak_detection(self):
         """Test resource leak detection."""
@@ -344,7 +382,7 @@ class TestResourceManagement:
             create_fresh_agent(LeakyAgent, "clean-agent-1", should_leak=False),
             create_fresh_agent(LeakyAgent, "leaky-agent-1", should_leak=True),
             create_fresh_agent(LeakyAgent, "clean-agent-2", should_leak=False),
-            create_fresh_agent(LeakyAgent, "leaky-agent-2", should_leak=True)
+            create_fresh_agent(LeakyAgent, "leaky-agent-2", should_leak=True),
         ]
 
         # Run agents
@@ -359,12 +397,18 @@ class TestResourceManagement:
 
         successful_results = []
         for result in results:
-            status = result.status.name if hasattr(result.status, 'name') else str(result.status)
+            status = (
+                result.status.name
+                if hasattr(result.status, "name")
+                else str(result.status)
+            )
             if status.upper() in ["COMPLETED", "SUCCESS"]:
                 successful_results.append(result)
 
         # At least some should succeed
-        assert len(successful_results) >= 2, f"Expected at least 2 successes, got {len(successful_results)}"
+        assert (
+            len(successful_results) >= 2
+        ), f"Expected at least 2 successes, got {len(successful_results)}"
 
         # Check leak detection setup
         leak_metrics = leak_detector.get_metrics()
@@ -380,15 +424,15 @@ class TestReliabilityPatterns:
         """Test circuit breaker with agents."""
         # Create circuit breaker configuration
         cb_config = CircuitBreakerConfig(
-            failure_threshold=2,
-            recovery_timeout=0.5,
-            name="cb-test"
+            failure_threshold=2, recovery_timeout=0.5, name="cb-test"
         )
 
         circuit_breaker = CircuitBreaker(cb_config)
 
         # Create unreliable agent with guaranteed failures
-        unreliable_agent = create_fresh_agent(UnreliableAgent, "cb-test-agent", failure_rate=1.0, max_failures=5)
+        unreliable_agent = create_fresh_agent(
+            UnreliableAgent, "cb-test-agent", failure_rate=1.0, max_failures=5
+        )
 
         # Wrap agent execution with external circuit breaker
         async def protected_execution():
@@ -400,7 +444,7 @@ class TestReliabilityPatterns:
         exceptions = []
 
         # Run multiple attempts
-        for i in range(3):
+        for _i in range(3):
             try:
                 result = await protected_execution()
                 results.append(result)
@@ -416,28 +460,36 @@ class TestReliabilityPatterns:
         external_failures = len(exceptions)
         total_failures = agent_failures + external_failures
 
-        assert total_failures >= 1, f"Expected at least 1 failure, got agent:{agent_failures}, external:{external_failures}"
+        assert (
+            total_failures >= 1
+        ), f"Expected at least 1 failure, got agent:{agent_failures}, external:{external_failures}"
 
     async def test_bulkhead_pattern(self):
         """Test bulkhead isolation pattern."""
         # Create bulkhead configurations
-        critical_bulkhead = Bulkhead(BulkheadConfig(
-            name="critical",
-            max_concurrent=2,
-            max_queue_size=1,
-            timeout=2.0  # Increased timeout
-        ))
+        critical_bulkhead = Bulkhead(
+            BulkheadConfig(
+                name="critical",
+                max_concurrent=2,
+                max_queue_size=1,
+                timeout=2.0,  # Increased timeout
+            )
+        )
 
-        non_critical_bulkhead = Bulkhead(BulkheadConfig(
-            name="non-critical",
-            max_concurrent=1,
-            max_queue_size=2,
-            timeout=2.0  # Increased timeout
-        ))
+        non_critical_bulkhead = Bulkhead(
+            BulkheadConfig(
+                name="non-critical",
+                max_concurrent=1,
+                max_queue_size=2,
+                timeout=2.0,  # Increased timeout
+            )
+        )
 
         # Create different types of agents
         critical_agents = [
-            create_fresh_agent(ResourceIntensiveAgent, f"critical-{i}", cpu_req=1.0, memory_req=200.0)
+            create_fresh_agent(
+                ResourceIntensiveAgent, f"critical-{i}", cpu_req=1.0, memory_req=200.0
+            )
             for i in range(2)  # Reduced count
         ]
 
@@ -450,49 +502,55 @@ class TestReliabilityPatterns:
         async def run_critical_agents():
             tasks = []
             for agent in critical_agents:
+
                 async def run_with_bulkhead(a=agent):
                     async with critical_bulkhead.isolate():
                         return await a.run()
+
                 tasks.append(run_with_bulkhead())
             return await asyncio.gather(*tasks, return_exceptions=True)
 
         async def run_non_critical_agents():
             tasks = []
             for agent in non_critical_agents:
+
                 async def run_with_bulkhead(a=agent):
                     async with non_critical_bulkhead.isolate():
                         return await a.run()
+
                 tasks.append(run_with_bulkhead())
             return await asyncio.gather(*tasks, return_exceptions=True)
 
         # Run both bulkheads concurrently
         start_time = time.time()
         critical_results, non_critical_results = await asyncio.gather(
-            run_critical_agents(),
-            run_non_critical_agents(),
-            return_exceptions=True
+            run_critical_agents(), run_non_critical_agents(), return_exceptions=True
         )
-        execution_time = time.time() - start_time
+        time.time() - start_time
 
         # Verify bulkhead isolation
         critical_successes = []
         non_critical_successes = []
 
         for r in critical_results:
-            if not isinstance(r, Exception) and hasattr(r, 'status'):
-                status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            if not isinstance(r, Exception) and hasattr(r, "status"):
+                status = r.status.name if hasattr(r.status, "name") else str(r.status)
                 if status.upper() in ["COMPLETED", "SUCCESS"]:
                     critical_successes.append(r)
 
         for r in non_critical_results:
-            if not isinstance(r, Exception) and hasattr(r, 'status'):
-                status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            if not isinstance(r, Exception) and hasattr(r, "status"):
+                status = r.status.name if hasattr(r.status, "name") else str(r.status)
                 if status.upper() in ["COMPLETED", "SUCCESS"]:
                     non_critical_successes.append(r)
 
         # At least some should succeed
-        assert len(critical_successes) >= 1, f"Expected at least 1 critical success, got {len(critical_successes)}"
-        assert len(non_critical_successes) >= 1, f"Expected at least 1 non-critical success, got {len(non_critical_successes)}"
+        assert (
+            len(critical_successes) >= 1
+        ), f"Expected at least 1 critical success, got {len(critical_successes)}"
+        assert (
+            len(non_critical_successes) >= 1
+        ), f"Expected at least 1 non-critical success, got {len(non_critical_successes)}"
 
     async def test_combined_reliability_patterns(self):
         """Test multiple reliability patterns working together."""
@@ -500,30 +558,31 @@ class TestReliabilityPatterns:
         cb_config = CircuitBreakerConfig(
             failure_threshold=5,  # Increased threshold
             recovery_timeout=0.3,
-            name="combined-test"
+            name="combined-test",
         )
         circuit_breaker = CircuitBreaker(cb_config)
 
         # Create bulkhead
-        bulkhead = Bulkhead(BulkheadConfig(
-            name="combined",
-            max_concurrent=3,  # Increased concurrency
-            max_queue_size=2,
-            timeout=3.0  # Increased timeout
-        ))
+        bulkhead = Bulkhead(
+            BulkheadConfig(
+                name="combined",
+                max_concurrent=3,  # Increased concurrency
+                max_queue_size=2,
+                timeout=3.0,  # Increased timeout
+            )
+        )
 
         # Create resource pool
         resource_pool = ResourcePool(
-            total_cpu=4.0,
-            total_memory=1024.0,
-            total_io=100.0,
-            total_network=100.0
+            total_cpu=4.0, total_memory=1024.0, total_io=100.0, total_network=100.0
         )
 
         # Create agents with simpler, more reliable configurations
         agents = [
-            create_fresh_agent(ResourceIntensiveAgent, "resource-heavy", cpu_req=1.0, memory_req=200.0),
-            create_fresh_agent(SlowAgent, "slow-agent", execution_time=0.2)
+            create_fresh_agent(
+                ResourceIntensiveAgent, "resource-heavy", cpu_req=1.0, memory_req=200.0
+            ),
+            create_fresh_agent(SlowAgent, "slow-agent", execution_time=0.2),
         ]
 
         # Set resource pool for resource-intensive agent
@@ -542,18 +601,20 @@ class TestReliabilityPatterns:
         start_time = time.time()
         tasks = [protected_bulkhead_execution(agent) for agent in agents]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        execution_time = time.time() - start_time
+        time.time() - start_time
 
         # Analyze results
         successful_results = []
         for r in results:
-            if not isinstance(r, Exception) and hasattr(r, 'status'):
-                status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            if not isinstance(r, Exception) and hasattr(r, "status"):
+                status = r.status.name if hasattr(r.status, "name") else str(r.status)
                 if status.upper() in ["COMPLETED", "SUCCESS"]:
                     successful_results.append(r)
 
         # At least one agent should succeed
-        assert len(successful_results) >= 1, f"Expected at least 1 success, got {len(successful_results)}"
+        assert (
+            len(successful_results) >= 1
+        ), f"Expected at least 1 success, got {len(successful_results)}"
 
         # Verify patterns are working
         assert circuit_breaker._failure_count >= 0
@@ -566,12 +627,17 @@ class TestReliabilityPatterns:
             total_cpu=3.0,  # Enough for a few agents
             total_memory=768.0,
             total_io=100.0,
-            total_network=100.0
+            total_network=100.0,
         )
 
         # Create resource-intensive agents
         agents = [
-            create_fresh_agent(ResourceIntensiveAgent, f"exhaustion-agent-{i}", cpu_req=1.0, memory_req=200.0)
+            create_fresh_agent(
+                ResourceIntensiveAgent,
+                f"exhaustion-agent-{i}",
+                cpu_req=1.0,
+                memory_req=200.0,
+            )
             for i in range(4)  # Reduced count and requirements
         ]
 
@@ -585,7 +651,7 @@ class TestReliabilityPatterns:
         start_time = time.time()
         phase1_tasks = [agent.run() for agent in phase1_agents]
         phase1_results = await asyncio.gather(*phase1_tasks, return_exceptions=True)
-        phase1_time = time.time() - start_time
+        time.time() - start_time
 
         # Phase 2: Run remaining agents
         phase2_agents = agents[2:]
@@ -593,27 +659,29 @@ class TestReliabilityPatterns:
         phase2_start = time.time()
         phase2_tasks = [agent.run() for agent in phase2_agents]
         phase2_results = await asyncio.gather(*phase2_tasks, return_exceptions=True)
-        phase2_time = time.time() - phase2_start
+        time.time() - phase2_start
 
         # Count successes
         phase1_successes = []
         phase2_successes = []
 
         for r in phase1_results:
-            if not isinstance(r, Exception) and hasattr(r, 'status'):
-                status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            if not isinstance(r, Exception) and hasattr(r, "status"):
+                status = r.status.name if hasattr(r.status, "name") else str(r.status)
                 if status.upper() in ["COMPLETED", "SUCCESS"]:
                     phase1_successes.append(r)
 
         for r in phase2_results:
-            if not isinstance(r, Exception) and hasattr(r, 'status'):
-                status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            if not isinstance(r, Exception) and hasattr(r, "status"):
+                status = r.status.name if hasattr(r.status, "name") else str(r.status)
                 if status.upper() in ["COMPLETED", "SUCCESS"]:
                     phase2_successes.append(r)
 
         # Should have some successes
         total_successes = len(phase1_successes) + len(phase2_successes)
-        assert total_successes >= 2, f"Expected at least 2 successes total, got {total_successes}"
+        assert (
+            total_successes >= 2
+        ), f"Expected at least 2 successes total, got {total_successes}"
 
 
 @pytest.mark.integration
@@ -636,7 +704,11 @@ class TestObservabilityIntegration:
             results.append(result)
 
             # Debug output
-            status = result.status.name if hasattr(result.status, 'name') else str(result.status)
+            status = (
+                result.status.name
+                if hasattr(result.status, "name")
+                else str(result.status)
+            )
             print(f"Agent {agent.name}: status={status}, error={result.error}")
             if result.error:
                 print(f"Dead letters: {agent.get_dead_letters()}")
@@ -647,15 +719,19 @@ class TestObservabilityIntegration:
         # Count successful results
         success_results = []
         for r in results:
-            status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            status = r.status.name if hasattr(r.status, "name") else str(r.status)
             if status.upper() in ["COMPLETED", "SUCCESS"]:
                 success_results.append(r)
 
-        assert len(success_results) >= 1, f"Expected at least 1 success, got {len(success_results)}"
+        assert (
+            len(success_results) >= 1
+        ), f"Expected at least 1 success, got {len(success_results)}"
 
         # Verify successful agents have metrics
         for result in success_results:
-            assert "metrics_collected" in result.outputs, f"metrics_collected not in outputs: {result.outputs}"
+            assert (
+                "metrics_collected" in result.outputs
+            ), f"metrics_collected not in outputs: {result.outputs}"
             assert result.get_output("metrics_collected") is True
 
     async def test_tracing_across_coordination(self):
@@ -663,28 +739,36 @@ class TestObservabilityIntegration:
         # Create fresh agents with shared trace context (moved class definition to module level)
         shared_trace_id = "integration-test-trace-123"
         agents = [
-            create_fresh_agent(TracingAgent, f"traced-agent-{i}", trace_id=shared_trace_id)
+            create_fresh_agent(
+                TracingAgent, f"traced-agent-{i}", trace_id=shared_trace_id
+            )
             for i in range(3)
         ]
 
         # Run agents in parallel
         start_time = time.time()
         results = await asyncio.gather(*[agent.run() for agent in agents])
-        total_time = time.time() - start_time
+        time.time() - start_time
 
         # Verify results
         successful_results = []
         for r in results:
-            status = r.status.name if hasattr(r.status, 'name') else str(r.status)
+            status = r.status.name if hasattr(r.status, "name") else str(r.status)
             if status.upper() in ["COMPLETED", "SUCCESS"]:
                 successful_results.append(r)
 
-        assert len(successful_results) >= 2, f"Expected at least 2 successes, got {len(successful_results)}"
+        assert (
+            len(successful_results) >= 2
+        ), f"Expected at least 2 successes, got {len(successful_results)}"
 
         # Verify tracing
         trace_ids = [result.get_output("trace_id") for result in successful_results]
-        assert all(tid == shared_trace_id for tid in trace_ids), f"Trace IDs don't match: {trace_ids}"
+        assert all(
+            tid == shared_trace_id for tid in trace_ids
+        ), f"Trace IDs don't match: {trace_ids}"
 
         # Verify operations were traced
         operations = [result.get_output("operation") for result in successful_results]
-        assert all(op == "traced_operation" for op in operations), f"Operations don't match: {operations}"
+        assert all(
+            op == "traced_operation" for op in operations
+        ), f"Operations don't match: {operations}"

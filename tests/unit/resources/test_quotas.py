@@ -13,24 +13,23 @@ Tests cover:
 - Predefined quota policies
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
-from typing import Dict, Any
+
+import pytest
 
 # Import the classes under test
 from src.puffinflow.core.resources.quotas import (
-    QuotaScope,
-    QuotaPolicy,
-    QuotaLimit,
-    QuotaUsage,
-    QuotaMetrics,
-    QuotaExceededError,
-    QuotaManager,
     QuotaEnforcer,
-    QuotaPolicies
+    QuotaExceededError,
+    QuotaLimit,
+    QuotaManager,
+    QuotaMetrics,
+    QuotaPolicies,
+    QuotaPolicy,
+    QuotaScope,
+    QuotaUsage,
 )
 from src.puffinflow.core.resources.requirements import ResourceType
 
@@ -76,7 +75,7 @@ class TestQuotaLimit:
             resource_type=ResourceType.CPU,
             limit=4.0,
             scope=QuotaScope.AGENT,
-            policy=QuotaPolicy.HARD
+            policy=QuotaPolicy.HARD,
         )
 
         assert limit.resource_type == ResourceType.CPU
@@ -94,7 +93,7 @@ class TestQuotaLimit:
             resource_type=ResourceType.MEMORY,
             limit=1024.0,
             scope=QuotaScope.STATE,
-            policy=QuotaPolicy.BURST
+            policy=QuotaPolicy.BURST,
         )
 
         # __post_init__ should set burst_limit to 1.5 * limit
@@ -106,7 +105,7 @@ class TestQuotaLimit:
             resource_type=ResourceType.IO,
             limit=10.0,
             scope=QuotaScope.WORKFLOW,
-            policy=QuotaPolicy.RATE_LIMIT
+            policy=QuotaPolicy.RATE_LIMIT,
         )
 
         # __post_init__ should set rate_limit to limit
@@ -122,7 +121,7 @@ class TestQuotaLimit:
             burst_limit=5.0,
             rate_limit=1.0,
             window_size=timedelta(minutes=5),
-            cooldown=timedelta(minutes=10)
+            cooldown=timedelta(minutes=10),
         )
 
         assert limit.burst_limit == 5.0  # Custom value, not auto-calculated
@@ -221,9 +220,7 @@ class TestQuotaMetrics:
         """Test QuotaMetrics initialization."""
         usage = QuotaUsage()
         limit = QuotaLimit(
-            resource_type=ResourceType.CPU,
-            limit=4.0,
-            scope=QuotaScope.AGENT
+            resource_type=ResourceType.CPU, limit=4.0, scope=QuotaScope.AGENT
         )
 
         metrics = QuotaMetrics(
@@ -231,7 +228,7 @@ class TestQuotaMetrics:
             scope_id="test_agent",
             resource_type=ResourceType.CPU,
             usage=usage,
-            limit=limit
+            limit=limit,
         )
 
         assert metrics.scope == QuotaScope.AGENT
@@ -246,9 +243,7 @@ class TestQuotaMetrics:
         usage.current = 2.0
 
         limit = QuotaLimit(
-            resource_type=ResourceType.CPU,
-            limit=4.0,
-            scope=QuotaScope.AGENT
+            resource_type=ResourceType.CPU, limit=4.0, scope=QuotaScope.AGENT
         )
 
         metrics = QuotaMetrics(
@@ -256,7 +251,7 @@ class TestQuotaMetrics:
             scope_id="test_agent",
             resource_type=ResourceType.CPU,
             usage=usage,
-            limit=limit
+            limit=limit,
         )
 
         assert metrics.utilization == 50.0  # 2.0 / 4.0 * 100
@@ -267,9 +262,7 @@ class TestQuotaMetrics:
         usage.current = 2.0
 
         limit = QuotaLimit(
-            resource_type=ResourceType.CPU,
-            limit=0.0,
-            scope=QuotaScope.AGENT
+            resource_type=ResourceType.CPU, limit=0.0, scope=QuotaScope.AGENT
         )
 
         metrics = QuotaMetrics(
@@ -277,7 +270,7 @@ class TestQuotaMetrics:
             scope_id="test_agent",
             resource_type=ResourceType.CPU,
             usage=usage,
-            limit=limit
+            limit=limit,
         )
 
         assert metrics.utilization == 0.0
@@ -286,9 +279,7 @@ class TestQuotaMetrics:
         """Test is_exceeded property."""
         usage = QuotaUsage()
         limit = QuotaLimit(
-            resource_type=ResourceType.CPU,
-            limit=4.0,
-            scope=QuotaScope.AGENT
+            resource_type=ResourceType.CPU, limit=4.0, scope=QuotaScope.AGENT
         )
 
         metrics = QuotaMetrics(
@@ -296,7 +287,7 @@ class TestQuotaMetrics:
             scope_id="test_agent",
             resource_type=ResourceType.CPU,
             usage=usage,
-            limit=limit
+            limit=limit,
         )
 
         # Not exceeded
@@ -323,7 +314,7 @@ class TestQuotaMetrics:
             resource_type=ResourceType.CPU,
             limit=4.0,
             scope=QuotaScope.AGENT,
-            policy=QuotaPolicy.SOFT
+            policy=QuotaPolicy.SOFT,
         )
 
         metrics = QuotaMetrics(
@@ -331,7 +322,7 @@ class TestQuotaMetrics:
             scope_id="test_agent",
             resource_type=ResourceType.CPU,
             usage=usage,
-            limit=limit
+            limit=limit,
         )
 
         result = metrics.to_dict()
@@ -346,7 +337,7 @@ class TestQuotaMetrics:
             "peak_usage": 3.0,
             "allocations": 5,
             "violations": 1,
-            "policy": "soft"
+            "policy": "soft",
         }
 
         assert result == expected
@@ -362,7 +353,7 @@ class TestQuotaExceededError:
             scope_id="test_agent",
             resource_type=ResourceType.CPU,
             requested=5.0,
-            available=2.0
+            available=2.0,
         )
 
         assert error.scope == QuotaScope.AGENT
@@ -372,8 +363,7 @@ class TestQuotaExceededError:
         assert error.available == 2.0
 
         expected_message = (
-            "Quota exceeded for agent 'test_agent': "
-            "requested 5.0 CPU, available 2.0"
+            "Quota exceeded for agent 'test_agent': " "requested 5.0 CPU, available 2.0"
         )
         assert str(error) == expected_message
 
@@ -401,12 +391,7 @@ class TestQuotaManager:
         manager = QuotaManager()
         await manager.start()
         try:
-            manager.set_quota(
-                QuotaScope.AGENT,
-                "test_agent",
-                ResourceType.CPU,
-                4.0
-            )
+            manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, 4.0)
 
             limits = manager._limits[QuotaScope.AGENT]["test_agent"]
             assert ResourceType.CPU in limits
@@ -455,7 +440,7 @@ class TestRateLimiting:
                 limit=2.0,  # 2 requests per window
                 scope=QuotaScope.AGENT,
                 policy=QuotaPolicy.RATE_LIMIT,
-                window_size=timedelta(seconds=1)
+                window_size=timedelta(seconds=1),
             )
             manager.set_quota(QuotaScope.AGENT, "test", ResourceType.IO, limit)
 
@@ -508,7 +493,8 @@ class TestConcurrency:
 
             # Create multiple concurrent allocation tasks
             tasks = [
-                allocate_resource(2.0) for _ in range(8)  # 8 * 2.0 = 16.0 > 10.0 limit
+                allocate_resource(2.0)
+                for _ in range(8)  # 8 * 2.0 = 16.0 > 10.0 limit
             ]
 
             results = await asyncio.gather(*tasks)
@@ -539,7 +525,7 @@ class TestQuotaEnforcer:
 
             requests = [
                 (QuotaScope.AGENT, "agent1", ResourceType.CPU, 2.0),
-                (QuotaScope.AGENT, "agent2", ResourceType.MEMORY, 512.0)
+                (QuotaScope.AGENT, "agent2", ResourceType.MEMORY, 512.0),
             ]
 
             allowed, violations = await enforcer.check_all_quotas(requests)
@@ -562,7 +548,7 @@ class TestQuotaEnforcer:
 
             allocations = [
                 (QuotaScope.AGENT, "agent1", ResourceType.CPU, 2.0),
-                (QuotaScope.AGENT, "agent1", ResourceType.MEMORY, 512.0)
+                (QuotaScope.AGENT, "agent1", ResourceType.MEMORY, 512.0),
             ]
 
             success, allocated = await enforcer.allocate_with_quotas(allocations)
@@ -573,7 +559,9 @@ class TestQuotaEnforcer:
 
             # Verify allocations were made
             cpu_usage = manager.get_usage(QuotaScope.AGENT, "agent1", ResourceType.CPU)
-            mem_usage = manager.get_usage(QuotaScope.AGENT, "agent1", ResourceType.MEMORY)
+            mem_usage = manager.get_usage(
+                QuotaScope.AGENT, "agent1", ResourceType.MEMORY
+            )
             assert cpu_usage.current == 2.0
             assert mem_usage.current == 512.0
         finally:
@@ -670,14 +658,14 @@ class TestEdgeCases:
             "small_workload",
             QuotaPolicies.SMALL_AGENT,
             QuotaScope.WORKFLOW,
-            QuotaPolicy.SOFT
+            QuotaPolicy.SOFT,
         )
 
         expected = {
             "policy_name": "small_workload",
             "quotas": QuotaPolicies.SMALL_AGENT,
             "scope": QuotaScope.WORKFLOW,
-            "policy": QuotaPolicy.SOFT
+            "policy": QuotaPolicy.SOFT,
         }
 
         assert policy_result == expected
@@ -685,18 +673,18 @@ class TestEdgeCases:
     def test_quota_manager_remove_quota_all(self):
         """Test removing all quotas for a scope_id."""
         manager = QuotaManager()
-        
+
         # Set multiple quotas
         manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, 4.0)
         manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.MEMORY, 1024.0)
-        
+
         # Verify they exist
         assert ResourceType.CPU in manager._limits[QuotaScope.AGENT]["test_agent"]
         assert ResourceType.MEMORY in manager._limits[QuotaScope.AGENT]["test_agent"]
-        
+
         # Remove all quotas for this agent
         manager.remove_quota(QuotaScope.AGENT, "test_agent")
-        
+
         # Verify they're gone
         assert "test_agent" not in manager._limits[QuotaScope.AGENT]
         assert "test_agent" not in manager._usage[QuotaScope.AGENT]
@@ -704,14 +692,14 @@ class TestEdgeCases:
     def test_quota_manager_remove_specific_quota(self):
         """Test removing specific quota for a scope_id."""
         manager = QuotaManager()
-        
+
         # Set multiple quotas
         manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, 4.0)
         manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.MEMORY, 1024.0)
-        
+
         # Remove only CPU quota
         manager.remove_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU)
-        
+
         # Verify CPU is gone but MEMORY remains
         assert ResourceType.CPU not in manager._limits[QuotaScope.AGENT]["test_agent"]
         assert ResourceType.MEMORY in manager._limits[QuotaScope.AGENT]["test_agent"]
@@ -721,13 +709,13 @@ class TestEdgeCases:
         """Test async stop functionality."""
         manager = QuotaManager()
         await manager.start()
-        
+
         # Verify cleanup task is running
         assert manager._cleanup_task is not None
-        
+
         # Stop the manager
         await manager.stop()
-        
+
         # Verify cleanup task is cancelled
         assert manager._cleanup_task.cancelled()
 
@@ -736,23 +724,23 @@ class TestEdgeCases:
         """Test stop when no cleanup task exists."""
         manager = QuotaManager()
         # Don't start, so cleanup_task is None
-        
+
         # Should not raise exception
         await manager.stop()
 
     def test_quota_limit_with_quota_limit_object(self):
         """Test set_quota with QuotaLimit object instead of numeric value."""
         manager = QuotaManager()
-        
+
         quota_limit = QuotaLimit(
             resource_type=ResourceType.CPU,
             limit=8.0,
             scope=QuotaScope.AGENT,
-            policy=QuotaPolicy.SOFT
+            policy=QuotaPolicy.SOFT,
         )
-        
+
         manager.set_quota(QuotaScope.AGENT, "test_agent", ResourceType.CPU, quota_limit)
-        
+
         stored_limit = manager._limits[QuotaScope.AGENT]["test_agent"][ResourceType.CPU]
         assert stored_limit.limit == 8.0
         assert stored_limit.policy == QuotaPolicy.SOFT
@@ -760,7 +748,6 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_quota_manager_cleanup_functionality(self):
         """Test cleanup functionality without relying on implementation details."""
-        import time
         manager = QuotaManager()
         await manager.start()
         try:
@@ -772,12 +759,12 @@ class TestEdgeCases:
     def test_quota_enums_exist(self):
         """Test QuotaScope and QuotaPolicy enums exist and have expected members."""
         # Test that enums exist and have the basic expected members
-        assert hasattr(QuotaScope, 'AGENT')
-        assert hasattr(QuotaScope, 'POOL') 
-        assert hasattr(QuotaScope, 'GLOBAL')
-        
-        assert hasattr(QuotaPolicy, 'SOFT')
-        assert hasattr(QuotaPolicy, 'HARD')
+        assert hasattr(QuotaScope, "AGENT")
+        assert hasattr(QuotaScope, "POOL")
+        assert hasattr(QuotaScope, "GLOBAL")
+
+        assert hasattr(QuotaPolicy, "SOFT")
+        assert hasattr(QuotaPolicy, "HARD")
 
 
 if __name__ == "__main__":

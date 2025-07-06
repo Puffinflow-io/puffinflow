@@ -2,7 +2,7 @@ export const gettingStartedMarkdown = `# Getting Started with Puffinflow
 
 ## Prerequisites
 
-- **Python 3.8+** 
+- **Python 3.8+**
 - Basic familiarity with \`async/await\` in Python
 - 5 minutes to get your first workflow running! ⏱️
 
@@ -80,7 +80,7 @@ agent = Agent("data-pipeline")
 async def fetch_data(context):
     # Simulate fetching data from an API
     print("📊 Fetching user data...")
-    
+
     # Store data in context
     context.set_variable("user_count", 1250)
     context.set_variable("revenue", 45000)
@@ -90,24 +90,24 @@ async def calculate_metrics(context):
     # Get data from previous state
     users = context.get_variable("user_count")
     revenue = context.get_variable("revenue")
-    
-    # Calculate and store result  
+
+    # Calculate and store result
     revenue_per_user = revenue / users
     context.set_variable("revenue_per_user", revenue_per_user)
-    
+
     print(f"💰 Revenue per user: \${revenue_per_user:.2f}")
     print("✅ Metrics calculated")
 
 async def send_report(context):
     # Use the calculated metric
     rpu = context.get_variable("revenue_per_user")
-    
+
     print(f"📧 Sending report: RPU is \${rpu:.2f}")
     print("✅ Report sent!")
 
 # Add states to workflow
 agent.add_state("fetch_data", fetch_data)
-agent.add_state("calculate_metrics", calculate_metrics) 
+agent.add_state("calculate_metrics", calculate_metrics)
 agent.add_state("send_report", send_report)
 
 # Run the complete pipeline
@@ -178,7 +178,7 @@ async def generate_report(context):
 # generate_report waits for BOTH to complete
 agent.add_state("fetch_user_data", fetch_user_data)
 agent.add_state("fetch_sales_data", fetch_sales_data)
-agent.add_state("generate_report", generate_report, 
+agent.add_state("generate_report", generate_report,
                 dependencies=["fetch_user_data", "fetch_sales_data"])
 \`\`\`
 
@@ -191,7 +191,7 @@ async def check_user_type(context):
     print("🔍 Checking user type...")
     user_type = "premium"  # Could come from database
     context.set_variable("user_type", user_type)
-    
+
     # Dynamic routing based on data
     if user_type == "premium":
         return "premium_flow"
@@ -228,7 +228,7 @@ Return a list of state names to run multiple states at once:
 async def process_order(context):
     print("📦 Processing order...")
     context.set_variable("order_id", "ORD-123")
-    
+
     # Run these three states in parallel
     return ["send_confirmation", "update_inventory", "charge_payment"]
 
@@ -261,13 +261,13 @@ async def transform(context):
     raw_data = context.get_variable("raw_data")
     total_sales = sum(raw_data["sales"])
     customer_count = len(raw_data["customers"])
-    
+
     transformed = {
         "total_sales": total_sales,
         "customer_count": customer_count,
         "avg_sale": total_sales / customer_count
     }
-    
+
     context.set_variable("processed_data", transformed)
     print("✅ Data transformed")
 
@@ -306,7 +306,7 @@ async def intensive_task(context):
 agent.add_state("first", first_function)
 agent.add_state("second", second_function)
 
-# Dependencies  
+# Dependencies
 agent.add_state("dependent", function, dependencies=["first", "second"])
 
 # Dynamic routing
@@ -321,7 +321,7 @@ async def router(context):
 
 ### State Return Values
 - \`None\` - Continue normally
-- \`"state_name"\` - Run specific state next  
+- \`"state_name"\` - Run specific state next
 - \`["state1", "state2"]\` - Run multiple states in parallel
 
 ## 🤖 Complete AI Workflow Example
@@ -337,7 +337,7 @@ import asyncio
 import json
 from puffinflow import Agent
 
-# Simulate external APIs 
+# Simulate external APIs
 async def search_web(query):
     """Simulate web search API"""
     await asyncio.sleep(0.2)
@@ -357,59 +357,59 @@ research_agent = Agent("ai-research-assistant")
 async def validate_query(context):
     """Validate and prepare the search query"""
     query = context.get_variable("search_query", "")
-    
+
     if not query or len(query) < 3:
         print("❌ Invalid query - too short")
         return None  # End workflow
-    
+
     # Clean and prepare query
     clean_query = query.strip().lower()
     context.set_variable("clean_query", clean_query)
-    
+
     print(f"✅ Query validated: '{clean_query}'")
     return "search_information"
 
 async def search_information(context):
     """Search for information on the web"""
     query = context.get_variable("clean_query")
-    
+
     print(f"🔍 Searching for: {query}")
     results = await search_web(query)
-    
+
     context.set_variable("search_results", results)
     print(f"✅ Found {len(results)} results")
-    
+
     return "analyze_results"
 
 async def analyze_results(context):
     """Use LLM to analyze search results"""
     results = context.get_variable("search_results")
     query = context.get_variable("clean_query")
-    
+
     print("🧠 Analyzing results with AI...")
-    
+
     # Prepare prompt for LLM
     prompt = f"""
     Analyze these search results for query '{query}':
     {json.dumps(results, indent=2)}
-    
+
     Provide key insights and trends.
     """
-    
+
     analysis = await call_llm(prompt)
     context.set_variable("analysis", analysis)
-    
+
     print("✅ Analysis complete")
     return "generate_report"
 
 async def generate_report(context):
     """Generate final research report"""
     query = context.get_variable("search_query")
-    analysis = context.get_variable("analysis") 
+    analysis = context.get_variable("analysis")
     results = context.get_variable("search_results")
-    
+
     print("📝 Generating final report...")
-    
+
     # Create structured report
     report = {
         "query": query,
@@ -418,14 +418,14 @@ async def generate_report(context):
         "generated_at": "2024-01-15 10:30:00",
         "confidence": "high"
     }
-    
+
     context.set_variable("final_report", report)
-    
+
     print("🎉 Research Report Generated!")
     print(f"Query: {report['query']}")
     print(f"Sources: {report['sources_found']}")
     print(f"Analysis: {report['analysis']}")
-    
+
     return None  # End workflow
 
 # Wire up the workflow
@@ -438,14 +438,14 @@ async def run_research(query):
     """Run a complete research workflow"""
     print(f"🚀 Starting research on: '{query}'")
     print("-" * 50)
-    
+
     result = await research_agent.run(
         initial_context={"search_query": query}
     )
-    
+
     print("-" * 50)
     print("✨ Research complete!")
-    
+
     return result.get_variable("final_report")
 
 # Example usage
@@ -479,7 +479,7 @@ Final report available in context: True
 You now know the fundamentals! Here's what to explore next:
 
 1. **[Context and Data →](#docs/context-and-data)** - Deep dive into data management
-2. **[Resource Management →](#docs/resource-management)** - Control CPU, memory, and rate limits  
+2. **[Resource Management →](#docs/resource-management)** - Control CPU, memory, and rate limits
 3. **[Error Handling →](#docs/error-handling)** - Build resilient workflows
 4. **[Checkpointing →](#docs/checkpointing)** - Save and resume progress
 
