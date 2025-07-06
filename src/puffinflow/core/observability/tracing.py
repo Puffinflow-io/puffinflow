@@ -3,13 +3,27 @@ import time
 from contextlib import contextmanager
 from typing import Any, Optional
 
-from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.trace import Status, StatusCode
+try:
+    from opentelemetry import trace
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+    from opentelemetry.trace import Status, StatusCode
+    _OPENTELEMETRY_AVAILABLE = True
+except ImportError:
+    # Create mock classes for when OpenTelemetry is not available
+    trace = None
+    JaegerExporter = None
+    OTLPSpanExporter = None
+    Resource = None
+    TracerProvider = None
+    BatchSpanProcessor = None
+    ConsoleSpanExporter = None
+    Status = None
+    StatusCode = None
+    _OPENTELEMETRY_AVAILABLE = False
 
 from .config import TracingConfig
 from .interfaces import Span, SpanContext, SpanType, TracingProvider
@@ -18,51 +32,56 @@ from .interfaces import Span, SpanContext, SpanType, TracingProvider
 class OpenTelemetrySpan(Span):
     """OpenTelemetry span implementation"""
 
-    def __init__(self, otel_span: trace.Span, span_context: SpanContext):
+    def __init__(self, otel_span: Any, span_context: SpanContext):
         self._span = otel_span
         self._context = span_context
         self._start_time = time.time()
 
-        # Set workflow context attributes
-        if span_context.workflow_id:
-            self._span.set_attribute("workflow.id", span_context.workflow_id)
-        if span_context.agent_name:
-            self._span.set_attribute("agent.name", span_context.agent_name)
-        if span_context.state_name:
-            self._span.set_attribute("state.name", span_context.state_name)
-        if span_context.user_id:
-            self._span.set_attribute("user.id", span_context.user_id)
+        # Set workflow context attributes if OpenTelemetry is available
+        if _OPENTELEMETRY_AVAILABLE and self._span:
+            if span_context.workflow_id:
+                self._span.set_attribute("workflow.id", span_context.workflow_id)
+            if span_context.agent_name:
+                self._span.set_attribute("agent.name", span_context.agent_name)
+            if span_context.state_name:
+                self._span.set_attribute("state.name", span_context.state_name)
+            if span_context.user_id:
+                self._span.set_attribute("user.id", span_context.user_id)
 
     def set_attribute(self, key: str, value: Any) -> None:
         """Set span attribute"""
-        if key and value is not None:
+        if _OPENTELEMETRY_AVAILABLE and self._span and key and value is not None:
             if isinstance(value, (dict, list)):
                 value = str(value)
             self._span.set_attribute(key, value)
 
     def set_status(self, status: str, description: Optional[str] = None) -> None:
         """Set span status"""
-        if status.lower() in ["ok", "success"]:
-            self._span.set_status(Status(StatusCode.OK, description))
-        elif status.lower() in ["error", "failed"]:
-            self._span.set_status(Status(StatusCode.ERROR, description))
+        if _OPENTELEMETRY_AVAILABLE and self._span:
+            if status.lower() in ["ok", "success"]:
+                self._span.set_status(Status(StatusCode.OK, description))
+            elif status.lower() in ["error", "failed"]:
+                self._span.set_status(Status(StatusCode.ERROR, description))
 
     def add_event(self, name: str, attributes: Optional[dict[str, Any]] = None) -> None:
         """Add event to span"""
-        event_attrs = attributes or {}
-        event_attrs = {k: v for k, v in event_attrs.items() if v is not None}
-        self._span.add_event(name, event_attrs)
+        if _OPENTELEMETRY_AVAILABLE and self._span:
+            event_attrs = attributes or {}
+            event_attrs = {k: v for k, v in event_attrs.items() if v is not None}
+            self._span.add_event(name, event_attrs)
 
     def record_exception(self, exception: Exception) -> None:
         """Record exception in span"""
-        self._span.record_exception(exception)
-        self.set_status("error", str(exception))
+        if _OPENTELEMETRY_AVAILABLE and self._span:
+            self._span.record_exception(exception)
+            self.set_status("error", str(exception))
 
     def end(self) -> None:
         """End span"""
         duration = time.time() - self._start_time
         self.set_attribute("span.duration_ms", duration * 1000)
-        self._span.end()
+        if _OPENTELEMETRY_AVAILABLE and self._span:
+            self._span.end()
 
     @property
     def context(self) -> SpanContext:
@@ -76,10 +95,15 @@ class OpenTelemetryTracingProvider(TracingProvider):
     def __init__(self, config: TracingConfig):
         self.config = config
         self._current_context = threading.local()
-        self._setup_tracing()
+        self._tracer = None
+        if _OPENTELEMETRY_AVAILABLE:
+            self._setup_tracing()
 
-    def _setup_tracing(self):
+    def _setup_tracing(self) -> None:
         """Setup OpenTelemetry tracing"""
+        if not _OPENTELEMETRY_AVAILABLE:
+            return
+            
         resource = Resource.create(
             {
                 "service.name": self.config.service_name,
@@ -136,8 +160,10 @@ class OpenTelemetryTracingProvider(TracingProvider):
             else:
                 span_context = SpanContext()
 
-        # Start OpenTelemetry span
-        otel_span = self._tracer.start_span(name)
+        # Start OpenTelemetry span if available
+        otel_span = None
+        if _OPENTELEMETRY_AVAILABLE and self._tracer:
+            otel_span = self._tracer.start_span(name)
 
         # Create wrapper
         span = OpenTelemetrySpan(otel_span, span_context)
@@ -154,7 +180,7 @@ class OpenTelemetryTracingProvider(TracingProvider):
         """Get current active span"""
         return getattr(self._current_context, "current_span", None)
 
-    def _set_current_span(self, span: Optional[Span]):
+    def _set_current_span(self, span: Optional[Span]) -> None:
         """Set current span in context"""
         self._current_context.current_span = span
 
