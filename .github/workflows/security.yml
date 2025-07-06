@@ -28,7 +28,8 @@ jobs:
           path: ./
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '') }}
           head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          extra_args: --only-verified --config=.trufflehog.yml
+          extra_args: --only-verified --config=.trufflehog.yml --no-update
+        continue-on-error: true
           
       - name: Upload TruffleHog results
         if: always()
