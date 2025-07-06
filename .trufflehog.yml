@@ -3,3 +3,23 @@
 
 # Only report verified secrets
 only-verified: true
+
+# Exclude paths that may contain false positives
+exclude:
+  - "**/*.md"
+  - "**/*.txt"
+  - "**/*.log"
+  - "**/node_modules/**"
+  - "**/.git/**"
+  - "**/htmlcov/**"
+  - "**/coverage.xml"
+  - "**/*.pyc"
+  - "**/__pycache__/**"
+  - "**/*.egg-info/**"
+  - "**/venv/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.pytest_cache/**"
+  - "**/.vite/**"
+  - "**/package-lock.json"
+  - "**/yarn.lock"

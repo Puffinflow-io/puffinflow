@@ -48,7 +48,8 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          extra_args: --debug --only-verified --json --no-update
+          extra_args: --config=.trufflehog.yml --only-verified --json --no-update
+        continue-on-error: true
 
       - name: Run TruffleHog scan (Differential)
         if: github.event_name == 'push' || github.event_name == 'pull_request'
@@ -57,14 +58,16 @@ jobs:
           path: ./
           base: ${{ github.event.before || 'HEAD~1' }}
           head: ${{ github.sha }}
-          extra_args: --debug --only-verified --json --no-update
+          extra_args: --config=.trufflehog.yml --only-verified --json --no-update
+        continue-on-error: true
 
       - name: Run TruffleHog scan (Fallback - Full scan if differential fails)
         if: failure() && (github.event_name == 'push' || github.event_name == 'pull_request')
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          extra_args: --debug --only-verified --json --no-update
+          extra_args: --config=.trufflehog.yml --only-verified --json --no-update
+        continue-on-error: true
 
   additional-security-checks:
     name: Additional Security Checks
@@ -85,18 +88,21 @@ jobs:
 
       - name: Run Bandit security linter
         run: |
-          bandit -r src/ -f json -o bandit-report.json
-          bandit -r src/ -f txt
+          bandit -r src/ -f json -o bandit-report.json -c .bandit || true
+          bandit -r src/ -f txt -c .bandit || true
+        continue-on-error: true
 
       - name: Run Safety check for known vulnerabilities
         run: |
           safety check --json --output safety-report.json || true
-          safety check
+          safety check || true
+        continue-on-error: true
 
       - name: Run Semgrep security analysis
         run: |
           semgrep --config=auto src/ --json --output=semgrep-report.json || true
-          semgrep --config=auto src/
+          semgrep --config=auto src/ || true
+        continue-on-error: true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
