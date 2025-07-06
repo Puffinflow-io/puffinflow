@@ -3,7 +3,18 @@
 # Import submodules for import path tests
 # Clean up indirect imports that might leak from submodules
 
-from . import agent, alerting, config, context, core, decorators, events, interfaces, metrics, tracing
+from . import (
+    agent,
+    alerting,
+    config,
+    context,
+    core,
+    decorators,
+    events,
+    interfaces,
+    metrics,
+    tracing,
+)
 from .agent import ObservableAgent
 from .config import ObservabilityConfig
 from .context import ObservableContext
@@ -15,22 +26,22 @@ from .decorators import observe, trace_state
 #     del interfaces, tracing, metrics, alerting, events
 
 __all__ = [
-    "ObservabilityManager",
-    "get_observability",
-    "setup_observability",
     "ObservabilityConfig",
-    "observe",
-    "trace_state",
-    "ObservableContext",
+    "ObservabilityManager",
     "ObservableAgent",
-    "core",
-    "config",
-    "decorators",
-    "context",
+    "ObservableContext",
     "agent",
     "alerting",
-    "events", 
+    "config",
+    "context",
+    "core",
+    "decorators",
+    "events",
+    "get_observability",
     "interfaces",
     "metrics",
+    "observe",
+    "setup_observability",
+    "trace_state",
     "tracing",
 ]

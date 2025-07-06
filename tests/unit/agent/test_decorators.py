@@ -2,7 +2,6 @@
 Comprehensive tests for the flexible state decorator system.
 """
 
-
 import pytest
 
 from puffinflow.core.agent.context import Context

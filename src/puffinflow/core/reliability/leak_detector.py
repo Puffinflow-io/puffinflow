@@ -1,7 +1,8 @@
 """Resource leak detection."""
+
 import time
 from dataclasses import dataclass
-from typing import Optional, Any, Dict
+from typing import Any, Optional
 
 
 @dataclass
@@ -83,7 +84,7 @@ class ResourceLeakDetector:
 
         return current_leaks
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get leak detection metrics"""
         current_leaks = self.detect_leaks()
 

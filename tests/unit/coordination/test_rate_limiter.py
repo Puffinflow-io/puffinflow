@@ -269,26 +269,20 @@ class TestAdaptiveRateLimiter:
     @pytest.mark.asyncio
     async def test_rate_decrease_on_failure(self, limiter):
         """Verify the rate decreases with a low success ratio."""
-        # Exhaust tokens to create failures
-        burst_size = int(limiter._limiter.burst_size)
-        for _ in range(burst_size):
-            await limiter.acquire()
-
-        # Create failures
-        for _ in range(10):
-            await limiter.acquire()  # These should mostly fail
-
         # Manually set high failure rate for testing
         async with limiter._lock:
             limiter._success_count = 1
             limiter._failure_count = 10
             limiter._last_adjustment = time.time() - limiter._adjustment_interval
 
+        # Store initial rate
+        initial_rate = limiter.current_rate
+
         # Trigger adjustment
         await limiter.acquire()
 
-        # Rate should have decreased from 10
-        assert limiter.current_rate < 10
+        # Rate should have decreased from initial rate
+        assert limiter.current_rate < initial_rate
 
     @pytest.mark.asyncio
     async def test_min_max_bounds(self):

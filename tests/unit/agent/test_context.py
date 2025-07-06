@@ -75,9 +75,11 @@ def context_with_metadata(shared_state):
         {
             "_meta_typed_test_var": "builtins.str",
             "test_var": "test_value",
-            "_meta_validated_user_data": "tests.unit.agent.test_context.TestUser"
-            if PYDANTIC_AVAILABLE
-            else "dict",
+            "_meta_validated_user_data": (
+                "tests.unit.agent.test_context.TestUser"
+                if PYDANTIC_AVAILABLE
+                else "dict"
+            ),
         }
     )
 

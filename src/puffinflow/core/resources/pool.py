@@ -26,19 +26,21 @@ try:
 except ImportError:
     # Mock leak detector if not available
     class MockLeakDetector:
-        def track_allocation(self, state_name, agent_name, resources):
+        def track_allocation(
+            self, state_name: Any, agent_name: Any, resources: Any
+        ) -> None:
             pass
 
-        def track_release(self, state_name, agent_name):
+        def track_release(self, state_name: Any, agent_name: Any) -> None:
             pass
 
-        def detect_leaks(self):
+        def detect_leaks(self) -> list[Any]:
             return []
 
-        def get_metrics(self):
+        def get_metrics(self) -> dict[str, Any]:
             return {"leak_detection": "mock"}
 
-    leak_detector = MockLeakDetector()
+    leak_detector = MockLeakDetector()  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -347,7 +349,7 @@ class ResourcePool:
         ]:
             if safe_check_resource_type(requirements, resource_type):
                 amount = get_resource_amount(requirements, resource_type)
-                if amount > 0:
+                if amount > 0 and resource_type.name:
                     resource_dict[resource_type.name.lower()] = amount
 
         return resource_dict
@@ -451,7 +453,7 @@ class ResourcePool:
             for candidate_state, _ in candidates:
                 candidate_resources = self._allocations[candidate_state]
                 for rt, amount in candidate_resources.items():
-                    would_free[rt] += amount
+                    would_free[rt] += amount  # type: ignore
                 preempt_list.append(candidate_state)
 
                 # Check if preemption would free enough resources
@@ -466,7 +468,7 @@ class ResourcePool:
                     if safe_check_resource_type(requirements, resource_type):
                         required = get_resource_amount(requirements, resource_type)
                         available_after = (
-                            self.available[resource_type] + would_free[resource_type]
+                            self.available[resource_type] + would_free[resource_type]  # type: ignore
                         )
                         if required > available_after:
                             could_satisfy = False
@@ -560,7 +562,7 @@ class ResourcePool:
                     if amount <= 0:
                         continue
 
-                    stats = self._usage_stats[resource_type]
+                    stats = self._usage_stats[resource_type]  # type: ignore
                     stats.total_allocations += 1
                     stats.total_wait_time += wait_time
                     stats.last_allocation_time = current_time
@@ -607,14 +609,14 @@ class ResourcePool:
                 if safe_check_resource_type(requirements, resource_type):
                     amount = get_resource_amount(requirements, resource_type)
                     if amount > 0:
-                        self._usage_stats[resource_type].failed_allocations += 1
+                        self._usage_stats[resource_type].failed_allocations += 1  # type: ignore
         except Exception as e:
             logger.error(f"Error updating failure stats: {e}")
 
     # Information methods
     def get_usage_stats(self) -> dict[ResourceType, ResourceUsageStats]:
         """Get usage statistics for all resource types."""
-        return self._usage_stats.copy()
+        return self._usage_stats.copy()  # type: ignore
 
     def get_state_allocations(self) -> dict[str, dict[ResourceType, float]]:
         """Get current allocations by state."""
@@ -648,7 +650,7 @@ class ResourcePool:
             logger.error(f"Error getting leak metrics: {e}")
             return {"leak_detection": "error", "error": str(e)}
 
-    async def force_release(self, state_name: str):
+    async def force_release(self, state_name: str) -> None:
         """Force release resources from a state."""
         logger.warning(f"Force releasing resources for state {state_name}")
         await self.release(state_name)

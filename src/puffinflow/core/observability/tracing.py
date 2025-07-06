@@ -11,6 +11,7 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
     from opentelemetry.trace import Status, StatusCode
+
     _OPENTELEMETRY_AVAILABLE = True
 except ImportError:
     # Create mock classes for when OpenTelemetry is not available
@@ -103,7 +104,7 @@ class OpenTelemetryTracingProvider(TracingProvider):
         """Setup OpenTelemetry tracing"""
         if not _OPENTELEMETRY_AVAILABLE:
             return
-            
+
         resource = Resource.create(
             {
                 "service.name": self.config.service_name,
@@ -124,9 +125,11 @@ class OpenTelemetryTracingProvider(TracingProvider):
         if self.config.jaeger_endpoint:
             jaeger_exporter = JaegerExporter(
                 agent_host_name=self.config.jaeger_endpoint.split(":")[0],
-                agent_port=int(self.config.jaeger_endpoint.split(":")[1])
-                if ":" in self.config.jaeger_endpoint
-                else 6831,
+                agent_port=(
+                    int(self.config.jaeger_endpoint.split(":")[1])
+                    if ":" in self.config.jaeger_endpoint
+                    else 6831
+                ),
             )
             processors.append(BatchSpanProcessor(jaeger_exporter))
 

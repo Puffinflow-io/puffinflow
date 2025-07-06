@@ -935,9 +935,11 @@ class Agent:
                     "name": name,
                     "has_decorator": has_decorator,
                     "dependencies": self.dependencies.get(name, []),
-                    "status": self.state_metadata.get(name).status
-                    if name in self.state_metadata
-                    else "unknown",
+                    "status": (
+                        self.state_metadata.get(name).status
+                        if name in self.state_metadata
+                        else "unknown"
+                    ),
                 }
             )
         return result

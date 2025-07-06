@@ -1,6 +1,7 @@
 """
 Builder pattern for constructing state configurations.
 """
+
 from typing import Any, Callable, Optional, Union
 
 from ..state import Priority

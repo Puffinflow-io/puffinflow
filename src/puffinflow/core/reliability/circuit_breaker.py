@@ -1,10 +1,12 @@
 """Lightweight circuit breaker implementation."""
+
 import asyncio
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, AsyncGenerator
+from typing import Any, Optional
 
 
 class CircuitState(Enum):

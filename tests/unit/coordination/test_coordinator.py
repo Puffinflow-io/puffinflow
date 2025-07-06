@@ -863,9 +863,12 @@ class TestCreateCoordinatedAgent:
     def test_create_coordinated_agent_basic(self):
         """Test creating a coordinated agent."""
         # Patch the import in the function where it's used
-        with patch("puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
-            "puffinflow.core.coordination.coordinator.enhance_agent"
-        ) as mock_enhance:
+        with (
+            patch("puffinflow.core.agent.base.Agent") as mock_agent_class,
+            patch(
+                "puffinflow.core.coordination.coordinator.enhance_agent"
+            ) as mock_enhance,
+        ):
             mock_agent_instance = Mock()
             mock_agent_class.return_value = mock_agent_instance
             mock_enhance.return_value = mock_agent_instance
@@ -892,9 +895,12 @@ class TestCreateCoordinatedAgent:
             backoff_multiplier=1.2,
         )
 
-        with patch("puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
-            "puffinflow.core.coordination.coordinator.enhance_agent"
-        ) as mock_enhance:
+        with (
+            patch("puffinflow.core.agent.base.Agent") as mock_agent_class,
+            patch(
+                "puffinflow.core.coordination.coordinator.enhance_agent"
+            ) as mock_enhance,
+        ):
             mock_agent_instance = Mock()
             mock_agent_class.return_value = mock_agent_instance
             mock_enhance.return_value = mock_agent_instance

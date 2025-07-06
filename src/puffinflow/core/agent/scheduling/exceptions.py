@@ -1,4 +1,5 @@
 """Scheduling exceptions."""
+
 from typing import Optional
 
 

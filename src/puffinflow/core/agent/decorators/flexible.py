@@ -1,6 +1,7 @@
 """
 Flexible state decorator with optional parameters and multiple configuration methods.
 """
+
 from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, Callable, Optional, Union
@@ -285,10 +286,10 @@ class FlexibleStateDecorator:
     Flexible state decorator that supports multiple configuration methods.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.default_config = {}
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Callable[..., Any]:
         """
         Handle multiple call patterns:
         - @state
@@ -305,7 +306,7 @@ class FlexibleStateDecorator:
             return self._decorate_function(func, final_config)
 
         # Case 2: @state() or @state(params...)
-        def decorator(func):
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             # Merge all configuration sources
             final_config = self._merge_configurations(*args, **kwargs)
             return self._decorate_function(func, final_config)
@@ -367,7 +368,7 @@ class FlexibleStateDecorator:
     def _decorate_function(self, func: Callable, config: dict[str, Any]) -> Callable:
         """Apply decoration with merged configuration."""
         # Set default values for any missing configuration
-        defaults = {
+        defaults: dict[str, Any] = {
             "cpu": 1.0,
             "memory": 100.0,
             "io": 1.0,
@@ -523,9 +524,9 @@ class FlexibleStateDecorator:
     def _parse_coordination_string(self, coordination: str) -> dict[str, Any]:
         """Parse coordination string like 'mutex', 'semaphore:5', 'barrier:3'."""
         if ":" in coordination:
-            coord_type, param = coordination.split(":", 1)
+            coord_type, param_str = coordination.split(":", 1)
             try:
-                param = int(param)
+                param: Optional[int] = int(param_str)
             except ValueError:
                 param = None
         else:
@@ -586,7 +587,7 @@ class FlexibleStateDecorator:
         from ..dependencies import DependencyType
 
         class DependencyConfig:
-            def __init__(self, dep_type):
+            def __init__(self, dep_type: Any) -> None:
                 self.type = dep_type
 
         dependency_configs = {}
@@ -615,41 +616,41 @@ class FlexibleStateDecorator:
             coordination_config = {"limit": config["quota"]}
 
         # CRITICAL: Mark as PuffinFlow state
-        func._puffinflow_state = True
-        func._state_name = func.__name__
-        func._state_config = config
+        func._puffinflow_state = True  # type: ignore
+        func._state_name = func.__name__  # type: ignore
+        func._state_config = config  # type: ignore
 
         # Store all configuration as function attributes
-        func._resource_requirements = requirements
-        func._priority = config["priority"]
-        func._dependency_configs = dependency_configs
-        func._coordination_primitive = coordination_primitive
-        func._coordination_config = coordination_config
+        func._resource_requirements = requirements  # type: ignore
+        func._priority = config["priority"]  # type: ignore
+        func._dependency_configs = dependency_configs  # type: ignore
+        func._coordination_primitive = coordination_primitive  # type: ignore
+        func._coordination_config = coordination_config  # type: ignore
 
         # Store rate limiting
         if config["rate_limit"]:
-            func._rate_limit = config["rate_limit"]
-            func._burst_limit = config["burst_limit"] or int(config["rate_limit"] * 2)
+            func._rate_limit = config["rate_limit"]  # type: ignore
+            func._burst_limit = config["burst_limit"] or int(config["rate_limit"] * 2)  # type: ignore
 
         # NEW: Store reliability configurations
         if config.get("circuit_breaker"):
-            func._circuit_breaker_enabled = True
-            func._circuit_breaker_config = config.get("circuit_breaker_config")
+            func._circuit_breaker_enabled = True  # type: ignore
+            func._circuit_breaker_config = config.get("circuit_breaker_config")  # type: ignore
         else:
-            func._circuit_breaker_enabled = False
+            func._circuit_breaker_enabled = False  # type: ignore
 
         if config.get("bulkhead"):
-            func._bulkhead_enabled = True
-            func._bulkhead_config = config.get("bulkhead_config")
+            func._bulkhead_enabled = True  # type: ignore
+            func._bulkhead_config = config.get("bulkhead_config")  # type: ignore
         else:
-            func._bulkhead_enabled = False
+            func._bulkhead_enabled = False  # type: ignore
 
-        func._leak_detection_enabled = config.get("leak_detection", True)
+        func._leak_detection_enabled = config.get("leak_detection", True)  # type: ignore
 
         # Store metadata
-        func._state_config = config
-        func._state_tags = config["tags"]
-        func._state_description = config["description"]
+        func._state_config = config  # type: ignore
+        func._state_tags = config["tags"]  # type: ignore
+        func._state_description = config["description"]  # type: ignore
 
         # Preserve function metadata
         func = wraps(func)(func)
@@ -666,7 +667,7 @@ class FlexibleStateDecorator:
         """Create a new profile."""
         return StateProfile(name=name, **config)
 
-    def register_profile(self, profile: Union[StateProfile, str], **config):
+    def register_profile(self, profile: Union[StateProfile, str], **config) -> None:
         """Register a new profile globally."""
         if isinstance(profile, str):
             profile = StateProfile(name=profile, **config)

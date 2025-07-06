@@ -48,7 +48,7 @@ class QuotaLimit:
     window_size: timedelta = field(default_factory=lambda: timedelta(minutes=1))
     cooldown: timedelta = field(default_factory=lambda: timedelta(minutes=5))
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.policy == QuotaPolicy.BURST and self.burst_limit is None:
             self.burst_limit = self.limit * 1.5
         if self.policy == QuotaPolicy.RATE_LIMIT and self.rate_limit is None:
@@ -71,14 +71,14 @@ class QuotaUsage:
     # For rate limiting
     request_times: list[float] = field(default_factory=list)
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset usage statistics."""
         self.current = 0.0
         self.allocations = 0
         self.last_reset = datetime.utcnow()
         self.request_times.clear()
 
-    def add_allocation(self, amount: float):
+    def add_allocation(self, amount: float) -> None:
         """Record an allocation."""
         self.current += amount
         self.total_allocated += amount
@@ -86,12 +86,12 @@ class QuotaUsage:
         self.allocations += 1
         self.request_times.append(time.time())
 
-    def remove_allocation(self, amount: float):
+    def remove_allocation(self, amount: float) -> None:
         """Record a release."""
         self.current = max(0, self.current - amount)
         self.total_released += amount
 
-    def record_violation(self):
+    def record_violation(self) -> None:
         """Record a quota violation."""
         self.violations += 1
         self.last_violation = datetime.utcnow()
@@ -161,7 +161,7 @@ class QuotaExceededError(Exception):
 class QuotaManager:
     """Manages resource quotas across different scopes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Quota limits by scope
         self._limits: dict[QuotaScope, dict[str, dict[ResourceType, QuotaLimit]]] = {
             scope: defaultdict(dict) for scope in QuotaScope
@@ -179,13 +179,13 @@ class QuotaManager:
         self._cleanup_task: Optional[asyncio.Task] = None
         self._running = False
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the quota manager."""
         self._running = True
         self._cleanup_task = asyncio.create_task(self._cleanup_loop())
         logger.info("quota_manager_started")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the quota manager."""
         self._running = False
         if self._cleanup_task:
@@ -199,7 +199,7 @@ class QuotaManager:
         scope_id: str,
         resource_type: ResourceType,
         limit: Union[float, QuotaLimit],
-    ):
+    ) -> None:
         """Set a quota limit."""
         if isinstance(limit, (int, float)):
             quota_limit = QuotaLimit(
@@ -224,7 +224,7 @@ class QuotaManager:
         scope: QuotaScope,
         scope_id: str,
         resource_type: Optional[ResourceType] = None,
-    ):
+    ) -> None:
         """Remove a quota limit."""
         if resource_type:
             self._limits[scope][scope_id].pop(resource_type, None)
@@ -283,7 +283,10 @@ class QuotaManager:
 
             elif limit.policy == QuotaPolicy.BURST:
                 # Allow burst up to burst_limit
-                return usage.current + requested <= limit.burst_limit
+                return (
+                    limit.burst_limit is not None
+                    and usage.current + requested <= limit.burst_limit
+                )
 
             elif limit.policy == QuotaPolicy.RATE_LIMIT:
                 # Check rate limit
@@ -301,7 +304,7 @@ class QuotaManager:
 
         # Check rate
         requests_in_window = len(usage.request_times)
-        max_requests = limit.rate_limit * limit.window_size.total_seconds()
+        max_requests = (limit.rate_limit or 0.0) * limit.window_size.total_seconds()
 
         return requests_in_window < max_requests
 
@@ -349,7 +352,7 @@ class QuotaManager:
         scope_id: str,
         resource_type: ResourceType,
         amount: float,
-    ):
+    ) -> None:
         """Release allocated resources."""
         lock_key = f"{scope.value}:{scope_id}"
         if lock_key not in self._locks:
@@ -413,7 +416,7 @@ class QuotaManager:
         scope: QuotaScope,
         scope_id: str,
         resource_type: Optional[ResourceType] = None,
-    ):
+    ) -> None:
         """Reset usage statistics."""
         if scope_id in self._usage[scope]:
             if resource_type:
@@ -423,7 +426,7 @@ class QuotaManager:
                 for usage in self._usage[scope][scope_id].values():
                     usage.reset()
 
-    async def _cleanup_expired(self):
+    async def _cleanup_expired(self) -> None:
         """Clean up expired usage data."""
         current_time = time.time()
 
@@ -437,7 +440,7 @@ class QuotaManager:
 
         logger.debug("quota_cleanup_completed")
 
-    async def _cleanup_loop(self):
+    async def _cleanup_loop(self) -> None:
         """Periodic cleanup of old usage data."""
         while self._running:
             try:
@@ -455,7 +458,7 @@ class QuotaManager:
         quotas: dict[ResourceType, float],
         scope: QuotaScope = QuotaScope.AGENT,
         policy: QuotaPolicy = QuotaPolicy.HARD,
-    ):
+    ) -> dict[str, Any]:
         """Apply a quota policy to multiple scope IDs."""
         # This would be used to apply standard quota templates
         return {

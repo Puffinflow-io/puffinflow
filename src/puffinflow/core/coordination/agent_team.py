@@ -510,9 +510,11 @@ class AgentTeam:
     def get_status(self) -> dict[str, Any]:
         """Get team status."""
         agent_statuses = {
-            name: agent.status.value
-            if hasattr(agent.status, "value")
-            else str(agent.status)
+            name: (
+                agent.status.value
+                if hasattr(agent.status, "value")
+                else str(agent.status)
+            )
             for name, agent in self._agents.items()
         }
 

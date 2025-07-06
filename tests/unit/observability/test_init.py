@@ -29,7 +29,7 @@ class TestObservabilityModuleImports:
             "context",
             "agent",
             "alerting",
-            "events", 
+            "events",
             "interfaces",
             "metrics",
             "tracing",

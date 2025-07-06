@@ -494,12 +494,16 @@ class DynamicProcessingPool:
                     "success": completed_work.success,
                     "processing_time": completed_work.work_item.processing_time,
                     "wait_time": completed_work.work_item.wait_time,
-                    "result": completed_work.result.outputs
-                    if completed_work.success
-                    else None,
-                    "error": str(completed_work.result.error)
-                    if completed_work.result.error
-                    else None,
+                    "result": (
+                        completed_work.result.outputs
+                        if completed_work.success
+                        else None
+                    ),
+                    "error": (
+                        str(completed_work.result.error)
+                        if completed_work.result.error
+                        else None
+                    ),
                 }
 
                 results.append(result_dict)
@@ -530,9 +534,9 @@ class DynamicProcessingPool:
             "successful": len(successful),
             "failed": len(failed),
             "success_rate": len(successful) / len(self.results) * 100,
-            "avg_processing_time": sum(processing_times) / len(processing_times)
-            if processing_times
-            else 0,
+            "avg_processing_time": (
+                sum(processing_times) / len(processing_times) if processing_times else 0
+            ),
             "avg_wait_time": sum(wait_times) / len(wait_times) if wait_times else 0,
             "pool_metrics": self.pool.get_metrics(),
         }

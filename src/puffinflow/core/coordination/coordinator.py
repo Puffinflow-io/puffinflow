@@ -28,11 +28,9 @@ class AgentProtocol(Protocol):
 
     def _add_to_queue(
         self, state_name: str, metadata: Any, priority_boost: int = 0
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    async def run_state(self, state_name: str) -> None:
-        ...
+    async def run_state(self, state_name: str) -> None: ...
 
 
 @dataclass
@@ -493,7 +491,7 @@ def enhance_agent(
     """
     # Add coordinator
     coordinator = AgentCoordinator(agent, config)
-    agent._coordinator = coordinator
+    agent._coordinator = coordinator  # type: ignore
 
     # Store original methods
     original_run_state = agent.run_state
@@ -512,9 +510,9 @@ def enhance_agent(
             task = asyncio.create_task(start_coordinator())
             # Store task reference to prevent garbage collection
             if not hasattr(agent, "_coordination_tasks"):
-                agent._coordination_tasks = set()
-            agent._coordination_tasks.add(task)
-            task.add_done_callback(lambda t: agent._coordination_tasks.discard(t))
+                agent._coordination_tasks = set()  # type: ignore
+            agent._coordination_tasks.add(task)  # type: ignore
+            task.add_done_callback(lambda t: agent._coordination_tasks.discard(t))  # type: ignore
         except RuntimeError:
             # No running event loop, coordinator will be started manually
             logger.info(f"no_event_loop_for_auto_start: agent={agent.name}")
@@ -527,7 +525,7 @@ def enhance_agent(
 
         try:
             # Check coordination and rate limits
-            if not await agent._coordinator.coordinate_state_execution(state_name):
+            if not await agent._coordinator.coordinate_state_execution(state_name):  # type: ignore
                 if hasattr(agent, "_monitor"):
                     agent._monitor.logger.warning(
                         f"coordination_failed: state={state_name}, attempt={attempt_id}"
@@ -555,9 +553,11 @@ def enhance_agent(
                 ):
                     state_meta = agent.state_metadata[state_name]
                     metadata = {
-                        "resources": asdict(state_meta.resources)
-                        if hasattr(state_meta, "resources")
-                        else {},
+                        "resources": (
+                            asdict(state_meta.resources)
+                            if hasattr(state_meta, "resources")
+                            else {}
+                        ),
                         "dependencies": len(getattr(state_meta, "dependencies", [])),
                         "attempts": getattr(state_meta, "attempts", 0),
                     }
@@ -568,7 +568,7 @@ def enhance_agent(
                 )
 
             # Execute original state with monitoring span
-            async with agent._execution_span(state_name, attempt_id):
+            async with agent._execution_span(state_name, attempt_id):  # type: ignore
                 await original_run_state(state_name)
 
             # Record success metrics
@@ -603,10 +603,10 @@ def enhance_agent(
 
         finally:
             # Always release coordination
-            await agent._coordinator.release_coordination(state_name, attempt_id)
+            await agent._coordinator.release_coordination(state_name, attempt_id)  # type: ignore
 
     # Bind the enhanced method to the agent
-    agent.run_state = enhanced_run_state
+    agent.run_state = enhanced_run_state  # type: ignore
 
     # Add execution span context manager
     @contextlib.asynccontextmanager
@@ -625,14 +625,14 @@ def enhance_agent(
         else:
             yield None
 
-    agent._execution_span = _execution_span
+    agent._execution_span = _execution_span  # type: ignore
 
     # Enhanced cleanup
-    async def enhanced_cleanup():
+    async def enhanced_cleanup() -> None:
         """Enhanced cleanup with coordination system shutdown."""
         try:
             # Stop coordinator first
-            await agent._coordinator.stop()
+            await agent._coordinator.stop()  # type: ignore
 
             # Run original cleanup if it exists
             if original_cleanup:
@@ -647,45 +647,45 @@ def enhance_agent(
             logger.error(f"enhanced_cleanup_error: agent={agent.name}, error={e!s}")
             raise
 
-    agent._cleanup = enhanced_cleanup
+    agent._cleanup = enhanced_cleanup  # type: ignore
 
     # Add utility methods with proper binding
     def add_utility_methods():
         async def get_coordination_status() -> dict[str, Any]:
             """Get coordination system status."""
-            return agent._coordinator.get_status()
+            return agent._coordinator.get_status()  # type: ignore
 
-        async def reset_coordination():
+        async def reset_coordination() -> None:
             """Reset coordination system."""
-            old_config = agent._coordinator.config
-            await agent._coordinator.stop()
-            agent._coordinator = AgentCoordinator(agent, old_config)
-            await agent._coordinator.start()
+            old_config = agent._coordinator.config  # type: ignore
+            await agent._coordinator.stop()  # type: ignore
+            agent._coordinator = AgentCoordinator(agent, old_config)  # type: ignore
+            await agent._coordinator.start()  # type: ignore
 
         def add_state_rate_limit(
             state_name: str,
             max_rate: float,
             strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
             **kwargs,
-        ):
+        ) -> None:
             """Add rate limit for specific state."""
-            agent._coordinator.add_rate_limiter(
+            agent._coordinator.add_rate_limiter(  # type: ignore
                 state_name, max_rate, strategy, **kwargs
             )
 
         def add_state_coordination(
             state_name: str, primitive_type: PrimitiveType, **kwargs
-        ):
+        ) -> None:
             """Add coordination primitive for specific state."""
-            agent._coordinator.create_primitive(
+            agent._coordinator.create_primitive(  # type: ignore
                 f"state_{state_name}", primitive_type, **kwargs
             )
 
         # Bind methods to agent
-        agent.get_coordination_status = get_coordination_status
-        agent.reset_coordination = reset_coordination
-        agent.add_state_rate_limit = add_state_rate_limit
-        agent.add_state_coordination = add_state_coordination
+        agent.get_coordination_status = get_coordination_status  # type: ignore
+        agent.reset_coordination = reset_coordination  # type: ignore
+        agent.add_state_rate_limit = add_state_rate_limit  # type: ignore
+        agent.add_state_coordination = add_state_coordination  # type: ignore
 
     add_utility_methods()
 

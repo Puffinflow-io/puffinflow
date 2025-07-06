@@ -61,9 +61,10 @@ class WebhookAlerting(AlertingProvider):
     async def _send_webhook(self, url: str, payload: dict[str, Any]):
         """Send single webhook"""
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                url, json=payload, timeout=30
-            ) as response:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(url, json=payload, timeout=30) as response,
+            ):
                 if response.status >= 400:
                     print(f"Webhook failed: {response.status}")
         except Exception as e:

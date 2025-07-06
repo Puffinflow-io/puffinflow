@@ -15,6 +15,7 @@ from puffinflow.core.observability.tracing import (
 class TestOpenTelemetrySpan:
     """Test OpenTelemetrySpan class"""
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_span_creation(self):
         """Test OpenTelemetrySpan creation"""
         mock_otel_span = Mock()
@@ -51,6 +52,7 @@ class TestOpenTelemetrySpan:
         # Should not set any workflow attributes
         mock_otel_span.set_attribute.assert_not_called()
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_set_attribute(self):
         """Test set_attribute method"""
         mock_otel_span = Mock()
@@ -60,6 +62,7 @@ class TestOpenTelemetrySpan:
         span.set_attribute("test.key", "test.value")
         mock_otel_span.set_attribute.assert_called_with("test.key", "test.value")
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_set_attribute_with_dict_value(self):
         """Test set_attribute with dict value (should convert to string)"""
         mock_otel_span = Mock()
@@ -70,6 +73,7 @@ class TestOpenTelemetrySpan:
         span.set_attribute("test.dict", test_dict)
         mock_otel_span.set_attribute.assert_called_with("test.dict", str(test_dict))
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_set_attribute_with_list_value(self):
         """Test set_attribute with list value (should convert to string)"""
         mock_otel_span = Mock()
@@ -93,6 +97,7 @@ class TestOpenTelemetrySpan:
         # Should not call otel span set_attribute for None/empty keys or None values
         mock_otel_span.set_attribute.assert_not_called()
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_set_status_ok(self):
         """Test set_status with OK status"""
         mock_otel_span = Mock()
@@ -106,6 +111,7 @@ class TestOpenTelemetrySpan:
                 span.set_status("ok", "Success")
                 mock_status.assert_called_once_with(mock_status_code.OK, "Success")
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_set_status_error(self):
         """Test set_status with error status"""
         mock_otel_span = Mock()
@@ -119,6 +125,7 @@ class TestOpenTelemetrySpan:
                 span.set_status("error", "Failed")
                 mock_status.assert_called_once_with(mock_status_code.ERROR, "Failed")
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_add_event(self):
         """Test add_event method"""
         mock_otel_span = Mock()
@@ -132,6 +139,7 @@ class TestOpenTelemetrySpan:
         expected_attrs = {"key1": "value1", "key3": "value3"}
         mock_otel_span.add_event.assert_called_once_with("test.event", expected_attrs)
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_add_event_no_attributes(self):
         """Test add_event with no attributes"""
         mock_otel_span = Mock()
@@ -141,6 +149,7 @@ class TestOpenTelemetrySpan:
         span.add_event("test.event")
         mock_otel_span.add_event.assert_called_once_with("test.event", {})
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_record_exception(self):
         """Test record_exception method"""
         mock_otel_span = Mock()
@@ -154,6 +163,7 @@ class TestOpenTelemetrySpan:
             mock_otel_span.record_exception.assert_called_once_with(exception)
             mock_set_status.assert_called_once_with("error", "Test error")
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     def test_end(self):
         """Test end method"""
         mock_otel_span = Mock()
@@ -181,6 +191,7 @@ class TestOpenTelemetrySpan:
 class TestOpenTelemetryTracingProvider:
     """Test OpenTelemetryTracingProvider class"""
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     @patch("puffinflow.core.observability.tracing.trace")
     @patch("puffinflow.core.observability.tracing.TracerProvider")
     @patch("puffinflow.core.observability.tracing.Resource")
@@ -215,6 +226,7 @@ class TestOpenTelemetryTracingProvider:
 
         assert provider._tracer == mock_tracer
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     @patch("puffinflow.core.observability.tracing.trace")
     @patch("puffinflow.core.observability.tracing.TracerProvider")
     @patch("puffinflow.core.observability.tracing.Resource")
@@ -251,6 +263,7 @@ class TestOpenTelemetryTracingProvider:
             mock_processor_instance
         )
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     @patch("puffinflow.core.observability.tracing.trace")
     @patch("puffinflow.core.observability.tracing.TracerProvider")
     @patch("puffinflow.core.observability.tracing.Resource")
@@ -296,6 +309,7 @@ class TestOpenTelemetryTracingProvider:
         provider._set_current_span(mock_span)
         assert provider.get_current_span() == mock_span
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     @patch("puffinflow.core.observability.tracing.trace")
     @patch("puffinflow.core.observability.tracing.TracerProvider")
     @patch("puffinflow.core.observability.tracing.Resource")
@@ -325,6 +339,7 @@ class TestOpenTelemetryTracingProvider:
         # Span should be ended and status set on the underlying otel span
         mock_otel_span.end.assert_called_once()
 
+    @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     @patch("puffinflow.core.observability.tracing.trace")
     @patch("puffinflow.core.observability.tracing.TracerProvider")
     @patch("puffinflow.core.observability.tracing.Resource")

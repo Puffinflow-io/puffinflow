@@ -651,6 +651,7 @@ class TestAgentPoolCoverageEnhancement:
     @pytest.mark.asyncio
     async def test_cpu_based_scaling_with_psutil(self):
         """Test CPU-based auto-scaling with psutil available."""
+        pytest.importorskip("psutil")
 
         def agent_factory(index):
             return Agent(f"cpu_agent_{index}")

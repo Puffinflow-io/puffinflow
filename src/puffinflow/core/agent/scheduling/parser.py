@@ -2,7 +2,8 @@
 
 import re
 from dataclasses import dataclass
-from typing import Optional, Callable, Match, Union, Dict, Any
+from re import Match
+from typing import Callable, Optional
 
 from .exceptions import InvalidScheduleError
 
@@ -21,7 +22,7 @@ class ScheduleParser:
     """Parser for schedule strings supporting natural language and cron."""
 
     # Natural language patterns
-    NATURAL_PATTERNS: Dict[str, Callable[[Match[str]], ParsedSchedule]] = {
+    NATURAL_PATTERNS: dict[str, Callable[[Match[str]], ParsedSchedule]] = {
         # Basic intervals
         r"^hourly$": lambda m: ParsedSchedule(
             "cron", "0 * * * *", description="Every hour"

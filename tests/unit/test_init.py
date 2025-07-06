@@ -283,7 +283,6 @@ class TestUtilityFunctions:
         assert len(info["description"]) > 0
 
 
-
 class TestModuleStructure:
     """Test module structure and organization."""
 

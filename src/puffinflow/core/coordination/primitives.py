@@ -187,12 +187,14 @@ class CoordinationPrimitive:
             "wait_count": self._wait_count,
             "quota_usage": dict(self._quota_usage),
             "last_error": self._last_error,
-            "ttl_remaining": min(
-                (self.ttl - (time.time() - acquired))
-                for acquired in self._acquired_times.values()
-            )
-            if self._acquired_times
-            else None,
+            "ttl_remaining": (
+                min(
+                    (self.ttl - (time.time() - acquired))
+                    for acquired in self._acquired_times.values()
+                )
+                if self._acquired_times
+                else None
+            ),
         }
 
 

@@ -299,9 +299,9 @@ class GlobalScheduler:
                     "agent_name": agent.name,
                     "schedule_description": job.schedule.description,
                     "next_run": datetime.fromtimestamp(job.next_run),
-                    "last_run": datetime.fromtimestamp(job.last_run)
-                    if job.last_run
-                    else None,
+                    "last_run": (
+                        datetime.fromtimestamp(job.last_run) if job.last_run else None
+                    ),
                     "run_count": job.run_count,
                     "is_running": job.is_running,
                     "created_at": datetime.fromtimestamp(job.created_at),

@@ -203,9 +203,9 @@ def sample_state_metadata():
             status=StateStatus.PENDING if StateStatus != Mock else Mock(),
             attempts=0,
             max_retries=3,
-            resources=ResourceRequirements()
-            if ResourceRequirements != Mock
-            else Mock(),
+            resources=(
+                ResourceRequirements() if ResourceRequirements != Mock else Mock()
+            ),
             dependencies={},
             satisfied_dependencies=set(),
             last_execution=None,

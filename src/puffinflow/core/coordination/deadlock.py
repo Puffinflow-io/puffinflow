@@ -19,7 +19,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ class ResourceNode:
         """Get idle time since last access"""
         return (datetime.now(timezone.utc) - self.last_accessed).total_seconds()
 
-    def update_access(self):
+    def update_access(self) -> None:
         """Update last access time"""
         self.last_accessed = datetime.now(timezone.utc)
 
@@ -130,7 +130,7 @@ class ProcessNode:
         """Get idle time since last activity"""
         return (datetime.now(timezone.utc) - self.last_activity).total_seconds()
 
-    def update_activity(self):
+    def update_activity(self) -> None:
         """Update last activity timestamp"""
         self.last_activity = datetime.now(timezone.utc)
 
@@ -239,7 +239,7 @@ class DependencyGraph:
         self._topology_cache: Optional[tuple[list[str], str, float]] = None
 
         # Metrics
-        self._metrics = {
+        self._metrics: dict[str, Union[int, float]] = {
             "operations": 0,
             "cache_hits": 0,
             "cache_misses": 0,
@@ -544,7 +544,7 @@ class DependencyGraph:
         """Check if cached result is still valid"""
         return (time.time() - result.detection_time.timestamp()) < self.cache_ttl
 
-    def _invalidate_caches(self):
+    def _invalidate_caches(self) -> None:
         """Invalidate all caches"""
         self._cycle_cache.clear()
         self._topology_cache = None
@@ -567,14 +567,17 @@ class DependencyGraph:
                 "node_count": len(self.nodes),
                 "memory_usage_percent": len(self.nodes) / self.max_nodes * 100,
                 "cache_hit_rate": (
-                    self._metrics["cache_hits"]
-                    / max(
-                        1, self._metrics["cache_hits"] + self._metrics["cache_misses"]
+                    (
+                        self._metrics["cache_hits"]
+                        / max(
+                            1,
+                            self._metrics["cache_hits"] + self._metrics["cache_misses"],
+                        )
                     )
-                )
-                * 100
-                if self.enable_metrics
-                else 0,
+                    * 100
+                    if self.enable_metrics
+                    else 0
+                ),
                 "last_cleanup": self._metrics.get("last_cleanup"),
                 "needs_cleanup": len(self.nodes)
                 >= self.max_nodes * self.cleanup_threshold,
@@ -609,7 +612,7 @@ class ResourceWaitGraph:
         self._last_cleanup = datetime.now(timezone.utc)
 
         # Metrics
-        self._metrics = {
+        self._metrics: dict[str, int] = {
             "resource_acquisitions": 0,
             "resource_releases": 0,
             "deadlock_detections": 0,
@@ -766,7 +769,7 @@ class ResourceWaitGraph:
             self._metrics["resource_releases"] += 1
             return True
 
-    async def _process_waiters_internal(self, resource_id: str):
+    async def _process_waiters_internal(self, resource_id: str) -> None:
         """Process waiting list for a resource (internal method)"""
         if resource_id not in self.resources:
             return
@@ -820,7 +823,7 @@ class ResourceWaitGraph:
             self._metrics["deadlock_detections"] += 1
             return result
 
-    async def _handle_timeouts_internal(self):
+    async def _handle_timeouts_internal(self) -> None:
         """Handle process timeouts (internal method)"""
         timed_out_processes = []
 
@@ -832,7 +835,7 @@ class ResourceWaitGraph:
             await self._timeout_process_internal(process_id)
             self._metrics["timeouts"] += 1
 
-    async def _timeout_process_internal(self, process_id: str):
+    async def _timeout_process_internal(self, process_id: str) -> None:
         """Handle process timeout (internal method)"""
         if process_id not in self.processes:
             return
@@ -975,7 +978,7 @@ class DeadlockDetector:
         self._resolution_history: deque = deque(maxlen=100)
 
         # Metrics and monitoring
-        self._metrics = {
+        self._metrics: dict[str, Union[int, float]] = {
             "total_detections": 0,
             "deadlocks_found": 0,
             "deadlocks_resolved": 0,
@@ -983,7 +986,7 @@ class DeadlockDetector:
             "resolution_failures": 0,
             "avg_detection_time_ms": 0.0,
             "uptime_seconds": 0.0,
-            "last_error": None,
+            "last_error": "",  # type: ignore
         }
 
         # Callbacks and extensibility
@@ -1030,7 +1033,7 @@ class DeadlockDetector:
 
         except Exception as e:
             self._health_status = "error"
-            self._metrics["last_error"] = str(e)
+            self._metrics["last_error"] = str(e)  # type: ignore
             logger.error(f"Failed to start deadlock detector: {e}")
             return False
 
@@ -1075,7 +1078,7 @@ class DeadlockDetector:
             logger.error(f"Error stopping deadlock detector: {e}")
             return False
 
-    async def _detection_loop(self):
+    async def _detection_loop(self) -> None:
         """Main detection loop with comprehensive error handling"""
         consecutive_errors = 0
         max_consecutive_errors = 5
@@ -1110,7 +1113,7 @@ class DeadlockDetector:
                 except Exception as detection_error:
                     consecutive_errors += 1
                     self._metrics["detection_errors"] += 1
-                    self._metrics["last_error"] = str(detection_error)
+                    self._metrics["last_error"] = str(detection_error)  # type: ignore
 
                     logger.error(f"Detection cycle error: {detection_error}")
 
@@ -1136,9 +1139,9 @@ class DeadlockDetector:
         except Exception as e:
             logger.critical(f"Unexpected error in detection loop: {e}")
             self._health_status = "error"
-            self._metrics["last_error"] = str(e)
+            self._metrics["last_error"] = str(e)  # type: ignore
 
-    async def _perform_detection_cycle(self):
+    async def _perform_detection_cycle(self) -> None:
         """Perform a single detection cycle"""
         self._metrics["total_detections"] += 1
 
@@ -1164,7 +1167,7 @@ class DeadlockDetector:
 
     async def _handle_deadlock_detection(
         self, result: CycleDetectionResult, source: str
-    ):
+    ) -> None:
         """Handle detected deadlock with enhanced resolution logic"""
         self._cycle_count += 1
         self._last_cycle = result.get_critical_cycle()
@@ -1202,7 +1205,9 @@ class DeadlockDetector:
                 # Try custom callbacks first
                 for callback in self._resolution_callbacks:
                     try:
-                        if await self._run_callback_safely(callback, self._last_cycle):
+                        if self._last_cycle and await self._run_callback_safely(
+                            callback, self._last_cycle
+                        ):
                             resolved = True
                             self._metrics["deadlocks_resolved"] += 1
                             logger.info(
@@ -1213,7 +1218,7 @@ class DeadlockDetector:
                         logger.error(f"Resolution callback failed: {e}")
 
                 # Apply configured strategy if not resolved
-                if not resolved:
+                if not resolved and self._last_cycle:
                     resolved = await self._apply_resolution_strategy(
                         self._last_cycle, detection_id
                     )
@@ -1245,12 +1250,15 @@ class DeadlockDetector:
 
             # Raise exception if strategy requires it
             if self.resolution_strategy == DeadlockResolutionStrategy.RAISE_EXCEPTION:
-                raise DeadlockError(self._last_cycle, detection_id)
+                if self._last_cycle:
+                    raise DeadlockError(self._last_cycle, detection_id)
+                else:
+                    raise DeadlockError([], detection_id)
 
     # Add the missing method alias for backward compatibility
     async def _handle_deadlock(
         self, result: CycleDetectionResult, source: str = "test"
-    ):
+    ) -> None:
         """Handle detected deadlock (alias for backward compatibility)"""
         return await self._handle_deadlock_detection(result, source)
 
@@ -1413,7 +1421,7 @@ class DeadlockDetector:
             logger.error(f"Failed to preempt resources: {e}")
             return False
 
-    async def _terminate_process(self, process_id: str, reason: str):
+    async def _terminate_process(self, process_id: str, reason: str) -> None:
         """Terminate a process and clean up its resources"""
         try:
             if process_id in self._resource_graph.processes:
@@ -1441,7 +1449,7 @@ class DeadlockDetector:
         except Exception as e:
             logger.error(f"Failed to terminate process {process_id}: {e}")
 
-    async def _health_monitoring_loop(self):
+    async def _health_monitoring_loop(self) -> None:
         """Health monitoring loop"""
         try:
             while not self._shutdown_event.is_set():
@@ -1460,7 +1468,7 @@ class DeadlockDetector:
         except Exception as e:
             logger.error(f"Health monitoring error: {e}")
 
-    async def _perform_health_checks(self):
+    async def _perform_health_checks(self) -> None:
         """Perform comprehensive health checks"""
         try:
             now = datetime.now(timezone.utc)
@@ -1496,7 +1504,7 @@ class DeadlockDetector:
         except Exception as e:
             logger.error(f"Health check failed: {e}")
 
-    async def _notify(self, event: str, data: dict[str, Any]):
+    async def _notify(self, event: str, data: dict[str, Any]) -> None:
         """Send notifications to registered callbacks"""
         for callback in self._notification_callbacks:
             try:
@@ -1507,7 +1515,7 @@ class DeadlockDetector:
             except Exception as e:
                 logger.error(f"Notification callback failed for event {event}: {e}")
 
-    def _update_detection_metrics(self, duration_ms: float):
+    def _update_detection_metrics(self, duration_ms: float) -> None:
         """Update detection performance metrics"""
         if self.enable_metrics:
             # Exponential moving average
@@ -1519,13 +1527,13 @@ class DeadlockDetector:
 
     # Public API methods
 
-    def add_resolution_callback(self, callback: Callable[[list[str]], bool]):
+    def add_resolution_callback(self, callback: Callable[[list[str]], bool]) -> None:
         """Add a callback for custom deadlock resolution"""
         self._resolution_callbacks.append(callback)
 
     def add_notification_callback(
         self, callback: Callable[[str, dict[str, Any]], None]
-    ):
+    ) -> None:
         """Add a callback for event notifications"""
         self._notification_callbacks.append(callback)
 
@@ -1736,11 +1744,16 @@ class DeadlockDetector:
         }
 
     # Context manager support
-    async def __aenter__(self):
+    async def __aenter__(self) -> "DeadlockDetector":
         """Async context manager entry"""
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
         """Async context manager exit"""
         await self.stop()

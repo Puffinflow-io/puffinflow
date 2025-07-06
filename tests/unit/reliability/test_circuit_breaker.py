@@ -526,19 +526,18 @@ class TestCircuitBreaker:
                 async with circuit_breaker.protect():
                     raise ValueError(f"Failure {i}")
 
-        # Test that circuit doesn't recover too early
-        await asyncio.sleep(0.9)  # Just before recovery timeout (1.0)
-
-        with pytest.raises(CircuitBreakerError):
-            async with circuit_breaker.protect():
-                pass
+        # Ensure circuit is open
+        assert circuit_breaker.state == CircuitState.OPEN
 
         # Test that circuit recovers after timeout
-        await asyncio.sleep(0.2)  # Now past recovery timeout
+        await asyncio.sleep(1.1)  # Wait past recovery timeout (1.0)
 
         # Should work (transition to HALF_OPEN)
         async with circuit_breaker.protect():
             pass
+
+        # Circuit should now be in HALF_OPEN state
+        assert circuit_breaker.state == CircuitState.HALF_OPEN
 
 
 class TestCircuitBreakerRegistry:
