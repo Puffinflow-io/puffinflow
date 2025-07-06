@@ -21,12 +21,12 @@ from unittest.mock import patch
 import pytest
 
 # Import the classes under test
-from src.puffinflow.core.resources.pool import (
+from puffinflow.core.resources.pool import (
     ResourceOverflowError,
     ResourcePool,
     ResourceQuotaExceededError,
 )
-from src.puffinflow.core.resources.requirements import (
+from puffinflow.core.resources.requirements import (
     ResourceRequirements,
     ResourceType,
 )

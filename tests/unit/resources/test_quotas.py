@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 import pytest
 
 # Import the classes under test
-from src.puffinflow.core.resources.quotas import (
+from puffinflow.core.resources.quotas import (
     QuotaEnforcer,
     QuotaExceededError,
     QuotaLimit,
@@ -31,7 +31,7 @@ from src.puffinflow.core.resources.quotas import (
     QuotaScope,
     QuotaUsage,
 )
-from src.puffinflow.core.resources.requirements import ResourceType
+from puffinflow.core.resources.requirements import ResourceType
 
 
 class TestQuotaEnums:

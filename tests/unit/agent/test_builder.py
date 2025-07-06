@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent.decorators.builder import (
+from puffinflow.core.agent.decorators.builder import (
     StateBuilder,
     build_state,
     concurrent_state,
@@ -20,7 +20,7 @@ from src.puffinflow.core.agent.decorators.builder import (
     production_state,
     protected_state,
 )
-from src.puffinflow.core.agent.state import Priority
+from puffinflow.core.agent.state import Priority
 
 
 class TestStateBuilder:
@@ -576,7 +576,7 @@ class TestStateBuilder:
         """Test using builder as decorator."""
         builder = StateBuilder().cpu(2.0).memory(1024.0)
 
-        with patch("src.puffinflow.core.agent.decorators.flexible.state") as mock_state:
+        with patch("puffinflow.core.agent.decorators.flexible.state") as mock_state:
             mock_decorator = Mock()
             mock_state.return_value = mock_decorator
 
@@ -593,7 +593,7 @@ class TestStateBuilder:
         """Test decorator method."""
         builder = StateBuilder().cpu(4.0)
 
-        with patch("src.puffinflow.core.agent.decorators.flexible.state") as mock_state:
+        with patch("puffinflow.core.agent.decorators.flexible.state") as mock_state:
             mock_decorator = Mock()
             mock_state.return_value = mock_decorator
 

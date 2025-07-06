@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.puffinflow.core.coordination.primitives import (
+from puffinflow.core.coordination.primitives import (
     Barrier,
     CoordinationPrimitive,
     Lease,

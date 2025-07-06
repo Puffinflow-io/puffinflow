@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent import (
+from puffinflow.core.agent import (
     # Core classes
     Agent,
     AgentCheckpoint,
@@ -70,7 +70,7 @@ class TestTeamDecorators:
     def test_create_team_decorator_with_decorators_available(self):
         """Test creating team decorator when decorators are available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -87,7 +87,7 @@ class TestTeamDecorators:
     def test_create_team_decorator_without_decorators(self):
         """Test creating team decorator when decorators are not available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator",
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator",
             side_effect=ImportError,
         ):
             decorator = create_team_decorator("backend")
@@ -102,7 +102,7 @@ class TestTeamDecorators:
     def test_create_environment_decorator_with_decorators_available(self):
         """Test creating environment decorator when decorators are available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -119,7 +119,7 @@ class TestTeamDecorators:
     def test_create_environment_decorator_without_decorators(self):
         """Test creating environment decorator when decorators are not available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator",
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator",
             side_effect=ImportError,
         ):
             decorator = create_environment_decorator("production")
@@ -134,7 +134,7 @@ class TestTeamDecorators:
     def test_create_service_decorator_with_decorators_available(self):
         """Test creating service decorator when decorators are available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -151,7 +151,7 @@ class TestTeamDecorators:
     def test_create_service_decorator_without_decorators(self):
         """Test creating service decorator when decorators are not available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator",
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator",
             side_effect=ImportError,
         ):
             decorator = create_service_decorator("auth-service")
@@ -166,7 +166,7 @@ class TestTeamDecorators:
     def test_create_reliable_team_decorator_with_decorators_available(self):
         """Test creating reliable team decorator when decorators are available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -185,7 +185,7 @@ class TestTeamDecorators:
     def test_create_reliable_team_decorator_without_decorators(self):
         """Test creating reliable team decorator when decorators are not available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator",
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator",
             side_effect=ImportError,
         ):
             decorator = create_reliable_team_decorator("ml-team")
@@ -200,7 +200,7 @@ class TestTeamDecorators:
     def test_create_external_team_decorator_with_decorators_available(self):
         """Test creating external team decorator when decorators are available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -218,7 +218,7 @@ class TestTeamDecorators:
     def test_create_external_team_decorator_without_decorators(self):
         """Test creating external team decorator when decorators are not available."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator",
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator",
             side_effect=ImportError,
         ):
             decorator = create_external_team_decorator("api-team")
@@ -242,7 +242,7 @@ class TestDecoratorImportHandling:
 
         # The decorators should be available in normal circumstances
         try:
-            from src.puffinflow.core.agent.decorators.flexible import state
+            from puffinflow.core.agent.decorators.flexible import state
 
             assert state is not None
         except ImportError:
@@ -262,7 +262,7 @@ class TestDecoratorImportHandling:
 
         for func in functions_to_test:
             with patch(
-                "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator",
+                "puffinflow.core.agent.decorators.flexible.create_custom_decorator",
                 side_effect=ImportError,
             ):
                 # Should not raise an exception
@@ -282,7 +282,7 @@ class TestModuleDocstring:
 
     def test_module_has_docstring(self):
         """Test that the module has proper documentation."""
-        import src.puffinflow.core.agent as agent_module
+        import puffinflow.core.agent as agent_module
 
         assert hasattr(agent_module, "__doc__")
         assert agent_module.__doc__ is not None
@@ -290,7 +290,7 @@ class TestModuleDocstring:
 
     def test_module_has_all_attribute(self):
         """Test that the module defines __all__ properly."""
-        import src.puffinflow.core.agent as agent_module
+        import puffinflow.core.agent as agent_module
 
         assert hasattr(agent_module, "__all__")
         assert isinstance(agent_module.__all__, list)
@@ -298,7 +298,7 @@ class TestModuleDocstring:
 
     def test_all_exports_are_available(self):
         """Test that all items in __all__ are actually available."""
-        import src.puffinflow.core.agent as agent_module
+        import puffinflow.core.agent as agent_module
 
         for item_name in agent_module.__all__:
             assert hasattr(agent_module, item_name), f"Module should export {item_name}"
@@ -312,7 +312,7 @@ class TestConvenienceDecorators:
     def test_team_decorator_with_multiple_parameters(self):
         """Test team decorator with multiple custom parameters."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -341,7 +341,7 @@ class TestConvenienceDecorators:
     def test_environment_decorator_with_custom_description(self):
         """Test environment decorator with custom parameters."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -361,7 +361,7 @@ class TestConvenienceDecorators:
     def test_reliable_team_decorator_overrides_defaults(self):
         """Test that reliable team decorator allows overriding defaults."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator
@@ -386,7 +386,7 @@ class TestConvenienceDecorators:
     def test_external_team_decorator_timeout_override(self):
         """Test that external team decorator allows timeout override."""
         with patch(
-            "src.puffinflow.core.agent.decorators.flexible.create_custom_decorator"
+            "puffinflow.core.agent.decorators.flexible.create_custom_decorator"
         ) as mock_create:
             mock_decorator = Mock()
             mock_create.return_value = mock_decorator

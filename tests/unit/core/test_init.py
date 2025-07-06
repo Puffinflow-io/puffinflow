@@ -8,22 +8,22 @@ class TestCoreInit:
 
     def test_core_module_imports(self):
         """Test that core module can be imported."""
-        import src.puffinflow.core
+        import puffinflow.core
 
-        assert src.puffinflow.core is not None
+        assert puffinflow.core is not None
 
     def test_core_module_attributes(self):
         """Test core module has expected attributes."""
-        import src.puffinflow.core
+        import puffinflow.core
 
         # The core module should be importable
-        assert hasattr(src.puffinflow.core, "__name__")
-        assert src.puffinflow.core.__name__ == "src.puffinflow.core"
+        assert hasattr(puffinflow.core, "__name__")
+        assert puffinflow.core.__name__ == "puffinflow.core"
 
     def test_core_submodules_importable(self):
         """Test that core submodules are importable."""
         # Test that main submodules can be imported
-        from src.puffinflow.core import (
+        from puffinflow.core import (
             agent,
             config,
             coordination,

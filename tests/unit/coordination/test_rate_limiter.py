@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-from src.puffinflow.core.coordination.rate_limiter import (
+from puffinflow.core.coordination.rate_limiter import (
     AdaptiveRateLimiter,
     CompositeRateLimiter,
     FixedWindow,

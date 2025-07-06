@@ -5,19 +5,19 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent.base import Agent
-from src.puffinflow.core.agent.scheduling.builder import ScheduleBuilder
-from src.puffinflow.core.agent.scheduling.exceptions import (
+from puffinflow.core.agent.base import Agent
+from puffinflow.core.agent.scheduling.builder import ScheduleBuilder
+from puffinflow.core.agent.scheduling.exceptions import (
     InvalidInputTypeError,
     InvalidScheduleError,
 )
-from src.puffinflow.core.agent.scheduling.inputs import (
+from puffinflow.core.agent.scheduling.inputs import (
     InputType,
     parse_inputs,
     parse_magic_prefix,
 )
-from src.puffinflow.core.agent.scheduling.parser import parse_schedule_string
-from src.puffinflow.core.agent.scheduling.scheduler import (
+from puffinflow.core.agent.scheduling.parser import parse_schedule_string
+from puffinflow.core.agent.scheduling.scheduler import (
     GlobalScheduler,
     ScheduledAgent,
     ScheduledJob,
@@ -282,7 +282,7 @@ class TestAgentScheduling:
         agent = Agent("test_agent")
 
         with patch(
-            "src.puffinflow.core.agent.scheduling.scheduler.GlobalScheduler.get_instance_sync"
+            "puffinflow.core.agent.scheduling.scheduler.GlobalScheduler.get_instance_sync"
         ) as mock_scheduler:
             mock_scheduler_instance = Mock()
             mock_scheduler.return_value = mock_scheduler_instance
@@ -427,7 +427,7 @@ class TestScheduledJob:
     def test_calculate_next_run_interval(self):
         """Test calculating next run time for interval schedules."""
         agent = Agent("test_agent")
-        from src.puffinflow.core.agent.scheduling.parser import ParsedSchedule
+        from puffinflow.core.agent.scheduling.parser import ParsedSchedule
 
         schedule = ParsedSchedule("interval", interval_seconds=300)  # 5 minutes
         job = ScheduledJob(
@@ -451,7 +451,7 @@ class TestScheduledJob:
     def test_calculate_next_run_cron_hourly(self):
         """Test calculating next run time for hourly cron."""
         agent = Agent("test_agent")
-        from src.puffinflow.core.agent.scheduling.parser import ParsedSchedule
+        from puffinflow.core.agent.scheduling.parser import ParsedSchedule
 
         schedule = ParsedSchedule("cron", cron_expression="0 * * * *")
         job = ScheduledJob(
@@ -476,7 +476,7 @@ class TestScheduledAgent:
     def test_scheduled_agent_creation(self):
         """Test creating a scheduled agent."""
         agent = Agent("test_agent")
-        from src.puffinflow.core.agent.scheduling.parser import ParsedSchedule
+        from puffinflow.core.agent.scheduling.parser import ParsedSchedule
 
         schedule = ParsedSchedule("cron", "0 9 * * *", "Daily at 9 AM")
         inputs = {"source": parse_magic_prefix("source", "database")}
@@ -491,13 +491,13 @@ class TestScheduledAgent:
     def test_scheduled_agent_cancel(self):
         """Test cancelling a scheduled agent."""
         agent = Agent("test_agent")
-        from src.puffinflow.core.agent.scheduling.parser import ParsedSchedule
+        from puffinflow.core.agent.scheduling.parser import ParsedSchedule
 
         schedule = ParsedSchedule("cron", "0 9 * * *")
         scheduled_agent = ScheduledAgent("job_123", agent, schedule, {})
 
         with patch(
-            "src.puffinflow.core.agent.scheduling.scheduler.GlobalScheduler.get_instance_sync"
+            "puffinflow.core.agent.scheduling.scheduler.GlobalScheduler.get_instance_sync"
         ) as mock_get_instance:
             mock_scheduler = Mock()
             mock_get_instance.return_value = mock_scheduler
@@ -537,7 +537,7 @@ class TestSchedulerExecution:
         agent._create_context.return_value = mock_context
 
         # Mock agent result
-        from src.puffinflow.core.agent.state import AgentStatus
+        from puffinflow.core.agent.state import AgentStatus
 
         mock_result = Mock()
         mock_result.status = AgentStatus.COMPLETED
@@ -545,7 +545,7 @@ class TestSchedulerExecution:
 
         # Create scheduler and job
         scheduler = GlobalScheduler()
-        from src.puffinflow.core.agent.scheduling.parser import ParsedSchedule
+        from puffinflow.core.agent.scheduling.parser import ParsedSchedule
 
         schedule = ParsedSchedule("interval", interval_seconds=60)
         inputs = {"source": parse_magic_prefix("source", "database")}

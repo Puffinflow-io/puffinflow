@@ -22,15 +22,15 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 # Import the modules to testHe
-from src.puffinflow.core.agent.base import Agent, RetryPolicy
-from src.puffinflow.core.agent.context import Context
-from src.puffinflow.core.agent.state import (
+from puffinflow.core.agent.base import Agent, RetryPolicy
+from puffinflow.core.agent.context import Context
+from puffinflow.core.agent.state import (
     AgentStatus,
     PrioritizedState,
     Priority,
     StateStatus,
 )
-from src.puffinflow.core.resources.requirements import ResourceRequirements
+from puffinflow.core.resources.requirements import ResourceRequirements
 
 # ============================================================================
 # FIXTURES
@@ -1040,8 +1040,8 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_agent_result_methods(self):
         """Test AgentResult methods."""
-        from src.puffinflow.core.agent.base import AgentResult
-        from src.puffinflow.core.agent.state import AgentStatus
+        from puffinflow.core.agent.base import AgentResult
+        from puffinflow.core.agent.state import AgentStatus
 
         result = AgentResult(
             agent_name="test_agent",
@@ -1350,7 +1350,7 @@ class TestEdgeCases:
         assert agent.get_dead_letters() == []
 
         # Add a mock dead letter
-        from src.puffinflow.core.agent.state import DeadLetter
+        from puffinflow.core.agent.state import DeadLetter
 
         dead_letter = DeadLetter(
             state_name="failed_state",
@@ -1417,7 +1417,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_resource_timeout_error(self):
         """Test ResourceTimeoutError."""
-        from src.puffinflow.core.agent.base import ResourceTimeoutError
+        from puffinflow.core.agent.base import ResourceTimeoutError
 
         error = ResourceTimeoutError("Timeout occurred")
         assert str(error) == "Timeout occurred"

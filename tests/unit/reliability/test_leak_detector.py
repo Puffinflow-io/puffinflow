@@ -16,7 +16,7 @@ from unittest.mock import patch
 import pytest
 
 # Import the module under test
-from src.puffinflow.core.reliability.leak_detector import (
+from puffinflow.core.reliability.leak_detector import (
     ResourceAllocation,
     ResourceLeak,
     ResourceLeakDetector,

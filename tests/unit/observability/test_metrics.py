@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 import pytest
 from prometheus_client import CollectorRegistry
 
-from src.puffinflow.core.observability.config import MetricsConfig
-from src.puffinflow.core.observability.interfaces import MetricType
-from src.puffinflow.core.observability.metrics import (
+from puffinflow.core.observability.config import MetricsConfig
+from puffinflow.core.observability.interfaces import MetricType
+from puffinflow.core.observability.metrics import (
     PrometheusMetric,
     PrometheusMetricsProvider,
 )
@@ -205,7 +205,7 @@ class TestPrometheusMetricsProvider:
         assert provider._metrics_cache == {}
         assert isinstance(provider._lock, type(threading.Lock()))
 
-    @patch("src.puffinflow.core.observability.metrics.PrometheusCounter")
+    @patch("puffinflow.core.observability.metrics.PrometheusCounter")
     def test_counter_creation(self, mock_counter_class):
         """Test counter metric creation"""
         config = MetricsConfig(namespace="test")
@@ -230,7 +230,7 @@ class TestPrometheusMetricsProvider:
         assert isinstance(metric, PrometheusMetric)
         assert metric._metric_type == MetricType.COUNTER
 
-    @patch("src.puffinflow.core.observability.metrics.PrometheusGauge")
+    @patch("puffinflow.core.observability.metrics.PrometheusGauge")
     def test_gauge_creation(self, mock_gauge_class):
         """Test gauge metric creation"""
         config = MetricsConfig(namespace="test")
@@ -253,7 +253,7 @@ class TestPrometheusMetricsProvider:
         assert isinstance(metric, PrometheusMetric)
         assert metric._metric_type == MetricType.GAUGE
 
-    @patch("src.puffinflow.core.observability.metrics.PrometheusHistogram")
+    @patch("puffinflow.core.observability.metrics.PrometheusHistogram")
     def test_histogram_creation(self, mock_histogram_class):
         """Test histogram metric creation"""
         config = MetricsConfig(namespace="test")
@@ -284,7 +284,7 @@ class TestPrometheusMetricsProvider:
         provider = PrometheusMetricsProvider(config)
 
         with patch(
-            "src.puffinflow.core.observability.metrics.PrometheusCounter"
+            "puffinflow.core.observability.metrics.PrometheusCounter"
         ) as mock_counter:
             mock_counter.return_value = Mock()
 
@@ -304,7 +304,7 @@ class TestPrometheusMetricsProvider:
         provider = PrometheusMetricsProvider(config)
 
         with patch(
-            "src.puffinflow.core.observability.metrics.PrometheusCounter"
+            "puffinflow.core.observability.metrics.PrometheusCounter"
         ) as mock_counter:
             mock_counter.return_value = Mock()
 
@@ -323,7 +323,7 @@ class TestPrometheusMetricsProvider:
         with pytest.raises(ValueError, match="Unsupported metric type"):
             provider._get_or_create_metric("test", "unsupported_type", "", [])
 
-    @patch("src.puffinflow.core.observability.metrics.generate_latest")
+    @patch("puffinflow.core.observability.metrics.generate_latest")
     def test_export_metrics(self, mock_generate_latest):
         """Test metrics export"""
         config = MetricsConfig(namespace="test")
@@ -375,7 +375,7 @@ class TestPrometheusMetricsProvider:
         provider = PrometheusMetricsProvider(config)
 
         with patch(
-            "src.puffinflow.core.observability.metrics.PrometheusCounter"
+            "puffinflow.core.observability.metrics.PrometheusCounter"
         ) as mock_counter:
             mock_counter.return_value = Mock()
 

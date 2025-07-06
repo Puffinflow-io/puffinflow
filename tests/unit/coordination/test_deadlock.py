@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from src.puffinflow.core.coordination.deadlock import (
+from puffinflow.core.coordination.deadlock import (
     CycleDetectionResult,
     DeadlockDetector,
     DeadlockError,
@@ -937,7 +937,7 @@ class TestDeadlockDetector:
 
         # Simulate deadlock detection and handling
         test_cycle = ["proc1", "proc2", "proc1"]
-        from src.puffinflow.core.coordination.deadlock import CycleDetectionResult
+        from puffinflow.core.coordination.deadlock import CycleDetectionResult
 
         result = CycleDetectionResult(has_cycle=True, cycles=[test_cycle])
         await detector._handle_deadlock(result)
@@ -1205,7 +1205,7 @@ class TestResolutionStrategies:
 
         test_cycle = ["proc1", "proc2", "proc1"]
 
-        from src.puffinflow.core.coordination.deadlock import CycleDetectionResult
+        from puffinflow.core.coordination.deadlock import CycleDetectionResult
 
         result = CycleDetectionResult(has_cycle=True, cycles=[test_cycle])
 
@@ -1536,7 +1536,7 @@ class TestEdgeCases:
 
         # Should handle exception and continue to next callback
         test_cycle = ["proc1", "proc2"]
-        from src.puffinflow.core.coordination.deadlock import CycleDetectionResult
+        from puffinflow.core.coordination.deadlock import CycleDetectionResult
 
         result = CycleDetectionResult(has_cycle=True, cycles=[test_cycle])
 

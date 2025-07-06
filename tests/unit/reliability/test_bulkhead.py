@@ -21,7 +21,7 @@ from dataclasses import asdict
 import pytest
 
 # Import the module under test
-from src.puffinflow.core.reliability.bulkhead import (
+from puffinflow.core.reliability.bulkhead import (
     Bulkhead,
     BulkheadConfig,
     BulkheadFullError,

@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent.base import Agent
-from src.puffinflow.core.coordination.agent_pool import (
+from puffinflow.core.agent.base import Agent
+from puffinflow.core.coordination.agent_pool import (
     AgentPool,
     CompletedWork,
     DynamicProcessingPool,

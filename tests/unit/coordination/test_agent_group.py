@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent.base import Agent
-from src.puffinflow.core.coordination.agent_group import (
+from puffinflow.core.agent.base import Agent
+from puffinflow.core.coordination.agent_group import (
     AgentGroup,
     AgentOrchestrator,
     ExecutionStrategy,
@@ -96,7 +96,7 @@ class TestAgentGroup:
 
         # Mock the team execution
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentTeam"
+            "puffinflow.core.coordination.agent_group.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -119,7 +119,7 @@ class TestAgentGroup:
 
         # Mock the team execution
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentTeam"
+            "puffinflow.core.coordination.agent_group.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -138,7 +138,7 @@ class TestAgentGroup:
         group = AgentGroup(mock_agents)
 
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentTeam"
+            "puffinflow.core.coordination.agent_group.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -222,7 +222,7 @@ class TestParallelAgentGroup:
         group.add_agent(mock_agent)
 
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentGroup"
+            "puffinflow.core.coordination.agent_group.AgentGroup"
         ) as mock_group_class:
             mock_group = Mock()
             mock_group_class.return_value = mock_group
@@ -601,7 +601,7 @@ class TestOrchestrationExecutionAdvanced:
         execution = OrchestrationExecution(orchestrator)
 
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentTeam"
+            "puffinflow.core.coordination.agent_group.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -710,7 +710,7 @@ class TestAgentGroupAdvanced:
         group = AgentGroup([])
 
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentTeam"
+            "puffinflow.core.coordination.agent_group.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -779,7 +779,7 @@ class TestParallelAgentGroupAdvanced:
         group.add_agent(mock_agent)
 
         with patch(
-            "src.puffinflow.core.coordination.agent_group.AgentGroup"
+            "puffinflow.core.coordination.agent_group.AgentGroup"
         ) as mock_group_class:
             mock_group = Mock()
             mock_group_class.return_value = mock_group

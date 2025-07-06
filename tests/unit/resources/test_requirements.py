@@ -21,10 +21,10 @@ from dataclasses import asdict, fields
 
 import pytest
 
-from src.puffinflow.core.agent.state import Priority
+from puffinflow.core.agent.state import Priority
 
 # Import the classes under test
-from src.puffinflow.core.resources.requirements import (
+from puffinflow.core.resources.requirements import (
     ResourceRequirements,
     ResourceType,
     get_resource_amount,
@@ -1163,7 +1163,7 @@ class TestPostInitBehavior:
 
         # Test with non-ResourceType value
         with patch.object(
-            logging.getLogger("src.puffinflow.core.resources.requirements"), "warning"
+            logging.getLogger("puffinflow.core.resources.requirements"), "warning"
         ) as mock_warn:
             # Create instance with invalid resource_types via manual setting
             req = ResourceRequirements()
@@ -1220,13 +1220,13 @@ class TestPostInitBehavior:
         import logging
         from unittest.mock import Mock, patch
 
-        from src.puffinflow.core.resources.requirements import safe_check_resource_type
+        from puffinflow.core.resources.requirements import safe_check_resource_type
 
         req = ResourceRequirements(cpu_units=2.0)
 
         # Test TypeError fallback
         with patch.object(
-            logging.getLogger("src.puffinflow.core.resources.requirements"), "warning"
+            logging.getLogger("puffinflow.core.resources.requirements"), "warning"
         ) as mock_warn:
             mock_resource_types = Mock()
             mock_resource_types.__and__ = Mock(side_effect=TypeError("Bitwise failed"))
@@ -1242,13 +1242,13 @@ class TestPostInitBehavior:
         import logging
         from unittest.mock import Mock, patch
 
-        from src.puffinflow.core.resources.requirements import safe_check_resource_type
+        from puffinflow.core.resources.requirements import safe_check_resource_type
 
         req = ResourceRequirements(cpu_units=2.0)
 
         # Test double fallback when both bitwise operations fail
         with patch.object(
-            logging.getLogger("src.puffinflow.core.resources.requirements"), "error"
+            logging.getLogger("puffinflow.core.resources.requirements"), "error"
         ) as mock_error:
             mock_resource_types = Mock()
             mock_resource_types.__and__ = Mock(side_effect=TypeError("Bitwise failed"))
@@ -1264,7 +1264,7 @@ class TestPostInitBehavior:
 
     def test_get_resource_amount_disabled_resource(self):
         """Test get_resource_amount when resource type is disabled."""
-        from src.puffinflow.core.resources.requirements import get_resource_amount
+        from puffinflow.core.resources.requirements import get_resource_amount
 
         req = ResourceRequirements(
             cpu_units=2.0,
@@ -1280,7 +1280,7 @@ class TestPostInitBehavior:
         """Test get_resource_amount with combined types using fallback logic."""
         from unittest.mock import patch
 
-        from src.puffinflow.core.resources.requirements import get_resource_amount
+        from puffinflow.core.resources.requirements import get_resource_amount
 
         req = ResourceRequirements(cpu_units=2.0, memory_mb=512.0)
         combined_type = ResourceType.CPU | ResourceType.MEMORY

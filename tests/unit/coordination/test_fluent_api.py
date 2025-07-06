@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent.base import Agent
-from src.puffinflow.core.coordination.fluent_api import (
+from puffinflow.core.agent.base import Agent
+from puffinflow.core.coordination.fluent_api import (
     Agents,
     ConditionalAgents,
     FluentResult,
@@ -140,7 +140,7 @@ class TestAgents:
 
         # Mock the team creation and execution
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.AgentTeam"
+            "puffinflow.core.coordination.fluent_api.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -163,7 +163,7 @@ class TestAgents:
 
         # Mock the team creation and execution
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.AgentTeam"
+            "puffinflow.core.coordination.fluent_api.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -264,10 +264,10 @@ class TestPipelineAgents:
 
         # Mock TeamResult class and FluentResult creation
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.TeamResult"
+            "puffinflow.core.coordination.fluent_api.TeamResult"
         ) as mock_team_result_class:
             with patch(
-                "src.puffinflow.core.coordination.fluent_api.FluentResult"
+                "puffinflow.core.coordination.fluent_api.FluentResult"
             ) as mock_fluent_result_class:
                 # Create mock instances
                 mock_team_result_instance = Mock()
@@ -348,7 +348,7 @@ class TestHelperFunctions:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.Agents"
+            "puffinflow.core.coordination.fluent_api.Agents"
         ) as mock_agents_class:
             mock_agents_instance = Mock()
             mock_agents_class.return_value = mock_agents_instance
@@ -369,7 +369,7 @@ class TestHelperFunctions:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.Agents"
+            "puffinflow.core.coordination.fluent_api.Agents"
         ) as mock_agents_class:
             mock_agents_instance = Mock()
             mock_agents_class.return_value = mock_agents_instance
@@ -390,7 +390,7 @@ class TestHelperFunctions:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.Agents"
+            "puffinflow.core.coordination.fluent_api.Agents"
         ) as mock_agents_class:
             mock_agents_instance = Mock()
             mock_agents_class.return_value = mock_agents_instance
@@ -409,7 +409,7 @@ class TestHelperFunctions:
         mock_best_result = Mock()
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.Agents"
+            "puffinflow.core.coordination.fluent_api.Agents"
         ) as mock_agents_class:
             mock_agents_instance = Mock()
             mock_agents_class.return_value = mock_agents_instance
@@ -432,7 +432,7 @@ class TestHelperFunctions:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.AgentTeam"
+            "puffinflow.core.coordination.fluent_api.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team
@@ -458,7 +458,7 @@ class TestAgentsAdvanced:
         agents.set_variable_for_all("global_var", "global_value")
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.AgentOrchestrator"
+            "puffinflow.core.coordination.fluent_api.AgentOrchestrator"
         ) as mock_orchestrator_class:
             mock_orchestrator = Mock()
             mock_orchestrator_class.return_value = mock_orchestrator
@@ -772,10 +772,10 @@ class TestPipelineAgentsAdvanced:
         pipeline.pipe_output("agent1", "output_key", "agent2", "input_key")
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.TeamResult"
+            "puffinflow.core.coordination.fluent_api.TeamResult"
         ) as mock_team_result_class:
             with patch(
-                "src.puffinflow.core.coordination.fluent_api.FluentResult"
+                "puffinflow.core.coordination.fluent_api.FluentResult"
             ) as mock_fluent_result_class:
                 mock_team_result_instance = Mock()
                 mock_team_result_class.return_value = mock_team_result_instance
@@ -815,8 +815,8 @@ class TestPipelineAgentsAdvanced:
         pipeline = PipelineAgents([mock_agent1, mock_agent2])
         pipeline.pipe_output("agent1", "output_key", "agent2", "input_key")
 
-        with patch("src.puffinflow.core.coordination.fluent_api.TeamResult"):
-            with patch("src.puffinflow.core.coordination.fluent_api.FluentResult"):
+        with patch("puffinflow.core.coordination.fluent_api.TeamResult"):
+            with patch("puffinflow.core.coordination.fluent_api.FluentResult"):
                 await pipeline.run()
 
                 # Should not set variable when output is None
@@ -831,8 +831,8 @@ class TestPipelineAgentsAdvanced:
 
         pipeline = PipelineAgents([mock_agent])
 
-        with patch("src.puffinflow.core.coordination.fluent_api.TeamResult"):
-            with patch("src.puffinflow.core.coordination.fluent_api.FluentResult"):
+        with patch("puffinflow.core.coordination.fluent_api.TeamResult"):
+            with patch("puffinflow.core.coordination.fluent_api.FluentResult"):
                 await pipeline.run()
 
                 mock_agent.run.assert_called_once()
@@ -947,7 +947,7 @@ class TestHelperFunctionsAdvanced:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.Agents"
+            "puffinflow.core.coordination.fluent_api.Agents"
         ) as mock_agents_class:
             mock_agents_instance = Mock()
             mock_agents_class.return_value = mock_agents_instance
@@ -964,7 +964,7 @@ class TestHelperFunctionsAdvanced:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.Agents"
+            "puffinflow.core.coordination.fluent_api.Agents"
         ) as mock_agents_class:
             mock_agents_instance = Mock()
             mock_agents_class.return_value = mock_agents_instance
@@ -982,7 +982,7 @@ class TestHelperFunctionsAdvanced:
         mock_agents = [Mock(spec=Agent) for _ in range(2)]
 
         with patch(
-            "src.puffinflow.core.coordination.fluent_api.AgentTeam"
+            "puffinflow.core.coordination.fluent_api.AgentTeam"
         ) as mock_team_class:
             mock_team = Mock()
             mock_team_class.return_value = mock_team

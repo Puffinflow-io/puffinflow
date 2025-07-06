@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.observability.alerting import Alert, WebhookAlerting
-from src.puffinflow.core.observability.config import AlertingConfig
-from src.puffinflow.core.observability.interfaces import AlertSeverity
+from puffinflow.core.observability.alerting import Alert, WebhookAlerting
+from puffinflow.core.observability.config import AlertingConfig
+from puffinflow.core.observability.interfaces import AlertSeverity
 
 
 class TestAlert:

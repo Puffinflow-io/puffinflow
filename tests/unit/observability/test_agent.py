@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.observability.agent import ObservableAgent
-from src.puffinflow.core.observability.context import ObservableContext
-from src.puffinflow.core.observability.interfaces import SpanType
+from puffinflow.core.observability.agent import ObservableAgent
+from puffinflow.core.observability.context import ObservableContext
+from puffinflow.core.observability.interfaces import SpanType
 
 
 class TestObservableAgent:
@@ -17,7 +17,7 @@ class TestObservableAgent:
         mock_observability = Mock()
 
         with patch(
-            "src.puffinflow.core.observability.agent.Agent.__init__"
+            "puffinflow.core.observability.agent.Agent.__init__"
         ) as mock_super_init:
             agent = ObservableAgent("test-agent", observability=mock_observability)
 
@@ -27,14 +27,14 @@ class TestObservableAgent:
 
     def test_observable_agent_workflow_id_generation(self):
         """Test ObservableAgent workflow_id generation"""
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             with patch("time.time", return_value=1234567890):
                 agent = ObservableAgent("test-agent")
                 assert agent.workflow_id == "workflow_1234567890"
 
     def test_observable_agent_custom_workflow_id(self):
         """Test ObservableAgent with custom workflow_id"""
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             agent = ObservableAgent("test-agent", workflow_id="custom-workflow-123")
             assert agent.workflow_id == "custom-workflow-123"
 
@@ -46,7 +46,7 @@ class TestObservableAgent:
         mock_observability.metrics = mock_metrics
         mock_metrics.histogram.return_value = mock_histogram
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             agent = ObservableAgent("test-agent", observability=mock_observability)
 
             # Check workflow duration metric
@@ -71,7 +71,7 @@ class TestObservableAgent:
         mock_observability = Mock()
         mock_observability.metrics = None
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             agent = ObservableAgent("test-agent", observability=mock_observability)
 
             # Should not have metrics attributes
@@ -83,7 +83,7 @@ class TestObservableAgent:
         mock_observability = Mock()
         shared_state = {"key": "value"}
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             agent = ObservableAgent(
                 "test-agent", observability=mock_observability, workflow_id="wf-123"
             )
@@ -114,9 +114,9 @@ class TestObservableAgent:
         mock_observability.metrics = Mock()
         mock_observability.metrics.histogram.return_value = mock_histogram
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             with patch(
-                "src.puffinflow.core.observability.agent.Agent.run",
+                "puffinflow.core.observability.agent.Agent.run",
                 new_callable=AsyncMock,
             ) as mock_super_run:
                 agent = ObservableAgent(
@@ -159,9 +159,9 @@ class TestObservableAgent:
 
         test_exception = Exception("Test error")
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             with patch(
-                "src.puffinflow.core.observability.agent.Agent.run",
+                "puffinflow.core.observability.agent.Agent.run",
                 new_callable=AsyncMock,
                 side_effect=test_exception,
             ):
@@ -186,9 +186,9 @@ class TestObservableAgent:
         mock_observability = Mock()
         mock_observability.tracing = None
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             with patch(
-                "src.puffinflow.core.observability.agent.Agent.run",
+                "puffinflow.core.observability.agent.Agent.run",
                 new_callable=AsyncMock,
             ) as mock_super_run:
                 agent = ObservableAgent("test-agent", observability=mock_observability)
@@ -217,7 +217,7 @@ class TestObservableAgent:
 
         mock_state_func = AsyncMock()
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             agent = ObservableAgent("test-agent", observability=mock_observability)
             agent.name = "test-agent"  # Set name since we're mocking parent __init__
             agent.state_duration = mock_histogram
@@ -265,7 +265,7 @@ class TestObservableAgent:
         test_exception = Exception("State error")
         mock_state_func = AsyncMock(side_effect=test_exception)
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             agent = ObservableAgent("test-agent", observability=mock_observability)
             agent.name = "test-agent"  # Set name since we're mocking parent __init__
             agent.state_duration = mock_histogram
@@ -288,9 +288,9 @@ class TestObservableAgent:
         mock_observability = Mock()
         mock_observability.tracing = None
 
-        with patch("src.puffinflow.core.observability.agent.Agent.__init__"):
+        with patch("puffinflow.core.observability.agent.Agent.__init__"):
             with patch(
-                "src.puffinflow.core.observability.agent.Agent.run_state",
+                "puffinflow.core.observability.agent.Agent.run_state",
                 new_callable=AsyncMock,
             ) as mock_super_run_state:
                 agent = ObservableAgent("test-agent", observability=mock_observability)

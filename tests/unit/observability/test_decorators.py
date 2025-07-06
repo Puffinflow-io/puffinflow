@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.puffinflow.core.observability.decorators import observe, trace_state
-from src.puffinflow.core.observability.interfaces import SpanType
+from puffinflow.core.observability.decorators import observe, trace_state
+from puffinflow.core.observability.interfaces import SpanType
 
 
 class TestObservabilityDecorators:
@@ -26,7 +26,7 @@ class TestObservabilityDecorators:
         mock_tracing.span.return_value = mock_context_manager
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -62,7 +62,7 @@ class TestObservabilityDecorators:
         test_exception = Exception("Test error")
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -89,7 +89,7 @@ class TestObservabilityDecorators:
         mock_tracing.span.return_value = mock_context_manager
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -121,7 +121,7 @@ class TestObservabilityDecorators:
         test_exception = Exception("Sync error")
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -141,7 +141,7 @@ class TestObservabilityDecorators:
         mock_observability.tracing = None
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -166,7 +166,7 @@ class TestObservabilityDecorators:
         mock_tracing.span.return_value = mock_context_manager
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -203,7 +203,7 @@ class TestObservabilityDecorators:
         }.get(key)
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -246,7 +246,7 @@ class TestObservabilityDecorators:
         test_exception = Exception("State error")
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -268,7 +268,7 @@ class TestObservabilityDecorators:
         mock_context = Mock()
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -285,7 +285,7 @@ class TestObservabilityDecorators:
         mock_observability.tracing = None
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -306,7 +306,7 @@ class TestObservabilityDecorators:
         Mock()
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -332,7 +332,7 @@ class TestObservabilityDecorators:
         mock_tracing.span.return_value = mock_context_manager
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 
@@ -363,7 +363,7 @@ class TestObservabilityDecorators:
         mock_context.get_variable.return_value = None
 
         with patch(
-            "src.puffinflow.core.observability.decorators.get_observability",
+            "puffinflow.core.observability.decorators.get_observability",
             return_value=mock_observability,
         ):
 

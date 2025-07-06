@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock, Mock, patch
 
-from src.puffinflow.core.observability.context import ObservableContext
-from src.puffinflow.core.observability.core import ObservabilityManager
-from src.puffinflow.core.observability.interfaces import SpanType
+from puffinflow.core.observability.context import ObservableContext
+from puffinflow.core.observability.core import ObservabilityManager
+from puffinflow.core.observability.interfaces import SpanType
 
 
 class TestObservableContext:

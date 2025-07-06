@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from src.puffinflow.core.observability.config import ObservabilityConfig
-from src.puffinflow.core.observability.core import (
+from puffinflow.core.observability.config import ObservabilityConfig
+from puffinflow.core.observability.core import (
     ObservabilityManager,
     get_observability,
     setup_observability,

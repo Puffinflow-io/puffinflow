@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.resources.allocation import (
+from puffinflow.core.resources.allocation import (
     AllocationMetrics,
     AllocationRequest,
     AllocationResult,
@@ -22,7 +22,7 @@ from src.puffinflow.core.resources.allocation import (
     create_allocator,
     get_resource_amount,
 )
-from src.puffinflow.core.resources.requirements import (
+from puffinflow.core.resources.requirements import (
     ResourceRequirements,
     ResourceType,
 )

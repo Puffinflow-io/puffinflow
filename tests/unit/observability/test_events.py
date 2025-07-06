@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.observability.config import EventsConfig
-from src.puffinflow.core.observability.events import BufferedEventProcessor
-from src.puffinflow.core.observability.interfaces import ObservabilityEvent
+from puffinflow.core.observability.config import EventsConfig
+from puffinflow.core.observability.events import BufferedEventProcessor
+from puffinflow.core.observability.interfaces import ObservabilityEvent
 
 
 class TestBufferedEventProcessor:

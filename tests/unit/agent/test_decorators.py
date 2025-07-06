@@ -5,8 +5,8 @@ Comprehensive tests for the flexible state decorator system.
 
 import pytest
 
-from src.puffinflow.core.agent.context import Context
-from src.puffinflow.core.agent.decorators.builder import (
+from puffinflow.core.agent.context import Context
+from puffinflow.core.agent.decorators.builder import (
     build_state,
     cpu_state,
     exclusive_state,
@@ -15,7 +15,7 @@ from src.puffinflow.core.agent.decorators.builder import (
 )
 
 # Import decorator functionality
-from src.puffinflow.core.agent.decorators.flexible import (
+from puffinflow.core.agent.decorators.flexible import (
     StateProfile,
     cpu_intensive,
     create_custom_decorator,
@@ -26,7 +26,7 @@ from src.puffinflow.core.agent.decorators.flexible import (
     memory_intensive,
     state,
 )
-from src.puffinflow.core.agent.decorators.inspection import (
+from puffinflow.core.agent.decorators.inspection import (
     compare_states,
     get_state_config,
     get_state_coordination,
@@ -36,11 +36,11 @@ from src.puffinflow.core.agent.decorators.inspection import (
     is_puffinflow_state,
     list_state_metadata,
 )
-from src.puffinflow.core.agent.dependencies import DependencyType
-from src.puffinflow.core.agent.state import Priority
-from src.puffinflow.core.coordination.primitives import PrimitiveType
-from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
-from src.puffinflow.core.resources.requirements import (
+from puffinflow.core.agent.dependencies import DependencyType
+from puffinflow.core.agent.state import Priority
+from puffinflow.core.coordination.primitives import PrimitiveType
+from puffinflow.core.coordination.rate_limiter import RateLimitStrategy
+from puffinflow.core.resources.requirements import (
     ResourceType,
 )
 

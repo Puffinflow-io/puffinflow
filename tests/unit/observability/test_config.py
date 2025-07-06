@@ -1,7 +1,7 @@
 import os
 from unittest.mock import patch
 
-from src.puffinflow.core.observability.config import (
+from puffinflow.core.observability.config import (
     AlertingConfig,
     EventsConfig,
     MetricsConfig,

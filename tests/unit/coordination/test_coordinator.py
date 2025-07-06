@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.puffinflow.core.coordination.coordinator import (
+from puffinflow.core.coordination.coordinator import (
     AgentCoordinator,
     AgentProtocol,
     CoordinationConfig,
@@ -28,8 +28,8 @@ from src.puffinflow.core.coordination.coordinator import (
     create_coordinated_agent,
     enhance_agent,
 )
-from src.puffinflow.core.coordination.primitives import PrimitiveType
-from src.puffinflow.core.coordination.rate_limiter import RateLimitStrategy
+from puffinflow.core.coordination.primitives import PrimitiveType
+from puffinflow.core.coordination.rate_limiter import RateLimitStrategy
 
 
 # Simple async context manager for testing
@@ -62,7 +62,7 @@ def create_mock_agent():
 def create_real_agent():
     """Factory function to create a real agent."""
     try:
-        from src.puffinflow.core.agent.base import Agent
+        from puffinflow.core.agent.base import Agent
 
         return Agent("test_agent", max_concurrent=2)
     except ImportError:
@@ -673,7 +673,7 @@ class TestAgentEnhancement:
 
         # Mock the coordinator start to avoid event loop issues
         with patch(
-            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+            "puffinflow.core.coordination.coordinator.AgentCoordinator"
         ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.start = AsyncMock()
@@ -697,7 +697,7 @@ class TestAgentEnhancement:
         real_agent = create_real_agent()
 
         with patch(
-            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+            "puffinflow.core.coordination.coordinator.AgentCoordinator"
         ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.coordinate_state_execution = AsyncMock(return_value=True)
@@ -732,7 +732,7 @@ class TestAgentEnhancement:
         real_agent = create_real_agent()
 
         with patch(
-            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+            "puffinflow.core.coordination.coordinator.AgentCoordinator"
         ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.coordinate_state_execution = AsyncMock(return_value=False)
@@ -766,7 +766,7 @@ class TestAgentEnhancement:
         original_run_state = real_agent.run_state
 
         with patch(
-            "src.puffinflow.core.coordination.coordinator.AgentCoordinator"
+            "puffinflow.core.coordination.coordinator.AgentCoordinator"
         ) as mock_coordinator_class:
             mock_coordinator = Mock()
             mock_coordinator.coordinate_state_execution = AsyncMock(return_value=True)
@@ -863,8 +863,8 @@ class TestCreateCoordinatedAgent:
     def test_create_coordinated_agent_basic(self):
         """Test creating a coordinated agent."""
         # Patch the import in the function where it's used
-        with patch("src.puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
-            "src.puffinflow.core.coordination.coordinator.enhance_agent"
+        with patch("puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
+            "puffinflow.core.coordination.coordinator.enhance_agent"
         ) as mock_enhance:
             mock_agent_instance = Mock()
             mock_agent_class.return_value = mock_agent_instance
@@ -892,8 +892,8 @@ class TestCreateCoordinatedAgent:
             backoff_multiplier=1.2,
         )
 
-        with patch("src.puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
-            "src.puffinflow.core.coordination.coordinator.enhance_agent"
+        with patch("puffinflow.core.agent.base.Agent") as mock_agent_class, patch(
+            "puffinflow.core.coordination.coordinator.enhance_agent"
         ) as mock_enhance:
             mock_agent_instance = Mock()
             mock_agent_class.return_value = mock_agent_instance

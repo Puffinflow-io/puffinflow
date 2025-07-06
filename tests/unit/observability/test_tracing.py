@@ -4,9 +4,9 @@ from unittest.mock import Mock, call, patch
 
 import pytest
 
-from src.puffinflow.core.observability.config import TracingConfig
-from src.puffinflow.core.observability.interfaces import SpanContext, SpanType
-from src.puffinflow.core.observability.tracing import (
+from puffinflow.core.observability.config import TracingConfig
+from puffinflow.core.observability.interfaces import SpanContext, SpanType
+from puffinflow.core.observability.tracing import (
     OpenTelemetrySpan,
     OpenTelemetryTracingProvider,
 )
@@ -99,9 +99,9 @@ class TestOpenTelemetrySpan:
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
 
-        with patch("src.puffinflow.core.observability.tracing.Status") as mock_status:
+        with patch("puffinflow.core.observability.tracing.Status") as mock_status:
             with patch(
-                "src.puffinflow.core.observability.tracing.StatusCode"
+                "puffinflow.core.observability.tracing.StatusCode"
             ) as mock_status_code:
                 span.set_status("ok", "Success")
                 mock_status.assert_called_once_with(mock_status_code.OK, "Success")
@@ -112,9 +112,9 @@ class TestOpenTelemetrySpan:
         span_context = SpanContext()
         span = OpenTelemetrySpan(mock_otel_span, span_context)
 
-        with patch("src.puffinflow.core.observability.tracing.Status") as mock_status:
+        with patch("puffinflow.core.observability.tracing.Status") as mock_status:
             with patch(
-                "src.puffinflow.core.observability.tracing.StatusCode"
+                "puffinflow.core.observability.tracing.StatusCode"
             ) as mock_status_code:
                 span.set_status("error", "Failed")
                 mock_status.assert_called_once_with(mock_status_code.ERROR, "Failed")
@@ -181,9 +181,9 @@ class TestOpenTelemetrySpan:
 class TestOpenTelemetryTracingProvider:
     """Test OpenTelemetryTracingProvider class"""
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
     def test_tracing_provider_creation(
         self, mock_resource, mock_tracer_provider, mock_trace
     ):
@@ -215,11 +215,11 @@ class TestOpenTelemetryTracingProvider:
 
         assert provider._tracer == mock_tracer
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
-    @patch("src.puffinflow.core.observability.tracing.BatchSpanProcessor")
-    @patch("src.puffinflow.core.observability.tracing.ConsoleSpanExporter")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.BatchSpanProcessor")
+    @patch("puffinflow.core.observability.tracing.ConsoleSpanExporter")
     def test_console_exporter_setup(
         self,
         mock_console_exporter,
@@ -251,9 +251,9 @@ class TestOpenTelemetryTracingProvider:
             mock_processor_instance
         )
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
     def test_start_span(self, mock_resource, mock_tracer_provider, mock_trace):
         """Test start_span method"""
         config = TracingConfig()
@@ -280,9 +280,9 @@ class TestOpenTelemetryTracingProvider:
         span.set_attribute("span.type", SpanType.BUSINESS.value)
         span.set_attribute("test_attr", "value")
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
     def test_get_current_span(self, mock_resource, mock_tracer_provider, mock_trace):
         """Test get_current_span method"""
         config = TracingConfig()
@@ -296,9 +296,9 @@ class TestOpenTelemetryTracingProvider:
         provider._set_current_span(mock_span)
         assert provider.get_current_span() == mock_span
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
     def test_span_context_manager(
         self, mock_resource, mock_tracer_provider, mock_trace
     ):
@@ -325,9 +325,9 @@ class TestOpenTelemetryTracingProvider:
         # Span should be ended and status set on the underlying otel span
         mock_otel_span.end.assert_called_once()
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
     def test_span_context_manager_with_exception(
         self, mock_resource, mock_tracer_provider, mock_trace
     ):
@@ -357,9 +357,9 @@ class TestOpenTelemetryTracingProvider:
         mock_otel_span.record_exception.assert_called_once_with(test_exception)
         mock_otel_span.end.assert_called_once()
 
-    @patch("src.puffinflow.core.observability.tracing.trace")
-    @patch("src.puffinflow.core.observability.tracing.TracerProvider")
-    @patch("src.puffinflow.core.observability.tracing.Resource")
+    @patch("puffinflow.core.observability.tracing.trace")
+    @patch("puffinflow.core.observability.tracing.TracerProvider")
+    @patch("puffinflow.core.observability.tracing.Resource")
     def test_start_span_with_parent(
         self, mock_resource, mock_tracer_provider, mock_trace
     ):

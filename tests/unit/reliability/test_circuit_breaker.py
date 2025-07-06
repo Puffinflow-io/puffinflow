@@ -25,7 +25,7 @@ from dataclasses import asdict
 import pytest
 
 # Import the module under test
-from src.puffinflow.core.reliability.circuit_breaker import (
+from puffinflow.core.reliability.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerError,

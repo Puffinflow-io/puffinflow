@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.puffinflow.core.observability.interfaces import (
+from puffinflow.core.observability.interfaces import (
     AlertingProvider,
     AlertSeverity,
     EventProcessor,

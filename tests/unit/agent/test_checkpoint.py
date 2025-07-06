@@ -18,18 +18,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.puffinflow.core.agent.base import Agent, RetryPolicy
+from puffinflow.core.agent.base import Agent, RetryPolicy
 
 # Import the modules to test
-from src.puffinflow.core.agent.checkpoint import AgentCheckpoint
-from src.puffinflow.core.agent.state import (
+from puffinflow.core.agent.checkpoint import AgentCheckpoint
+from puffinflow.core.agent.state import (
     AgentStatus,
     PrioritizedState,
     Priority,
     StateMetadata,
     StateStatus,
 )
-from src.puffinflow.core.resources.requirements import ResourceRequirements
+from puffinflow.core.resources.requirements import ResourceRequirements
 
 # ============================================================================
 # FIXTURES
