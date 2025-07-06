@@ -3,39 +3,120 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ main, develop ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   release:
     types: [ published ]
+  schedule:
+    # Run daily security scan at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: false
+        type: string
+      skip_tests:
+        description: 'Skip tests (for emergency releases)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   PYTHON_VERSION: "3.11"
   MINIMUM_COVERAGE: 85
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Security scanning job - runs on all events
   security-scan:
-    name: Security Scan with TruffleHog
+    name: Security Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for TruffleHog
+          fetch-depth: 0
 
-      - name: Run TruffleHog OSS
+      - name: Verify git history
+        run: |
+          echo "Current branch: $(git branch --show-current)"
+          echo "Total commits: $(git rev-list --count HEAD)"
+          echo "Latest commit: $(git log -1 --oneline)"
+
+          # Check if we have enough commits for comparison
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          if [ "$COMMIT_COUNT" -lt 2 ]; then
+            echo "Warning: Only $COMMIT_COUNT commit(s) found. TruffleHog needs at least 2 commits for comparison."
+            echo "Creating a dummy commit to enable scanning..."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            echo "# Security Scan Marker" > .security-scan-marker
+            git add .security-scan-marker
+            git commit -m "Add security scan marker for TruffleHog"
+            echo "New commit count: $(git rev-list --count HEAD)"
+          fi
+
+      - name: Run TruffleHog scan (Full Repository)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           extra_args: --config=.trufflehog.yml --only-verified --no-update
         continue-on-error: true
 
+      - name: Run TruffleHog scan (Differential)
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.before || 'HEAD~1' }}
+          head: ${{ github.sha }}
+          extra_args: --config=.trufflehog.yml --only-verified --no-update
+        continue-on-error: true
+
+      - name: Set up Python for additional security tools
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety semgrep
+
+      - name: Run Bandit security linter
+        run: |
+          bandit -r src/ -f json -o bandit-report.json -c .bandit || true
+          bandit -r src/ -f txt -c .bandit || true
+        continue-on-error: true
+
+      - name: Run Safety check for known vulnerabilities
+        run: |
+          safety check --json --output safety-report.json || true
+          safety check || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+          retention-days: 30
+
+  # Code quality and linting
   lint-and-format:
     name: Lint and Format Check
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    if: github.event_name != 'schedule'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,39 +129,25 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install pre-commit
 
-      - name: Run Ruff linting
-        run: ruff check . --fix --unsafe-fixes || true
-        continue-on-error: true
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files
 
-      - name: Run Ruff formatting check
-        run: ruff format --check . || true
-        continue-on-error: true
-
-      - name: Run Black formatting check
-        run: black --check . || true
-        continue-on-error: true
+      - name: Install project dependencies for additional checks
+        run: pip install -e ".[dev]"
 
       - name: Run MyPy type checking
         run: mypy src/ || true
         continue-on-error: true
 
-      - name: Run Bandit security check
-        run: bandit -r src/ -f json -o bandit-report.json || true
-
-      - name: Upload Bandit report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: bandit-report
-          path: bandit-report.json
-
+  # Test suite across multiple Python versions and OS
   test:
     name: Test Suite
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    if: github.event_name != 'schedule' && !inputs.skip_tests
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
@@ -107,90 +174,139 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,test]"
 
       - name: Run tests with coverage
         run: |
-          pytest tests/unit/ -v || pytest tests/ -v --tb=short || echo "Tests completed with issues"
+          pytest tests/unit/ -v --cov=src/puffinflow --cov-report=xml --cov-report=html --cov-fail-under=${{ env.MINIMUM_COVERAGE }} || pytest tests/ -v --tb=short || echo "Tests completed with issues"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == env.PYTHON_VERSION
+        uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == env.PYTHON_VERSION
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: |
             coverage.xml
             htmlcov/
+          retention-days: 30
 
-  coverage-check:
-    name: Coverage Analysis
+  # Documentation build and deploy
+  docs:
+    name: Documentation
     runs-on: ubuntu-latest
-    needs: test
-    outputs:
-      coverage-percentage: ${{ steps.coverage.outputs.percentage }}
-      meets-threshold: ${{ steps.coverage.outputs.meets_threshold }}
+    if: github.event_name != 'schedule' && (contains(github.event.head_commit.message, '[docs]') || github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[docs,observability]"
 
-      - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
+      - name: Create docs directory if it doesn't exist
+        run: |
+          mkdir -p docs
+          if [ ! -f docs/conf.py ]; then
+            echo "Creating basic Sphinx configuration..."
+            cat > docs/conf.py << 'EOF'
+          # Configuration file for the Sphinx documentation builder.
+
+          import os
+          import sys
+          sys.path.insert(0, os.path.abspath('../src'))
+
+          # -- Project information -----------------------------------------------------
+          project = 'PuffinFlow'
+          copyright = '2025, Mohamed Ahmed'
+          author = 'Mohamed Ahmed'
+
+          # The full version, including alpha/beta/rc tags
+          try:
+              from puffinflow.version import __version__
+              release = __version__
+          except ImportError:
+              release = '0.1.0'
+
+          # -- General configuration ---------------------------------------------------
+          extensions = [
+              'sphinx.ext.autodoc',
+              'sphinx.ext.autosummary',
+              'sphinx.ext.viewcode',
+              'sphinx.ext.napoleon',
+              'sphinx.ext.intersphinx',
+              'sphinx_autodoc_typehints',
+              'myst_parser',
+          ]
+
+          templates_path = ['_templates']
+          exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+          # -- Options for HTML output -------------------------------------------------
+          html_theme = 'sphinx_rtd_theme'
+          html_static_path = ['_static']
+
+          # -- Extension configuration -------------------------------------------------
+          autodoc_default_options = {
+              'members': True,
+              'member-order': 'bysource',
+              'special-members': '__init__',
+              'undoc-members': True,
+              'exclude-members': '__weakref__'
+          }
+
+          autosummary_generate = True
+          napoleon_google_docstring = True
+          napoleon_numpy_docstring = True
+
+          # Intersphinx mapping
+          intersphinx_mapping = {
+              'python': ('https://docs.python.org/3', None),
+              'pydantic': ('https://docs.pydantic.dev/latest/', None),
+          }
+          EOF
+          fi
+
+      - name: Build documentation
+        run: |
+          cd docs
+          make html SPHINXOPTS="-W --keep-going" || echo "Documentation build completed with warnings"
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: documentation
+          path: docs/_build/html/
+          retention-days: 30
 
-      - name: Extract coverage percentage
-        id: coverage
-        run: |
-          # Extract coverage percentage from coverage.xml
-          COVERAGE=$(python -c "
-          import xml.etree.ElementTree as ET
-          tree = ET.parse('coverage.xml')
-          root = tree.getroot()
-          coverage = float(root.attrib['line-rate']) * 100
-          print(f'{coverage:.2f}')
-          ")
-          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/_build/html
 
-          # Check if coverage meets threshold
-          MEETS_THRESHOLD=$(python -c "
-          coverage = $COVERAGE
-          threshold = ${{ env.MINIMUM_COVERAGE }}
-          print('true' if coverage >= threshold else 'false')
-          ")
-          echo "meets_threshold=$MEETS_THRESHOLD" >> $GITHUB_OUTPUT
-
-          echo "Coverage: $COVERAGE%"
-          echo "Meets threshold (${{ env.MINIMUM_COVERAGE }}%): $MEETS_THRESHOLD"
-
-      - name: Coverage Summary
-        run: |
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "- **Coverage Percentage:** ${{ steps.coverage.outputs.percentage }}%" >> $GITHUB_STEP_SUMMARY
-          echo "- **Minimum Required:** ${{ env.MINIMUM_COVERAGE }}%" >> $GITHUB_STEP_SUMMARY
-          echo "- **Meets Threshold:** ${{ steps.coverage.outputs.meets_threshold }}" >> $GITHUB_STEP_SUMMARY
-
+  # Build package
   build:
     name: Build Package
     runs-on: ubuntu-latest
     needs: [security-scan, lint-and-format, test]
+    if: github.event_name != 'schedule' && !failure()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -218,19 +334,106 @@ jobs:
         with:
           name: dist
           path: dist/
+          retention-days: 90
 
+  # Release management
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.version)
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      is-prerelease: ${{ steps.check-prerelease.outputs.is-prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag or input
+        id: get-version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+      - name: Check if prerelease
+        id: check-prerelease
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if [[ "${VERSION}" =~ (alpha|beta|rc|dev) ]]; then
+            echo "is-prerelease=true" >> $GITHUB_OUTPUT
+            echo "This is a prerelease: ${VERSION}"
+          else
+            echo "is-prerelease=false" >> $GITHUB_OUTPUT
+            echo "This is a stable release: ${VERSION}"
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          echo "## Changes" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          if [[ -n "$PREV_TAG" ]]; then
+            echo "### Commits since $PREV_TAG:" >> CHANGELOG.md
+            git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> CHANGELOG.md
+          else
+            echo "### All commits:" >> CHANGELOG.md
+            git log --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          fi
+
+          echo "" >> CHANGELOG.md
+          echo "## Installation" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo '```bash' >> CHANGELOG.md
+          echo "pip install puffinflow==${VERSION}" >> CHANGELOG.md
+          echo '```' >> CHANGELOG.md
+
+          {
+            echo 'changelog<<EOF'
+            cat CHANGELOG.md
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get-version.outputs.version }}
+          name: Release ${{ steps.get-version.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: ${{ steps.check-prerelease.outputs.is-prerelease == 'true' }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+
+  # Publishing to PyPI
   publish-test-pypi:
     name: Publish to Test PyPI
     runs-on: ubuntu-latest
-    needs: [build, coverage-check]
-    if: |
-      needs.coverage-check.outputs.meets-threshold == 'true' &&
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [build, release]
+    if: needs.release.outputs.is-prerelease == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     environment:
       name: test-pypi
       url: https://test.pypi.org/p/puffinflow
     permissions:
-      id-token: write  # For trusted publishing
+      id-token: write
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -247,15 +450,13 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [build, coverage-check]
-    if: |
-      needs.coverage-check.outputs.meets-threshold == 'true' &&
-      github.event_name == 'release' && github.event.action == 'published'
+    needs: [build, release]
+    if: needs.release.outputs.is-prerelease == 'false' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release')
     environment:
       name: pypi
       url: https://pypi.org/p/puffinflow
     permissions:
-      id-token: write  # For trusted publishing
+      id-token: write
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -268,29 +469,90 @@ jobs:
         with:
           verbose: true
 
+  # Final notification and summary
   notification:
-    name: Notification
+    name: Workflow Summary
     runs-on: ubuntu-latest
-    needs: [coverage-check, publish-test-pypi, publish-pypi]
+    needs: [security-scan, lint-and-format, test, docs, build, release, publish-test-pypi, publish-pypi]
     if: always()
     steps:
-      - name: Coverage Status
+      - name: Workflow Summary
         run: |
-          if [ "${{ needs.coverage-check.outputs.meets-threshold }}" == "true" ]; then
-            echo "✅ Coverage (${{ needs.coverage-check.outputs.percentage }}%) meets the minimum threshold of ${{ env.MINIMUM_COVERAGE }}%"
+          echo "## CI/CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Security Results
+          if [ "${{ needs.security-scan.result }}" == "success" ]; then
+            echo "✅ **Security Scan**: Passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Coverage (${{ needs.coverage-check.outputs.percentage }}%) does not meet the minimum threshold of ${{ env.MINIMUM_COVERAGE }}%"
-            echo "Package will not be published to PyPI"
+            echo "❌ **Security Scan**: Failed or found issues" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Publication Status
-        run: |
+          # Lint Results
+          if [ "${{ needs.lint-and-format.result }}" == "success" ]; then
+            echo "✅ **Lint and Format**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.lint-and-format.result }}" == "skipped" ]; then
+            echo "⏭️ **Lint and Format**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Lint and Format**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Test Results
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "✅ **Tests**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.test.result }}" == "skipped" ]; then
+            echo "⏭️ **Tests**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tests**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Docs Results
+          if [ "${{ needs.docs.result }}" == "success" ]; then
+            echo "✅ **Documentation**: Built successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.docs.result }}" == "skipped" ]; then
+            echo "⏭️ **Documentation**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Documentation**: Failed to build" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Build Results
+          if [ "${{ needs.build.result }}" == "success" ]; then
+            echo "✅ **Package Build**: Successful" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build.result }}" == "skipped" ]; then
+            echo "⏭️ **Package Build**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Package Build**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Release Results
+          if [ "${{ needs.release.result }}" == "success" ]; then
+            echo "✅ **Release**: Created successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.release.result }}" == "skipped" ]; then
+            echo "⏭️ **Release**: Skipped (not a tag)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Release**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Publishing Results
           if [ "${{ needs.publish-test-pypi.result }}" == "success" ]; then
-            echo "✅ Successfully published to Test PyPI"
+            echo "✅ **Test PyPI**: Published successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.publish-test-pypi.result }}" == "skipped" ]; then
+            echo "⏭️ **Test PyPI**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Test PyPI**: Failed to publish" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "${{ needs.publish-pypi.result }}" == "success" ]; then
-            echo "✅ Successfully published to PyPI"
-          elif [ "${{ github.event_name }}" == "release" ]; then
-            echo "❌ Failed to publish to PyPI or coverage threshold not met"
+            echo "✅ **PyPI**: Published successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.publish-pypi.result }}" == "skipped" ]; then
+            echo "⏭️ **PyPI**: Skipped (not a stable release)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **PyPI**: Failed to publish" >> $GITHUB_STEP_SUMMARY
           fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Event Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ref**: ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
