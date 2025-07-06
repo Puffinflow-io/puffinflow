@@ -1,11 +1,4 @@
 # TruffleHog configuration file
 # Minimal valid configuration
-rules:
-  - id: "exclude-test-files"
-    description: "Exclude test files from scanning"
-    path: "tests/**"
-    action: "exclude"
-  - id: "exclude-docs"
-    description: "Exclude documentation files"
-    path: "docs/**"
-    action: "exclude"
+filterUnverified: true
+logLevel: info
