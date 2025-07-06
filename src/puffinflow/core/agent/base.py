@@ -5,7 +5,7 @@ import logging
 import time
 import weakref
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from .checkpoint import AgentCheckpoint
 from .context import Context
@@ -24,6 +24,7 @@ from .state import (
 try:
     from .scheduling.builder import ScheduleBuilder
     from .scheduling.scheduler import GlobalScheduler, ScheduledAgent
+
     _SCHEDULING_AVAILABLE = True
 except ImportError:
     _SCHEDULING_AVAILABLE = False
@@ -48,12 +49,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentResult:
     """Rich result container for agent execution."""
+
     agent_name: str
     status: AgentStatus
-    outputs: Dict[str, Any] = field(default_factory=dict)
-    variables: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    outputs: dict[str, Any] = field(default_factory=dict)
+    variables: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
     error: Optional[Exception] = None
     start_time: Optional[float] = None
     end_time: Optional[float] = None
@@ -88,6 +90,7 @@ class AgentResult:
 
 class ResourceTimeoutError(Exception):
     """Raised when resource acquisition times out."""
+
     pass
 
 
@@ -97,26 +100,26 @@ class Agent:
     def __init__(
         self,
         name: str,
-        resource_pool: Optional['ResourcePool'] = None,
+        resource_pool: Optional["ResourcePool"] = None,
         retry_policy: Optional[RetryPolicy] = None,
-        circuit_breaker_config: Optional['CircuitBreakerConfig'] = None,
-        bulkhead_config: Optional['BulkheadConfig'] = None,
+        circuit_breaker_config: Optional["CircuitBreakerConfig"] = None,
+        bulkhead_config: Optional["BulkheadConfig"] = None,
         max_concurrent: int = 5,
         enable_dead_letter: bool = True,
         state_timeout: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ):
         self.name = name
-        self.states: Dict[str, Callable] = {}
-        self.state_metadata: Dict[str, StateMetadata] = {}
-        self.dependencies: Dict[str, List[str]] = {}
+        self.states: dict[str, Callable] = {}
+        self.state_metadata: dict[str, StateMetadata] = {}
+        self.dependencies: dict[str, list[str]] = {}
         self.status = AgentStatus.IDLE
-        self.shared_state: Dict[str, Any] = {}
-        self.priority_queue: List[PrioritizedState] = []
-        self.running_states: Set[str] = set()
-        self.completed_states: Set[str] = set()
-        self.completed_once: Set[str] = set()
-        self.dead_letters: List[DeadLetter] = []
+        self.shared_state: dict[str, Any] = {}
+        self.priority_queue: list[PrioritizedState] = []
+        self.running_states: set[str] = set()
+        self.completed_states: set[str] = set()
+        self.completed_once: set[str] = set()
+        self.dead_letters: list[DeadLetter] = []
         self.session_start: Optional[float] = None
 
         # Configuration
@@ -125,15 +128,15 @@ class Agent:
 
         # Enhanced features
         self._context: Optional[Context] = None
-        self._variable_watchers: Dict[str, List[Callable]] = {}
-        self._shared_variable_watchers: Dict[str, List[Callable]] = {}
-        self._agent_variables: Dict[str, Any] = {}
-        self._persistent_variables: Dict[str, Any] = {}
-        self._property_definitions: Dict[str, dict] = {}
+        self._variable_watchers: dict[str, list[Callable]] = {}
+        self._shared_variable_watchers: dict[str, list[Callable]] = {}
+        self._agent_variables: dict[str, Any] = {}
+        self._persistent_variables: dict[str, Any] = {}
+        self._property_definitions: dict[str, dict] = {}
         self._team: Optional[weakref.ReferenceType] = None
-        self._message_handlers: Dict[str, Callable] = {}
-        self._event_handlers: Dict[str, List[Callable]] = {}
-        self._state_change_handlers: List[Callable] = []
+        self._message_handlers: dict[str, Callable] = {}
+        self._event_handlers: dict[str, list[Callable]] = {}
+        self._state_change_handlers: list[Callable] = []
 
         # Resource and reliability components - lazy initialization
         self._resource_pool = resource_pool
@@ -144,26 +147,27 @@ class Agent:
 
         self.retry_policy = retry_policy or RetryPolicy()
         self.enable_dead_letter = enable_dead_letter
-        self._cleanup_handlers: List[Callable] = []
+        self._cleanup_handlers: list[Callable] = []
 
         # Create context
         self.context = self._create_context(self.shared_state)
 
     @property
-    def resource_pool(self) -> 'ResourcePool':
+    def resource_pool(self) -> "ResourcePool":
         """Get or create resource pool."""
         if self._resource_pool is None:
             from ..resources.pool import ResourcePool
+
             self._resource_pool = ResourcePool()
         return self._resource_pool
 
     @resource_pool.setter
-    def resource_pool(self, value: 'ResourcePool') -> None:
+    def resource_pool(self, value: "ResourcePool") -> None:
         """Set resource pool."""
         self._resource_pool = value
 
     @property
-    def circuit_breaker(self) -> 'CircuitBreaker':
+    def circuit_breaker(self) -> "CircuitBreaker":
         """Get or create circuit breaker."""
         if self._circuit_breaker is None:
             from ..reliability.circuit_breaker import (
@@ -180,7 +184,7 @@ class Agent:
         return self._circuit_breaker
 
     @property
-    def bulkhead(self) -> 'Bulkhead':
+    def bulkhead(self) -> "Bulkhead":
         """Get or create bulkhead."""
         if self._bulkhead is None:
             from ..reliability.bulkhead import Bulkhead, BulkheadConfig
@@ -188,7 +192,9 @@ class Agent:
             if self._bulkhead_config:
                 config = self._bulkhead_config
             else:
-                config = BulkheadConfig(name=f"{self.name}_bulkhead", max_concurrent=self.max_concurrent)
+                config = BulkheadConfig(
+                    name=f"{self.name}_bulkhead", max_concurrent=self.max_concurrent
+                )
 
             self._bulkhead = Bulkhead(config)
         return self._bulkhead
@@ -264,7 +270,7 @@ class Agent:
         if self._context:
             self._context.set_output(key, value)
 
-    def get_all_outputs(self) -> Dict[str, Any]:
+    def get_all_outputs(self) -> dict[str, Any]:
         """Get all output values."""
         if self._context:
             output_keys = self._context.get_output_keys()
@@ -273,13 +279,13 @@ class Agent:
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata value."""
-        if hasattr(self._context, 'get_metadata'):
+        if hasattr(self._context, "get_metadata"):
             return self._context.get_metadata(key, default)
         return default
 
     def set_metadata(self, key: str, value: Any) -> None:
         """Set metadata value."""
-        if hasattr(self._context, 'set_metadata'):
+        if hasattr(self._context, "set_metadata"):
             self._context.set_metadata(key, value)
 
     def get_cached(self, key: str, default: Any = None) -> Any:
@@ -294,13 +300,18 @@ class Agent:
             self._context.set_cached(key, value, ttl)
 
     # Property system
-    def define_property(self, name: str, prop_type: type, default: Any = None,
-                       validator: Optional[Callable] = None) -> None:
+    def define_property(
+        self,
+        name: str,
+        prop_type: type,
+        default: Any = None,
+        validator: Optional[Callable] = None,
+    ) -> None:
         """Define a typed property with validation."""
         self._property_definitions[name] = {
-            'type': prop_type,
-            'default': default,
-            'validator': validator
+            "type": prop_type,
+            "default": default,
+            "validator": validator,
         }
 
         # Set default value if not already set
@@ -317,8 +328,8 @@ class Agent:
             if not isinstance(value, prop_type) and value is not None:
                 try:
                     value = prop_type(value)
-                except (ValueError, TypeError):
-                    raise TypeError(f"Cannot convert {value} to {prop_type}")
+                except (ValueError, TypeError) as e:
+                    raise TypeError(f"Cannot convert {value} to {prop_type}") from e
             obj.set_variable(name, value)
 
         setattr(self.__class__, name, property(getter, setter))
@@ -336,25 +347,43 @@ class Agent:
             self._shared_variable_watchers[key] = []
         self._shared_variable_watchers[key].append(handler)
 
-    def _trigger_variable_watchers(self, key: str, old_value: Any, new_value: Any) -> None:
+    def _trigger_variable_watchers(
+        self, key: str, old_value: Any, new_value: Any
+    ) -> None:
         """Trigger watchers for variable changes."""
         if key in self._variable_watchers and old_value != new_value:
             for handler in self._variable_watchers[key]:
                 try:
                     if asyncio.iscoroutinefunction(handler):
-                        asyncio.create_task(handler(old_value, new_value))
+                        task = asyncio.create_task(handler(old_value, new_value))
+                        # Store task reference to prevent it from being garbage collected
+                        if not hasattr(self, "_background_tasks"):
+                            self._background_tasks = set()
+                        self._background_tasks.add(task)
+                        task.add_done_callback(
+                            lambda t: self._background_tasks.discard(t)
+                        )
                     else:
                         handler(old_value, new_value)
                 except Exception as e:
                     logger.error(f"Error in variable watcher for {key}: {e}")
 
-    def _trigger_shared_variable_watchers(self, key: str, old_value: Any, new_value: Any) -> None:
+    def _trigger_shared_variable_watchers(
+        self, key: str, old_value: Any, new_value: Any
+    ) -> None:
         """Trigger watchers for shared variable changes."""
         if key in self._shared_variable_watchers and old_value != new_value:
             for handler in self._shared_variable_watchers[key]:
                 try:
                     if asyncio.iscoroutinefunction(handler):
-                        asyncio.create_task(handler(old_value, new_value))
+                        task = asyncio.create_task(handler(old_value, new_value))
+                        # Store task reference to prevent it from being garbage collected
+                        if not hasattr(self, "_background_tasks"):
+                            self._background_tasks = set()
+                        self._background_tasks.add(task)
+                        task.add_done_callback(
+                            lambda t: self._background_tasks.discard(t)
+                        )
                     else:
                         handler(old_value, new_value)
                 except Exception as e:
@@ -370,18 +399,23 @@ class Agent:
         for handler in self._state_change_handlers:
             try:
                 if asyncio.iscoroutinefunction(handler):
-                    asyncio.create_task(handler(old_state, new_state))
+                    task = asyncio.create_task(handler(old_state, new_state))
+                    # Store task reference to prevent it from being garbage collected
+                    if not hasattr(self, "_background_tasks"):
+                        self._background_tasks = set()
+                    self._background_tasks.add(task)
+                    task.add_done_callback(lambda t: self._background_tasks.discard(t))
                 else:
                     handler(old_state, new_state)
             except Exception as e:
                 logger.error(f"Error in state change handler: {e}")
 
     # Team coordination
-    def set_team(self, team: 'AgentTeam') -> None:
+    def set_team(self, team: "AgentTeam") -> None:
         """Set the team this agent belongs to."""
         self._team = weakref.ref(team)
 
-    def get_team(self) -> Optional['AgentTeam']:
+    def get_team(self) -> Optional["AgentTeam"]:
         """Get the team this agent belongs to."""
         if self._team:
             return self._team()
@@ -390,29 +424,35 @@ class Agent:
     # Messaging
     def message_handler(self, message_type: str) -> Callable:
         """Decorator for message handlers."""
+
         def decorator(func: Callable) -> Callable:
             self._message_handlers[message_type] = func
             return func
+
         return decorator
 
-    async def send_message_to(self, agent_name: str, message: Dict[str, Any]) -> Dict[str, Any]:
+    async def send_message_to(
+        self, agent_name: str, message: dict[str, Any]
+    ) -> dict[str, Any]:
         """Send message to another agent."""
         team = self.get_team()
         if team:
             return await team.send_message(self.name, agent_name, message)
         raise RuntimeError("Agent must be part of a team to send messages")
 
-    async def reply_to(self, sender_agent: str, message: Dict[str, Any]) -> None:
+    async def reply_to(self, sender_agent: str, message: dict[str, Any]) -> None:
         """Reply to a message from another agent."""
         await self.send_message_to(sender_agent, message)
 
-    async def broadcast_message(self, message_type: str, data: Dict[str, Any]) -> None:
+    async def broadcast_message(self, message_type: str, data: dict[str, Any]) -> None:
         """Broadcast message to all agents in team."""
         team = self.get_team()
         if team:
             await team.broadcast_message(self.name, message_type, data)
 
-    async def handle_message(self, message_type: str, message: Dict[str, Any], sender: str) -> Dict[str, Any]:
+    async def handle_message(
+        self, message_type: str, message: dict[str, Any], sender: str
+    ) -> dict[str, Any]:
         """Handle incoming message."""
         if message_type in self._message_handlers:
             return await self._message_handlers[message_type](message, sender)
@@ -421,14 +461,16 @@ class Agent:
     # Event system
     def on_event(self, event_type: str) -> Callable:
         """Decorator for event handlers."""
+
         def decorator(func: Callable) -> Callable:
             if event_type not in self._event_handlers:
                 self._event_handlers[event_type] = []
             self._event_handlers[event_type].append(func)
             return func
+
         return decorator
 
-    async def emit_event(self, event_type: str, data: Dict[str, Any]) -> None:
+    async def emit_event(self, event_type: str, data: dict[str, Any]) -> None:
         """Emit an event."""
         team = self.get_team()
         if team:
@@ -446,7 +488,9 @@ class Agent:
                     logger.error(f"Error in event handler for {event_type}: {e}")
 
     # Variable synchronization
-    async def sync_variables_with(self, agent_name: str, variable_names: List[str]) -> None:
+    async def sync_variables_with(
+        self, agent_name: str, variable_names: list[str]
+    ) -> None:
         """Sync specific variables with another agent."""
         team = self.get_team()
         if team:
@@ -456,8 +500,13 @@ class Agent:
                     value = self.get_variable(var_name)
                     other_agent.set_variable(var_name, value)
 
-    async def wait_for_agent_variable(self, agent_name: str, variable_name: str,
-                                    expected_value: Any, timeout: Optional[float] = None) -> bool:
+    async def wait_for_agent_variable(
+        self,
+        agent_name: str,
+        variable_name: str,
+        expected_value: Any,
+        timeout: Optional[float] = None,
+    ) -> bool:
         """Wait for another agent's variable to reach a specific value."""
         team = self.get_team()
         if not team:
@@ -478,7 +527,9 @@ class Agent:
 
             await asyncio.sleep(0.1)
 
-    def get_synced_variable(self, agent_name: str, variable_name: str, default: Any = None) -> Any:
+    def get_synced_variable(
+        self, agent_name: str, variable_name: str, default: Any = None
+    ) -> Any:
         """Get a variable from another agent."""
         team = self.get_team()
         if team:
@@ -488,7 +539,7 @@ class Agent:
         return default
 
     # Context creation
-    def _create_context(self, shared_state: Dict[str, Any]) -> Context:
+    def _create_context(self, shared_state: dict[str, Any]) -> Context:
         """Create enhanced context with agent variables."""
         context = Context(shared_state)
 
@@ -504,13 +555,13 @@ class Agent:
         self,
         name: str,
         func: Callable,
-        dependencies: Optional[List[str]] = None,
-        resources: Optional['ResourceRequirements'] = None,
+        dependencies: Optional[list[str]] = None,
+        resources: Optional["ResourceRequirements"] = None,
         priority: Optional[Priority] = None,
         retry_policy: Optional[RetryPolicy] = None,
-        coordination_primitives: Optional[List['CoordinationPrimitive']] = None,
+        coordination_primitives: Optional[list["CoordinationPrimitive"]] = None,
         max_retries: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """Add a state to the agent."""
         self.states[name] = func
@@ -522,7 +573,7 @@ class Agent:
 
         # Get priority from function if not provided
         final_priority = priority
-        if hasattr(func, '_priority'):
+        if hasattr(func, "_priority"):
             final_priority = func._priority
         elif final_priority is None:
             final_priority = Priority.NORMAL
@@ -531,7 +582,9 @@ class Agent:
             final_requirements = ResourceRequirements()
 
         # Use max_retries parameter or fall back to retry_policy or agent default
-        final_max_retries = max_retries or (retry_policy.max_retries if retry_policy else self.retry_policy.max_retries)
+        final_max_retries = max_retries or (
+            retry_policy.max_retries if retry_policy else self.retry_policy.max_retries
+        )
 
         # Create state metadata
         metadata = StateMetadata(
@@ -540,14 +593,16 @@ class Agent:
             resources=final_requirements,
             retry_policy=retry_policy or self.retry_policy,
             coordination_primitives=coordination_primitives or [],
-            max_retries=final_max_retries
+            max_retries=final_max_retries,
         )
 
         self.state_metadata[name] = metadata
 
-    def _extract_decorator_requirements(self, func: Callable) -> Optional['ResourceRequirements']:
+    def _extract_decorator_requirements(
+        self, func: Callable
+    ) -> Optional["ResourceRequirements"]:
         """Extract resource requirements from decorator metadata."""
-        if hasattr(func, '_resource_requirements'):
+        if hasattr(func, "_resource_requirements"):
             return func._resource_requirements
         return None
 
@@ -569,7 +624,7 @@ class Agent:
 
     def save_checkpoint(self) -> None:
         """Save current state as checkpoint (placeholder for persistence)."""
-        checkpoint = self.create_checkpoint()
+        self.create_checkpoint()
         # In real implementation, this would persist to storage
         logger.info(f"Checkpoint saved for agent {self.name}")
 
@@ -585,7 +640,7 @@ class Agent:
             self.status = AgentStatus.RUNNING
 
     # Find entry states
-    def _find_entry_states(self) -> List[str]:
+    def _find_entry_states(self) -> list[str]:
         """Find states with no dependencies."""
         entry_states = []
         for state_name in self.states:
@@ -607,18 +662,20 @@ class Agent:
             priority=-priority_value,  # Negative for max-heap behavior
             timestamp=time.time(),
             state_name=state_name,
-            metadata=metadata
+            metadata=metadata,
         )
 
         import heapq
+
         heapq.heappush(self.priority_queue, prioritized_state)
 
-    async def _get_ready_states(self) -> List[str]:
+    async def _get_ready_states(self) -> list[str]:
         """Get states that are ready to run."""
         ready_states = []
         temp_queue = []
 
         import heapq
+
         while self.priority_queue:
             state = heapq.heappop(self.priority_queue)
             if await self._can_run(state.state_name):
@@ -646,7 +703,9 @@ class Agent:
         finally:
             self.running_states.discard(state_name)
 
-    async def _execute_state_with_circuit_breaker(self, state_name: str, start_time: float) -> None:
+    async def _execute_state_with_circuit_breaker(
+        self, state_name: str, start_time: float
+    ) -> None:
         """Execute state with circuit breaker protection."""
         try:
             async with self.circuit_breaker.protect():
@@ -665,14 +724,13 @@ class Agent:
 
         # Acquire resources (pass agent name for leak detection)
         resource_acquired = await self.resource_pool.acquire(
-            state_name,
-            metadata.resources,
-            timeout=state_timeout,
-            agent_name=self.name
+            state_name, metadata.resources, timeout=state_timeout, agent_name=self.name
         )
 
         if not resource_acquired:
-            raise ResourceTimeoutError(f"Failed to acquire resources for state {state_name}")
+            raise ResourceTimeoutError(
+                f"Failed to acquire resources for state {state_name}"
+            )
 
         try:
             # Execute the state function
@@ -681,13 +739,12 @@ class Agent:
             # Execute with timeout if specified
             if state_timeout:
                 result = await asyncio.wait_for(
-                    self.states[state_name](context),
-                    timeout=state_timeout
+                    self.states[state_name](context), timeout=state_timeout
                 )
             else:
                 result = await self.states[state_name](context)
 
-            duration = time.time() - start_time
+            time.time() - start_time
 
             # Update metadata on success
             metadata.status = StateStatus.COMPLETED
@@ -721,15 +778,21 @@ class Agent:
         elif isinstance(result, list):
             # Multiple next states
             for next_state in result:
-                if isinstance(next_state, str) and next_state in self.states and next_state not in self.completed_states:
+                if (
+                    isinstance(next_state, str)
+                    and next_state in self.states
+                    and next_state not in self.completed_states
+                ):
                     await self._add_to_queue(next_state)
                 elif isinstance(next_state, tuple):
                     # Handle agent transition: (agent, state)
                     agent, state = next_state
-                    if hasattr(agent, 'add_to_queue'):
+                    if hasattr(agent, "add_to_queue"):
                         await agent._add_to_queue(state)
 
-    async def _handle_state_failure(self, state_name: str, error: Exception, start_time: float) -> None:
+    async def _handle_state_failure(
+        self, state_name: str, error: Exception, start_time: float
+    ) -> None:
         """Handle state execution failure."""
         metadata = self.state_metadata[state_name]
         metadata.attempts += 1
@@ -746,8 +809,7 @@ class Agent:
             # Determine if this should go to dead letter queue
             retry_policy = metadata.retry_policy or self.retry_policy
             should_dead_letter = (
-                self.enable_dead_letter and
-                retry_policy.dead_letter_on_max_retries
+                self.enable_dead_letter and retry_policy.dead_letter_on_max_retries
             )
 
             if should_dead_letter:
@@ -759,7 +821,7 @@ class Agent:
                     attempts=metadata.attempts,
                     failed_at=time.time(),
                     timeout_occurred=isinstance(error, asyncio.TimeoutError),
-                    context_snapshot=dict(self.shared_state)
+                    context_snapshot=dict(self.shared_state),
                 )
                 self.dead_letters.append(dead_letter)
         else:
@@ -770,7 +832,9 @@ class Agent:
             await self._add_to_queue(state_name)
 
     # Add alias for backward compatibility
-    async def _handle_failure(self, state_name: str, error: Exception, start_time: float = None) -> None:
+    async def _handle_failure(
+        self, state_name: str, error: Exception, start_time: Optional[float] = None
+    ) -> None:
         """Handle state execution failure (alias for backward compatibility)."""
         if start_time is None:
             start_time = time.time()
@@ -794,18 +858,17 @@ class Agent:
 
         # Check dependencies
         deps = self.dependencies.get(state_name, [])
-        for dep in deps:
-            if dep not in self.completed_states:
-                return False
-
-        return True
+        return all(dep in self.completed_states for dep in deps)
 
     # State control
     def cancel_state(self, state_name: str) -> None:
         """Cancel a running or queued state."""
         # Remove from queue
         import heapq
-        self.priority_queue = [s for s in self.priority_queue if s.state_name != state_name]
+
+        self.priority_queue = [
+            s for s in self.priority_queue if s.state_name != state_name
+        ]
         heapq.heapify(self.priority_queue)
 
         # Remove from running states
@@ -822,17 +885,17 @@ class Agent:
         self.status = AgentStatus.CANCELLED
 
     # Information methods
-    def get_resource_status(self) -> Dict[str, Any]:
+    def get_resource_status(self) -> dict[str, Any]:
         """Get current resource status."""
         status = {
-            'available': dict(self.resource_pool.available),
-            'allocated': self.resource_pool.get_state_allocations(),
-            'waiting': list(self.resource_pool.get_waiting_states()),
-            'preempted': list(self.resource_pool.get_preempted_states())
+            "available": dict(self.resource_pool.available),
+            "allocated": self.resource_pool.get_state_allocations(),
+            "waiting": list(self.resource_pool.get_waiting_states()),
+            "preempted": list(self.resource_pool.get_preempted_states()),
         }
         return status
 
-    def get_state_info(self, state_name: str) -> Dict[str, Any]:
+    def get_state_info(self, state_name: str) -> dict[str, Any]:
         """Get information about a specific state."""
         if state_name not in self.states:
             return {}
@@ -841,40 +904,46 @@ class Agent:
         has_decorator = False
         try:
             from .decorators.inspection import is_puffinflow_state
+
             has_decorator = is_puffinflow_state(self.states[state_name])
         except ImportError:
             pass
 
         return {
-            'name': state_name,
-            'status': metadata.status if metadata else 'unknown',
-            'dependencies': self.dependencies.get(state_name, []),
-            'has_decorator': has_decorator,
-            'in_queue': any(s.state_name == state_name for s in self.priority_queue),
-            'running': state_name in self.running_states,
-            'completed': state_name in self.completed_states
+            "name": state_name,
+            "status": metadata.status if metadata else "unknown",
+            "dependencies": self.dependencies.get(state_name, []),
+            "has_decorator": has_decorator,
+            "in_queue": any(s.state_name == state_name for s in self.priority_queue),
+            "running": state_name in self.running_states,
+            "completed": state_name in self.completed_states,
         }
 
-    def list_states(self) -> List[Dict[str, Any]]:
+    def list_states(self) -> list[dict[str, Any]]:
         """List all states with their information."""
         result = []
         for name in self.states:
             try:
                 from .decorators.inspection import is_puffinflow_state
+
                 has_decorator = is_puffinflow_state(self.states[name])
             except ImportError:
                 has_decorator = False
 
-            result.append({
-                'name': name,
-                'has_decorator': has_decorator,
-                'dependencies': self.dependencies.get(name, []),
-                'status': self.state_metadata.get(name).status if name in self.state_metadata else 'unknown'
-            })
+            result.append(
+                {
+                    "name": name,
+                    "has_decorator": has_decorator,
+                    "dependencies": self.dependencies.get(name, []),
+                    "status": self.state_metadata.get(name).status
+                    if name in self.state_metadata
+                    else "unknown",
+                }
+            )
         return result
 
     # Dead letter management
-    def get_dead_letters(self) -> List[DeadLetter]:
+    def get_dead_letters(self) -> list[DeadLetter]:
         """Get all dead letters."""
         return self.dead_letters.copy()
 
@@ -888,7 +957,7 @@ class Agent:
         """Get count of dead letters."""
         return len(self.dead_letters)
 
-    def get_dead_letters_by_state(self, state_name: str) -> List[DeadLetter]:
+    def get_dead_letters_by_state(self, state_name: str) -> list[DeadLetter]:
         """Get dead letters for a specific state."""
         return [dl for dl in self.dead_letters if dl.state_name == state_name]
 
@@ -902,7 +971,7 @@ class Agent:
         await self.circuit_breaker.force_close()
 
     # Resource leak detection
-    def check_resource_leaks(self) -> List[Any]:
+    def check_resource_leaks(self) -> list[Any]:
         """Check for resource leaks."""
         return self.resource_pool.check_leaks()
 
@@ -922,30 +991,30 @@ class Agent:
             except Exception as e:
                 logger.error(f"Error in cleanup handler: {e}")
 
-    def _get_execution_metadata(self) -> Dict[str, Any]:
+    def _get_execution_metadata(self) -> dict[str, Any]:
         """Get execution metadata."""
         return {
-            'states_completed': list(self.completed_states),
-            'states_failed': [dl.state_name for dl in self.dead_letters],
-            'total_states': len(self.states),
-            'session_start': self.session_start,
-            'dead_letter_count': len(self.dead_letters)
+            "states_completed": list(self.completed_states),
+            "states_failed": [dl.state_name for dl in self.dead_letters],
+            "total_states": len(self.states),
+            "session_start": self.session_start,
+            "dead_letter_count": len(self.dead_letters),
         }
 
-    def _get_execution_metrics(self) -> Dict[str, Any]:
+    def _get_execution_metrics(self) -> dict[str, Any]:
         """Get execution metrics."""
         return {
-            'completion_rate': len(self.completed_states) / max(1, len(self.states)),
-            'error_rate': len(self.dead_letters) / max(1, len(self.states)),
-            'resource_usage': self.get_resource_status(),
-            'circuit_breaker_metrics': self.circuit_breaker.get_metrics(),
-            'bulkhead_metrics': self.bulkhead.get_metrics()
+            "completion_rate": len(self.completed_states) / max(1, len(self.states)),
+            "error_rate": len(self.dead_letters) / max(1, len(self.states)),
+            "resource_usage": self.get_resource_status(),
+            "circuit_breaker_metrics": self.circuit_breaker.get_metrics(),
+            "bulkhead_metrics": self.bulkhead.get_metrics(),
         }
 
     # Scheduling methods
-    def schedule(self, when: str, **inputs) -> 'ScheduledAgent':
+    def schedule(self, when: str, **inputs) -> "ScheduledAgent":
         """Schedule this agent to run at specified times with given inputs.
-        
+
         Args:
             when: Schedule string (natural language or cron expression)
                 Examples: "daily", "hourly", "every 5 minutes", "0 9 * * 1-5"
@@ -956,18 +1025,18 @@ class Agent:
                 - typed:value - Store as typed variable
                 - output:value - Pre-set as output
                 - value (no prefix) - Store as regular variable
-                
+
         Returns:
             ScheduledAgent instance for managing the scheduled execution
-            
+
         Raises:
             ImportError: If scheduling module is not available
             SchedulingError: If scheduling fails
-            
+
         Examples:
             # Basic scheduling
             agent.schedule("daily at 09:00", source="database")
-            
+
             # With magic prefixes
             agent.schedule(
                 "every 30 minutes",
@@ -978,26 +1047,30 @@ class Agent:
             )
         """
         if not _SCHEDULING_AVAILABLE:
-            raise ImportError("Scheduling module not available. Install required dependencies.")
+            raise ImportError(
+                "Scheduling module not available. Install required dependencies."
+            )
 
         scheduler = GlobalScheduler.get_instance_sync()
         return scheduler.schedule_agent(self, when, **inputs)
 
-    def every(self, interval: str) -> 'ScheduleBuilder':
+    def every(self, interval: str) -> "ScheduleBuilder":
         """Start fluent API for scheduling with intervals.
-        
+
         Args:
             interval: Interval string like "5 minutes", "2 hours", "daily"
-            
+
         Returns:
             ScheduleBuilder for chaining
-            
+
         Examples:
             agent.every("5 minutes").with_inputs(source="api").run()
             agent.every("daily").with_secrets(api_key="sk-123").run()
         """
         if not _SCHEDULING_AVAILABLE:
-            raise ImportError("Scheduling module not available. Install required dependencies.")
+            raise ImportError(
+                "Scheduling module not available. Install required dependencies."
+            )
 
         # Handle "every X" format - avoid double "every"
         if not interval.startswith("every "):
@@ -1008,49 +1081,47 @@ class Agent:
 
         return ScheduleBuilder(self, interval)
 
-    def daily(self, time_str: Optional[str] = None) -> 'ScheduleBuilder':
+    def daily(self, time_str: Optional[str] = None) -> "ScheduleBuilder":
         """Start fluent API for daily scheduling.
-        
+
         Args:
             time_str: Optional time like "09:00" or "2pm"
-            
+
         Returns:
             ScheduleBuilder for chaining
-            
+
         Examples:
             agent.daily().with_inputs(batch_size=1000).run()
             agent.daily("09:00").with_secrets(db_pass="secret123").run()
         """
         if not _SCHEDULING_AVAILABLE:
-            raise ImportError("Scheduling module not available. Install required dependencies.")
+            raise ImportError(
+                "Scheduling module not available. Install required dependencies."
+            )
 
-        if time_str:
-            schedule_str = f"daily at {time_str}"
-        else:
-            schedule_str = "daily"
+        schedule_str = f"daily at {time_str}" if time_str else "daily"
 
         return ScheduleBuilder(self, schedule_str)
 
-    def hourly(self, minute: Optional[int] = None) -> 'ScheduleBuilder':
+    def hourly(self, minute: Optional[int] = None) -> "ScheduleBuilder":
         """Start fluent API for hourly scheduling.
-        
+
         Args:
             minute: Optional minute of the hour (0-59)
-            
+
         Returns:
             ScheduleBuilder for chaining
-            
+
         Examples:
             agent.hourly().with_inputs(check_status=True).run()
             agent.hourly(30).with_constants(timeout=60).run()
         """
         if not _SCHEDULING_AVAILABLE:
-            raise ImportError("Scheduling module not available. Install required dependencies.")
+            raise ImportError(
+                "Scheduling module not available. Install required dependencies."
+            )
 
-        if minute is not None:
-            schedule_str = f"every hour at {minute}"
-        else:
-            schedule_str = "hourly"
+        schedule_str = f"every hour at {minute}" if minute is not None else "hourly"
 
         return ScheduleBuilder(self, schedule_str)
 
@@ -1073,11 +1144,11 @@ class Agent:
                     status=self.status,
                     start_time=start_time,
                     end_time=time.time(),
-                    execution_duration=time.time() - start_time
+                    execution_duration=time.time() - start_time,
                 )
 
             # Create context with current shared state
-            context = self._create_context(self.shared_state)
+            self._create_context(self.shared_state)
 
             # Find entry states (states with no dependencies)
             entry_states = self._find_entry_states()
@@ -1092,7 +1163,9 @@ class Agent:
             # Main execution loop
             while self.status == AgentStatus.RUNNING:
                 if timeout and (time.time() - start_time) > timeout:
-                    logger.warning(f"Agent {self.name} timed out after {timeout} seconds.")
+                    logger.warning(
+                        f"Agent {self.name} timed out after {timeout} seconds."
+                    )
                     self.status = AgentStatus.FAILED
                     break
 
@@ -1104,7 +1177,7 @@ class Agent:
 
                 if ready_states:
                     tasks = []
-                    for state_name in ready_states[:self.max_concurrent]:
+                    for state_name in ready_states[: self.max_concurrent]:
                         task = asyncio.create_task(self.run_state(state_name))
                         tasks.append(task)
 
@@ -1114,7 +1187,9 @@ class Agent:
                 elif self.priority_queue and not self.running_states:
                     # States are in queue but none can run, and nothing is running
                     # This indicates a deadlock or unmeetable dependencies
-                    logger.warning(f"Deadlock in agent {self.name}: States in queue but none can run.")
+                    logger.warning(
+                        f"Deadlock in agent {self.name}: States in queue but none can run."
+                    )
                     self.status = AgentStatus.FAILED
                     break
                 else:
@@ -1123,7 +1198,9 @@ class Agent:
 
             # Determine final status
             if self.status == AgentStatus.RUNNING:
-                has_failed_states = any(s.status == StateStatus.FAILED for s in self.state_metadata.values())
+                has_failed_states = any(
+                    s.status == StateStatus.FAILED for s in self.state_metadata.values()
+                )
                 if has_failed_states:
                     self.status = AgentStatus.FAILED
                 else:
@@ -1141,7 +1218,7 @@ class Agent:
                 metrics=self._get_execution_metrics(),
                 start_time=start_time,
                 end_time=end_time,
-                execution_duration=end_time - start_time
+                execution_duration=end_time - start_time,
             )
 
             return result
@@ -1156,7 +1233,7 @@ class Agent:
                 error=e,
                 start_time=start_time,
                 end_time=end_time,
-                execution_duration=end_time - start_time
+                execution_duration=end_time - start_time,
             )
 
     def __del__(self):
@@ -1165,6 +1242,8 @@ class Agent:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    loop.create_task(self.cleanup())
-            except:
+                    # Create cleanup task but don't store reference as object is being destroyed
+                    task = loop.create_task(self.cleanup())
+                    task.add_done_callback(lambda t: None)  # Prevent warnings
+            except Exception:
                 pass

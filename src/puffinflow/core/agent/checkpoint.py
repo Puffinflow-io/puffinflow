@@ -2,7 +2,7 @@
 
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .base import Agent
@@ -16,15 +16,16 @@ if TYPE_CHECKING:
 @dataclass
 class AgentCheckpoint:
     """Checkpoint data for agent state."""
+
     timestamp: float
     agent_name: str
     agent_status: "AgentStatus"
-    priority_queue: List["PrioritizedState"]
-    state_metadata: Dict[str, "StateMetadata"]
-    running_states: Set[str]
-    completed_states: Set[str]
-    completed_once: Set[str]
-    shared_state: Dict[str, Any]
+    priority_queue: list["PrioritizedState"]
+    state_metadata: dict[str, "StateMetadata"]
+    running_states: set[str]
+    completed_states: set[str]
+    completed_once: set[str]
+    shared_state: dict[str, Any]
     session_start: Optional[float]
 
     @classmethod
@@ -33,7 +34,7 @@ class AgentCheckpoint:
         from copy import deepcopy
 
         # Handle missing session_start gracefully
-        session_start = getattr(agent, 'session_start', None)
+        session_start = getattr(agent, "session_start", None)
 
         return cls(
             timestamp=time.time(),
@@ -45,5 +46,5 @@ class AgentCheckpoint:
             completed_states=set(agent.completed_states),
             completed_once=set(agent.completed_once),
             shared_state=deepcopy(agent.shared_state),
-            session_start=session_start
+            session_start=session_start,
         )

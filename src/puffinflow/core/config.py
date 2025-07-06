@@ -14,10 +14,7 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, env="API_PORT")
     api_prefix: str = Field(default="/api/v1", env="API_PREFIX")
 
-    database_url: str = Field(
-        default="sqlite:///./workflows.db",
-        env="DATABASE_URL"
-    )
+    database_url: str = Field(default="sqlite:///./workflows.db", env="DATABASE_URL")
     database_pool_size: int = Field(default=10, env="DATABASE_POOL_SIZE")
 
     # Fix: Make these Optional[str] since they can be None
@@ -54,6 +51,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+
 
 class Features:
     def __init__(self, settings: Settings):
@@ -92,16 +90,20 @@ class Features:
         return self._settings.enable_metrics
 
     def is_enterprise(self) -> bool:
-        return any([
-            self.multitenancy,
-            self.ai_optimizer,
-            self.marketplace,
-            self.enterprise_auth
-        ])
+        return any(
+            [
+                self.multitenancy,
+                self.ai_optimizer,
+                self.marketplace,
+                self.enterprise_auth,
+            ]
+        )
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
 
 @lru_cache
 def get_features() -> Features:

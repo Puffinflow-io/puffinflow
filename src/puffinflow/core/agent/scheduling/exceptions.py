@@ -1,15 +1,17 @@
 """Scheduling exceptions."""
+from typing import Optional
 
 
 class SchedulingError(Exception):
     """Base exception for scheduling errors."""
+
     pass
 
 
 class InvalidScheduleError(SchedulingError):
     """Raised when a schedule string is invalid."""
 
-    def __init__(self, schedule: str, message: str = None):
+    def __init__(self, schedule: str, message: Optional[str] = None):
         self.schedule = schedule
         if message is None:
             message = (
@@ -22,7 +24,7 @@ class InvalidScheduleError(SchedulingError):
 class InvalidInputTypeError(SchedulingError):
     """Raised when an input type prefix is invalid."""
 
-    def __init__(self, prefix: str, message: str = None):
+    def __init__(self, prefix: str, message: Optional[str] = None):
         self.prefix = prefix
         if message is None:
             message = (

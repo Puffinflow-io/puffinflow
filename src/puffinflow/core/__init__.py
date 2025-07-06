@@ -21,36 +21,50 @@ try:
     from .reliability.leak_detector import ResourceLeakDetector
 except ImportError:
     # Create mock classes if reliability module is not available
+    from typing import Any
+
     class CircuitBreaker:
-        def __init__(self, config): pass
+        def __init__(self, config: Any) -> None:
+            pass
+
     class CircuitBreakerConfig:
-        def __init__(self, **kwargs): pass
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
     class Bulkhead:
-        def __init__(self, config): pass
+        def __init__(self, config: Any) -> None:
+            pass
+
     class BulkheadConfig:
-        def __init__(self, **kwargs): pass
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
     class ResourceLeakDetector:
-        def __init__(self, **kwargs): pass
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
 
 # Import state decorator if available
 try:
     from .agent.decorators.flexible import state
 except ImportError:
     # Create a simple mock state decorator
-    def state(**kwargs):
-        def decorator(func):
+    from typing import Any, Callable
+
+    def state(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             # Create ResourceRequirements from kwargs
             requirements = ResourceRequirements()
-            if 'cpu' in kwargs:
-                requirements.cpu_units = kwargs['cpu']
-            if 'memory' in kwargs:
-                requirements.memory_mb = kwargs['memory']
-            if 'io' in kwargs:
-                requirements.io_weight = kwargs['io']
-            if 'network' in kwargs:
-                requirements.network_weight = kwargs['network']
-            if 'gpu' in kwargs:
-                requirements.gpu_units = kwargs['gpu']
+            if "cpu" in kwargs:
+                requirements.cpu_units = kwargs["cpu"]
+            if "memory" in kwargs:
+                requirements.memory_mb = kwargs["memory"]
+            if "io" in kwargs:
+                requirements.io_weight = kwargs["io"]
+            if "network" in kwargs:
+                requirements.network_weight = kwargs["network"]
+            if "gpu" in kwargs:
+                requirements.gpu_units = kwargs["gpu"]
 
             # Determine resource_types from non-zero values
             resource_types = ResourceType.NONE
@@ -66,9 +80,11 @@ except ImportError:
                 resource_types |= ResourceType.GPU
 
             requirements.resource_types = resource_types
-            func._resource_requirements = requirements
+            func._resource_requirements = requirements  # type: ignore
             return func
+
         return decorator
+
 
 __all__ = [
     "Agent",

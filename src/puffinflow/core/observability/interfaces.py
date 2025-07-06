@@ -3,11 +3,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class SpanType(Enum):
     """Types of spans for categorization"""
+
     WORKFLOW = "workflow"
     STATE = "state"
     RESOURCE = "resource"
@@ -17,6 +18,7 @@ class SpanType(Enum):
 
 class MetricType(Enum):
     """Types of metrics"""
+
     COUNTER = "counter"
     GAUGE = "gauge"
     HISTOGRAM = "histogram"
@@ -24,6 +26,7 @@ class MetricType(Enum):
 
 class AlertSeverity(Enum):
     """Alert severity levels"""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -33,6 +36,7 @@ class AlertSeverity(Enum):
 @dataclass
 class SpanContext:
     """Correlation context for distributed tracing"""
+
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     span_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     parent_span_id: Optional[str] = None
@@ -42,7 +46,7 @@ class SpanContext:
     user_id: Optional[str] = None
     session_id: Optional[str] = None
 
-    def child_context(self) -> 'SpanContext':
+    def child_context(self) -> "SpanContext":
         """Create child span context"""
         return SpanContext(
             trace_id=self.trace_id,
@@ -52,19 +56,20 @@ class SpanContext:
             agent_name=self.agent_name,
             state_name=self.state_name,
             user_id=self.user_id,
-            session_id=self.session_id
+            session_id=self.session_id,
         )
 
 
 @dataclass
 class ObservabilityEvent:
     """Structured observability event"""
+
     timestamp: datetime
     event_type: str
     source: str
     level: str
     message: str
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
     span_context: Optional[SpanContext] = None
 
 
@@ -76,11 +81,11 @@ class Span(ABC):
         """Set span attribute"""
 
     @abstractmethod
-    def set_status(self, status: str, description: str = None) -> None:
+    def set_status(self, status: str, description: Optional[str] = None) -> None:
         """Set span status"""
 
     @abstractmethod
-    def add_event(self, name: str, attributes: Dict[str, Any] = None) -> None:
+    def add_event(self, name: str, attributes: Optional[dict[str, Any]] = None) -> None:
         """Add event to span"""
 
     @abstractmethod
@@ -101,8 +106,13 @@ class TracingProvider(ABC):
     """Abstract tracing provider"""
 
     @abstractmethod
-    def start_span(self, name: str, span_type: SpanType = SpanType.SYSTEM,
-                   parent: Optional[SpanContext] = None, **attributes) -> Span:
+    def start_span(
+        self,
+        name: str,
+        span_type: SpanType = SpanType.SYSTEM,
+        parent: Optional[SpanContext] = None,
+        **attributes,
+    ) -> Span:
         """Start a new span"""
 
     @abstractmethod
@@ -122,15 +132,21 @@ class MetricsProvider(ABC):
     """Abstract metrics provider"""
 
     @abstractmethod
-    def counter(self, name: str, description: str = "", labels: List[str] = None) -> Metric:
+    def counter(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Metric:
         """Create counter metric"""
 
     @abstractmethod
-    def gauge(self, name: str, description: str = "", labels: List[str] = None) -> Metric:
+    def gauge(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Metric:
         """Create gauge metric"""
 
     @abstractmethod
-    def histogram(self, name: str, description: str = "", labels: List[str] = None) -> Metric:
+    def histogram(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Metric:
         """Create histogram metric"""
 
     @abstractmethod
@@ -142,8 +158,12 @@ class AlertingProvider(ABC):
     """Abstract alerting provider"""
 
     @abstractmethod
-    async def send_alert(self, message: str, severity: AlertSeverity,
-                         attributes: Dict[str, Any] = None) -> None:
+    async def send_alert(
+        self,
+        message: str,
+        severity: AlertSeverity,
+        attributes: Optional[dict[str, Any]] = None,
+    ) -> None:
         """Send alert"""
 
 

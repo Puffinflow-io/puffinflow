@@ -4,9 +4,9 @@ import random
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, runtime_checkable
 
-from typing_extensions import Protocol, runtime_checkable
+from typing_extensions import Protocol
 
 if TYPE_CHECKING:
     from ..resources.requirements import ResourceRequirements
@@ -18,17 +18,26 @@ except ImportError:
     ResourceRequirements = None
 
 # Type definitions
-StateResult = Union[str, List[Union[str, Tuple["Agent", str]]], None]
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .base import Agent
+
+StateResult = Union[str, list[Union[str, tuple["Agent", str]]], None]
+
 
 class Priority(IntEnum):
     """Priority levels for state execution."""
+
     LOW = 0
     NORMAL = 1
     HIGH = 2
     CRITICAL = 3
 
+
 class AgentStatus(str, Enum):
     """Agent execution status."""
+
     IDLE = "idle"
     RUNNING = "running"
     PAUSED = "paused"
@@ -39,8 +48,10 @@ class AgentStatus(str, Enum):
     def __str__(self):
         return self.value
 
+
 class StateStatus(str, Enum):
     """State execution status."""
+
     PENDING = "pending"
     READY = "ready"
     RUNNING = "running"
@@ -54,10 +65,14 @@ class StateStatus(str, Enum):
     def __str__(self):
         return self.value
 
+
 @runtime_checkable
 class StateFunction(Protocol):
     """Protocol for state functions."""
-    async def __call__(self, context: "Context") -> StateResult: ...
+
+    async def __call__(self, context: "Context") -> StateResult:
+        ...
+
 
 @dataclass
 class RetryPolicy:
@@ -71,12 +86,13 @@ class RetryPolicy:
 
     async def wait(self, attempt: int) -> None:
         delay = min(
-            self.initial_delay * (self.exponential_base ** attempt),
-            60.0  # Max 60 seconds
+            self.initial_delay * (self.exponential_base**attempt),
+            60.0,  # Max 60 seconds
         )
         if self.jitter:
-            delay *= (0.5 + random.random() * 0.5)
+            delay *= 0.5 + random.random() * 0.5
         await asyncio.sleep(delay)
+
 
 # Dead letter data structure
 @dataclass
@@ -88,32 +104,36 @@ class DeadLetter:
     attempts: int
     failed_at: float
     timeout_occurred: bool = False
-    context_snapshot: Dict[str, Any] = field(default_factory=dict)
+    context_snapshot: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class StateMetadata:
     """Metadata for state execution."""
+
     status: StateStatus
     attempts: int = 0
     max_retries: int = 3
     resources: Optional["ResourceRequirements"] = None
-    dependencies: Dict[str, Any] = field(default_factory=dict)
+    dependencies: dict[str, Any] = field(default_factory=dict)
     satisfied_dependencies: set = field(default_factory=set)
     last_execution: Optional[float] = None
     last_success: Optional[float] = None
     state_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     retry_policy: Optional[RetryPolicy] = None
     priority: Priority = Priority.NORMAL
-    coordination_primitives: List[Any] = field(default_factory=list)
+    coordination_primitives: list[Any] = field(default_factory=list)
 
     def __post_init__(self):
         """Initialize resources if not provided."""
         if self.resources is None and ResourceRequirements is not None:
             self.resources = ResourceRequirements()
 
+
 @dataclass(order=True)
 class PrioritizedState:
     """State with priority for queue management."""
+
     priority: int
     timestamp: float
     state_name: str = field(compare=False)

@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Optional
 
 import aiohttp
 
@@ -12,21 +12,22 @@ from .interfaces import AlertingProvider, AlertSeverity
 @dataclass
 class Alert:
     """Alert data structure"""
+
     message: str
     severity: AlertSeverity
-    attributes: Dict[str, Any]
+    attributes: dict[str, Any]
     timestamp: datetime = None
 
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "message": self.message,
             "severity": self.severity.value,
             "attributes": self.attributes,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -36,8 +37,12 @@ class WebhookAlerting(AlertingProvider):
     def __init__(self, config: AlertingConfig):
         self.config = config
 
-    async def send_alert(self, message: str, severity: AlertSeverity,
-                         attributes: Dict[str, Any] = None) -> None:
+    async def send_alert(
+        self,
+        message: str,
+        severity: AlertSeverity,
+        attributes: Optional[dict[str, Any]] = None,
+    ) -> None:
         """Send alert via webhooks"""
         if not self.config.enabled or not self.config.webhook_urls:
             return
@@ -53,12 +58,13 @@ class WebhookAlerting(AlertingProvider):
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _send_webhook(self, url: str, payload: Dict[str, Any]):
+    async def _send_webhook(self, url: str, payload: dict[str, Any]):
         """Send single webhook"""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=30) as response:
-                    if response.status >= 400:
-                        print(f"Webhook failed: {response.status}")
+            async with aiohttp.ClientSession() as session, session.post(
+                url, json=payload, timeout=30
+            ) as response:
+                if response.status >= 400:
+                    print(f"Webhook failed: {response.status}")
         except Exception as e:
             print(f"Failed to send webhook to {url}: {e}")

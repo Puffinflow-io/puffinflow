@@ -1,12 +1,13 @@
 """Global scheduler and scheduled agent implementation."""
 
 import asyncio
+import contextlib
 import logging
 import time
 import weakref
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from .exceptions import SchedulingError
 from .inputs import ScheduledInput, parse_inputs
@@ -21,10 +22,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScheduledJob:
     """Represents a scheduled job."""
+
     job_id: str
     agent_ref: weakref.ReferenceType  # Weak reference to agent
     schedule: ParsedSchedule
-    inputs: Dict[str, ScheduledInput]
+    inputs: dict[str, ScheduledInput]
     next_run: float
     last_run: Optional[float] = None
     run_count: int = 0
@@ -32,7 +34,7 @@ class ScheduledJob:
     created_at: float = field(default_factory=time.time)
 
     @property
-    def agent(self) -> Optional['Agent']:
+    def agent(self) -> Optional["Agent"]:
         """Get the agent if it still exists."""
         return self.agent_ref() if self.agent_ref else None
 
@@ -69,7 +71,9 @@ class ScheduledJob:
 
         elif cron == "0 0 * * *":  # daily at midnight
             dt = datetime.fromtimestamp(from_time)
-            next_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            next_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+                days=1
+            )
             return next_dt.timestamp()
 
         elif cron.startswith("0 ") and " * * *" in cron:  # daily at specific hour
@@ -92,7 +96,13 @@ class ScheduledJob:
 class ScheduledAgent:
     """Represents a scheduled agent execution."""
 
-    def __init__(self, job_id: str, agent: 'Agent', schedule: ParsedSchedule, inputs: Dict[str, ScheduledInput]):
+    def __init__(
+        self,
+        job_id: str,
+        agent: "Agent",
+        schedule: ParsedSchedule,
+        inputs: dict[str, ScheduledInput],
+    ):
         self.job_id = job_id
         self.agent = agent
         self.schedule = schedule
@@ -101,7 +111,7 @@ class ScheduledAgent:
 
     def cancel(self) -> bool:
         """Cancel this scheduled execution.
-        
+
         Returns:
             True if successfully cancelled
         """
@@ -109,7 +119,7 @@ class ScheduledAgent:
 
     def get_next_run_time(self) -> Optional[datetime]:
         """Get the next scheduled run time.
-        
+
         Returns:
             Next run time as datetime, or None if not found
         """
@@ -121,7 +131,7 @@ class ScheduledAgent:
 
     def get_run_count(self) -> int:
         """Get the number of times this job has run.
-        
+
         Returns:
             Run count
         """
@@ -133,18 +143,18 @@ class ScheduledAgent:
 class GlobalScheduler:
     """Global scheduler for managing scheduled agent executions."""
 
-    _instance: Optional['GlobalScheduler'] = None
+    _instance: Optional["GlobalScheduler"] = None
     _lock = asyncio.Lock()
 
     def __init__(self):
-        self._jobs: Dict[str, ScheduledJob] = {}
+        self._jobs: dict[str, ScheduledJob] = {}
         self._running = False
         self._scheduler_task: Optional[asyncio.Task] = None
         self._check_interval = 10.0  # Check every 10 seconds
         self._job_counter = 0
 
     @classmethod
-    async def get_instance(cls) -> 'GlobalScheduler':
+    async def get_instance(cls) -> "GlobalScheduler":
         """Get or create the global scheduler instance."""
         if cls._instance is None:
             async with cls._lock:
@@ -154,7 +164,7 @@ class GlobalScheduler:
         return cls._instance
 
     @classmethod
-    def get_instance_sync(cls) -> 'GlobalScheduler':
+    def get_instance_sync(cls) -> "GlobalScheduler":
         """Get the global scheduler instance synchronously (for non-async contexts)."""
         if cls._instance is None:
             cls._instance = cls()
@@ -162,7 +172,9 @@ class GlobalScheduler:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    asyncio.create_task(cls._instance.start())
+                    # Create task but don't need to store reference as it's just startup
+                    task = asyncio.create_task(cls._instance.start())
+                    task.add_done_callback(lambda t: None)  # Prevent warnings
             except RuntimeError:
                 # No event loop running, scheduler will start when needed
                 pass
@@ -180,24 +192,24 @@ class GlobalScheduler:
         self._running = False
         if self._scheduler_task:
             self._scheduler_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._scheduler_task
-            except asyncio.CancelledError:
-                pass
             self._scheduler_task = None
         logger.info("Global scheduler stopped")
 
-    def schedule_agent(self, agent: 'Agent', schedule_string: str, **inputs) -> ScheduledAgent:
+    def schedule_agent(
+        self, agent: "Agent", schedule_string: str, **inputs
+    ) -> ScheduledAgent:
         """Schedule an agent for execution.
-        
+
         Args:
             agent: Agent to schedule
             schedule_string: Schedule string (natural language or cron)
             **inputs: Input parameters with magic prefixes
-            
+
         Returns:
             ScheduledAgent instance
-            
+
         Raises:
             SchedulingError: If scheduling fails
         """
@@ -218,7 +230,7 @@ class GlobalScheduler:
                 agent_ref=weakref.ref(agent),
                 schedule=parsed_schedule,
                 inputs=parsed_inputs,
-                next_run=time.time()  # Will be recalculated
+                next_run=time.time(),  # Will be recalculated
             )
             job.next_run = job.calculate_next_run()
 
@@ -230,12 +242,16 @@ class GlobalScheduler:
                 try:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        asyncio.create_task(self.start())
+                        # Create task but don't need to store reference as it's just startup
+                        task = asyncio.create_task(self.start())
+                        task.add_done_callback(lambda t: None)  # Prevent warnings
                 except RuntimeError:
                     # No event loop, will start when one is available
                     pass
 
-            logger.info(f"Scheduled agent {agent.name} with schedule '{schedule_string}' (job_id: {job_id})")
+            logger.info(
+                f"Scheduled agent {agent.name} with schedule '{schedule_string}' (job_id: {job_id})"
+            )
 
             return ScheduledAgent(job_id, agent, parsed_schedule, parsed_inputs)
 
@@ -244,10 +260,10 @@ class GlobalScheduler:
 
     def cancel_job(self, job_id: str) -> bool:
         """Cancel a scheduled job.
-        
+
         Args:
             job_id: Job ID to cancel
-            
+
         Returns:
             True if job was cancelled
         """
@@ -257,12 +273,14 @@ class GlobalScheduler:
             return True
         return False
 
-    def get_scheduled_jobs(self, agent_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_scheduled_jobs(
+        self, agent_name: Optional[str] = None
+    ) -> list[dict[str, Any]]:
         """Get information about scheduled jobs.
-        
+
         Args:
             agent_name: Filter by agent name (optional)
-            
+
         Returns:
             List of job information dictionaries
         """
@@ -275,16 +293,20 @@ class GlobalScheduler:
             if agent_name and agent.name != agent_name:
                 continue
 
-            jobs.append({
-                'job_id': job_id,
-                'agent_name': agent.name,
-                'schedule_description': job.schedule.description,
-                'next_run': datetime.fromtimestamp(job.next_run),
-                'last_run': datetime.fromtimestamp(job.last_run) if job.last_run else None,
-                'run_count': job.run_count,
-                'is_running': job.is_running,
-                'created_at': datetime.fromtimestamp(job.created_at)
-            })
+            jobs.append(
+                {
+                    "job_id": job_id,
+                    "agent_name": agent.name,
+                    "schedule_description": job.schedule.description,
+                    "next_run": datetime.fromtimestamp(job.next_run),
+                    "last_run": datetime.fromtimestamp(job.last_run)
+                    if job.last_run
+                    else None,
+                    "run_count": job.run_count,
+                    "is_running": job.is_running,
+                    "created_at": datetime.fromtimestamp(job.created_at),
+                }
+            )
 
         return jobs
 
@@ -322,11 +344,16 @@ class GlobalScheduler:
 
         # Run jobs
         for job in jobs_to_run:
-            asyncio.create_task(self._run_job(job))
+            # Create job execution task and store reference to prevent garbage collection
+            task = asyncio.create_task(self._run_job(job))
+            if not hasattr(self, "_background_tasks"):
+                self._background_tasks = set()
+            self._background_tasks.add(task)
+            task.add_done_callback(lambda t: self._background_tasks.discard(t))
 
     async def _run_job(self, job: ScheduledJob) -> None:
         """Run a scheduled job.
-        
+
         Args:
             job: Job to run
         """
@@ -351,10 +378,14 @@ class GlobalScheduler:
             # Run the agent
             result: AgentResult = await agent.run()
 
-            logger.info(f"Completed scheduled job {job.job_id} for agent {agent.name} (status: {result.status})")
+            logger.info(
+                f"Completed scheduled job {job.job_id} for agent {agent.name} (status: {result.status})"
+            )
 
         except Exception as e:
-            logger.error(f"Error running scheduled job {job.job_id} for agent {agent.name}: {e}")
+            logger.error(
+                f"Error running scheduled job {job.job_id} for agent {agent.name}: {e}"
+            )
 
         finally:
             job.is_running = False
@@ -363,7 +394,7 @@ class GlobalScheduler:
 
     def cleanup_dead_jobs(self) -> int:
         """Remove jobs for agents that have been garbage collected.
-        
+
         Returns:
             Number of jobs cleaned up
         """

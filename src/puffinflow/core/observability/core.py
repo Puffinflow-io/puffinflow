@@ -108,6 +108,7 @@ class ObservabilityManager:
         """Send alert"""
         if self._alerting:
             from .interfaces import AlertSeverity
+
             sev = AlertSeverity(severity.lower())
             await self._alerting.send_alert(message, sev, attributes)
 
@@ -126,7 +127,9 @@ def get_observability() -> ObservabilityManager:
         return _global_observability
 
 
-async def setup_observability(config: Optional[ObservabilityConfig] = None) -> ObservabilityManager:
+async def setup_observability(
+    config: Optional[ObservabilityConfig] = None,
+) -> ObservabilityManager:
     """Setup and initialize observability"""
     global _global_observability
     with _lock:

@@ -2,7 +2,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Set
+from typing import Any, Optional
 
 
 @dataclass
@@ -15,6 +15,7 @@ class BulkheadConfig:
 
 class BulkheadFullError(Exception):
     """Raised when bulkhead is at capacity"""
+
     pass
 
 
@@ -25,7 +26,7 @@ class Bulkhead:
         self.config = config
         self._semaphore = asyncio.Semaphore(config.max_concurrent)
         self._queue_size = 0
-        self._active_tasks: Set[asyncio.Task] = set()
+        self._active_tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def isolate(self):
@@ -39,11 +40,12 @@ class Bulkhead:
             # Wait for semaphore with timeout
             try:
                 await asyncio.wait_for(
-                    self._semaphore.acquire(),
-                    timeout=self.config.timeout
+                    self._semaphore.acquire(), timeout=self.config.timeout
                 )
-            except asyncio.TimeoutError:
-                raise BulkheadFullError(f"Bulkhead {self.config.name} timeout waiting for slot")
+            except asyncio.TimeoutError as e:
+                raise BulkheadFullError(
+                    f"Bulkhead {self.config.name} timeout waiting for slot"
+                ) from e
 
             try:
                 yield
@@ -52,7 +54,7 @@ class Bulkhead:
         finally:
             self._queue_size -= 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get bulkhead metrics"""
         return {
             "name": self.config.name,
@@ -60,7 +62,7 @@ class Bulkhead:
             "available_slots": self._semaphore._value,
             "queue_size": self._queue_size,
             "max_queue_size": self.config.max_queue_size,
-            "active_tasks": len(self._active_tasks)
+            "active_tasks": len(self._active_tasks),
         }
 
 
@@ -69,9 +71,11 @@ class BulkheadRegistry:
     """Simple registry for bulkheads"""
 
     def __init__(self):
-        self._bulkheads: Dict[str, Bulkhead] = {}
+        self._bulkheads: dict[str, Bulkhead] = {}
 
-    def get_or_create(self, name: str, config: Optional[BulkheadConfig] = None) -> Bulkhead:
+    def get_or_create(
+        self, name: str, config: Optional[BulkheadConfig] = None
+    ) -> Bulkhead:
         """Get existing or create new bulkhead"""
         if name not in self._bulkheads:
             if config is None:
@@ -79,9 +83,11 @@ class BulkheadRegistry:
             self._bulkheads[name] = Bulkhead(config)
         return self._bulkheads[name]
 
-    def get_all_metrics(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_metrics(self) -> dict[str, dict[str, Any]]:
         """Get metrics for all bulkheads"""
-        return {name: bulkhead.get_metrics() for name, bulkhead in self._bulkheads.items()}
+        return {
+            name: bulkhead.get_metrics() for name, bulkhead in self._bulkheads.items()
+        }
 
 
 # Global registry instance

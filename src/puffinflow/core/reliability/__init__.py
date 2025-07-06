@@ -23,5 +23,5 @@ __all__ = [
     "ResourceLeakDetector",
     "bulkhead",
     "circuit_breaker",
-    "leak_detector"
+    "leak_detector",
 ]

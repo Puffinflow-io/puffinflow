@@ -1,12 +1,13 @@
 """Agent pool with dynamic scaling capabilities."""
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Optional
 
 from ..agent.base import Agent, AgentResult
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class ScalingPolicy(Enum):
     """Scaling policy options."""
+
     MANUAL = "manual"
     AUTO_CPU = "auto_cpu"
     AUTO_QUEUE = "auto_queue"
@@ -25,6 +27,7 @@ class ScalingPolicy(Enum):
 @dataclass
 class WorkItem:
     """Work item for agent processing."""
+
     id: str
     data: Any
     priority: int = 0
@@ -53,6 +56,7 @@ class WorkItem:
 @dataclass
 class CompletedWork:
     """Completed work result."""
+
     work_item: WorkItem
     agent: Agent
     result: AgentResult
@@ -65,7 +69,7 @@ class WorkQueue:
     def __init__(self, max_size: Optional[int] = None):
         self._queue: deque = deque()
         self._max_size = max_size
-        self._priority_queue: List[WorkItem] = []
+        self._priority_queue: list[WorkItem] = []
         self._use_priority = False
 
     def add_work(self, work_item: WorkItem) -> bool:
@@ -76,6 +80,7 @@ class WorkQueue:
         if work_item.priority > 0:
             self._use_priority = True
             import heapq
+
             heapq.heappush(self._priority_queue, (-work_item.priority, work_item))
         else:
             self._queue.append(work_item)
@@ -87,6 +92,7 @@ class WorkQueue:
         # Try priority queue first
         if self._priority_queue:
             import heapq
+
             _, work_item = heapq.heappop(self._priority_queue)
             work_item.assigned_at = time.time()
             return work_item
@@ -117,14 +123,14 @@ class AgentPool:
     """Agent pool with dynamic scaling."""
 
     def __init__(
-            self,
-            agent_factory: Callable[[int], Agent],
-            min_size: int = 1,
-            max_size: int = 10,
-            scaling_policy: ScalingPolicy = ScalingPolicy.AUTO_QUEUE,
-            scale_up_threshold: float = 2.0,
-            scale_down_threshold: float = 0.5,
-            scale_check_interval: float = 10.0
+        self,
+        agent_factory: Callable[[int], Agent],
+        min_size: int = 1,
+        max_size: int = 10,
+        scaling_policy: ScalingPolicy = ScalingPolicy.AUTO_QUEUE,
+        scale_up_threshold: float = 2.0,
+        scale_down_threshold: float = 0.5,
+        scale_check_interval: float = 10.0,
     ):
         self.agent_factory = agent_factory
         self.min_size = min_size
@@ -134,17 +140,17 @@ class AgentPool:
         self.scale_down_threshold = scale_down_threshold
         self.scale_check_interval = scale_check_interval
 
-        self._agents: List[Agent] = []
-        self._active_agents: Set[str] = set()
-        self._idle_agents: Set[str] = set()
-        self._agent_tasks: Dict[str, asyncio.Task] = {}
+        self._agents: list[Agent] = []
+        self._active_agents: set[str] = set()
+        self._idle_agents: set[str] = set()
+        self._agent_tasks: dict[str, asyncio.Task] = {}
         self._scaling_task: Optional[asyncio.Task] = None
-        self._metrics: Dict[str, Any] = {
-            'total_processed': 0,
-            'total_errors': 0,
-            'avg_processing_time': 0.0,
-            'current_queue_size': 0,
-            'scale_events': []
+        self._metrics: dict[str, Any] = {
+            "total_processed": 0,
+            "total_errors": 0,
+            "avg_processing_time": 0.0,
+            "current_queue_size": 0,
+            "scale_events": [],
         }
 
         # Initialize minimum agents
@@ -153,7 +159,7 @@ class AgentPool:
             self._agents.append(agent)
             self._idle_agents.add(agent.name)
 
-    def auto_scale(self) -> 'PoolContext':
+    def auto_scale(self) -> "PoolContext":
         """Get auto-scaling context manager."""
         return PoolContext(self)
 
@@ -162,7 +168,7 @@ class AgentPool:
         added = 0
         current_size = len(self._agents)
 
-        for i in range(count):
+        for _i in range(count):
             if current_size + added >= self.max_size:
                 break
 
@@ -174,12 +180,14 @@ class AgentPool:
             logger.info(f"Scaled up: added agent {agent.name}")
 
         if added > 0:
-            self._metrics['scale_events'].append({
-                'type': 'scale_up',
-                'count': added,
-                'timestamp': time.time(),
-                'total_agents': len(self._agents)
-            })
+            self._metrics["scale_events"].append(
+                {
+                    "type": "scale_up",
+                    "count": added,
+                    "timestamp": time.time(),
+                    "total_agents": len(self._agents),
+                }
+            )
 
         return added
 
@@ -212,12 +220,14 @@ class AgentPool:
                 logger.info(f"Scaled down: removed agent {agent_name}")
 
         if removed > 0:
-            self._metrics['scale_events'].append({
-                'type': 'scale_down',
-                'count': removed,
-                'timestamp': time.time(),
-                'total_agents': len(self._agents)
-            })
+            self._metrics["scale_events"].append(
+                {
+                    "type": "scale_down",
+                    "count": removed,
+                    "timestamp": time.time(),
+                    "total_agents": len(self._agents),
+                }
+            )
 
         return removed
 
@@ -231,20 +241,24 @@ class AgentPool:
                 active_count = len(self._active_agents)
                 idle_count = len(self._idle_agents)
 
-                self._metrics['current_queue_size'] = queue_size
+                self._metrics["current_queue_size"] = queue_size
 
                 # Auto-scaling logic based on policy
                 if self.scaling_policy == ScalingPolicy.AUTO_QUEUE:
                     # Scale based on queue size vs active agents
                     if queue_size > active_count * self.scale_up_threshold:
                         await self.scale_up()
-                    elif queue_size < active_count * self.scale_down_threshold and idle_count > 0:
+                    elif (
+                        queue_size < active_count * self.scale_down_threshold
+                        and idle_count > 0
+                    ):
                         await self.scale_down()
 
                 elif self.scaling_policy == ScalingPolicy.AUTO_CPU:
                     # Scale based on CPU usage (placeholder)
                     try:
                         import psutil
+
                         cpu_percent = psutil.cpu_percent()
 
                         if cpu_percent > 80 and queue_size > 0:
@@ -259,20 +273,20 @@ class AgentPool:
             except Exception as e:
                 logger.error(f"Error in auto-scaling loop: {e}")
 
-    def process_queue(self, work_queue: WorkQueue) -> 'WorkProcessor':
+    def process_queue(self, work_queue: WorkQueue) -> "WorkProcessor":
         """Process work queue with pool."""
         return WorkProcessor(self, work_queue)
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get pool metrics."""
         return {
             **self._metrics,
-            'total_agents': len(self._agents),
-            'active_agents': len(self._active_agents),
-            'idle_agents': len(self._idle_agents),
-            'min_size': self.min_size,
-            'max_size': self.max_size,
-            'scaling_policy': self.scaling_policy.value
+            "total_agents": len(self._agents),
+            "active_agents": len(self._active_agents),
+            "idle_agents": len(self._idle_agents),
+            "min_size": self.min_size,
+            "max_size": self.max_size,
+            "scaling_policy": self.scaling_policy.value,
         }
 
     @property
@@ -298,10 +312,8 @@ class PoolContext:
         """Exit context - cleanup."""
         if self.pool._scaling_task:
             self.pool._scaling_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.pool._scaling_task
-            except asyncio.CancelledError:
-                pass
 
         # Cancel all agent tasks
         for task in self.pool._agent_tasks.values():
@@ -317,7 +329,7 @@ class WorkProcessor:
         self.work_queue = work_queue
         self._completed_queue: asyncio.Queue = asyncio.Queue()
         self._running = False
-        self._worker_tasks: List[asyncio.Task] = []
+        self._worker_tasks: list[asyncio.Task] = []
 
     async def __aiter__(self):
         """Async iterator for completed work."""
@@ -327,8 +339,7 @@ class WorkProcessor:
         while self._running or not self._completed_queue.empty():
             try:
                 completed_work = await asyncio.wait_for(
-                    self._completed_queue.get(),
-                    timeout=1.0
+                    self._completed_queue.get(), timeout=1.0
                 )
                 yield completed_work
             except asyncio.TimeoutError:
@@ -372,8 +383,8 @@ class WorkProcessor:
                 # Process work item
                 try:
                     # Set work data in agent
-                    agent.set_variable('work_item', work_item.data)
-                    agent.set_variable('work_id', work_item.id)
+                    agent.set_variable("work_item", work_item.data)
+                    agent.set_variable("work_id", work_item.id)
 
                     # Run agent
                     result = await agent.run()
@@ -384,17 +395,20 @@ class WorkProcessor:
                         work_item=work_item,
                         agent=agent,
                         result=result,
-                        success=result.is_success
+                        success=result.is_success,
                     )
 
                     # Update metrics
-                    self.pool._metrics['total_processed'] += 1
+                    self.pool._metrics["total_processed"] += 1
                     if work_item.processing_time:
                         # Update average processing time
-                        current_avg = self.pool._metrics['avg_processing_time']
-                        total_processed = self.pool._metrics['total_processed']
-                        new_avg = ((current_avg * (total_processed - 1)) + work_item.processing_time) / total_processed
-                        self.pool._metrics['avg_processing_time'] = new_avg
+                        current_avg = self.pool._metrics["avg_processing_time"]
+                        total_processed = self.pool._metrics["total_processed"]
+                        new_avg = (
+                            (current_avg * (total_processed - 1))
+                            + work_item.processing_time
+                        ) / total_processed
+                        self.pool._metrics["avg_processing_time"] = new_avg
 
                     # Queue completed work
                     await self._completed_queue.put(completed_work)
@@ -409,19 +423,17 @@ class WorkProcessor:
                         self.work_queue.add_work(work_item)
                     else:
                         # Max retries reached
-                        self.pool._metrics['total_errors'] += 1
+                        self.pool._metrics["total_errors"] += 1
 
                         error_result = AgentResult(
-                            agent_name=agent.name,
-                            status="failed",
-                            error=e
+                            agent_name=agent.name, status="failed", error=e
                         )
 
                         completed_work = CompletedWork(
                             work_item=work_item,
                             agent=agent,
                             result=error_result,
-                            success=False
+                            success=False,
                         )
 
                         await self._completed_queue.put(completed_work)
@@ -451,17 +463,21 @@ class WorkProcessor:
 class DynamicProcessingPool:
     """High-level dynamic processing pool."""
 
-    def __init__(self, agent_factory: Callable[[int], Agent],
-                 min_agents: int = 2, max_agents: int = 10):
+    def __init__(
+        self,
+        agent_factory: Callable[[int], Agent],
+        min_agents: int = 2,
+        max_agents: int = 10,
+    ):
         self.pool = AgentPool(
-            agent_factory=agent_factory,
-            min_size=min_agents,
-            max_size=max_agents
+            agent_factory=agent_factory, min_size=min_agents, max_size=max_agents
         )
         self.work_queue = WorkQueue()
-        self.results: List[CompletedWork] = []
+        self.results: list[CompletedWork] = []
 
-    async def process_workload(self, work_items: List[WorkItem]) -> List[Dict[str, Any]]:
+    async def process_workload(
+        self, work_items: list[WorkItem]
+    ) -> list[dict[str, Any]]:
         """Process a complete workload."""
         # Add all work to queue
         for item in work_items:
@@ -473,13 +489,17 @@ class DynamicProcessingPool:
         async with self.pool.auto_scale() as pool:
             async for completed_work in pool.process_queue(self.work_queue):
                 result_dict = {
-                    'work_item_id': completed_work.work_item.id,
-                    'agent_name': completed_work.agent.name,
-                    'success': completed_work.success,
-                    'processing_time': completed_work.work_item.processing_time,
-                    'wait_time': completed_work.work_item.wait_time,
-                    'result': completed_work.result.outputs if completed_work.success else None,
-                    'error': str(completed_work.result.error) if completed_work.result.error else None
+                    "work_item_id": completed_work.work_item.id,
+                    "agent_name": completed_work.agent.name,
+                    "success": completed_work.success,
+                    "processing_time": completed_work.work_item.processing_time,
+                    "wait_time": completed_work.work_item.wait_time,
+                    "result": completed_work.result.outputs
+                    if completed_work.success
+                    else None,
+                    "error": str(completed_work.result.error)
+                    if completed_work.result.error
+                    else None,
                 }
 
                 results.append(result_dict)
@@ -487,7 +507,7 @@ class DynamicProcessingPool:
 
         return results
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get processing statistics."""
         if not self.results:
             return {}
@@ -496,21 +516,23 @@ class DynamicProcessingPool:
         failed = [r for r in self.results if not r.success]
 
         processing_times = [
-            r.work_item.processing_time for r in successful
+            r.work_item.processing_time
+            for r in successful
             if r.work_item.processing_time
         ]
 
         wait_times = [
-            r.work_item.wait_time for r in self.results
-            if r.work_item.wait_time
+            r.work_item.wait_time for r in self.results if r.work_item.wait_time
         ]
 
         return {
-            'total_processed': len(self.results),
-            'successful': len(successful),
-            'failed': len(failed),
-            'success_rate': len(successful) / len(self.results) * 100,
-            'avg_processing_time': sum(processing_times) / len(processing_times) if processing_times else 0,
-            'avg_wait_time': sum(wait_times) / len(wait_times) if wait_times else 0,
-            'pool_metrics': self.pool.get_metrics()
+            "total_processed": len(self.results),
+            "successful": len(successful),
+            "failed": len(failed),
+            "success_rate": len(successful) / len(self.results) * 100,
+            "avg_processing_time": sum(processing_times) / len(processing_times)
+            if processing_times
+            else 0,
+            "avg_wait_time": sum(wait_times) / len(wait_times) if wait_times else 0,
+            "pool_metrics": self.pool.get_metrics(),
         }

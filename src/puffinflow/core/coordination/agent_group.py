@@ -1,18 +1,21 @@
 """Agent groups for advanced coordination patterns."""
 
-import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from ..agent.base import Agent, AgentResult
 from .agent_team import AgentTeam, TeamResult
+
+if TYPE_CHECKING:
+    import asyncio
 
 logger = logging.getLogger(__name__)
 
 
 class ExecutionStrategy:
     """Execution strategy constants."""
+
     PARALLEL = "parallel"
     SEQUENTIAL = "sequential"
     PIPELINE = "pipeline"
@@ -24,10 +27,11 @@ class ExecutionStrategy:
 @dataclass
 class StageConfig:
     """Configuration for execution stage."""
+
     name: str
-    agents: List[str]
+    agents: list[str]
     strategy: str = ExecutionStrategy.PARALLEL
-    depends_on: List[str] = None
+    depends_on: list[str] = None
     condition: Optional[Callable] = None
     timeout: Optional[float] = None
 
@@ -39,11 +43,11 @@ class StageConfig:
 class AgentGroup:
     """Simple agent group for basic parallel execution."""
 
-    def __init__(self, agents: List[Agent]):
+    def __init__(self, agents: list[Agent]):
         self.agents = {agent.name: agent for agent in agents}
-        self._results: Dict[str, AgentResult] = {}
+        self._results: dict[str, AgentResult] = {}
 
-    async def run_parallel(self, timeout: Optional[float] = None) -> 'GroupResult':
+    async def run_parallel(self, timeout: Optional[float] = None) -> "GroupResult":
         """Run all agents in parallel."""
         team = AgentTeam("group_execution")
         team.add_agents(list(self.agents.values()))
@@ -51,7 +55,7 @@ class AgentGroup:
         result = await team.run_parallel(timeout)
         return GroupResult(result)
 
-    async def collect_all(self) -> 'GroupResult':
+    async def collect_all(self) -> "GroupResult":
         """Run and collect all results."""
         return await self.run_parallel()
 
@@ -67,7 +71,7 @@ class GroupResult:
         return getattr(self._team_result, name)
 
     @property
-    def agents(self) -> List[AgentResult]:
+    def agents(self) -> list[AgentResult]:
         """Get list of agent results."""
         return list(self._team_result.agent_results.values())
 
@@ -77,9 +81,9 @@ class ParallelAgentGroup(AgentGroup):
 
     def __init__(self, name: str):
         self.name = name
-        self._agents: List[Agent] = []
+        self._agents: list[Agent] = []
 
-    def add_agent(self, agent: Agent) -> 'ParallelAgentGroup':
+    def add_agent(self, agent: Agent) -> "ParallelAgentGroup":
         """Add agent to group."""
         self._agents.append(agent)
         return self
@@ -94,28 +98,32 @@ class AgentOrchestrator:
 
     def __init__(self, name: str):
         self.name = name
-        self._agents: Dict[str, Agent] = {}
-        self._stages: List[StageConfig] = []
-        self._global_variables: Dict[str, Any] = {}
-        self._stage_results: Dict[str, TeamResult] = {}
-        self._execution_context: Dict[str, Any] = {}
+        self._agents: dict[str, Agent] = {}
+        self._stages: list[StageConfig] = []
+        self._global_variables: dict[str, Any] = {}
+        self._stage_results: dict[str, TeamResult] = {}
+        self._execution_context: dict[str, Any] = {}
 
-    def add_agent(self, agent: Agent) -> 'AgentOrchestrator':
+    def add_agent(self, agent: Agent) -> "AgentOrchestrator":
         """Add agent to orchestrator."""
         self._agents[agent.name] = agent
         return self
 
-    def add_agents(self, agents: List[Agent]) -> 'AgentOrchestrator':
+    def add_agents(self, agents: list[Agent]) -> "AgentOrchestrator":
         """Add multiple agents."""
         for agent in agents:
             self.add_agent(agent)
         return self
 
-    def add_stage(self, name: str, agents: List[Agent],
-                  strategy: str = ExecutionStrategy.PARALLEL,
-                  depends_on: List[str] = None,
-                  condition: Optional[Callable] = None,
-                  timeout: Optional[float] = None) -> 'AgentOrchestrator':
+    def add_stage(
+        self,
+        name: str,
+        agents: list[Agent],
+        strategy: str = ExecutionStrategy.PARALLEL,
+        depends_on: Optional[list[str]] = None,
+        condition: Optional[Callable] = None,
+        timeout: Optional[float] = None,
+    ) -> "AgentOrchestrator":
         """Add execution stage."""
         # Add agents if not already added
         for agent in agents:
@@ -128,7 +136,7 @@ class AgentOrchestrator:
             strategy=strategy,
             depends_on=depends_on or [],
             condition=condition,
-            timeout=timeout
+            timeout=timeout,
         )
 
         self._stages.append(stage)
@@ -144,11 +152,11 @@ class AgentOrchestrator:
         """Get global variable."""
         return self._global_variables.get(key, default)
 
-    def run_with_monitoring(self) -> 'OrchestrationExecution':
+    def run_with_monitoring(self) -> "OrchestrationExecution":
         """Run with monitoring capability."""
         return OrchestrationExecution(self)
 
-    async def run(self) -> 'OrchestrationResult':
+    async def run(self) -> "OrchestrationResult":
         """Run the complete orchestration."""
         async with self.run_with_monitoring() as execution:
             return await execution.wait_for_completion()
@@ -161,20 +169,22 @@ class OrchestrationExecution:
         self.orchestrator = orchestrator
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
-        self._stage_results: Dict[str, TeamResult] = {}
-        self._completed_stages: Set[str] = set()
-        self._running_stages: Dict[str, asyncio.Task] = {}
-        self._stage_timings: Dict[str, tuple] = {}
+        self._stage_results: dict[str, TeamResult] = {}
+        self._completed_stages: set[str] = set()
+        self._running_stages: dict[str, asyncio.Task] = {}
+        self._stage_timings: dict[str, tuple] = {}
 
     async def __aenter__(self):
         """Start execution."""
         import time
+
         self.start_time = time.time()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """End execution."""
         import time
+
         self.end_time = time.time()
 
         # Cancel any running stages
@@ -206,8 +216,7 @@ class OrchestrationExecution:
         if stage_config.condition and not stage_config.condition():
             # Create empty result for skipped stage
             result = TeamResult(
-                team_name=f"{self.orchestrator.name}_{stage_name}",
-                status="skipped"
+                team_name=f"{self.orchestrator.name}_{stage_name}", status="skipped"
             )
             self._stage_results[stage_name] = result
             self._completed_stages.add(stage_name)
@@ -219,6 +228,7 @@ class OrchestrationExecution:
     async def _execute_stage(self, stage_config: StageConfig) -> TeamResult:
         """Execute a single stage."""
         import time
+
         stage_start = time.time()
 
         # Get agents for this stage
@@ -280,7 +290,7 @@ class OrchestrationExecution:
         """Get results for a stage."""
         return self._stage_results.get(stage_name)
 
-    async def get_final_results(self) -> 'OrchestrationResult':
+    async def get_final_results(self) -> "OrchestrationResult":
         """Get final orchestration results."""
         # Wait for all stages
         for stage in self.orchestrator._stages:
@@ -291,10 +301,10 @@ class OrchestrationExecution:
             orchestrator_name=self.orchestrator.name,
             stage_results=self._stage_results,
             stage_timings=self._stage_timings,
-            total_duration=self.total_duration
+            total_duration=self.total_duration,
         )
 
-    async def wait_for_completion(self) -> 'OrchestrationResult':
+    async def wait_for_completion(self) -> "OrchestrationResult":
         """Wait for complete orchestration."""
         return await self.get_final_results()
 
@@ -305,27 +315,27 @@ class OrchestrationExecution:
             return self.end_time - self.start_time
         return None
 
-    def get_stage_timings(self) -> Dict[str, float]:
+    def get_stage_timings(self) -> dict[str, float]:
         """Get timing for each stage."""
         return {
-            stage: end - start
-            for stage, (start, end) in self._stage_timings.items()
+            stage: end - start for stage, (start, end) in self._stage_timings.items()
         }
 
 
 @dataclass
 class OrchestrationResult:
     """Result of orchestration execution."""
+
     orchestrator_name: str
-    stage_results: Dict[str, TeamResult]
-    stage_timings: Dict[str, tuple]
+    stage_results: dict[str, TeamResult]
+    stage_timings: dict[str, tuple]
     total_duration: Optional[float]
 
     def get_stage_result(self, stage_name: str) -> Optional[TeamResult]:
         """Get result for specific stage."""
         return self.stage_results.get(stage_name)
 
-    def get_final_result(self) -> Dict[str, Any]:
+    def get_final_result(self) -> dict[str, Any]:
         """Get final aggregated result."""
         # Combine results from all stages
         all_outputs = {}
@@ -338,12 +348,11 @@ class OrchestrationResult:
                 all_variables[f"{stage_name}_{agent_name}"] = agent_result.variables
 
         return {
-            'outputs': all_outputs,
-            'variables': all_variables,
-            'stage_count': len(self.stage_results),
-            'total_duration': self.total_duration,
-            'stage_durations': {
-                stage: end - start
-                for stage, (start, end) in self.stage_timings.items()
-            }
+            "outputs": all_outputs,
+            "variables": all_variables,
+            "stage_count": len(self.stage_results),
+            "total_duration": self.total_duration,
+            "stage_durations": {
+                stage: end - start for stage, (start, end) in self.stage_timings.items()
+            },
         }

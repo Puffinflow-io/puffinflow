@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import structlog
 
@@ -17,6 +17,7 @@ logger = structlog.get_logger(__name__)
 
 class QuotaScope(Enum):
     """Scope of quota enforcement."""
+
     AGENT = "agent"  # Per-agent quotas
     POOL = "pool"  # Per-pool quotas
     WORKFLOW = "workflow"  # Per-workflow quotas
@@ -27,6 +28,7 @@ class QuotaScope(Enum):
 
 class QuotaPolicy(Enum):
     """Quota enforcement policies."""
+
     HARD = "hard"  # Strict enforcement, reject if exceeds
     SOFT = "soft"  # Allow temporary exceed with warning
     BURST = "burst"  # Allow burst up to certain limit
@@ -36,6 +38,7 @@ class QuotaPolicy(Enum):
 @dataclass
 class QuotaLimit:
     """Definition of a quota limit."""
+
     resource_type: ResourceType
     limit: float
     scope: QuotaScope
@@ -55,6 +58,7 @@ class QuotaLimit:
 @dataclass
 class QuotaUsage:
     """Track quota usage."""
+
     current: float = 0.0
     peak: float = 0.0
     total_allocated: float = 0.0
@@ -65,7 +69,7 @@ class QuotaUsage:
     last_reset: datetime = field(default_factory=datetime.utcnow)
 
     # For rate limiting
-    request_times: List[float] = field(default_factory=list)
+    request_times: list[float] = field(default_factory=list)
 
     def reset(self):
         """Reset usage statistics."""
@@ -96,6 +100,7 @@ class QuotaUsage:
 @dataclass
 class QuotaMetrics:
     """Metrics for quota usage."""
+
     scope: QuotaScope
     scope_id: str
     resource_type: ResourceType
@@ -114,7 +119,7 @@ class QuotaMetrics:
         """Check if quota is exceeded."""
         return self.usage.current > self.limit.limit
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "scope": self.scope.value,
@@ -126,16 +131,21 @@ class QuotaMetrics:
             "peak_usage": self.usage.peak,
             "allocations": self.usage.allocations,
             "violations": self.usage.violations,
-            "policy": self.limit.policy.value
+            "policy": self.limit.policy.value,
         }
 
 
 class QuotaExceededError(Exception):
     """Raised when quota is exceeded."""
 
-    def __init__(self, scope: QuotaScope, scope_id: str,
-                 resource_type: ResourceType, requested: float,
-                 available: float):
+    def __init__(
+        self,
+        scope: QuotaScope,
+        scope_id: str,
+        resource_type: ResourceType,
+        requested: float,
+        available: float,
+    ):
         self.scope = scope
         self.scope_id = scope_id
         self.resource_type = resource_type
@@ -153,17 +163,17 @@ class QuotaManager:
 
     def __init__(self):
         # Quota limits by scope
-        self._limits: Dict[QuotaScope, Dict[str, Dict[ResourceType, QuotaLimit]]] = {
+        self._limits: dict[QuotaScope, dict[str, dict[ResourceType, QuotaLimit]]] = {
             scope: defaultdict(dict) for scope in QuotaScope
         }
 
         # Usage tracking
-        self._usage: Dict[QuotaScope, Dict[str, Dict[ResourceType, QuotaUsage]]] = {
+        self._usage: dict[QuotaScope, dict[str, dict[ResourceType, QuotaUsage]]] = {
             scope: defaultdict(lambda: defaultdict(QuotaUsage)) for scope in QuotaScope
         }
 
         # Locks for thread safety
-        self._locks: Dict[str, asyncio.Lock] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
 
         # Background tasks
         self._cleanup_task: Optional[asyncio.Task] = None
@@ -188,14 +198,12 @@ class QuotaManager:
         scope: QuotaScope,
         scope_id: str,
         resource_type: ResourceType,
-        limit: Union[float, QuotaLimit]
+        limit: Union[float, QuotaLimit],
     ):
         """Set a quota limit."""
         if isinstance(limit, (int, float)):
             quota_limit = QuotaLimit(
-                resource_type=resource_type,
-                limit=float(limit),
-                scope=scope
+                resource_type=resource_type, limit=float(limit), scope=scope
             )
         else:
             quota_limit = limit
@@ -208,14 +216,14 @@ class QuotaManager:
             scope_id=scope_id,
             resource_type=resource_type.name,
             limit=quota_limit.limit,
-            policy=quota_limit.policy.value
+            policy=quota_limit.policy.value,
         )
 
     def remove_quota(
         self,
         scope: QuotaScope,
         scope_id: str,
-        resource_type: Optional[ResourceType] = None
+        resource_type: Optional[ResourceType] = None,
     ):
         """Remove a quota limit."""
         if resource_type:
@@ -231,11 +239,11 @@ class QuotaManager:
         scope: QuotaScope,
         scope_id: str,
         resource_type: ResourceType,
-        requested: float
+        requested: float,
     ) -> bool:
         """
         Check if allocation would exceed quota.
-        
+
         Returns:
             True if allocation is allowed, False otherwise
         """
@@ -269,7 +277,7 @@ class QuotaManager:
                         resource_type=resource_type.name,
                         current=usage.current,
                         requested=requested,
-                        limit=limit.limit
+                        limit=limit.limit,
                     )
                 return True
 
@@ -289,9 +297,7 @@ class QuotaManager:
         window_start = current_time - limit.window_size.total_seconds()
 
         # Remove old requests outside window
-        usage.request_times = [
-            t for t in usage.request_times if t > window_start
-        ]
+        usage.request_times = [t for t in usage.request_times if t > window_start]
 
         # Check rate
         requests_in_window = len(usage.request_times)
@@ -304,14 +310,14 @@ class QuotaManager:
         scope: QuotaScope,
         scope_id: str,
         resource_type: ResourceType,
-        amount: float
+        amount: float,
     ) -> bool:
         """
         Allocate resources against quota.
-        
+
         Returns:
             True if allocation succeeded, False otherwise
-        
+
         Raises:
             QuotaExceededError: If hard quota is exceeded
         """
@@ -323,8 +329,7 @@ class QuotaManager:
 
             if limit.policy == QuotaPolicy.HARD:
                 raise QuotaExceededError(
-                    scope, scope_id, resource_type,
-                    amount, limit.limit - usage.current
+                    scope, scope_id, resource_type, amount, limit.limit - usage.current
                 )
             else:
                 usage.record_violation()
@@ -343,7 +348,7 @@ class QuotaManager:
         scope: QuotaScope,
         scope_id: str,
         resource_type: ResourceType,
-        amount: float
+        amount: float,
     ):
         """Release allocated resources."""
         lock_key = f"{scope.value}:{scope_id}"
@@ -351,17 +356,19 @@ class QuotaManager:
             return
 
         async with self._locks[lock_key]:
-            if scope_id in self._usage[scope]:
-                if resource_type in self._usage[scope][scope_id]:
-                    usage = self._usage[scope][scope_id][resource_type]
-                    usage.remove_allocation(amount)
+            if (
+                scope_id in self._usage[scope]
+                and resource_type in self._usage[scope][scope_id]
+            ):
+                usage = self._usage[scope][scope_id][resource_type]
+                usage.remove_allocation(amount)
 
     def get_usage(
         self,
         scope: QuotaScope,
         scope_id: str,
-        resource_type: Optional[ResourceType] = None
-    ) -> Union[QuotaUsage, Dict[ResourceType, QuotaUsage]]:
+        resource_type: Optional[ResourceType] = None,
+    ) -> Union[QuotaUsage, dict[ResourceType, QuotaUsage]]:
         """Get current usage for a scope."""
         if scope_id not in self._usage[scope]:
             return {} if resource_type is None else QuotaUsage()
@@ -372,10 +379,8 @@ class QuotaManager:
             return dict(self._usage[scope][scope_id])
 
     def get_metrics(
-        self,
-        scope: Optional[QuotaScope] = None,
-        scope_id: Optional[str] = None
-    ) -> List[QuotaMetrics]:
+        self, scope: Optional[QuotaScope] = None, scope_id: Optional[str] = None
+    ) -> list[QuotaMetrics]:
         """Get quota metrics."""
         metrics = []
 
@@ -391,13 +396,15 @@ class QuotaManager:
                 for resource_type, limit in self._limits[s][sid].items():
                     usage = self._usage[s][sid].get(resource_type, QuotaUsage())
 
-                    metrics.append(QuotaMetrics(
-                        scope=s,
-                        scope_id=sid,
-                        resource_type=resource_type,
-                        usage=usage,
-                        limit=limit
-                    ))
+                    metrics.append(
+                        QuotaMetrics(
+                            scope=s,
+                            scope_id=sid,
+                            resource_type=resource_type,
+                            usage=usage,
+                            limit=limit,
+                        )
+                    )
 
         return metrics
 
@@ -405,7 +412,7 @@ class QuotaManager:
         self,
         scope: QuotaScope,
         scope_id: str,
-        resource_type: Optional[ResourceType] = None
+        resource_type: Optional[ResourceType] = None,
     ):
         """Reset usage statistics."""
         if scope_id in self._usage[scope]:
@@ -426,9 +433,7 @@ class QuotaManager:
                 for usage in scope_id_usage.values():
                     # Keep only recent request times
                     cutoff = current_time - 3600  # Keep 1 hour
-                    usage.request_times = [
-                        t for t in usage.request_times if t > cutoff
-                    ]
+                    usage.request_times = [t for t in usage.request_times if t > cutoff]
 
         logger.debug("quota_cleanup_completed")
 
@@ -447,9 +452,9 @@ class QuotaManager:
     def apply_quota_policy(
         self,
         policy_name: str,
-        quotas: Dict[ResourceType, float],
+        quotas: dict[ResourceType, float],
         scope: QuotaScope = QuotaScope.AGENT,
-        policy: QuotaPolicy = QuotaPolicy.HARD
+        policy: QuotaPolicy = QuotaPolicy.HARD,
     ):
         """Apply a quota policy to multiple scope IDs."""
         # This would be used to apply standard quota templates
@@ -457,7 +462,7 @@ class QuotaManager:
             "policy_name": policy_name,
             "quotas": quotas,
             "scope": scope,
-            "policy": policy
+            "policy": policy,
         }
 
 
@@ -468,12 +473,11 @@ class QuotaEnforcer:
         self.quota_manager = quota_manager
 
     async def check_all_quotas(
-        self,
-        requests: List[Tuple[QuotaScope, str, ResourceType, float]]
-    ) -> Tuple[bool, List[str]]:
+        self, requests: list[tuple[QuotaScope, str, ResourceType, float]]
+    ) -> tuple[bool, list[str]]:
         """
         Check multiple quota requests.
-        
+
         Returns:
             Tuple of (all_allowed, list_of_violations)
         """
@@ -494,12 +498,11 @@ class QuotaEnforcer:
         return len(violations) == 0, violations
 
     async def allocate_with_quotas(
-        self,
-        allocations: List[Tuple[QuotaScope, str, ResourceType, float]]
-    ) -> Tuple[bool, List[Tuple[QuotaScope, str, ResourceType, float]]]:
+        self, allocations: list[tuple[QuotaScope, str, ResourceType, float]]
+    ) -> tuple[bool, list[tuple[QuotaScope, str, ResourceType, float]]]:
         """
         Allocate resources with quota enforcement.
-        
+
         Returns:
             Tuple of (success, list_of_allocated_resources)
         """
@@ -523,9 +526,7 @@ class QuotaEnforcer:
         except Exception as e:
             # Rollback allocations
             for scope, scope_id, resource_type, amount in allocated:
-                await self.quota_manager.release(
-                    scope, scope_id, resource_type, amount
-                )
+                await self.quota_manager.release(scope, scope_id, resource_type, amount)
 
             logger.error("quota_allocation_failed", error=str(e))
             return False, []
@@ -539,21 +540,21 @@ class QuotaPolicies:
         ResourceType.CPU: 2.0,
         ResourceType.MEMORY: 512.0,
         ResourceType.IO: 10.0,
-        ResourceType.NETWORK: 10.0
+        ResourceType.NETWORK: 10.0,
     }
 
     MEDIUM_AGENT = {
         ResourceType.CPU: 4.0,
         ResourceType.MEMORY: 2048.0,
         ResourceType.IO: 50.0,
-        ResourceType.NETWORK: 50.0
+        ResourceType.NETWORK: 50.0,
     }
 
     LARGE_AGENT = {
         ResourceType.CPU: 8.0,
         ResourceType.MEMORY: 8192.0,
         ResourceType.IO: 100.0,
-        ResourceType.NETWORK: 100.0
+        ResourceType.NETWORK: 100.0,
     }
 
     GPU_AGENT = {
@@ -561,5 +562,5 @@ class QuotaPolicies:
         ResourceType.MEMORY: 16384.0,
         ResourceType.GPU: 1.0,
         ResourceType.IO: 100.0,
-        ResourceType.NETWORK: 100.0
+        ResourceType.NETWORK: 100.0,
     }

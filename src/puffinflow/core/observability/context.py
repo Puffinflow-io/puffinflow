@@ -1,6 +1,6 @@
 import time
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from ..agent.context import Context
 from .core import ObservabilityManager
@@ -10,8 +10,11 @@ from .interfaces import ObservabilityEvent, SpanType
 class ObservableContext(Context):
     """Context with observability integration"""
 
-    def __init__(self, shared_state: Dict[str, Any],
-                 observability: Optional[ObservabilityManager] = None):
+    def __init__(
+        self,
+        shared_state: dict[str, Any],
+        observability: Optional[ObservabilityManager] = None,
+    ):
         super().__init__(shared_state)
         self._observability = observability
 
@@ -27,10 +30,12 @@ class ObservableContext(Context):
             "workflow_id": self.get_variable("workflow_id"),
             "agent_name": self.get_variable("agent_name"),
             "state_name": self.get_variable("current_state"),
-            **attributes
+            **attributes,
         }
 
-        with self._observability.tracing.span(name, SpanType.BUSINESS, **context_attrs) as span:
+        with self._observability.tracing.span(
+            name, SpanType.BUSINESS, **context_attrs
+        ) as span:
             yield span
 
     def metric(self, name: str, value: float, **labels):
@@ -41,10 +46,12 @@ class ObservableContext(Context):
         context_labels = {
             "workflow_id": self.get_variable("workflow_id", "unknown"),
             "agent_name": self.get_variable("agent_name", "unknown"),
-            **labels
+            **labels,
         }
 
-        histogram = self._observability.histogram(name, labels=list(context_labels.keys()))
+        histogram = self._observability.histogram(
+            name, labels=list(context_labels.keys())
+        )
         if histogram:
             histogram.record(value, **context_labels)
 
@@ -63,13 +70,17 @@ class ObservableContext(Context):
                 "workflow_id": self.get_variable("workflow_id"),
                 "agent_name": self.get_variable("agent_name"),
                 "state_name": self.get_variable("current_state"),
-                **kwargs
-            }
+                **kwargs,
+            },
         )
 
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
-            loop.create_task(self._observability.events.process_event(event))
+            # Create task but don't store reference as it's fire-and-forget
+            task = loop.create_task(self._observability.events.process_event(event))
+            if task:
+                task.add_done_callback(lambda t: None)  # Prevent warnings
         except RuntimeError:
             pass

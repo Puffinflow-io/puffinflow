@@ -4,7 +4,7 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class CircuitState(Enum):
@@ -24,6 +24,7 @@ class CircuitBreakerConfig:
 
 class CircuitBreakerError(Exception):
     """Raised when circuit breaker is open"""
+
     pass
 
 
@@ -45,9 +46,11 @@ class CircuitBreaker:
             await self._check_state()
 
             if self.state == CircuitState.OPEN:
-                raise CircuitBreakerError(f"Circuit breaker '{self.config.name}' is OPEN")
+                raise CircuitBreakerError(
+                    f"Circuit breaker '{self.config.name}' is OPEN"
+                )
 
-        start_time = time.time()
+        time.time()
         try:
             yield
             await self._record_success()
@@ -59,10 +62,12 @@ class CircuitBreaker:
         """Check and update circuit breaker state"""
         now = time.time()
 
-        if self.state == CircuitState.OPEN:
-            if now - self._last_failure_time >= self.config.recovery_timeout:
-                self.state = CircuitState.HALF_OPEN
-                self._success_count = 0
+        if (
+            self.state == CircuitState.OPEN
+            and now - self._last_failure_time >= self.config.recovery_timeout
+        ):
+            self.state = CircuitState.HALF_OPEN
+            self._success_count = 0
 
         elif self.state == CircuitState.HALF_OPEN:
             if self._success_count >= self.config.success_threshold:
@@ -75,7 +80,9 @@ class CircuitBreaker:
             if self.state == CircuitState.HALF_OPEN:
                 self._success_count += 1
             elif self.state == CircuitState.CLOSED:
-                self._failure_count = max(0, self._failure_count - 1)  # Gradually recover
+                self._failure_count = max(
+                    0, self._failure_count - 1
+                )  # Gradually recover
 
     async def _record_failure(self):
         """Record failed execution"""
@@ -85,11 +92,13 @@ class CircuitBreaker:
             self._last_failure_time = now
             self._success_count = 0
 
-            if (self.state == CircuitState.CLOSED and
-                    self._failure_count >= self.config.failure_threshold) or self.state == CircuitState.HALF_OPEN:
+            if (
+                self.state == CircuitState.CLOSED
+                and self._failure_count >= self.config.failure_threshold
+            ) or self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get current metrics"""
         return {
             "name": self.config.name,
@@ -117,9 +126,11 @@ class CircuitBreakerRegistry:
     """Simple registry for circuit breakers"""
 
     def __init__(self):
-        self._breakers: Dict[str, CircuitBreaker] = {}
+        self._breakers: dict[str, CircuitBreaker] = {}
 
-    def get_or_create(self, name: str, config: Optional[CircuitBreakerConfig] = None) -> CircuitBreaker:
+    def get_or_create(
+        self, name: str, config: Optional[CircuitBreakerConfig] = None
+    ) -> CircuitBreaker:
         """Get existing or create new circuit breaker"""
         if name not in self._breakers:
             if config is None:
@@ -127,7 +138,7 @@ class CircuitBreakerRegistry:
             self._breakers[name] = CircuitBreaker(config)
         return self._breakers[name]
 
-    def get_all_metrics(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_metrics(self) -> dict[str, dict[str, Any]]:
         """Get metrics for all circuit breakers"""
         return {name: breaker.get_metrics() for name, breaker in self._breakers.items()}
 

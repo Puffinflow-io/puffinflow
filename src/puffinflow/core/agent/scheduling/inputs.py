@@ -3,24 +3,26 @@
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .exceptions import InvalidInputTypeError
 
 
 class InputType(Enum):
     """Types of inputs for scheduled agents."""
-    VARIABLE = "variable"      # Regular variables (no prefix)
-    SECRET = "secret"          # secret:value
-    CONSTANT = "const"         # const:value
-    CACHED = "cache"           # cache:TTL:value
-    TYPED = "typed"            # typed:value
-    OUTPUT = "output"          # output:value
+
+    VARIABLE = "variable"  # Regular variables (no prefix)
+    SECRET = "secret"  # secret:value
+    CONSTANT = "const"  # const:value
+    CACHED = "cache"  # cache:TTL:value
+    TYPED = "typed"  # typed:value
+    OUTPUT = "output"  # output:value
 
 
 @dataclass
 class ScheduledInput:
     """Configuration for a scheduled input."""
+
     key: str
     value: Any
     input_type: InputType
@@ -44,14 +46,14 @@ class ScheduledInput:
 
 def parse_magic_prefix(key: str, value: Any) -> ScheduledInput:
     """Parse magic prefix from input value and return ScheduledInput.
-    
+
     Args:
         key: The input key name
         value: The input value, potentially with magic prefix
-        
+
     Returns:
         ScheduledInput with parsed type and value
-        
+
     Raises:
         InvalidInputTypeError: If prefix is invalid
     """
@@ -85,8 +87,8 @@ def parse_magic_prefix(key: str, value: Any) -> ScheduledInput:
 
         try:
             ttl = int(cache_parts[1])
-        except ValueError:
-            raise InvalidInputTypeError(prefix, "Cache TTL must be an integer")
+        except ValueError as e:
+            raise InvalidInputTypeError(prefix, "Cache TTL must be an integer") from e
 
         # Try to parse value as JSON, fall back to string
         raw_value = cache_parts[2]
@@ -120,12 +122,12 @@ def parse_magic_prefix(key: str, value: Any) -> ScheduledInput:
         return ScheduledInput(key, value, InputType.VARIABLE)
 
 
-def parse_inputs(**inputs) -> Dict[str, ScheduledInput]:
+def parse_inputs(**inputs) -> dict[str, ScheduledInput]:
     """Parse all inputs with magic prefixes.
-    
+
     Args:
         **inputs: Input key-value pairs
-        
+
     Returns:
         Dictionary mapping keys to ScheduledInput objects
     """

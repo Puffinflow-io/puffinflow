@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum, auto
-from typing import Any, Dict, Optional, Set
+from typing import Any, Optional
 
 import structlog
 
@@ -15,6 +15,7 @@ logger = structlog.get_logger(__name__)
 
 class PrimitiveType(Enum):
     """Coordination primitive types"""
+
     MUTEX = auto()  # Exclusive access
     SEMAPHORE = auto()  # Limited concurrent access
     BARRIER = auto()  # Synchronization point
@@ -25,6 +26,7 @@ class PrimitiveType(Enum):
 
 class ResourceState(Enum):
     """Resource states"""
+
     AVAILABLE = "available"
     ACQUIRED = "acquired"
     LOCKED = "locked"
@@ -35,6 +37,7 @@ class ResourceState(Enum):
 @dataclass
 class CoordinationPrimitive:
     """Enhanced coordination primitive"""
+
     name: str
     type: PrimitiveType
     ttl: float = 30.0
@@ -45,18 +48,18 @@ class CoordinationPrimitive:
     # Internal state
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _condition: asyncio.Condition = field(default_factory=asyncio.Condition)
-    _owners: Set[str] = field(default_factory=set)
-    _acquired_times: Dict[str, float] = field(default_factory=dict)
-    _quota_usage: Dict[str, float] = field(default_factory=dict)
+    _owners: set[str] = field(default_factory=set)
+    _acquired_times: dict[str, float] = field(default_factory=dict)
+    _quota_usage: dict[str, float] = field(default_factory=dict)
     _wait_count: int = 0
     _state: ResourceState = field(default=ResourceState.AVAILABLE)
     _last_error: Optional[str] = None
 
     async def acquire(
-            self,
-            caller_id: str,
-            timeout: Optional[float] = None,
-            quota_amount: Optional[float] = None
+        self,
+        caller_id: str,
+        timeout: Optional[float] = None,
+        quota_amount: Optional[float] = None,
     ) -> bool:
         """Acquire the primitive"""
         try:
@@ -67,7 +70,9 @@ class CoordinationPrimitive:
                         raise ValueError("Quota amount required")
                     current_usage = sum(self._quota_usage.values())
                     if current_usage + quota_amount <= (self.quota_limit or 0):
-                        self._quota_usage[caller_id] = self._quota_usage.get(caller_id, 0) + quota_amount
+                        self._quota_usage[caller_id] = (
+                            self._quota_usage.get(caller_id, 0) + quota_amount
+                        )
                         return True
                     return False
 
@@ -89,7 +94,7 @@ class CoordinationPrimitive:
 
                 elif self.type == PrimitiveType.BARRIER:
                     # Unify the condition's lock with the primitive's lock on first use.
-                    if not hasattr(self, '_barrier_lock_unified'):
+                    if not hasattr(self, "_barrier_lock_unified"):
                         self._condition = asyncio.Condition(self._lock)
                         self._barrier_lock_unified = True
 
@@ -102,7 +107,7 @@ class CoordinationPrimitive:
                             # The `wait()` method will atomically release the lock and block until notified.
                             await asyncio.wait_for(
                                 self._condition.wait(),
-                                timeout=timeout or self.wait_timeout
+                                timeout=timeout or self.wait_timeout,
                             )
                             # Woke up successfully.
                             return True
@@ -148,7 +153,8 @@ class CoordinationPrimitive:
         """Clean up expired acquisitions"""
         now = time.time()
         expired = [
-            owner for owner, acquired in self._acquired_times.items()
+            owner
+            for owner, acquired in self._acquired_times.items()
             if now - acquired > self.ttl
         ]
         for owner in expired:
@@ -158,10 +164,9 @@ class CoordinationPrimitive:
         """Release the primitive"""
         async with self._lock:
             # The acquire method for QUOTA does not add to _owners, so we handle its release separately.
-            if self.type == PrimitiveType.QUOTA:
-                if caller_id in self._quota_usage:
-                    self._quota_usage.pop(caller_id)
-                    return True
+            if self.type == PrimitiveType.QUOTA and caller_id in self._quota_usage:
+                self._quota_usage.pop(caller_id)
+                return True
 
             if caller_id in self._owners:
                 self._remove_owner(caller_id)
@@ -174,7 +179,7 @@ class CoordinationPrimitive:
 
             return False
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """Get current state information"""
         return {
             "state": self._state.value,
@@ -185,7 +190,9 @@ class CoordinationPrimitive:
             "ttl_remaining": min(
                 (self.ttl - (time.time() - acquired))
                 for acquired in self._acquired_times.values()
-            ) if self._acquired_times else None
+            )
+            if self._acquired_times
+            else None,
         }
 
 
@@ -194,12 +201,7 @@ class Mutex(CoordinationPrimitive):
     """Mutual exclusion lock"""
 
     def __init__(self, name: str, ttl: float = 30.0):
-        super().__init__(
-            name=name,
-            type=PrimitiveType.MUTEX,
-            ttl=ttl,
-            max_count=1
-        )
+        super().__init__(name=name, type=PrimitiveType.MUTEX, ttl=ttl, max_count=1)
 
     async def __aenter__(self):
         """Async context manager support"""
@@ -210,9 +212,9 @@ class Mutex(CoordinationPrimitive):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager support"""
-        if hasattr(self, '_context_caller_id'):
+        if hasattr(self, "_context_caller_id"):
             await self.release(self._context_caller_id)
-            delattr(self, '_context_caller_id')
+            delattr(self, "_context_caller_id")
 
 
 class Semaphore(CoordinationPrimitive):
@@ -220,10 +222,7 @@ class Semaphore(CoordinationPrimitive):
 
     def __init__(self, name: str, max_count: int = 1, ttl: float = 30.0):
         super().__init__(
-            name=name,
-            type=PrimitiveType.SEMAPHORE,
-            ttl=ttl,
-            max_count=max_count
+            name=name, type=PrimitiveType.SEMAPHORE, ttl=ttl, max_count=max_count
         )
 
     @property
@@ -240,7 +239,7 @@ class Barrier(CoordinationPrimitive):
             name=name,
             type=PrimitiveType.BARRIER,
             max_count=parties,
-            wait_timeout=timeout
+            wait_timeout=timeout,
         )
         self._parties = parties
         self._generation = 0
@@ -260,8 +259,8 @@ class Barrier(CoordinationPrimitive):
             if len(self._owners) < self._parties:
                 try:
                     await asyncio.wait_for(
-                        self._condition.wait(), # Releases lock
-                        timeout=self.wait_timeout
+                        self._condition.wait(),  # Releases lock
+                        timeout=self.wait_timeout,
                     )
                     return generation
                 except asyncio.TimeoutError:
@@ -286,13 +285,9 @@ class Lease(CoordinationPrimitive):
         name: str,
         ttl: float = 30.0,
         auto_renew: bool = False,
-        renew_interval: float = 10.0
+        renew_interval: float = 10.0,
     ):
-        super().__init__(
-            name=name,
-            type=PrimitiveType.LEASE,
-            ttl=ttl
-        )
+        super().__init__(name=name, type=PrimitiveType.LEASE, ttl=ttl)
         self.auto_renew = auto_renew
         self.renew_interval = renew_interval
         self._renew_task: Optional[asyncio.Task] = None
@@ -301,15 +296,13 @@ class Lease(CoordinationPrimitive):
         self,
         caller_id: str,
         timeout: Optional[float] = None,
-        quota_amount: Optional[float] = None
+        quota_amount: Optional[float] = None,
     ) -> bool:
         """Acquire lease with optional auto-renewal"""
         success = await super().acquire(caller_id, timeout, quota_amount)
 
         if success and self.auto_renew and not self._renew_task:
-            self._renew_task = asyncio.create_task(
-                self._auto_renew_loop(caller_id)
-            )
+            self._renew_task = asyncio.create_task(self._auto_renew_loop(caller_id))
 
         return success
 
@@ -332,9 +325,7 @@ class Lease(CoordinationPrimitive):
                     if caller_id in self._owners:
                         self._acquired_times[caller_id] = time.time()
                         logger.debug(
-                            "lease_renewed",
-                            lease=self.name,
-                            caller_id=caller_id
+                            "lease_renewed", lease=self.name, caller_id=caller_id
                         )
                     else:
                         break
@@ -342,11 +333,7 @@ class Lease(CoordinationPrimitive):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(
-                    "lease_renew_error",
-                    lease=self.name,
-                    error=str(e)
-                )
+                logger.error("lease_renew_error", lease=self.name, error=str(e))
                 break
 
 
@@ -354,18 +341,14 @@ class Lock(CoordinationPrimitive):
     """Simple reentrant lock"""
 
     def __init__(self, name: str, ttl: float = 30.0):
-        super().__init__(
-            name=name,
-            type=PrimitiveType.LOCK,
-            ttl=ttl
-        )
-        self._lock_count: Dict[str, int] = {}
+        super().__init__(name=name, type=PrimitiveType.LOCK, ttl=ttl)
+        self._lock_count: dict[str, int] = {}
 
     async def acquire(
         self,
         caller_id: str,
         timeout: Optional[float] = None,
-        quota_amount: Optional[float] = None
+        quota_amount: Optional[float] = None,
     ) -> bool:
         """Acquire lock with reentrancy support"""
         async with self._lock:
@@ -406,16 +389,9 @@ class Quota(CoordinationPrimitive):
     """Resource quota management"""
 
     def __init__(
-        self,
-        name: str,
-        limit: float,
-        reset_interval: Optional[timedelta] = None
+        self, name: str, limit: float, reset_interval: Optional[timedelta] = None
     ):
-        super().__init__(
-            name=name,
-            type=PrimitiveType.QUOTA,
-            quota_limit=limit
-        )
+        super().__init__(name=name, type=PrimitiveType.QUOTA, quota_limit=limit)
         self.reset_interval = reset_interval
         self._last_reset = time.time()
         self._reset_task: Optional[asyncio.Task] = None
@@ -434,13 +410,10 @@ class Quota(CoordinationPrimitive):
         """Release quota (give back)"""
         self._start_reset_task_if_needed()
         async with self._lock:
-            if caller_id in self._quota_usage:
-                # Only subtract positive amounts to prevent increasing usage with negative numbers
-                if amount > 0:
-                    self._quota_usage[caller_id] = max(
-                        0,
-                        self._quota_usage[caller_id] - amount
-                    )
+            if caller_id in self._quota_usage and amount > 0:
+                self._quota_usage[caller_id] = max(
+                    0, self._quota_usage[caller_id] - amount
+                )
 
     @property
     def available(self) -> float:
@@ -449,7 +422,7 @@ class Quota(CoordinationPrimitive):
         return max(0, (self.quota_limit or 0) - used)
 
     @property
-    def usage(self) -> Dict[str, float]:
+    def usage(self) -> dict[str, float]:
         """Get current usage by caller"""
         return dict(self._quota_usage)
 
@@ -473,11 +446,7 @@ class Quota(CoordinationPrimitive):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(
-                    "quota_reset_error",
-                    quota=self.name,
-                    error=str(e)
-                )
+                logger.error("quota_reset_error", quota=self.name, error=str(e))
 
     def __del__(self):
         """Cleanup reset task"""
@@ -487,9 +456,7 @@ class Quota(CoordinationPrimitive):
 
 # Factory function
 def create_primitive(
-    primitive_type: PrimitiveType,
-    name: str,
-    **kwargs
+    primitive_type: PrimitiveType, name: str, **kwargs
 ) -> CoordinationPrimitive:
     """Create a coordination primitive by type"""
     primitives = {
@@ -498,7 +465,7 @@ def create_primitive(
         PrimitiveType.BARRIER: Barrier,
         PrimitiveType.LEASE: Lease,
         PrimitiveType.LOCK: Lock,
-        PrimitiveType.QUOTA: Quota
+        PrimitiveType.QUOTA: Quota,
     }
 
     primitive_class = primitives.get(primitive_type, CoordinationPrimitive)

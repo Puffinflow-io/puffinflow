@@ -8,7 +8,7 @@ import time
 import uuid
 import weakref
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from .deadlock import DeadlockDetector
 from .primitives import (
@@ -22,16 +22,23 @@ logger = logging.getLogger(__name__)
 
 class AgentProtocol(Protocol):
     """Protocol for agent objects that can be coordinated."""
-    name: str
-    state_metadata: Dict[str, Any]
 
-    def _add_to_queue(self, state_name: str, metadata: Any, priority_boost: int = 0) -> None: ...
-    async def run_state(self, state_name: str) -> None: ...
+    name: str
+    state_metadata: dict[str, Any]
+
+    def _add_to_queue(
+        self, state_name: str, metadata: Any, priority_boost: int = 0
+    ) -> None:
+        ...
+
+    async def run_state(self, state_name: str) -> None:
+        ...
 
 
 @dataclass
 class CoordinationConfig:
     """Configuration for coordination system."""
+
     detection_interval: float = 1.0
     cleanup_interval: float = 60.0
     max_coordination_timeout: float = 30.0
@@ -43,11 +50,13 @@ class CoordinationConfig:
 
 class CoordinationError(Exception):
     """Base exception for coordination errors."""
+
     pass
 
 
 class CoordinationTimeout(CoordinationError):
     """Raised when coordination times out."""
+
     pass
 
 
@@ -55,9 +64,7 @@ class AgentCoordinator:
     """Enhanced agent coordination system with comprehensive monitoring and control."""
 
     def __init__(
-        self,
-        agent: AgentProtocol,
-        config: Optional[CoordinationConfig] = None
+        self, agent: AgentProtocol, config: Optional[CoordinationConfig] = None
     ):
         """Initialize the coordination system.
 
@@ -70,15 +77,14 @@ class AgentCoordinator:
         self.instance_id = str(uuid.uuid4())
 
         # Components
-        self.rate_limiters: Dict[str, RateLimiter] = {}
-        self.primitives: Dict[str, CoordinationPrimitive] = {}
+        self.rate_limiters: dict[str, RateLimiter] = {}
+        self.primitives: dict[str, CoordinationPrimitive] = {}
 
         # Initialize deadlock detector if enabled
         self.deadlock_detector: Optional[DeadlockDetector] = None
         if self.config.enable_deadlock_detection:
             self.deadlock_detector = DeadlockDetector(
-                agent,
-                detection_interval=self.config.detection_interval
+                agent, detection_interval=self.config.detection_interval
             )
 
         # State management
@@ -86,11 +92,11 @@ class AgentCoordinator:
         self._shutting_down = False
         self._start_time: Optional[float] = None
         self._coordination_stats = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'rate_limited_requests': 0,
-            'timeout_requests': 0
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "rate_limited_requests": 0,
+            "timeout_requests": 0,
         }
 
         # Thread safety
@@ -107,7 +113,9 @@ class AgentCoordinator:
         """Start the coordination system."""
         async with self._state_lock:
             if self._cleanup_task is not None:
-                logger.warning(f"coordinator_already_started: instance_id={self.instance_id}")
+                logger.warning(
+                    f"coordinator_already_started: instance_id={self.instance_id}"
+                )
                 return
 
             self._start_time = time.time()
@@ -124,7 +132,9 @@ class AgentCoordinator:
                 logger.info(f"coordinator_started: instance_id={self.instance_id}")
 
             except Exception as e:
-                logger.error(f"coordinator_start_failed: instance_id={self.instance_id}, error={e!s}")
+                logger.error(
+                    f"coordinator_start_failed: instance_id={self.instance_id}, error={e!s}"
+                )
                 await self._emergency_cleanup()
                 raise CoordinationError(f"Failed to start coordinator: {e}") from e
 
@@ -148,7 +158,9 @@ class AgentCoordinator:
                     try:
                         await asyncio.wait_for(self._cleanup_task, timeout=5.0)
                     except (asyncio.CancelledError, asyncio.TimeoutError):
-                        logger.warning(f"cleanup_task_forced_termination: instance_id={self.instance_id}")
+                        logger.warning(
+                            f"cleanup_task_forced_termination: instance_id={self.instance_id}"
+                        )
 
                 # Release all coordination resources
                 await self._release_all_resources()
@@ -163,7 +175,9 @@ class AgentCoordinator:
                 )
 
             except Exception as e:
-                logger.error(f"coordinator_stop_error: instance_id={self.instance_id}, error={e!s}")
+                logger.error(
+                    f"coordinator_stop_error: instance_id={self.instance_id}, error={e!s}"
+                )
 
     async def _emergency_cleanup(self) -> None:
         """Emergency cleanup in case of startup failure."""
@@ -171,7 +185,9 @@ class AgentCoordinator:
             if self.deadlock_detector:
                 await self.deadlock_detector.stop()
         except Exception as e:
-            logger.error(f"emergency_cleanup_failed: instance_id={self.instance_id}, error={e!s}")
+            logger.error(
+                f"emergency_cleanup_failed: instance_id={self.instance_id}, error={e!s}"
+            )
 
     async def _release_all_resources(self) -> None:
         """Release all coordination resources."""
@@ -190,14 +206,16 @@ class AgentCoordinator:
                 )
 
         if released_count > 0:
-            logger.info(f"released_all_resources: instance_id={self.instance_id}, count={released_count}")
+            logger.info(
+                f"released_all_resources: instance_id={self.instance_id}, count={released_count}"
+            )
 
     def add_rate_limiter(
         self,
         name: str,
         max_rate: float,
         strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
-        **kwargs
+        **kwargs,
     ) -> None:
         """Add a rate limiter.
 
@@ -212,9 +230,7 @@ class AgentCoordinator:
             return
 
         self.rate_limiters[name] = RateLimiter(
-            max_rate=max_rate,
-            strategy=strategy,
-            **kwargs
+            max_rate=max_rate, strategy=strategy, **kwargs
         )
 
         logger.info(
@@ -222,10 +238,7 @@ class AgentCoordinator:
         )
 
     def create_primitive(
-        self,
-        name: str,
-        primitive_type: PrimitiveType,
-        **kwargs
+        self, name: str, primitive_type: PrimitiveType, **kwargs
     ) -> None:
         """Create a coordination primitive.
 
@@ -239,9 +252,7 @@ class AgentCoordinator:
             return
 
         self.primitives[name] = CoordinationPrimitive(
-            name=name,
-            type=primitive_type,
-            **kwargs
+            name=name, type=primitive_type, **kwargs
         )
 
         logger.info(
@@ -250,9 +261,7 @@ class AgentCoordinator:
         )
 
     async def coordinate_state_execution(
-        self,
-        state_name: str,
-        timeout: Optional[float] = None
+        self, state_name: str, timeout: Optional[float] = None
     ) -> bool:
         """Coordinate state execution with rate limiting and resource management.
 
@@ -267,7 +276,7 @@ class AgentCoordinator:
         start_time = time.time()
         timeout = timeout or self.config.max_coordination_timeout
 
-        self._coordination_stats['total_requests'] += 1
+        self._coordination_stats["total_requests"] += 1
 
         logger.debug(
             f"coordination_request: state={state_name}, "
@@ -276,16 +285,14 @@ class AgentCoordinator:
 
         try:
             # Check rate limits
-            if state_name in self.rate_limiters:
-                if not await asyncio.wait_for(
-                    self.rate_limiters[state_name].acquire(),
-                    timeout=timeout
-                ):
-                    self._coordination_stats['rate_limited_requests'] += 1
-                    await self._log_coordination_failure(
-                        state_name, coordination_id, "rate_limit_exceeded"
-                    )
-                    return False
+            if state_name in self.rate_limiters and not await asyncio.wait_for(
+                self.rate_limiters[state_name].acquire(), timeout=timeout
+            ):
+                self._coordination_stats["rate_limited_requests"] += 1
+                await self._log_coordination_failure(
+                    state_name, coordination_id, "rate_limit_exceeded"
+                )
+                return False
 
             # Check coordination primitives
             caller_id = f"{self.instance_id}:{state_name}:{coordination_id}"
@@ -299,17 +306,19 @@ class AgentCoordinator:
 
                     if not await asyncio.wait_for(
                         primitive.acquire(caller_id, timeout=remaining_timeout),
-                        timeout=remaining_timeout
+                        timeout=remaining_timeout,
                     ):
                         await self._log_coordination_failure(
-                            state_name, coordination_id, f"primitive_blocked:{primitive_name}"
+                            state_name,
+                            coordination_id,
+                            f"primitive_blocked:{primitive_name}",
                         )
                         return False
 
                     acquired_primitives.append((primitive_name, primitive))
 
                 # All coordination successful
-                self._coordination_stats['successful_requests'] += 1
+                self._coordination_stats["successful_requests"] += 1
                 duration = time.time() - start_time
 
                 logger.debug(
@@ -321,7 +330,7 @@ class AgentCoordinator:
                 return True
 
             except asyncio.TimeoutError:
-                self._coordination_stats['timeout_requests'] += 1
+                self._coordination_stats["timeout_requests"] += 1
                 # Release any acquired primitives
                 for primitive_name, primitive in acquired_primitives:
                     try:
@@ -338,17 +347,14 @@ class AgentCoordinator:
                 return False
 
         except Exception as e:
-            self._coordination_stats['failed_requests'] += 1
+            self._coordination_stats["failed_requests"] += 1
             await self._log_coordination_failure(
                 state_name, coordination_id, f"exception:{e!s}"
             )
             return False
 
     async def _log_coordination_failure(
-        self,
-        state_name: str,
-        coordination_id: str,
-        reason: str
+        self, state_name: str, coordination_id: str, reason: str
     ) -> None:
         """Log coordination failure with monitoring integration."""
         logger.warning(
@@ -356,7 +362,7 @@ class AgentCoordinator:
             f"coordination_id={coordination_id}, reason={reason}"
         )
 
-        if hasattr(self.agent, '_monitor'):
+        if hasattr(self.agent, "_monitor"):
             try:
                 self.agent._monitor.logger.warning(
                     f"coordination_failed: state={state_name}, "
@@ -365,7 +371,9 @@ class AgentCoordinator:
             except Exception as e:
                 logger.error(f"monitor_logging_error: {e!s}")
 
-    async def release_coordination(self, state_name: str, coordination_id: Optional[str] = None) -> None:
+    async def release_coordination(
+        self, state_name: str, coordination_id: Optional[str] = None
+    ) -> None:
         """Release coordination resources for a state.
 
         Args:
@@ -402,7 +410,7 @@ class AgentCoordinator:
             f"coordination_id={coordination_id}, released_count={released_count}"
         )
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get comprehensive coordinator status."""
         uptime = time.time() - (self._start_time or 0) if self._start_time else 0
 
@@ -422,9 +430,8 @@ class AgentCoordinator:
                 for name, primitive in self.primitives.items()
             },
             "deadlock_detector": (
-                self.deadlock_detector.get_status()
-                if self.deadlock_detector else None
-            )
+                self.deadlock_detector.get_status() if self.deadlock_detector else None
+            ),
         }
 
     async def _cleanup_loop(self) -> None:
@@ -472,7 +479,9 @@ class AgentCoordinator:
         logger.info(f"cleanup_loop_stopped: instance_id={self.instance_id}")
 
 
-def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = None) -> AgentProtocol:
+def enhance_agent(
+    agent: AgentProtocol, config: Optional[CoordinationConfig] = None
+) -> AgentProtocol:
     """Add production coordination to an agent with proper method binding.
 
     Args:
@@ -488,19 +497,24 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
 
     # Store original methods
     original_run_state = agent.run_state
-    original_cleanup = getattr(agent, '_cleanup', None)
+    original_cleanup = getattr(agent, "_cleanup", None)
 
     # Handle startup coordination
     async def start_coordinator():
         await coordinator.start()
 
-    if hasattr(agent, '_startup_tasks'):
+    if hasattr(agent, "_startup_tasks"):
         agent._startup_tasks.append(start_coordinator())
     else:
         # Only create task if there's a running event loop
         try:
-            loop = asyncio.get_running_loop()
-            asyncio.create_task(start_coordinator())
+            asyncio.get_running_loop()
+            task = asyncio.create_task(start_coordinator())
+            # Store task reference to prevent garbage collection
+            if not hasattr(agent, "_coordination_tasks"):
+                agent._coordination_tasks = set()
+            agent._coordination_tasks.add(task)
+            task.add_done_callback(lambda t: agent._coordination_tasks.discard(t))
         except RuntimeError:
             # No running event loop, coordinator will be started manually
             logger.info(f"no_event_loop_for_auto_start: agent={agent.name}")
@@ -514,30 +528,38 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
         try:
             # Check coordination and rate limits
             if not await agent._coordinator.coordinate_state_execution(state_name):
-                if hasattr(agent, '_monitor'):
+                if hasattr(agent, "_monitor"):
                     agent._monitor.logger.warning(
                         f"coordination_failed: state={state_name}, attempt={attempt_id}"
                     )
 
                 # Requeue with backoff if agent supports it
-                if hasattr(agent, '_add_to_queue') and hasattr(agent, 'state_metadata'):
-                    if state_name in agent.state_metadata:
-                        agent._add_to_queue(
-                            state_name,
-                            agent.state_metadata[state_name],
-                            priority_boost=-1
-                        )
+                if (
+                    hasattr(agent, "_add_to_queue")
+                    and hasattr(agent, "state_metadata")
+                    and state_name in agent.state_metadata
+                ):
+                    agent._add_to_queue(
+                        state_name,
+                        agent.state_metadata[state_name],
+                        priority_boost=-1,
+                    )
                 return
 
             # Log execution start
-            if hasattr(agent, '_monitor'):
+            if hasattr(agent, "_monitor"):
                 metadata = {}
-                if hasattr(agent, 'state_metadata') and state_name in agent.state_metadata:
+                if (
+                    hasattr(agent, "state_metadata")
+                    and state_name in agent.state_metadata
+                ):
                     state_meta = agent.state_metadata[state_name]
                     metadata = {
-                        "resources": asdict(state_meta.resources) if hasattr(state_meta, 'resources') else {},
-                        "dependencies": len(getattr(state_meta, 'dependencies', [])),
-                        "attempts": getattr(state_meta, 'attempts', 0)
+                        "resources": asdict(state_meta.resources)
+                        if hasattr(state_meta, "resources")
+                        else {},
+                        "dependencies": len(getattr(state_meta, "dependencies", [])),
+                        "attempts": getattr(state_meta, "attempts", 0),
                     }
 
                 agent._monitor.logger.info(
@@ -550,36 +572,32 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
                 await original_run_state(state_name)
 
             # Record success metrics
-            if hasattr(agent, '_monitor'):
+            if hasattr(agent, "_monitor"):
                 duration = time.time() - start_time
                 await agent._monitor.record_metric(
-                    'state_duration',
+                    "state_duration",
                     duration,
-                    {'state': state_name, 'status': 'success'}
+                    {"state": state_name, "status": "success"},
                 )
                 await agent._monitor.record_metric(
-                    'state_success',
-                    1,
-                    {'state': state_name}
+                    "state_success", 1, {"state": state_name}
                 )
 
         except Exception as e:
             # Handle failure with monitoring
-            if hasattr(agent, '_monitor'):
+            if hasattr(agent, "_monitor"):
                 duration = time.time() - start_time
                 agent._monitor.logger.error(
                     f"state_execution_failed: state={state_name}, "
                     f"attempt={attempt_id}, error={e!s}, duration={duration:.3f}"
                 )
                 await agent._monitor.record_metric(
-                    'state_duration',
-                    duration,
-                    {'state': state_name, 'status': 'error'}
+                    "state_duration", duration, {"state": state_name, "status": "error"}
                 )
                 await agent._monitor.record_metric(
-                    'state_error',
+                    "state_error",
                     1,
-                    {'state': state_name, 'error_type': type(e).__name__}
+                    {"state": state_name, "error_type": type(e).__name__},
                 )
             raise
 
@@ -594,15 +612,11 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
     @contextlib.asynccontextmanager
     async def _execution_span(state_name: str, attempt_id: str):
         """Create execution span for monitoring."""
-        if hasattr(agent, '_monitor'):
+        if hasattr(agent, "_monitor"):
             try:
                 async with agent._monitor.monitor_operation(
                     "state_execution",
-                    {
-                        "state": state_name,
-                        "attempt": attempt_id,
-                        "agent": agent.name
-                    }
+                    {"state": state_name, "attempt": attempt_id, "agent": agent.name},
                 ) as span:
                     yield span
             except Exception as e:
@@ -628,7 +642,7 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
                     original_cleanup()
 
         except Exception as e:
-            if hasattr(agent, '_monitor'):
+            if hasattr(agent, "_monitor"):
                 agent._monitor.logger.error(f"cleanup_error: error={e!s}")
             logger.error(f"enhanced_cleanup_error: agent={agent.name}, error={e!s}")
             raise
@@ -637,7 +651,7 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
 
     # Add utility methods with proper binding
     def add_utility_methods():
-        async def get_coordination_status() -> Dict[str, Any]:
+        async def get_coordination_status() -> dict[str, Any]:
             """Get coordination system status."""
             return agent._coordinator.get_status()
 
@@ -652,26 +666,19 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
             state_name: str,
             max_rate: float,
             strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
-            **kwargs
+            **kwargs,
         ):
             """Add rate limit for specific state."""
             agent._coordinator.add_rate_limiter(
-                state_name,
-                max_rate,
-                strategy,
-                **kwargs
+                state_name, max_rate, strategy, **kwargs
             )
 
         def add_state_coordination(
-            state_name: str,
-            primitive_type: PrimitiveType,
-            **kwargs
+            state_name: str, primitive_type: PrimitiveType, **kwargs
         ):
             """Add coordination primitive for specific state."""
             agent._coordinator.create_primitive(
-                f"state_{state_name}",
-                primitive_type,
-                **kwargs
+                f"state_{state_name}", primitive_type, **kwargs
             )
 
         # Bind methods to agent
@@ -691,9 +698,7 @@ def enhance_agent(agent: AgentProtocol, config: Optional[CoordinationConfig] = N
 
 
 def create_coordinated_agent(
-    name: str,
-    config: Optional[CoordinationConfig] = None,
-    **agent_kwargs
+    name: str, config: Optional[CoordinationConfig] = None, **agent_kwargs
 ) -> Any:
     """Create an agent with coordination enabled.
 

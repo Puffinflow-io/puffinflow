@@ -1,5 +1,5 @@
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from ..agent.base import Agent
 from .context import ObservableContext
@@ -10,9 +10,11 @@ from .interfaces import SpanType
 class ObservableAgent(Agent):
     """Agent with observability"""
 
-    def __init__(self, name: str, observability: Optional[ObservabilityManager] = None, **kwargs):
+    def __init__(
+        self, name: str, observability: Optional[ObservabilityManager] = None, **kwargs
+    ):
         # Extract workflow_id before passing kwargs to parent
-        self.workflow_id = kwargs.pop('workflow_id', f"workflow_{int(time.time())}")
+        self.workflow_id = kwargs.pop("workflow_id", f"workflow_{int(time.time())}")
 
         # Set observability BEFORE calling parent __init__
         self._observability = observability
@@ -32,16 +34,16 @@ class ObservableAgent(Agent):
             self.workflow_duration = self._observability.metrics.histogram(
                 "workflow_duration_seconds",
                 "Workflow execution duration",
-                ["agent_name", "status"]
+                ["agent_name", "status"],
             )
 
             self.state_duration = self._observability.metrics.histogram(
                 "state_execution_duration_seconds",
                 "State execution duration",
-                ["agent_name", "state_name", "status"]
+                ["agent_name", "state_name", "status"],
             )
 
-    def _create_context(self, shared_state: Dict[str, Any]) -> ObservableContext:
+    def _create_context(self, shared_state: dict[str, Any]) -> ObservableContext:
         """Create observable context"""
         context = ObservableContext(shared_state, self._observability)
         context.set_variable("agent_name", self.name)
@@ -54,10 +56,10 @@ class ObservableAgent(Agent):
 
         if self._observability and self._observability.tracing:
             with self._observability.tracing.span(
-                    f"workflow.{self.name}",
-                    SpanType.WORKFLOW,
-                    agent_name=self.name,
-                    workflow_id=self.workflow_id
+                f"workflow.{self.name}",
+                SpanType.WORKFLOW,
+                agent_name=self.name,
+                workflow_id=self.workflow_id,
             ) as span:
                 try:
                     await super().run(timeout)
@@ -68,7 +70,9 @@ class ObservableAgent(Agent):
                         span.set_status("ok")
 
                     if self.workflow_duration:
-                        self.workflow_duration.record(duration, agent_name=self.name, status="success")
+                        self.workflow_duration.record(
+                            duration, agent_name=self.name, status="success"
+                        )
 
                 except Exception as e:
                     duration = time.time() - workflow_start
@@ -76,7 +80,9 @@ class ObservableAgent(Agent):
                         span.record_exception(e)
 
                     if self.workflow_duration:
-                        self.workflow_duration.record(duration, agent_name=self.name, status="error")
+                        self.workflow_duration.record(
+                            duration, agent_name=self.name, status="error"
+                        )
                     raise
         else:
             await super().run(timeout)
@@ -87,10 +93,10 @@ class ObservableAgent(Agent):
 
         if self._observability and self._observability.tracing:
             with self._observability.tracing.span(
-                    f"state.{state_name}",
-                    SpanType.STATE,
-                    agent_name=self.name,
-                    state_name=state_name
+                f"state.{state_name}",
+                SpanType.STATE,
+                agent_name=self.name,
+                state_name=state_name,
             ) as span:
                 try:
                     context = self._create_context(self.shared_state)
@@ -108,7 +114,7 @@ class ObservableAgent(Agent):
                             duration,
                             agent_name=self.name,
                             state_name=state_name,
-                            status="success"
+                            status="success",
                         )
 
                 except Exception as e:
@@ -121,7 +127,7 @@ class ObservableAgent(Agent):
                             duration,
                             agent_name=self.name,
                             state_name=state_name,
-                            status="error"
+                            status="error",
                         )
                     raise
         else:

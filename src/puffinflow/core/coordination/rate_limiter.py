@@ -6,7 +6,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -15,6 +15,7 @@ logger = structlog.get_logger(__name__)
 
 class RateLimitStrategy(Enum):
     """Rate limiting strategies"""
+
     TOKEN_BUCKET = auto()
     LEAKY_BUCKET = auto()
     FIXED_WINDOW = auto()
@@ -24,6 +25,7 @@ class RateLimitStrategy(Enum):
 @dataclass
 class RateLimiter:
     """Advanced rate limiter with multiple strategies"""
+
     max_rate: float
     burst_size: int = 1
     strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET
@@ -31,7 +33,7 @@ class RateLimiter:
 
     _tokens: float = field(init=False)
     _last_update: float = field(init=False)
-    _window_requests: Dict[float, int] = field(default_factory=dict)
+    _window_requests: dict[float, int] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def __post_init__(self):
@@ -46,8 +48,7 @@ class RateLimiter:
             if self.strategy == RateLimitStrategy.TOKEN_BUCKET:
                 time_passed = now - self._last_update
                 self._tokens = min(
-                    self.burst_size,
-                    self._tokens + time_passed * self.max_rate
+                    self.burst_size, self._tokens + time_passed * self.max_rate
                 )
                 self._last_update = now
 
@@ -59,7 +60,8 @@ class RateLimiter:
                 # Clean old requests
                 cutoff = now - self.window_size
                 self._window_requests = {
-                    ts: count for ts, count in self._window_requests.items()
+                    ts: count
+                    for ts, count in self._window_requests.items()
                     if ts > cutoff
                 }
 
@@ -73,7 +75,8 @@ class RateLimiter:
                 # Clean up old requests outside the relevant window to prevent memory leaks
                 cleanup_cutoff = now - (self.window_size * 2)
                 self._window_requests = {
-                    ts: count for ts, count in self._window_requests.items()
+                    ts: count
+                    for ts, count in self._window_requests.items()
                     if ts > cleanup_cutoff
                 }
 
@@ -81,7 +84,8 @@ class RateLimiter:
 
                 # Count requests in current window
                 requests = sum(
-                    count for ts, count in self._window_requests.items()
+                    count
+                    for ts, count in self._window_requests.items()
                     if ts >= window_start
                 )
 
@@ -94,7 +98,8 @@ class RateLimiter:
                 # Clean up old requests outside the relevant window
                 cleanup_cutoff = now - (self.window_size * 2)
                 self._window_requests = {
-                    ts: count for ts, count in self._window_requests.items()
+                    ts: count
+                    for ts, count in self._window_requests.items()
                     if ts > cleanup_cutoff
                 }
 
@@ -102,7 +107,8 @@ class RateLimiter:
 
                 # Count requests in sliding window
                 requests = sum(
-                    count for ts, count in self._window_requests.items()
+                    count
+                    for ts, count in self._window_requests.items()
                     if ts >= window_start
                 )
 
@@ -158,7 +164,9 @@ class RateLimiter:
 
         elif self.strategy == RateLimitStrategy.SLIDING_WINDOW:
             window_start = now - self.window_size
-            relevant_requests_ts = [ts for ts in self._window_requests if ts >= window_start]
+            relevant_requests_ts = [
+                ts for ts in self._window_requests if ts >= window_start
+            ]
 
             if len(relevant_requests_ts) >= self.max_rate:
                 # To make space, we must wait for the oldest request to expire
@@ -169,14 +177,14 @@ class RateLimiter:
         # For Leaky Bucket or other cases, a small polling delay is the simplest approach
         return 0.1
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get rate limiter statistics"""
         return {
             "strategy": self.strategy.name,
             "max_rate": self.max_rate,
             "burst_size": self.burst_size,
-            "current_tokens": self._tokens if hasattr(self, '_tokens') else 0,
-            "window_requests": len(self._window_requests)
+            "current_tokens": self._tokens if hasattr(self, "_tokens") else 0,
+            "window_requests": len(self._window_requests),
         }
 
 
@@ -185,15 +193,10 @@ class TokenBucket(RateLimiter):
     """Token bucket rate limiter"""
 
     def __init__(
-        self,
-        rate: float,
-        capacity: int,
-        initial_tokens: Optional[float] = None
+        self, rate: float, capacity: int, initial_tokens: Optional[float] = None
     ):
         super().__init__(
-            max_rate=rate,
-            burst_size=capacity,
-            strategy=RateLimitStrategy.TOKEN_BUCKET
+            max_rate=rate, burst_size=capacity, strategy=RateLimitStrategy.TOKEN_BUCKET
         )
         if initial_tokens is not None:
             self._tokens = initial_tokens
@@ -204,10 +207,7 @@ class TokenBucket(RateLimiter):
         # Ensure tokens are up-to-date before returning
         now = time.time()
         time_passed = now - self._last_update
-        self._tokens = min(
-            self.burst_size,
-            self._tokens + time_passed * self.max_rate
-        )
+        self._tokens = min(self.burst_size, self._tokens + time_passed * self.max_rate)
         self._last_update = now
         return self._tokens
 
@@ -223,8 +223,7 @@ class TokenBucket(RateLimiter):
             now = time.time()
             time_passed = now - self._last_update
             self._tokens = min(
-                self.burst_size,
-                self._tokens + time_passed * self.max_rate
+                self.burst_size, self._tokens + time_passed * self.max_rate
             )
             self._last_update = now
 
@@ -239,9 +238,7 @@ class LeakyBucket(RateLimiter):
 
     def __init__(self, rate: float, capacity: int):
         super().__init__(
-            max_rate=rate,
-            burst_size=capacity,
-            strategy=RateLimitStrategy.LEAKY_BUCKET
+            max_rate=rate, burst_size=capacity, strategy=RateLimitStrategy.LEAKY_BUCKET
         )
         self._bucket: deque = deque(maxlen=capacity)
         self._last_leak = time.time()
@@ -281,7 +278,7 @@ class SlidingWindow(RateLimiter):
         super().__init__(
             max_rate=rate,
             strategy=RateLimitStrategy.SLIDING_WINDOW,
-            window_size=window_size
+            window_size=window_size,
         )
         self._request_log: deque = deque()
 
@@ -321,9 +318,9 @@ class FixedWindow(RateLimiter):
         super().__init__(
             max_rate=rate,
             strategy=RateLimitStrategy.FIXED_WINDOW,
-            window_size=window_size
+            window_size=window_size,
         )
-        self._window_counts: Dict[int, int] = {}
+        self._window_counts: dict[int, int] = {}
 
     async def acquire(self) -> bool:
         """Check if request is allowed"""
@@ -341,8 +338,7 @@ class FixedWindow(RateLimiter):
                 # Clean old windows
                 cutoff_window = window_id - 2
                 self._window_counts = {
-                    w: c for w, c in self._window_counts.items()
-                    if w > cutoff_window
+                    w: c for w, c in self._window_counts.items() if w > cutoff_window
                 }
 
                 return True
@@ -358,7 +354,7 @@ class AdaptiveRateLimiter:
         base_rate: float,
         min_rate: float,
         max_rate: float,
-        strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET
+        strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
     ):
         self.base_rate = base_rate
         self.min_rate = min_rate
@@ -378,7 +374,7 @@ class AdaptiveRateLimiter:
         return RateLimiter(
             max_rate=rate,
             burst_size=int(rate * 2),  # Allow some burst
-            strategy=self.strategy
+            strategy=self.strategy,
         )
 
     async def acquire(self) -> bool:
@@ -439,7 +435,7 @@ class AdaptiveRateLimiter:
                 "rate_adjusted",
                 old_rate=self._current_rate,
                 new_rate=new_rate,
-                success_ratio=success_ratio
+                success_ratio=success_ratio,
             )
 
             self._current_rate = new_rate
@@ -454,7 +450,7 @@ class AdaptiveRateLimiter:
         """Get current rate"""
         return self._current_rate
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get adaptive limiter statistics"""
         return {
             "current_rate": self._current_rate,
@@ -463,7 +459,7 @@ class AdaptiveRateLimiter:
             "max_rate": self.max_rate,
             "success_count": self._success_count,
             "failure_count": self._failure_count,
-            "limiter_stats": self._limiter.get_stats()
+            "limiter_stats": self._limiter.get_stats(),
         }
 
 
@@ -471,7 +467,7 @@ class AdaptiveRateLimiter:
 class CompositeRateLimiter:
     """Combines multiple rate limiters"""
 
-    def __init__(self, limiters: List[RateLimiter]):
+    def __init__(self, limiters: list[RateLimiter]):
         self.limiters = limiters
 
     async def acquire(self) -> bool:

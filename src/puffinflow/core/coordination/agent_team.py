@@ -1,11 +1,12 @@
 """Agent team coordination with messaging and event systems."""
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Optional
 
 from ..agent.base import Agent, AgentResult
 from ..agent.state import AgentStatus
@@ -16,9 +17,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TeamResult:
     """Result container for team execution."""
+
     team_name: str
     status: str
-    agent_results: Dict[str, AgentResult] = field(default_factory=dict)
+    agent_results: dict[str, AgentResult] = field(default_factory=dict)
     start_time: Optional[float] = None
     end_time: Optional[float] = None
     total_duration: Optional[float] = None
@@ -28,25 +30,29 @@ class TeamResult:
         """Get result for specific agent."""
         return self.agent_results.get(agent_name)
 
-    def get_all_outputs(self, key: str) -> List[Any]:
+    def get_all_outputs(self, key: str) -> list[Any]:
         """Get specific output from all agents."""
         return [
-            result.get_output(key) for result in self.agent_results.values()
+            result.get_output(key)
+            for result in self.agent_results.values()
             if result.get_output(key) is not None
         ]
 
-    def get_all_variables(self, key: str) -> List[Any]:
+    def get_all_variables(self, key: str) -> list[Any]:
         """Get specific variable from all agents."""
         return [
-            result.get_variable(key) for result in self.agent_results.values()
+            result.get_variable(key)
+            for result in self.agent_results.values()
             if result.get_variable(key) is not None
         ]
 
     def get_best_by(self, metric: str, maximize: bool = True) -> Optional[AgentResult]:
         """Get agent with best metric value."""
         valid_results = [
-            result for result in self.agent_results.values()
-            if result.get_output(metric) is not None or result.get_metric(metric) is not None
+            result
+            for result in self.agent_results.values()
+            if result.get_output(metric) is not None
+            or result.get_metric(metric) is not None
         ]
 
         if not valid_results:
@@ -55,7 +61,11 @@ class TeamResult:
         def get_value(result):
             return result.get_output(metric) or result.get_metric(metric) or 0
 
-        return max(valid_results, key=get_value) if maximize else min(valid_results, key=get_value)
+        return (
+            max(valid_results, key=get_value)
+            if maximize
+            else min(valid_results, key=get_value)
+        )
 
     def average(self, key: str) -> float:
         """Get average of a numeric output/metric across agents."""
@@ -94,10 +104,11 @@ class TeamResult:
 @dataclass
 class Message:
     """Message between agents."""
+
     sender: str
     recipient: str
     message_type: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     timestamp: float = field(default_factory=time.time)
     correlation_id: Optional[str] = None
 
@@ -105,9 +116,10 @@ class Message:
 @dataclass
 class Event:
     """Event emitted by agents."""
+
     source: str
     event_type: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     timestamp: float = field(default_factory=time.time)
     event_id: str = field(default_factory=lambda: f"event_{int(time.time() * 1000)}")
 
@@ -116,8 +128,8 @@ class EventBus:
     """Event bus for agent communication."""
 
     def __init__(self):
-        self._handlers: Dict[str, List[Callable]] = defaultdict(list)
-        self._event_history: List[Event] = []
+        self._handlers: dict[str, list[Callable]] = defaultdict(list)
+        self._event_history: list[Event] = []
         self._max_history = 1000
 
     def subscribe(self, event_type: str, handler: Callable) -> None:
@@ -127,10 +139,8 @@ class EventBus:
     def unsubscribe(self, event_type: str, handler: Callable) -> None:
         """Unsubscribe from event type."""
         if event_type in self._handlers:
-            try:
+            with contextlib.suppress(ValueError):
                 self._handlers[event_type].remove(handler)
-            except ValueError:
-                pass
 
     async def emit(self, event: Event) -> None:
         """Emit an event to all subscribers."""
@@ -138,7 +148,7 @@ class EventBus:
 
         # Trim history if needed
         if len(self._event_history) > self._max_history:
-            self._event_history = self._event_history[-self._max_history:]
+            self._event_history = self._event_history[-self._max_history :]
 
         # Notify handlers
         handlers = self._handlers.get(event.event_type, [])
@@ -151,8 +161,9 @@ class EventBus:
             except Exception as e:
                 logger.error(f"Error in event handler for {event.event_type}: {e}")
 
-    def get_events(self, event_type: Optional[str] = None,
-                   source: Optional[str] = None) -> List[Event]:
+    def get_events(
+        self, event_type: Optional[str] = None, source: Optional[str] = None
+    ) -> list[Event]:
         """Get events by type and/or source."""
         events = self._event_history
 
@@ -170,17 +181,17 @@ class AgentTeam:
 
     def __init__(self, name: str):
         self.name = name
-        self._agents: Dict[str, Agent] = {}
-        self._shared_context: Dict[str, Any] = {}
+        self._agents: dict[str, Agent] = {}
+        self._shared_context: dict[str, Any] = {}
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._event_bus = EventBus()
         self._running = False
-        self._results: Dict[str, AgentResult] = {}
-        self._execution_order: List[str] = []
-        self._parallel_groups: List[List[str]] = []
-        self._dependencies: Dict[str, Set[str]] = defaultdict(set)
+        self._results: dict[str, AgentResult] = {}
+        self._execution_order: list[str] = []
+        self._parallel_groups: list[list[str]] = []
+        self._dependencies: dict[str, set[str]] = defaultdict(set)
 
-    def add_agent(self, agent: Agent) -> 'AgentTeam':
+    def add_agent(self, agent: Agent) -> "AgentTeam":
         """Add agent to team."""
         self._agents[agent.name] = agent
         agent.set_team(self)
@@ -190,7 +201,7 @@ class AgentTeam:
 
         return self
 
-    def add_agents(self, agents: List[Agent]) -> 'AgentTeam':
+    def add_agents(self, agents: list[Agent]) -> "AgentTeam":
         """Add multiple agents to team."""
         for agent in agents:
             self.add_agent(agent)
@@ -207,7 +218,9 @@ class AgentTeam:
             return True
         return False
 
-    def with_shared_context(self, context: Optional[Dict[str, Any]] = None) -> 'AgentTeam':
+    def with_shared_context(
+        self, context: Optional[dict[str, Any]] = None
+    ) -> "AgentTeam":
         """Set shared context for all agents."""
         if context:
             self._shared_context.update(context)
@@ -228,20 +241,22 @@ class AgentTeam:
         """Get global variable."""
         return self._shared_context.get(key, default)
 
-    def set_variable_for_all(self, key: str, value: Any) -> 'AgentTeam':
+    def set_variable_for_all(self, key: str, value: Any) -> "AgentTeam":
         """Set variable for all agents (fluent)."""
         for agent in self._agents.values():
             agent.set_variable(key, value)
         return self
 
     # Messaging system
-    async def send_message(self, sender: str, recipient: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def send_message(
+        self, sender: str, recipient: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Send message between agents."""
         message = Message(
             sender=sender,
             recipient=recipient,
-            message_type=data.get('message_type', 'generic'),
-            data=data
+            message_type=data.get("message_type", "generic"),
+            data=data,
         )
 
         recipient_agent = self._agents.get(recipient)
@@ -252,7 +267,9 @@ class AgentTeam:
 
         return {}
 
-    async def broadcast_message(self, sender: str, message_type: str, data: Dict[str, Any]) -> None:
+    async def broadcast_message(
+        self, sender: str, message_type: str, data: dict[str, Any]
+    ) -> None:
         """Broadcast message to all agents except sender."""
         for agent_name, agent in self._agents.items():
             if agent_name != sender:
@@ -262,7 +279,9 @@ class AgentTeam:
                     logger.error(f"Error broadcasting to {agent_name}: {e}")
 
     # Event system
-    async def emit_event(self, source: str, event_type: str, data: Dict[str, Any]) -> None:
+    async def emit_event(
+        self, source: str, event_type: str, data: dict[str, Any]
+    ) -> None:
         """Emit event to event bus."""
         event = Event(source=source, event_type=event_type, data=data)
         await self._event_bus.emit(event)
@@ -272,13 +291,15 @@ class AgentTeam:
         self._event_bus.subscribe(event_type, handler)
 
     # Execution methods
-    async def run(self, mode: str = "parallel", timeout: Optional[float] = None) -> TeamResult:
+    async def run(
+        self, mode: str = "parallel", timeout: Optional[float] = None
+    ) -> TeamResult:
         """Run the team with specified mode.
-        
+
         Args:
             mode: Execution mode - "parallel", "sequential", or "dependencies"
             timeout: Optional timeout for execution
-            
+
         Returns:
             TeamResult with execution results
         """
@@ -305,16 +326,14 @@ class AgentTeam:
             # Wait for completion with optional timeout
             if timeout:
                 done, pending = await asyncio.wait(
-                    tasks.values(),
-                    timeout=timeout,
-                    return_when=asyncio.ALL_COMPLETED
+                    tasks.values(), timeout=timeout, return_when=asyncio.ALL_COMPLETED
                 )
 
                 # Cancel pending tasks
                 for task in pending:
                     task.cancel()
             else:
-                done = await asyncio.gather(*tasks.values(), return_exceptions=True)
+                await asyncio.gather(*tasks.values(), return_exceptions=True)
 
             # Collect results
             results = {}
@@ -330,7 +349,7 @@ class AgentTeam:
                             status=AgentStatus.FAILED,
                             error=e,
                             start_time=start_time,
-                            end_time=time.time()
+                            end_time=time.time(),
                         )
 
             end_time = time.time()
@@ -341,7 +360,7 @@ class AgentTeam:
                 agent_results=results,
                 start_time=start_time,
                 end_time=end_time,
-                total_duration=end_time - start_time
+                total_duration=end_time - start_time,
             )
 
         except Exception as e:
@@ -352,10 +371,12 @@ class AgentTeam:
                 error=e,
                 start_time=start_time,
                 end_time=end_time,
-                total_duration=end_time - start_time
+                total_duration=end_time - start_time,
             )
 
-    async def run_sequential(self, agent_order: Optional[List[str]] = None) -> TeamResult:
+    async def run_sequential(
+        self, agent_order: Optional[list[str]] = None
+    ) -> TeamResult:
         """Run agents sequentially."""
         start_time = time.time()
         results = {}
@@ -381,7 +402,7 @@ class AgentTeam:
                 agent_results=results,
                 start_time=start_time,
                 end_time=end_time,
-                total_duration=end_time - start_time
+                total_duration=end_time - start_time,
             )
 
         except Exception as e:
@@ -393,7 +414,7 @@ class AgentTeam:
                 error=e,
                 start_time=start_time,
                 end_time=end_time,
-                total_duration=end_time - start_time
+                total_duration=end_time - start_time,
             )
 
     async def run_parallel_and_collect(self) -> TeamResult:
@@ -411,18 +432,19 @@ class AgentTeam:
             while len(completed) < len(self._agents):
                 # Find agents ready to run
                 ready = []
-                for agent_name, agent in self._agents.items():
-                    if (agent_name not in completed and
-                            agent_name not in running and
-                            self._dependencies[agent_name].issubset(completed)):
+                for agent_name, _agent in self._agents.items():
+                    if (
+                        agent_name not in completed
+                        and agent_name not in running
+                        and self._dependencies[agent_name].issubset(completed)
+                    ):
                         ready.append(agent_name)
 
                 if not ready:
                     # Wait for running agents
                     if running:
                         done_tasks = await asyncio.wait(
-                            running.values(),
-                            return_when=asyncio.FIRST_COMPLETED
+                            running.values(), return_when=asyncio.FIRST_COMPLETED
                         )
 
                         # Process completed agents
@@ -458,7 +480,7 @@ class AgentTeam:
                 agent_results=results,
                 start_time=start_time,
                 end_time=end_time,
-                total_duration=end_time - start_time
+                total_duration=end_time - start_time,
             )
 
         except Exception as e:
@@ -470,34 +492,36 @@ class AgentTeam:
                 error=e,
                 start_time=start_time,
                 end_time=end_time,
-                total_duration=end_time - start_time
+                total_duration=end_time - start_time,
             )
 
     # Dependency management
-    def add_dependency(self, agent: str, depends_on: str) -> 'AgentTeam':
+    def add_dependency(self, agent: str, depends_on: str) -> "AgentTeam":
         """Add dependency between agents."""
         self._dependencies[agent].add(depends_on)
         return self
 
-    def set_execution_order(self, order: List[str]) -> 'AgentTeam':
+    def set_execution_order(self, order: list[str]) -> "AgentTeam":
         """Set execution order for sequential runs."""
         self._execution_order = order
         return self
 
     # Monitoring and control
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get team status."""
         agent_statuses = {
-            name: agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
+            name: agent.status.value
+            if hasattr(agent.status, "value")
+            else str(agent.status)
             for name, agent in self._agents.items()
         }
 
         return {
-            'team_name': self.name,
-            'agent_count': len(self._agents),
-            'agent_statuses': agent_statuses,
-            'shared_variables': len(self._shared_context),
-            'running': self._running
+            "team_name": self.name,
+            "agent_count": len(self._agents),
+            "agent_statuses": agent_statuses,
+            "shared_variables": len(self._shared_context),
+            "running": self._running,
         }
 
     async def pause_all(self) -> None:
@@ -528,21 +552,23 @@ class AgentTeam:
 
 
 # Helper functions for easy team creation
-def create_team(name: str, agents: List[Agent]) -> AgentTeam:
+def create_team(name: str, agents: list[Agent]) -> AgentTeam:
     """Create a team with agents."""
     team = AgentTeam(name)
     team.add_agents(agents)
     return team
 
 
-async def run_agents_parallel(agents: List[Agent], timeout: Optional[float] = None) -> Dict[str, AgentResult]:
+async def run_agents_parallel(
+    agents: list[Agent], timeout: Optional[float] = None
+) -> dict[str, AgentResult]:
     """Run agents in parallel and return results."""
     team = create_team("parallel_execution", agents)
     result = await team.run_parallel(timeout)
     return result.agent_results
 
 
-async def run_agents_sequential(agents: List[Agent]) -> Dict[str, AgentResult]:
+async def run_agents_sequential(agents: list[Agent]) -> dict[str, AgentResult]:
     """Run agents sequentially and return results."""
     team = create_team("sequential_execution", agents)
     result = await team.run_sequential()

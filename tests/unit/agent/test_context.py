@@ -91,9 +91,7 @@ def context_with_metadata(shared_state):
 def mock_pydantic_unavailable():
     """Mock Pydantic being unavailable for testing error handling."""
     with patch.object(sys.modules["puffinflow.core.agent.context"], "_PYD_VER", 0):
-        with patch.object(
-            sys.modules["puffinflow.core.agent.context"], "_PBM", None
-        ):
+        with patch.object(sys.modules["puffinflow.core.agent.context"], "_PBM", None):
             with patch.object(
                 sys.modules["puffinflow.core.agent.context"],
                 "_PYD_ERR",

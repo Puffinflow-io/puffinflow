@@ -1,7 +1,7 @@
 import threading
 import time
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
@@ -40,14 +40,14 @@ class OpenTelemetrySpan(Span):
                 value = str(value)
             self._span.set_attribute(key, value)
 
-    def set_status(self, status: str, description: str = None) -> None:
+    def set_status(self, status: str, description: Optional[str] = None) -> None:
         """Set span status"""
         if status.lower() in ["ok", "success"]:
             self._span.set_status(Status(StatusCode.OK, description))
         elif status.lower() in ["error", "failed"]:
             self._span.set_status(Status(StatusCode.ERROR, description))
 
-    def add_event(self, name: str, attributes: Dict[str, Any] = None) -> None:
+    def add_event(self, name: str, attributes: Optional[dict[str, Any]] = None) -> None:
         """Add event to span"""
         event_attrs = attributes or {}
         event_attrs = {k: v for k, v in event_attrs.items() if v is not None}
@@ -80,10 +80,12 @@ class OpenTelemetryTracingProvider(TracingProvider):
 
     def _setup_tracing(self):
         """Setup OpenTelemetry tracing"""
-        resource = Resource.create({
-            "service.name": self.config.service_name,
-            "service.version": self.config.service_version
-        })
+        resource = Resource.create(
+            {
+                "service.name": self.config.service_name,
+                "service.version": self.config.service_version,
+            }
+        )
 
         provider = TracerProvider(resource=resource)
         trace.set_tracer_provider(provider)
@@ -97,8 +99,10 @@ class OpenTelemetryTracingProvider(TracingProvider):
 
         if self.config.jaeger_endpoint:
             jaeger_exporter = JaegerExporter(
-                agent_host_name=self.config.jaeger_endpoint.split(':')[0],
-                agent_port=int(self.config.jaeger_endpoint.split(':')[1]) if ':' in self.config.jaeger_endpoint else 6831
+                agent_host_name=self.config.jaeger_endpoint.split(":")[0],
+                agent_port=int(self.config.jaeger_endpoint.split(":")[1])
+                if ":" in self.config.jaeger_endpoint
+                else 6831,
             )
             processors.append(BatchSpanProcessor(jaeger_exporter))
 
@@ -111,11 +115,16 @@ class OpenTelemetryTracingProvider(TracingProvider):
 
         self._tracer = trace.get_tracer(
             instrumenting_module_name="puffinflow.observability",
-            instrumenting_library_version="1.0.0"
+            instrumenting_library_version="1.0.0",
         )
 
-    def start_span(self, name: str, span_type: SpanType = SpanType.SYSTEM,
-                   parent: Optional[SpanContext] = None, **attributes) -> Span:
+    def start_span(
+        self,
+        name: str,
+        span_type: SpanType = SpanType.SYSTEM,
+        parent: Optional[SpanContext] = None,
+        **attributes,
+    ) -> Span:
         """Start new span"""
         # Create span context
         if parent:
@@ -143,15 +152,20 @@ class OpenTelemetryTracingProvider(TracingProvider):
 
     def get_current_span(self) -> Optional[Span]:
         """Get current active span"""
-        return getattr(self._current_context, 'current_span', None)
+        return getattr(self._current_context, "current_span", None)
 
     def _set_current_span(self, span: Optional[Span]):
         """Set current span in context"""
         self._current_context.current_span = span
 
     @contextmanager
-    def span(self, name: str, span_type: SpanType = SpanType.SYSTEM,
-             parent: Optional[SpanContext] = None, **attributes):
+    def span(
+        self,
+        name: str,
+        span_type: SpanType = SpanType.SYSTEM,
+        parent: Optional[SpanContext] = None,
+        **attributes,
+    ):
         """Context manager for spans"""
         span = self.start_span(name, span_type, parent, **attributes)
         try:

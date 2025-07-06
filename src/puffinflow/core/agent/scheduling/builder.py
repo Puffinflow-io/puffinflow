@@ -1,6 +1,6 @@
 """Fluent API builder for agent scheduling."""
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 from .inputs import ScheduledInput, parse_inputs
 
@@ -12,17 +12,17 @@ if TYPE_CHECKING:
 class ScheduleBuilder:
     """Fluent API builder for scheduling agents."""
 
-    def __init__(self, agent: 'Agent', schedule_string: str):
+    def __init__(self, agent: "Agent", schedule_string: str):
         self._agent = agent
         self._schedule_string = schedule_string
-        self._inputs: Dict[str, ScheduledInput] = {}
+        self._inputs: dict[str, ScheduledInput] = {}
 
-    def with_inputs(self, **inputs) -> 'ScheduleBuilder':
+    def with_inputs(self, **inputs) -> "ScheduleBuilder":
         """Add regular variable inputs.
-        
+
         Args:
             **inputs: Input key-value pairs
-            
+
         Returns:
             Self for chaining
         """
@@ -30,12 +30,12 @@ class ScheduleBuilder:
         self._inputs.update(parsed)
         return self
 
-    def with_secrets(self, **secrets) -> 'ScheduleBuilder':
+    def with_secrets(self, **secrets) -> "ScheduleBuilder":
         """Add secret inputs.
-        
+
         Args:
             **secrets: Secret key-value pairs
-            
+
         Returns:
             Self for chaining
         """
@@ -45,12 +45,12 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_constants(self, **constants) -> 'ScheduleBuilder':
+    def with_constants(self, **constants) -> "ScheduleBuilder":
         """Add constant inputs.
-        
+
         Args:
             **constants: Constant key-value pairs
-            
+
         Returns:
             Self for chaining
         """
@@ -60,13 +60,13 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_cache(self, ttl: int, **cached_inputs) -> 'ScheduleBuilder':
+    def with_cache(self, ttl: int, **cached_inputs) -> "ScheduleBuilder":
         """Add cached inputs with TTL.
-        
+
         Args:
             ttl: Time to live in seconds
             **cached_inputs: Cached input key-value pairs
-            
+
         Returns:
             Self for chaining
         """
@@ -74,6 +74,7 @@ class ScheduleBuilder:
             # Convert value to string for cache prefix
             if isinstance(value, (dict, list)):
                 import json
+
                 value_str = json.dumps(value)
             else:
                 value_str = str(value)
@@ -82,12 +83,12 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_typed(self, **typed_inputs) -> 'ScheduleBuilder':
+    def with_typed(self, **typed_inputs) -> "ScheduleBuilder":
         """Add typed inputs.
-        
+
         Args:
             **typed_inputs: Typed input key-value pairs
-            
+
         Returns:
             Self for chaining
         """
@@ -95,6 +96,7 @@ class ScheduleBuilder:
             # Convert value to string for typed prefix
             if isinstance(value, (dict, list)):
                 import json
+
                 value_str = json.dumps(value)
             else:
                 value_str = str(value)
@@ -103,12 +105,12 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_outputs(self, **outputs) -> 'ScheduleBuilder':
+    def with_outputs(self, **outputs) -> "ScheduleBuilder":
         """Add pre-set outputs.
-        
+
         Args:
             **outputs: Output key-value pairs
-            
+
         Returns:
             Self for chaining
         """
@@ -118,9 +120,9 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def run(self) -> 'ScheduledAgent':
+    def run(self) -> "ScheduledAgent":
         """Execute the scheduling with configured inputs.
-        
+
         Returns:
             ScheduledAgent instance
         """
@@ -132,7 +134,9 @@ class ScheduleBuilder:
             elif scheduled_input.input_type.value == "const":
                 input_kwargs[key] = f"const:{scheduled_input.value}"
             elif scheduled_input.input_type.value == "cache":
-                input_kwargs[key] = f"cache:{scheduled_input.ttl}:{scheduled_input.value}"
+                input_kwargs[
+                    key
+                ] = f"cache:{scheduled_input.ttl}:{scheduled_input.value}"
             elif scheduled_input.input_type.value == "typed":
                 input_kwargs[key] = f"typed:{scheduled_input.value}"
             elif scheduled_input.input_type.value == "output":
@@ -143,13 +147,13 @@ class ScheduleBuilder:
         return self._agent.schedule(self._schedule_string, **input_kwargs)
 
 
-def create_schedule_builder(agent: 'Agent', schedule_string: str) -> ScheduleBuilder:
+def create_schedule_builder(agent: "Agent", schedule_string: str) -> ScheduleBuilder:
     """Create a schedule builder for fluent API.
-    
+
     Args:
         agent: Agent to schedule
         schedule_string: Schedule string
-        
+
     Returns:
         ScheduleBuilder instance
     """

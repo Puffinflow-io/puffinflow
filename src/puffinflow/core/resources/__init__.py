@@ -34,41 +34,37 @@ from .requirements import (
 )
 
 __all__ = [
-    # Pool
-    "ResourcePool",
-    "ResourceAllocationError",
-    "ResourceOverflowError",
-    "ResourceQuotaExceededError",
-    "ResourceUsageStats",
-
-    # Requirements
-    "ResourceType",
-    "ResourceRequirements",
-
-    # Quotas
-    "QuotaManager",
-    "QuotaPolicy",
-    "QuotaLimit",
-    "QuotaScope",
-    "QuotaExceededError",
-    "QuotaMetrics",
-
-    # Allocation
-    "AllocationStrategy",
     "AllocationRequest",
     "AllocationResult",
-    "FirstFitAllocator",
+    # Allocation
+    "AllocationStrategy",
     "BestFitAllocator",
-    "WorstFitAllocator",
-    "PriorityAllocator",
     "FairShareAllocator",
+    "FirstFitAllocator",
+    "PriorityAllocator",
+    "QuotaExceededError",
+    "QuotaLimit",
+    # Quotas
+    "QuotaManager",
+    "QuotaMetrics",
+    "QuotaPolicy",
+    "QuotaScope",
+    "ResourceAllocationError",
     "ResourceAllocator",
-
+    "ResourceOverflowError",
+    # Pool
+    "ResourcePool",
+    "ResourceQuotaExceededError",
+    "ResourceRequirements",
+    # Requirements
+    "ResourceType",
+    "ResourceUsageStats",
+    "WorstFitAllocator",
+    "allocation",
     # Submodules
     "pool",
-    "requirements",
     "quotas",
-    "allocation",
+    "requirements",
 ]
 
 # Clean up module namespace
@@ -76,6 +72,6 @@ import sys as _sys
 
 _current_module = _sys.modules[__name__]
 for _attr_name in dir(_current_module):
-    if not _attr_name.startswith('_') and _attr_name not in __all__:
+    if not _attr_name.startswith("_") and _attr_name not in __all__:
         delattr(_current_module, _attr_name)
 del _sys, _current_module, _attr_name

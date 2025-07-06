@@ -1,5 +1,5 @@
 import threading
-from typing import List
+from typing import Optional
 
 from prometheus_client import CollectorRegistry, generate_latest
 from prometheus_client import Counter as PrometheusCounter
@@ -13,7 +13,9 @@ from .interfaces import Metric, MetricsProvider, MetricType
 class PrometheusMetric(Metric):
     """Prometheus metric wrapper"""
 
-    def __init__(self, prometheus_metric, metric_type: MetricType, cardinality_limit: int):
+    def __init__(
+        self, prometheus_metric, metric_type: MetricType, cardinality_limit: int
+    ):
         self._prometheus_metric = prometheus_metric
         self._metric_type = metric_type
         self._cardinality_limit = cardinality_limit
@@ -62,20 +64,29 @@ class PrometheusMetricsProvider(MetricsProvider):
         self._metrics_cache = {}
         self._lock = threading.Lock()
 
-    def counter(self, name: str, description: str = "", labels: List[str] = None) -> Metric:
+    def counter(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Metric:
         """Create counter metric"""
         return self._get_or_create_metric(name, MetricType.COUNTER, description, labels)
 
-    def gauge(self, name: str, description: str = "", labels: List[str] = None) -> Metric:
+    def gauge(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Metric:
         """Create gauge metric"""
         return self._get_or_create_metric(name, MetricType.GAUGE, description, labels)
 
-    def histogram(self, name: str, description: str = "", labels: List[str] = None) -> Metric:
+    def histogram(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Metric:
         """Create histogram metric"""
-        return self._get_or_create_metric(name, MetricType.HISTOGRAM, description, labels)
+        return self._get_or_create_metric(
+            name, MetricType.HISTOGRAM, description, labels
+        )
 
-    def _get_or_create_metric(self, name: str, metric_type: MetricType,
-                             description: str, labels: List[str]) -> Metric:
+    def _get_or_create_metric(
+        self, name: str, metric_type: MetricType, description: str, labels: list[str]
+    ) -> Metric:
         """Get or create metric"""
         metric_key = f"{self.config.namespace}_{name}"
 
@@ -87,23 +98,34 @@ class PrometheusMetricsProvider(MetricsProvider):
 
             if metric_type == MetricType.COUNTER:
                 prometheus_metric = PrometheusCounter(
-                    metric_key, description, labelnames=labelnames, registry=self._registry
+                    metric_key,
+                    description,
+                    labelnames=labelnames,
+                    registry=self._registry,
                 )
             elif metric_type == MetricType.GAUGE:
                 prometheus_metric = PrometheusGauge(
-                    metric_key, description, labelnames=labelnames, registry=self._registry
+                    metric_key,
+                    description,
+                    labelnames=labelnames,
+                    registry=self._registry,
                 )
             elif metric_type == MetricType.HISTOGRAM:
                 prometheus_metric = PrometheusHistogram(
-                    metric_key, description, labelnames=labelnames, registry=self._registry
+                    metric_key,
+                    description,
+                    labelnames=labelnames,
+                    registry=self._registry,
                 )
             else:
                 raise ValueError(f"Unsupported metric type: {metric_type}")
 
-            metric = PrometheusMetric(prometheus_metric, metric_type, self.config.cardinality_limit)
+            metric = PrometheusMetric(
+                prometheus_metric, metric_type, self.config.cardinality_limit
+            )
             self._metrics_cache[metric_key] = metric
             return metric
 
     def export_metrics(self) -> str:
         """Export metrics in Prometheus format"""
-        return generate_latest(self._registry).decode('utf-8')
+        return generate_latest(self._registry).decode("utf-8")

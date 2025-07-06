@@ -7,7 +7,11 @@ from .core import get_observability
 from .interfaces import SpanType
 
 
-def observe(name: Optional[str] = None, span_type: SpanType = SpanType.BUSINESS, **span_attributes):
+def observe(
+    name: Optional[str] = None,
+    span_type: SpanType = SpanType.BUSINESS,
+    **span_attributes,
+):
     """Observability decorator"""
 
     def decorator(func: Callable) -> Callable:
@@ -18,10 +22,7 @@ def observe(name: Optional[str] = None, span_type: SpanType = SpanType.BUSINESS,
 
             if observability.tracing:
                 with observability.tracing.span(
-                        operation_name,
-                        span_type,
-                        function=func.__name__,
-                        **span_attributes
+                    operation_name, span_type, function=func.__name__, **span_attributes
                 ) as span:
                     start_time = time.time()
                     try:
@@ -46,7 +47,9 @@ def observe(name: Optional[str] = None, span_type: SpanType = SpanType.BUSINESS,
             operation_name = name or f"{func.__module__}.{func.__name__}"
 
             if observability.tracing:
-                with observability.tracing.span(operation_name, span_type, **span_attributes) as span:
+                with observability.tracing.span(
+                    operation_name, span_type, **span_attributes
+                ) as span:
                     try:
                         result = func(*args, **kwargs)
                         if span:
@@ -77,10 +80,12 @@ def trace_state(span_type: SpanType = SpanType.STATE, **span_attributes):
                     "state.name": func.__name__,
                     "workflow.id": context.get_variable("workflow_id"),
                     "agent.name": context.get_variable("agent_name"),
-                    **span_attributes
+                    **span_attributes,
                 }
 
-                with observability.tracing.span(f"state.{func.__name__}", span_type, **attrs) as span:
+                with observability.tracing.span(
+                    f"state.{func.__name__}", span_type, **attrs
+                ) as span:
                     try:
                         result = await func(context, *args, **kwargs)
                         if span:

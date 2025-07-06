@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
     from .base import Agent
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 class DependencyType(Enum):
     """Types of dependencies between states."""
+
     REQUIRED = "required"  # Must complete before state can run
     OPTIONAL = "optional"  # Will wait if running, otherwise skips
     PARALLEL = "parallel"  # Can run in parallel with dependency
@@ -29,6 +30,7 @@ class DependencyType(Enum):
 
 class DependencyLifecycle(Enum):
     """Lifecycle management for dependencies."""
+
     ONCE = "once"  # Dependency only needs to be satisfied once
     ALWAYS = "always"  # Dependency must be satisfied every time
     SESSION = "session"  # Dependency valid for current run() execution
@@ -45,10 +47,11 @@ class DependencyLifecycle(Enum):
 @dataclass
 class DependencyConfig:
     """Configuration for state dependencies."""
+
     type: DependencyType
     lifecycle: DependencyLifecycle = DependencyLifecycle.ALWAYS
     condition: Optional[Callable[["Agent"], bool]] = None
     expiry: Optional[float] = None
     interval: Optional[float] = None
     timeout: Optional[float] = None
-    retry_policy: Optional[Dict[str, Any]] = None
+    retry_policy: Optional[dict[str, Any]] = None

@@ -1,16 +1,19 @@
 """Context with rich content management."""
 
 import asyncio
+import contextlib
 import time
-from typing import Any, Callable, Dict, Optional, Set, Type, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar, Union
 
 try:
-    from pydantic import BaseModel, ValidationError
+    from pydantic import BaseModel
+
     _PYD_VER = 2
     _PBM = BaseModel
 except ImportError:
     try:
-        from pydantic.v1 import BaseModel, ValidationError
+        from pydantic.v1 import BaseModel
+
         _PYD_VER = 1
         _PBM = BaseModel
     except ImportError as _e:
@@ -26,11 +29,13 @@ _PBM_T = TypeVar("_PBM_T", bound=_PBM)
 @runtime_checkable
 class TypedContextData(Protocol):
     """Protocol for typed context data."""
+
     pass
 
 
 class StateType:
     """State type enumeration for context data."""
+
     ANY = "any"
     TYPED = "typed"
     UNTYPED = "untyped"
@@ -44,30 +49,32 @@ class Context:
     _META_METADATA = "_meta_metadata_"
     _IMMUTABLE_PREFIXES = ("const_", "secret_")
 
-    def __init__(self, shared_state: Dict[str, Any], cache_ttl: int = 300) -> None:
+    def __init__(self, shared_state: dict[str, Any], cache_ttl: int = 300) -> None:
         self.shared_state = shared_state if shared_state is not None else {}
         self.cache_ttl = cache_ttl
-        self._typed_data: Dict[str, Any] = {}
-        self._typed_var_types: Dict[str, type] = {}
-        self._validated_types: Dict[str, type] = {}
-        self._cache: Dict[str, tuple] = {}  # (value, expiry_time)
-        self._outputs: Dict[str, Any] = {}
-        self._metadata: Dict[str, Any] = {}
-        self._metrics: Dict[str, Any] = {}
+        self._typed_data: dict[str, Any] = {}
+        self._typed_var_types: dict[str, type] = {}
+        self._validated_types: dict[str, type] = {}
+        self._cache: dict[str, tuple] = {}  # (value, expiry_time)
+        self._outputs: dict[str, Any] = {}
+        self._metadata: dict[str, Any] = {}
+        self._metrics: dict[str, Any] = {}
         self._restore_metadata()
 
     def _restore_metadata(self) -> None:
         """Restore metadata from shared state."""
         # Restore typed data metadata
-        typed_keys = [k for k in self.shared_state.keys() if k.startswith(self._META_TYPED)]
+        typed_keys = [k for k in self.shared_state if k.startswith(self._META_TYPED)]
         for k in typed_keys:
-            orig = k[len(self._META_TYPED):]
+            orig = k[len(self._META_TYPED) :]
             self._typed_var_types[orig] = self.shared_state[k]
 
         # Restore validated data metadata
-        validated_keys = [k for k in self.shared_state.keys() if k.startswith(self._META_VALIDATED)]
+        validated_keys = [
+            k for k in self.shared_state if k.startswith(self._META_VALIDATED)
+        ]
         for k in validated_keys:
-            orig = k[len(self._META_VALIDATED):]
+            orig = k[len(self._META_VALIDATED) :]
             self._validated_types[orig] = self.shared_state[k]
 
     @staticmethod
@@ -111,7 +118,7 @@ class Context:
         self._typed_var_types[key] = type(value)
         self._persist_meta(self._META_TYPED, key, type(value))
 
-    def get_typed(self, key: str, expected: Type[_PBM_T]) -> Optional[_PBM_T]:
+    def get_typed(self, key: str, expected: type[_PBM_T]) -> Optional[_PBM_T]:
         """Get typed data with type checking."""
         self._ensure_pydantic()
         val = self._typed_data.get(key)
@@ -145,10 +152,11 @@ class Context:
         """Get a variable from shared state."""
         return self.shared_state.get(key, default)
 
-    def get_variable_keys(self) -> Set[str]:
+    def get_variable_keys(self) -> set[str]:
         """Get all variable keys, excluding reserved prefixes."""
         return {
-            k for k in self.shared_state.keys()
+            k
+            for k in self.shared_state
             if not any(k.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES)
             and not k.startswith(self._META_TYPED)
             and not k.startswith(self._META_VALIDATED)
@@ -163,7 +171,9 @@ class Context:
 
         current_cls = self._typed_var_types.get(key)
         if current_cls and not isinstance(value, current_cls):
-            raise TypeError(f"Type mismatch for {key}: expected {current_cls}, got {type(value)}")
+            raise TypeError(
+                f"Type mismatch for {key}: expected {current_cls}, got {type(value)}"
+            )
 
         self.shared_state[key] = value
         if key not in self._typed_var_types:
@@ -171,7 +181,7 @@ class Context:
             self._typed_var_types[key] = cls
             self._persist_meta(self._META_TYPED, key, cls)
 
-    def get_typed_variable(self, key: str, expected: Type[Any]) -> Optional[Any]:
+    def get_typed_variable(self, key: str, expected: type[Any]) -> Optional[Any]:
         """Get a typed variable with type checking."""
         val = self.shared_state.get(key)
         if val is None:
@@ -192,13 +202,15 @@ class Context:
 
         current_cls = self._validated_types.get(key)
         if current_cls and not isinstance(value, current_cls):
-            raise TypeError(f"Type mismatch for {key}: expected {current_cls}, got {type(value)}")
+            raise TypeError(
+                f"Type mismatch for {key}: expected {current_cls}, got {type(value)}"
+            )
 
         self.shared_state[key] = value
         self._validated_types[key] = type(value)
         self._persist_meta(self._META_VALIDATED, key, type(value))
 
-    def get_validated_data(self, key: str, expected: Type[_PBM_T]) -> Optional[_PBM_T]:
+    def get_validated_data(self, key: str, expected: type[_PBM_T]) -> Optional[_PBM_T]:
         """Get validated data with type checking."""
         self._ensure_pydantic()
         val = self.shared_state.get(key)
@@ -245,11 +257,11 @@ class Context:
         """Get an output value."""
         return self._outputs.get(key, default)
 
-    def get_output_keys(self) -> Set[str]:
+    def get_output_keys(self) -> set[str]:
         """Get all output keys."""
         return set(self._outputs.keys())
 
-    def get_all_outputs(self) -> Dict[str, Any]:
+    def get_all_outputs(self) -> dict[str, Any]:
         """Get all outputs."""
         return self._outputs.copy()
 
@@ -268,13 +280,13 @@ class Context:
             return value
         return self.shared_state.get(f"{self._META_METADATA}{key}", default)
 
-    def get_all_metadata(self) -> Dict[str, Any]:
+    def get_all_metadata(self) -> dict[str, Any]:
         """Get all metadata."""
         result = self._metadata.copy()
         # Add shared metadata
         for key, value in self.shared_state.items():
             if key.startswith(self._META_METADATA):
-                orig_key = key[len(self._META_METADATA):]
+                orig_key = key[len(self._META_METADATA) :]
                 if orig_key not in result:
                     result[orig_key] = value
         return result
@@ -295,7 +307,7 @@ class Context:
         current = self._metrics.get(key, 0)
         self._metrics[key] = current + amount
 
-    def get_all_metrics(self) -> Dict[str, Union[int, float]]:
+    def get_all_metrics(self) -> dict[str, Union[int, float]]:
         """Get all metrics."""
         return self._metrics.copy()
 
@@ -305,10 +317,7 @@ class Context:
         if ttl is None:
             ttl = self.cache_ttl
 
-        if ttl > 0:
-            expiry_time = self._now() + ttl
-        else:
-            expiry_time = self._now() - 1  # Expire immediately
+        expiry_time = self._now() + ttl if ttl > 0 else self._now() - 1
         self._cache[key] = (value, expiry_time)
 
     def get_cached(self, key: str, default: Any = None) -> Any:
@@ -327,8 +336,7 @@ class Context:
         """Clear expired cache entries and return count cleared."""
         now = self._now()
         expired_keys = [
-            key for key, (_, expiry_time) in self._cache.items()
-            if now > expiry_time
+            key for key, (_, expiry_time) in self._cache.items() if now > expiry_time
         ]
 
         for key in expired_keys:
@@ -341,10 +349,12 @@ class Context:
         """Remove state data by type."""
         removed = False
 
-        if state_type in (StateType.ANY, StateType.UNTYPED):
-            if key in self.shared_state:
-                del self.shared_state[key]
-                removed = True
+        if (
+            state_type in (StateType.ANY, StateType.UNTYPED)
+            and key in self.shared_state
+        ):
+            del self.shared_state[key]
+            removed = True
 
         if state_type in (StateType.ANY, StateType.TYPED):
             if key in self._typed_data:
@@ -361,7 +371,8 @@ class Context:
         if state_type in (StateType.ANY, StateType.UNTYPED):
             # Clear non-reserved keys from shared state
             keys_to_remove = [
-                k for k in self.shared_state.keys()
+                k
+                for k in self.shared_state
                 if not any(k.startswith(prefix) for prefix in self._IMMUTABLE_PREFIXES)
                 and not k.startswith(self._META_TYPED)
                 and not k.startswith(self._META_VALIDATED)
@@ -373,7 +384,7 @@ class Context:
             self._typed_data.clear()
             self._typed_var_types.clear()
 
-    def get_keys(self, state_type: str = StateType.ANY) -> Set[str]:
+    def get_keys(self, state_type: str = StateType.ANY) -> set[str]:
         """Get keys by state type."""
         keys = set()
 
@@ -391,7 +402,7 @@ class Context:
         prompt: str,
         timeout: Optional[float] = None,
         default: Optional[str] = None,
-        validator: Optional[Callable[[str], bool]] = None
+        validator: Optional[Callable[[str], bool]] = None,
     ) -> Optional[str]:
         """Get human input with optional timeout and validation."""
         max_attempts = 3
@@ -403,7 +414,7 @@ class Context:
                     # Async input with timeout
                     reply = await asyncio.wait_for(
                         asyncio.get_event_loop().run_in_executor(None, input, prompt),
-                        timeout=timeout
+                        timeout=timeout,
                     )
                 else:
                     # Synchronous input
@@ -430,85 +441,81 @@ class Context:
         return default
 
     # Content inspection
-    def get_content_summary(self) -> Dict[str, Any]:
+    def get_content_summary(self) -> dict[str, Any]:
         """Get summary of all content in context."""
         return {
-            'variables': len(self.get_variable_keys()),
-            'outputs': len(self._outputs),
-            'metadata': len(self._metadata),
-            'metrics': len(self._metrics),
-            'typed_data': len(self._typed_data),
-            'cached_items': len(self._cache),
-            'constants': len([k for k in self.shared_state.keys() if k.startswith('const_')]),
-            'secrets': len([k for k in self.shared_state.keys() if k.startswith('secret_')])
+            "variables": len(self.get_variable_keys()),
+            "outputs": len(self._outputs),
+            "metadata": len(self._metadata),
+            "metrics": len(self._metrics),
+            "typed_data": len(self._typed_data),
+            "cached_items": len(self._cache),
+            "constants": len([k for k in self.shared_state if k.startswith("const_")]),
+            "secrets": len([k for k in self.shared_state if k.startswith("secret_")]),
         }
 
-    def export_content(self, include_secrets: bool = False) -> Dict[str, Any]:
+    def export_content(self, include_secrets: bool = False) -> dict[str, Any]:
         """Export all context content."""
         content = {
-            'variables': {k: self.shared_state[k] for k in self.get_variable_keys()},
-            'outputs': self._outputs.copy(),
-            'metadata': self.get_all_metadata(),
-            'metrics': self._metrics.copy(),
-            'typed_data': self._typed_data.copy(),
+            "variables": {k: self.shared_state[k] for k in self.get_variable_keys()},
+            "outputs": self._outputs.copy(),
+            "metadata": self.get_all_metadata(),
+            "metrics": self._metrics.copy(),
+            "typed_data": self._typed_data.copy(),
         }
 
         # Add constants
         constants = {
-            k[6:]: v for k, v in self.shared_state.items()
-            if k.startswith('const_')
+            k[6:]: v for k, v in self.shared_state.items() if k.startswith("const_")
         }
         if constants:
-            content['constants'] = constants
+            content["constants"] = constants
 
         # Add secrets if requested
         if include_secrets:
             secrets = {
-                k[7:]: v for k, v in self.shared_state.items()
-                if k.startswith('secret_')
+                k[7:]: v
+                for k, v in self.shared_state.items()
+                if k.startswith("secret_")
             }
             if secrets:
-                content['secrets'] = secrets
+                content["secrets"] = secrets
 
         return content
 
-    def import_content(self, content: Dict[str, Any]) -> None:
+    def import_content(self, content: dict[str, Any]) -> None:
         """Import content into context."""
         # Import variables
-        if 'variables' in content:
-            for key, value in content['variables'].items():
+        if "variables" in content:
+            for key, value in content["variables"].items():
                 self.set_variable(key, value)
 
         # Import outputs
-        if 'outputs' in content:
-            self._outputs.update(content['outputs'])
+        if "outputs" in content:
+            self._outputs.update(content["outputs"])
 
         # Import metadata
-        if 'metadata' in content:
-            for key, value in content['metadata'].items():
+        if "metadata" in content:
+            for key, value in content["metadata"].items():
                 self.set_metadata(key, value)
 
         # Import metrics
-        if 'metrics' in content:
-            for key, value in content['metrics'].items():
+        if "metrics" in content:
+            for key, value in content["metrics"].items():
                 self.set_metric(key, value)
 
         # Import typed data
-        if 'typed_data' in content:
-            self._typed_data.update(content['typed_data'])
+        if "typed_data" in content:
+            self._typed_data.update(content["typed_data"])
 
         # Import constants
-        if 'constants' in content:
-            for key, value in content['constants'].items():
-                try:
+        if "constants" in content:
+            for key, value in content["constants"].items():
+                with contextlib.suppress(ValueError):
                     self.set_constant(key, value)
-                except ValueError:
-                    pass  # Already exists
 
         # Import secrets
-        if 'secrets' in content:
-            for key, value in content['secrets'].items():
-                try:
+        if "secrets" in content:
+            for key, value in content["secrets"].items():
+                with contextlib.suppress(ValueError):
                     self.set_secret(key, value)
-                except ValueError:
-                    pass  # Already exists

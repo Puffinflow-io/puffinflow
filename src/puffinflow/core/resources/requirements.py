@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class ResourceType(Flag):
     """Resource type flags for specifying required resources."""
 
@@ -24,6 +25,7 @@ class ResourceType(Flag):
 
     # Convenience combination for all resource types
     ALL = CPU | MEMORY | IO | NETWORK | GPU
+
 
 @dataclass
 class ResourceRequirements:
@@ -49,14 +51,18 @@ class ResourceRequirements:
         try:
             # Check if resource_types is valid
             if not isinstance(self.resource_types, ResourceType):
-                logger.warning(f"Invalid resource_types: {self.resource_types} (type: {type(self.resource_types)})")
+                logger.warning(
+                    f"Invalid resource_types: {self.resource_types} (type: {type(self.resource_types)})"
+                )
                 # Auto-determine from individual amounts
                 self._auto_determine_resource_types()
             else:
                 # Validate that it supports bitwise operations
                 try:
                     test_result = self.resource_types & ResourceType.CPU
-                    logger.debug(f"Bitwise test successful: {self.resource_types} & CPU = {test_result}")
+                    logger.debug(
+                        f"Bitwise test successful: {self.resource_types} & CPU = {test_result}"
+                    )
                 except Exception as e:
                     logger.error(f"Bitwise operation failed: {e}")
                     self._auto_determine_resource_types()
@@ -64,21 +70,21 @@ class ResourceRequirements:
         except Exception as e:
             logger.error(f"Error in ResourceRequirements.__post_init__: {e}")
             # Fallback to a safe default
-            object.__setattr__(self, 'resource_types', ResourceType.ALL)
+            object.__setattr__(self, "resource_types", ResourceType.ALL)
 
     def _auto_determine_resource_types(self):
         """Auto-determine resource_types from individual resource amounts."""
         resource_types = ResourceType.NONE
 
-        if getattr(self, 'cpu_units', 0) > 0:
+        if getattr(self, "cpu_units", 0) > 0:
             resource_types |= ResourceType.CPU
-        if getattr(self, 'memory_mb', 0) > 0:
+        if getattr(self, "memory_mb", 0) > 0:
             resource_types |= ResourceType.MEMORY
-        if getattr(self, 'io_weight', 0) > 0:
+        if getattr(self, "io_weight", 0) > 0:
             resource_types |= ResourceType.IO
-        if getattr(self, 'network_weight', 0) > 0:
+        if getattr(self, "network_weight", 0) > 0:
             resource_types |= ResourceType.NETWORK
-        if getattr(self, 'gpu_units', 0) > 0:
+        if getattr(self, "gpu_units", 0) > 0:
             resource_types |= ResourceType.GPU
 
         # If no specific resources are requested, default to ALL
@@ -86,13 +92,14 @@ class ResourceRequirements:
             resource_types = ResourceType.ALL
 
         # Use object.__setattr__ for dataclass
-        object.__setattr__(self, 'resource_types', resource_types)
+        object.__setattr__(self, "resource_types", resource_types)
         logger.info(f"Auto-determined resource_types: {resource_types}")
 
     @property
     def priority(self) -> "Priority":
         """Get priority level based on priority_boost."""
         from ..agent.state import Priority
+
         if self.priority_boost <= 0:
             return Priority.LOW
         elif self.priority_boost == 1:
@@ -106,6 +113,7 @@ class ResourceRequirements:
     def priority(self, value: Union["Priority", int]) -> None:
         """Set priority level, updating priority_boost accordingly."""
         from ..agent.state import Priority
+
         if isinstance(value, Priority):
             self.priority_boost = value.value
         elif isinstance(value, int):
@@ -116,15 +124,17 @@ class ResourceRequirements:
 
 # Resource attribute mapping for get_resource_amount function
 RESOURCE_ATTRIBUTE_MAPPING = {
-    ResourceType.CPU: 'cpu_units',
-    ResourceType.MEMORY: 'memory_mb',
-    ResourceType.IO: 'io_weight',
-    ResourceType.NETWORK: 'network_weight',
-    ResourceType.GPU: 'gpu_units'
+    ResourceType.CPU: "cpu_units",
+    ResourceType.MEMORY: "memory_mb",
+    ResourceType.IO: "io_weight",
+    ResourceType.NETWORK: "network_weight",
+    ResourceType.GPU: "gpu_units",
 }
 
 
-def safe_check_resource_type(requirements: ResourceRequirements, resource_type: ResourceType) -> bool:
+def safe_check_resource_type(
+    requirements: ResourceRequirements, resource_type: ResourceType
+) -> bool:
     """
     Safely check if a resource type is requested in requirements.
 
@@ -139,12 +149,16 @@ def safe_check_resource_type(requirements: ResourceRequirements, resource_type: 
         # First try the normal bitwise operation
         return bool(requirements.resource_types & resource_type)
     except TypeError as e:
-        logger.warning(f"Bitwise operation failed: {e}. Falling back to value comparison.")
+        logger.warning(
+            f"Bitwise operation failed: {e}. Falling back to value comparison."
+        )
         try:
             # Fallback to value-based comparison
             return bool(requirements.resource_types.value & resource_type.value)
         except Exception as e2:
-            logger.error(f"Fallback comparison also failed: {e2}. Assuming resource is requested.")
+            logger.error(
+                f"Fallback comparison also failed: {e2}. Assuming resource is requested."
+            )
             # If all else fails, check if the individual resource amount is > 0
             # Direct attribute access to avoid circular dependency
             if resource_type in RESOURCE_ATTRIBUTE_MAPPING:
@@ -153,7 +167,9 @@ def safe_check_resource_type(requirements: ResourceRequirements, resource_type: 
             return True
 
 
-def get_resource_amount(requirements: ResourceRequirements, resource_type: ResourceType) -> float:
+def get_resource_amount(
+    requirements: ResourceRequirements, resource_type: ResourceType
+) -> float:
     """
     Get the amount of a specific resource type from requirements.
 
@@ -183,11 +199,13 @@ def get_resource_amount(requirements: ResourceRequirements, resource_type: Resou
         return total
 
     # Check if it's a single resource type (power of 2, excluding NONE)
-    if resource_type.value > 0 and (resource_type.value & (resource_type.value - 1)) == 0:
-        # Single resource type
-        if resource_type in RESOURCE_ATTRIBUTE_MAPPING:
-            attr_name = RESOURCE_ATTRIBUTE_MAPPING[resource_type]
-            return getattr(requirements, attr_name, 0.0)
+    if (
+        resource_type.value > 0
+        and (resource_type.value & (resource_type.value - 1)) == 0
+        and resource_type in RESOURCE_ATTRIBUTE_MAPPING
+    ):
+        attr_name = RESOURCE_ATTRIBUTE_MAPPING[resource_type]
+        return getattr(requirements, attr_name, 0.0)
 
     # Handle combined resource types by summing individual types
     total = 0.0
@@ -197,7 +215,9 @@ def get_resource_amount(requirements: ResourceRequirements, resource_type: Resou
                 total += getattr(requirements, attr, 0.0)
         except TypeError:
             # Fallback if 'in' operation fails
-            if (resource_type.value & rt.value) != 0 and safe_check_resource_type(requirements, rt):
+            if (resource_type.value & rt.value) != 0 and safe_check_resource_type(
+                requirements, rt
+            ):
                 total += getattr(requirements, attr, 0.0)
 
     return total
