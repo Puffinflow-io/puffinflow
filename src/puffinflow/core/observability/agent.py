@@ -1,7 +1,7 @@
 import time
 from typing import Any, Optional
 
-from ..agent.base import Agent
+from ..agent.base import Agent, AgentResult
 from .context import ObservableContext
 from .core import ObservabilityManager
 from .interfaces import SpanType
@@ -11,8 +11,8 @@ class ObservableAgent(Agent):
     """Agent with observability"""
 
     def __init__(
-        self, name: str, observability: Optional[ObservabilityManager] = None, **kwargs
-    ):
+        self, name: str, observability: Optional[ObservabilityManager] = None, **kwargs: Any
+    ) -> None:
         # Extract workflow_id before passing kwargs to parent
         self.workflow_id = kwargs.pop("workflow_id", f"workflow_{int(time.time())}")
 
@@ -50,7 +50,7 @@ class ObservableAgent(Agent):
         context.set_variable("workflow_id", self.workflow_id)
         return context
 
-    async def run(self, timeout: Optional[float] = None) -> None:
+    async def run(self, timeout: Optional[float] = None) -> AgentResult:
         """Run workflow with observability"""
         workflow_start = time.time()
 
@@ -62,7 +62,7 @@ class ObservableAgent(Agent):
                 workflow_id=self.workflow_id,
             ) as span:
                 try:
-                    await super().run(timeout)
+                    result = await super().run(timeout)
 
                     duration = time.time() - workflow_start
                     if span:
@@ -73,6 +73,8 @@ class ObservableAgent(Agent):
                         self.workflow_duration.record(
                             duration, agent_name=self.name, status="success"
                         )
+                    
+                    return result
 
                 except Exception as e:
                     duration = time.time() - workflow_start
@@ -85,7 +87,7 @@ class ObservableAgent(Agent):
                         )
                     raise
         else:
-            await super().run(timeout)
+            return await super().run(timeout)
 
     async def run_state(self, state_name: str) -> None:
         """Run state with observability"""

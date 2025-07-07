@@ -100,6 +100,7 @@ class PrometheusMetricsProvider(MetricsProvider):
 
             labelnames = labels or []
 
+            prometheus_metric: Any
             if metric_type == MetricType.COUNTER:
                 prometheus_metric = PrometheusCounter(
                     metric_key,
@@ -132,5 +133,5 @@ class PrometheusMetricsProvider(MetricsProvider):
 
     def export_metrics(self) -> str:
         """Export metrics in Prometheus format"""
-        result = generate_latest(self._registry)
+        result: bytes = generate_latest(self._registry)
         return result.decode("utf-8")

@@ -9,10 +9,10 @@ try:
     from pydantic import BaseModel as PydanticBaseModel
 
     _PYD_VER = 2
-    _PBM = PydanticBaseModel
+    _PBM: Any = PydanticBaseModel
 except ImportError:
     try:
-        from pydantic.v1 import BaseModel as PydanticBaseModel
+        from pydantic.v1 import BaseModel as PydanticBaseModel  # type: ignore
 
         _PYD_VER = 1
         _PBM = PydanticBaseModel

@@ -45,7 +45,8 @@ class ScheduledJob:
         if self.schedule.schedule_type == "interval":
             if self.last_run is None:
                 return now  # Run immediately for first time
-            return self.last_run + self.schedule.interval_seconds
+            interval = self.schedule.interval_seconds or 60  # Default to 60 seconds
+            return self.last_run + interval
 
         elif self.schedule.schedule_type == "cron":
             # For cron expressions, we'll use a simple approximation
@@ -146,7 +147,7 @@ class GlobalScheduler:
     _instance: Optional["GlobalScheduler"] = None
     _lock = asyncio.Lock()
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._jobs: dict[str, ScheduledJob] = {}
         self._running = False
         self._scheduler_task: Optional[asyncio.Task] = None
@@ -198,7 +199,7 @@ class GlobalScheduler:
         logger.info("Global scheduler stopped")
 
     def schedule_agent(
-        self, agent: "Agent", schedule_string: str, **inputs
+        self, agent: "Agent", schedule_string: str, **inputs: Any
     ) -> ScheduledAgent:
         """Schedule an agent for execution.
 

@@ -1,4 +1,4 @@
-"""PuffinFlow -  Workflow Orchestration Framework."""
+"""PuffinFlow - Workflow Orchestration Framework."""
 
 __version__ = "0.1.dev12+g0f61537.d20250701"
 __author__ = "Mohamed Ahmed"
@@ -69,55 +69,55 @@ __all__ = [
     # Core
     "Agent",
     "AgentCheckpoint",
-    "AgentGroup",
-    "AgentOrchestrator",
-    "AgentPool",
     "AgentResult",
     "AgentStatus",
-    # Coordination
-    "AgentTeam",
-    "Agents",
-    "AllocationStrategy",
-    "Bulkhead",
-    "BulkheadConfig",
-    # Reliability
-    "CircuitBreaker",
-    "CircuitBreakerConfig",
     "Context",
-    "DynamicProcessingPool",
-    "EventBus",
-    "Features",
-    "ParallelAgentGroup",
     "Priority",
-    "QuotaManager",
-    "ResourceLeakDetector",
-    "ResourcePool",
-    # Resources
-    "ResourceRequirements",
-    "ResourceType",
-    # Configuration
-    "Settings",
     "StateBuilder",
     "StateResult",
     "StateStatus",
-    "TeamResult",
-    "WorkItem",
-    "WorkQueue",
     "build_state",
+    "state",
+    # Decorators
     "cpu_intensive",
-    "create_pipeline",
-    "create_team",
     "critical_state",
-    "get_features",
-    "get_settings",
     "gpu_accelerated",
     "io_intensive",
     "memory_intensive",
     "network_intensive",
+    # Configuration
+    "Features",
+    "Settings",
+    "get_features",
+    "get_settings",
+    # Coordination
+    "AgentGroup",
+    "AgentOrchestrator",
+    "AgentPool",
+    "Agents",
+    "AgentTeam",
+    "DynamicProcessingPool",
+    "EventBus",
+    "ParallelAgentGroup",
+    "TeamResult",
+    "WorkItem",
+    "WorkQueue",
+    "create_pipeline",
+    "create_team",
     "run_agents_parallel",
     "run_agents_sequential",
-    # Decorators
-    "state",
+    # Reliability
+    "Bulkhead",
+    "BulkheadConfig",
+    "CircuitBreaker",
+    "CircuitBreakerConfig",
+    "ResourceLeakDetector",
+    # Resources
+    "AllocationStrategy",
+    "QuotaManager",
+    "ResourcePool",
+    "ResourceRequirements",
+    "ResourceType",
 ]
 
 
@@ -134,6 +134,3 @@ def get_info() -> dict[str, str]:
         "email": __email__,
         "description": "Workflow orchestration framework with advanced resource management and observability",
     }
-
-
-# For backwards compatibility

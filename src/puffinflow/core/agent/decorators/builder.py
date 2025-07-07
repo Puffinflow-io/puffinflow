@@ -10,7 +10,7 @@ from ..state import Priority
 class StateBuilder:
     """Builder pattern for constructing state configurations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._config = {}
 
     # Resource methods
@@ -220,7 +220,7 @@ class StateBuilder:
             }
         return self
 
-    def with_circuit_breaker(self, **config) -> "StateBuilder":
+    def with_circuit_breaker(self, **config: Any) -> "StateBuilder":
         """Enable circuit breaker with custom configuration"""
         self._config["circuit_breaker"] = True
         self._config["circuit_breaker_config"] = config
@@ -256,7 +256,7 @@ class StateBuilder:
             }
         return self
 
-    def with_bulkhead(self, **config) -> "StateBuilder":
+    def with_bulkhead(self, **config: Any) -> "StateBuilder":
         """Enable bulkhead with custom configuration"""
         self._config["bulkhead"] = True
         self._config["bulkhead_config"] = config
@@ -326,7 +326,7 @@ class StateBuilder:
         self._config["tags"][key] = value
         return self
 
-    def tags(self, **tags) -> "StateBuilder":
+    def tags(self, **tags: Any) -> "StateBuilder":
         """Add multiple tags."""
         if "tags" not in self._config:
             self._config["tags"] = {}
@@ -373,13 +373,13 @@ class StateBuilder:
         """Build and return the configuration dictionary."""
         return self._config.copy()
 
-    def __call__(self, func: Callable) -> Callable:
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Use as decorator."""
         from .flexible import state
 
         return state(config=self._config)(func)
 
-    def decorator(self) -> Callable:
+    def decorator(self) -> Callable[..., Any]:
         """Get decorator function."""
         from .flexible import state
 

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 try:
     from ..resources.requirements import ResourceRequirements
 except ImportError:
-    ResourceRequirements = None
+    ResourceRequirements = None  # type: ignore
 
 # Type definitions
 from typing import TYPE_CHECKING
@@ -46,7 +46,7 @@ class AgentStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
 
@@ -63,7 +63,7 @@ class StateStatus(str, Enum):
     TIMEOUT = "timeout"
     RETRYING = "retrying"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
 
@@ -125,7 +125,7 @@ class StateMetadata:
     priority: Priority = Priority.NORMAL
     coordination_primitives: list[Any] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize resources if not provided."""
         if self.resources is None and ResourceRequirements is not None:
             self.resources = ResourceRequirements()

@@ -1,6 +1,7 @@
 import time
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any, Generator, Optional
+from datetime import datetime
 
 from ..agent.context import Context
 from .core import ObservabilityManager
@@ -19,7 +20,7 @@ class ObservableContext(Context):
         self._observability = observability
 
     @contextmanager
-    def trace(self, name: str, **attributes):
+    def trace(self, name: str, **attributes: Any) -> Generator[Any, None, None]:
         """Create trace span with context"""
         if not self._observability or not self._observability.tracing:
             yield None
@@ -38,7 +39,7 @@ class ObservableContext(Context):
         ) as span:
             yield span
 
-    def metric(self, name: str, value: float, **labels):
+    def metric(self, name: str, value: float, **labels: Any) -> None:
         """Record metric with context"""
         if not self._observability or not self._observability.metrics:
             return
@@ -55,13 +56,13 @@ class ObservableContext(Context):
         if histogram:
             histogram.record(value, **context_labels)
 
-    def log(self, level: str, message: str, **kwargs):
+    def log(self, level: str, message: str, **kwargs: Any) -> None:
         """Log with observability"""
         if not self._observability or not self._observability.events:
             return
 
         event = ObservabilityEvent(
-            timestamp=time.time(),
+            timestamp=datetime.fromtimestamp(time.time()),
             event_type="log",
             source="context",
             level=level.upper(),

@@ -49,30 +49,20 @@ class ResourceRequirements:
     def __post_init__(self) -> None:
         """Ensure resource_types is always a valid ResourceType enum."""
         try:
-            # Check if resource_types is valid
-            if not isinstance(self.resource_types, ResourceType):
-                logger.warning(
-                    f"Invalid resource_types: {self.resource_types} (type: {type(self.resource_types)})"
+            # Validate that it supports bitwise operations
+            try:
+                test_result = self.resource_types & ResourceType.CPU
+                logger.debug(
+                    f"Bitwise test successful: {self.resource_types} & CPU = {test_result}"
                 )
-                # Auto-determine from individual amounts
+            except Exception as e:
+                logger.error(f"Bitwise operation failed: {e}")
                 self._auto_determine_resource_types()
-            else:
-                # Validate that it supports bitwise operations
-                try:
-                    test_result = self.resource_types & ResourceType.CPU
-                    logger.debug(
-                        f"Bitwise test successful: {self.resource_types} & CPU = {test_result}"
-                    )
-                except Exception as e:
-                    logger.error(f"Bitwise operation failed: {e}")
-                    self._auto_determine_resource_types()
 
         except Exception as e:
             logger.error(f"Error in ResourceRequirements.__post_init__: {e}")
             # Fallback to a safe default
             object.__setattr__(self, "resource_types", ResourceType.ALL)
-        else:
-            pass
 
     def _auto_determine_resource_types(self) -> None:
         """Auto-determine resource_types from individual resource amounts."""

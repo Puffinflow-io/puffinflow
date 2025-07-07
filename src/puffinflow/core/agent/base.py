@@ -32,8 +32,9 @@ except ImportError:
 # Import ResourceRequirements conditionally
 try:
     from ..resources.requirements import ResourceRequirements
+    _ResourceRequirements: Optional[type] = ResourceRequirements
 except ImportError:
-    ResourceRequirements = None
+    _ResourceRequirements = None
 
 # Import these conditionally to avoid circular imports
 if TYPE_CHECKING:
@@ -107,8 +108,8 @@ class Agent:
         max_concurrent: int = 5,
         enable_dead_letter: bool = True,
         state_timeout: Optional[float] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.name = name
         self.states: dict[str, Callable] = {}
         self.state_metadata: dict[str, StateMetadata] = {}
@@ -140,8 +141,8 @@ class Agent:
 
         # Resource and reliability components - lazy initialization
         self._resource_pool = resource_pool
-        self._circuit_breaker = None
-        self._bulkhead = None
+        self._circuit_breaker: Optional["CircuitBreaker"] = None
+        self._bulkhead: Optional["Bulkhead"] = None
         self._circuit_breaker_config = circuit_breaker_config
         self._bulkhead_config = bulkhead_config
 
@@ -279,13 +280,13 @@ class Agent:
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata value."""
-        if hasattr(self._context, "get_metadata"):
+        if self._context and hasattr(self._context, "get_metadata"):
             return self._context.get_metadata(key, default)
         return default
 
     def set_metadata(self, key: str, value: Any) -> None:
         """Set metadata value."""
-        if hasattr(self._context, "set_metadata"):
+        if self._context and hasattr(self._context, "set_metadata"):
             self._context.set_metadata(key, value)
 
     def get_cached(self, key: str, default: Any = None) -> Any:
@@ -319,10 +320,10 @@ class Agent:
             self.set_variable(name, default)
 
         # Create property accessor
-        def getter(obj):
+        def getter(obj: Any) -> Any:
             return obj.get_variable(name, default)
 
-        def setter(obj, value):
+        def setter(obj: Any, value: Any) -> None:
             if validator:
                 value = validator(value)
             if not isinstance(value, prop_type) and value is not None:
@@ -455,7 +456,8 @@ class Agent:
     ) -> dict[str, Any]:
         """Handle incoming message."""
         if message_type in self._message_handlers:
-            return await self._message_handlers[message_type](message, sender)
+            result = await self._message_handlers[message_type](message, sender)
+            return dict(result) if result else {}
         return {}
 
     # Event system
@@ -556,12 +558,12 @@ class Agent:
         name: str,
         func: Callable,
         dependencies: Optional[list[str]] = None,
-        resources: Optional["ResourceRequirements"] = None,
+        resources: Optional[Any] = None,  # Using Any since ResourceRequirements may not be available
         priority: Optional[Priority] = None,
         retry_policy: Optional[RetryPolicy] = None,
         coordination_primitives: Optional[list["CoordinationPrimitive"]] = None,
         max_retries: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Add a state to the agent."""
         self.states[name] = func
@@ -578,8 +580,12 @@ class Agent:
         elif final_priority is None:
             final_priority = Priority.NORMAL
 
-        if final_requirements is None and ResourceRequirements is not None:
-            final_requirements = ResourceRequirements()
+        # Ensure final_priority is not None
+        if final_priority is None:
+            final_priority = Priority.NORMAL
+
+        if final_requirements is None and _ResourceRequirements is not None:
+            final_requirements = _ResourceRequirements()
 
         # Use max_retries parameter or fall back to retry_policy or agent default
         final_max_retries = max_retries or (
@@ -600,10 +606,12 @@ class Agent:
 
     def _extract_decorator_requirements(
         self, func: Callable
-    ) -> Optional["ResourceRequirements"]:
+    ) -> Optional[Any]:  # Using Any since ResourceRequirements may not be available
         """Extract resource requirements from decorator metadata."""
         if hasattr(func, "_resource_requirements"):
-            return func._resource_requirements
+            requirements = func._resource_requirements
+            if _ResourceRequirements is not None and isinstance(requirements, _ResourceRequirements):
+                return requirements
         return None
 
     # Checkpointing
@@ -719,18 +727,24 @@ class Agent:
 
         # Get timeout from resources or default
         state_timeout = None
-        if metadata.resources:
+        if metadata.resources and hasattr(metadata.resources, 'timeout'):
             state_timeout = metadata.resources.timeout
 
         # Acquire resources (pass agent name for leak detection)
-        resource_acquired = await self.resource_pool.acquire(
-            state_name, metadata.resources, timeout=state_timeout, agent_name=self.name
-        )
+        resources = metadata.resources
+        if resources is None and _ResourceRequirements is not None:
+            resources = _ResourceRequirements()
 
-        if not resource_acquired:
-            raise ResourceTimeoutError(
-                f"Failed to acquire resources for state {state_name}"
+        # Only try to acquire resources if we have a valid ResourceRequirements object
+        if resources is not None:
+            resource_acquired = await self.resource_pool.acquire(
+                state_name, resources, timeout=state_timeout, agent_name=self.name
             )
+
+            if not resource_acquired:
+                raise ResourceTimeoutError(
+                    f"Failed to acquire resources for state {state_name}"
+                )
 
         try:
             # Execute the state function
@@ -763,8 +777,9 @@ class Agent:
             self.shared_state.update(context.shared_state)
 
         finally:
-            # Always release resources
-            await self.resource_pool.release(state_name)
+            # Always release resources if they were acquired
+            if resources is not None:
+                await self.resource_pool.release(state_name)
 
     async def _handle_state_result(self, state_name: str, result: StateResult) -> None:
         """Handle the result of state execution."""
@@ -930,16 +945,15 @@ class Agent:
             except ImportError:
                 has_decorator = False
 
+            metadata = self.state_metadata.get(name)
+            status = metadata.status if metadata is not None else "unknown"
+
             result.append(
                 {
                     "name": name,
                     "has_decorator": has_decorator,
                     "dependencies": self.dependencies.get(name, []),
-                    "status": (
-                        self.state_metadata.get(name).status
-                        if name in self.state_metadata
-                        else "unknown"
-                    ),
+                    "status": status,
                 }
             )
         return result
@@ -1014,7 +1028,7 @@ class Agent:
         }
 
     # Scheduling methods
-    def schedule(self, when: str, **inputs) -> "ScheduledAgent":
+    def schedule(self, when: str, **inputs: Any) -> "ScheduledAgent":
         """Schedule this agent to run at specified times with given inputs.
 
         Args:
@@ -1238,7 +1252,7 @@ class Agent:
                 execution_duration=end_time - start_time,
             )
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup on deletion."""
         if self._cleanup_handlers:
             try:

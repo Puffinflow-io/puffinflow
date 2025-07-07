@@ -265,12 +265,6 @@ class ResourcePool:
     ) -> ResourceRequirements:
         """Validate and fix resource requirements if needed."""
         try:
-            # Test if requirements is valid
-            if not isinstance(requirements, ResourceRequirements):
-                logger.warning(f"Invalid requirements type: {type(requirements)}")
-                # Create a new valid requirements object
-                requirements = ResourceRequirements()
-
             # Check for negative resource values
             resource_values = {
                 "cpu_units": getattr(requirements, "cpu_units", 0.0),
@@ -285,11 +279,6 @@ class ResourcePool:
                     raise ValueError(
                         f"Negative resource requirement: {attr_name}={value}"
                     )
-
-            # Ensure resource_types is valid
-            if not isinstance(requirements.resource_types, ResourceType):
-                logger.warning(f"Invalid resource_types: {requirements.resource_types}")
-                requirements.__post_init__()  # This will fix resource_types
 
             # Test bitwise operations
             requirements.resource_types & ResourceType.CPU

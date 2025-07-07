@@ -8,7 +8,7 @@ import time
 import uuid
 import weakref
 from dataclasses import asdict, dataclass
-from typing import Any, Optional, Protocol
+from typing import Any, AsyncGenerator, Awaitable, Optional, Protocol
 
 from .deadlock import DeadlockDetector
 from .primitives import (
@@ -27,8 +27,8 @@ class AgentProtocol(Protocol):
     state_metadata: dict[str, Any]
 
     def _add_to_queue(
-        self, state_name: str, metadata: Any, priority_boost: int = 0
-    ) -> None:
+        self, state_name: str, priority_boost: int = 0
+    ) -> Awaitable[None]:
         ...
 
     async def run_state(self, state_name: str) -> None:
@@ -215,7 +215,7 @@ class AgentCoordinator:
         name: str,
         max_rate: float,
         strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Add a rate limiter.
 
@@ -238,7 +238,7 @@ class AgentCoordinator:
         )
 
     def create_primitive(
-        self, name: str, primitive_type: PrimitiveType, **kwargs
+        self, name: str, primitive_type: PrimitiveType, **kwargs: Any
     ) -> None:
         """Create a coordination primitive.
 
@@ -500,7 +500,7 @@ def enhance_agent(
     original_cleanup = getattr(agent, "_cleanup", None)
 
     # Handle startup coordination
-    async def start_coordinator():
+    async def start_coordinator() -> None:
         await coordinator.start()
 
     if hasattr(agent, "_startup_tasks"):
@@ -539,9 +539,8 @@ def enhance_agent(
                     and hasattr(agent, "state_metadata")
                     and state_name in agent.state_metadata
                 ):
-                    agent._add_to_queue(
+                    await agent._add_to_queue(
                         state_name,
-                        agent.state_metadata[state_name],
                         priority_boost=-1,
                     )
                 return
@@ -612,7 +611,7 @@ def enhance_agent(
 
     # Add execution span context manager
     @contextlib.asynccontextmanager
-    async def _execution_span(state_name: str, attempt_id: str):
+    async def _execution_span(state_name: str, attempt_id: str) -> AsyncGenerator[None, None]:
         """Create execution span for monitoring."""
         if hasattr(agent, "_monitor"):
             try:
@@ -652,7 +651,7 @@ def enhance_agent(
     agent._cleanup = enhanced_cleanup  # type: ignore
 
     # Add utility methods with proper binding
-    def add_utility_methods():
+    def add_utility_methods() -> None:
         async def get_coordination_status() -> dict[str, Any]:
             """Get coordination system status."""
             return agent._coordinator.get_status()  # type: ignore
@@ -668,7 +667,7 @@ def enhance_agent(
             state_name: str,
             max_rate: float,
             strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
-            **kwargs,
+            **kwargs: Any,
         ) -> None:
             """Add rate limit for specific state."""
             agent._coordinator.add_rate_limiter(  # type: ignore
@@ -676,7 +675,7 @@ def enhance_agent(
             )
 
         def add_state_coordination(
-            state_name: str, primitive_type: PrimitiveType, **kwargs
+            state_name: str, primitive_type: PrimitiveType, **kwargs: Any
         ) -> None:
             """Add coordination primitive for specific state."""
             agent._coordinator.create_primitive(  # type: ignore
@@ -700,7 +699,7 @@ def enhance_agent(
 
 
 def create_coordinated_agent(
-    name: str, config: Optional[CoordinationConfig] = None, **agent_kwargs
+    name: str, config: Optional[CoordinationConfig] = None, **agent_kwargs: Any
 ) -> Any:
     """Create an agent with coordination enabled.
 

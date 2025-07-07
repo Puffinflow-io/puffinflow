@@ -1,9 +1,10 @@
 import uuid
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 
 class SpanType(Enum):
@@ -118,6 +119,25 @@ class TracingProvider(ABC):
     @abstractmethod
     def get_current_span(self) -> Optional[Span]:
         """Get current active span"""
+
+    @contextmanager
+    def span(
+        self,
+        name: str,
+        span_type: SpanType = SpanType.SYSTEM,
+        parent: Optional[SpanContext] = None,
+        **attributes: Any,
+    ) -> Iterator[Span]:
+        """Context manager for spans"""
+        span = self.start_span(name, span_type, parent, **attributes)
+        try:
+            yield span
+            span.set_status("ok")
+        except Exception as e:
+            span.record_exception(e)
+            raise
+        finally:
+            span.end()
 
 
 class Metric(ABC):

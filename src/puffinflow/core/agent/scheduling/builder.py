@@ -1,6 +1,6 @@
 """Fluent API builder for agent scheduling."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .inputs import ScheduledInput, parse_inputs
 
@@ -17,7 +17,7 @@ class ScheduleBuilder:
         self._schedule_string = schedule_string
         self._inputs: dict[str, ScheduledInput] = {}
 
-    def with_inputs(self, **inputs) -> "ScheduleBuilder":
+    def with_inputs(self, **inputs: Any) -> "ScheduleBuilder":
         """Add regular variable inputs.
 
         Args:
@@ -30,7 +30,7 @@ class ScheduleBuilder:
         self._inputs.update(parsed)
         return self
 
-    def with_secrets(self, **secrets) -> "ScheduleBuilder":
+    def with_secrets(self, **secrets: Any) -> "ScheduleBuilder":
         """Add secret inputs.
 
         Args:
@@ -45,7 +45,7 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_constants(self, **constants) -> "ScheduleBuilder":
+    def with_constants(self, **constants: Any) -> "ScheduleBuilder":
         """Add constant inputs.
 
         Args:
@@ -60,7 +60,7 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_cache(self, ttl: int, **cached_inputs) -> "ScheduleBuilder":
+    def with_cache(self, ttl: int, **cached_inputs: Any) -> "ScheduleBuilder":
         """Add cached inputs with TTL.
 
         Args:
@@ -83,7 +83,7 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_typed(self, **typed_inputs) -> "ScheduleBuilder":
+    def with_typed(self, **typed_inputs: Any) -> "ScheduleBuilder":
         """Add typed inputs.
 
         Args:
@@ -105,7 +105,7 @@ class ScheduleBuilder:
             self._inputs.update(parsed)
         return self
 
-    def with_outputs(self, **outputs) -> "ScheduleBuilder":
+    def with_outputs(self, **outputs: Any) -> "ScheduleBuilder":
         """Add pre-set outputs.
 
         Args:
