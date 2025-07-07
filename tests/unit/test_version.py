@@ -156,19 +156,22 @@ class TestVersionImports:
         module_base = extract_base_version(version.__version__)
 
         # Base versions should match (major.minor)
-        assert package_base == module_base, (
-            f"Base versions don't match: package={package_base}, module={module_base}"
-        )
+        assert (
+            package_base == module_base
+        ), f"Base versions don't match: package={package_base}, module={module_base}"
 
         # Both should be valid semantic versions or dev versions
         dev_pattern = r"^\d+\.\d+\.dev\d+"
         full_pattern = r"^\d+\.\d+(\.\d+)?"
-        
-        for ver, name in [(puffinflow.__version__, "package"), (version.__version__, "module")]:
+
+        for ver, name in [
+            (puffinflow.__version__, "package"),
+            (version.__version__, "module"),
+        ]:
             assert (
-                re.match(dev_pattern, ver) or 
-                re.match(full_pattern, ver) or 
-                "dev" in ver
+                re.match(dev_pattern, ver)
+                or re.match(full_pattern, ver)
+                or "dev" in ver
             ), f"{name} version {ver} doesn't match expected patterns"
 
 
