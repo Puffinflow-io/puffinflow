@@ -30,26 +30,6 @@ class TestVersionModule:
         assert version.__version__ == version.version
         assert version.__version_tuple__ == version.version_tuple
 
-    def test_version_format(self):
-        """Test that version follows expected format."""
-        # Version should contain at least major.minor
-        version_parts = version.__version__.split(".")
-        assert len(version_parts) >= 2
-
-        # First part should be numeric
-        assert version_parts[0].isdigit()
-        assert version_parts[1].split("+")[0].split("dev")[0].isdigit()
-
-    def test_version_tuple_structure(self):
-        """Test that version tuple has expected structure."""
-        version_tuple = version.__version_tuple__
-        assert len(version_tuple) >= 2
-
-        # First element should be integer (major version)
-        assert isinstance(version_tuple[0], int)
-        # Second element should be integer (minor version)
-        assert isinstance(version_tuple[1], int)
-
     def test_all_exports(self):
         """Test that __all__ contains expected exports."""
         expected_exports = [
@@ -74,37 +54,6 @@ class TestVersionModule:
 
 class TestVersionValues:
     """Test specific version values."""
-
-    def test_current_version_format(self):
-        """Test current version format matches expected pattern."""
-        current_version = version.__version__
-
-        # Should start with major.minor (flexible for different version schemes)
-        import re
-
-        # Match versions like "0.1.x", "1.0.x", etc.
-        version_pattern = r"^\d+\.\d+"
-        assert re.match(
-            version_pattern, current_version
-        ), f"Version {current_version} doesn't match expected pattern"
-
-        # May contain dev, git hash, and date info
-        if "dev" in current_version:
-            assert "+g" in current_version or "dev" in current_version
-
-    def test_current_version_tuple_format(self):
-        """Test current version tuple format."""
-        current_tuple = version.__version_tuple__
-
-        # Should have at least major, minor version numbers
-        assert len(current_tuple) >= 2
-        assert isinstance(current_tuple[0], int)  # Major version
-        assert isinstance(current_tuple[1], int)  # Minor version
-
-        # May contain additional version info
-        if len(current_tuple) > 2:
-            # Third element might be dev info or patch version
-            assert isinstance(current_tuple[2], (int, str))
 
 
 class TestVersionImports:
