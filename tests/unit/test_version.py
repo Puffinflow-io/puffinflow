@@ -123,6 +123,7 @@ class TestVersionImports:
         # The main package should have version info
         assert hasattr(puffinflow, "__version__")
 
+
 class TestVersionEdgeCases:
     """Test edge cases and error conditions."""
 
