@@ -108,6 +108,7 @@ class TestOpenTelemetrySpan:
             with patch(
                 "puffinflow.core.observability.tracing.StatusCode"
             ) as mock_status_code:
+                mock_status_code.OK = "OK"
                 span.set_status("ok", "Success")
                 mock_status.assert_called_once_with(mock_status_code.OK, "Success")
 
@@ -122,6 +123,7 @@ class TestOpenTelemetrySpan:
             with patch(
                 "puffinflow.core.observability.tracing.StatusCode"
             ) as mock_status_code:
+                mock_status_code.ERROR = "ERROR"
                 span.set_status("error", "Failed")
                 mock_status.assert_called_once_with(mock_status_code.ERROR, "Failed")
 
@@ -330,14 +332,17 @@ class TestOpenTelemetryTracingProvider:
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
 
-        provider = OpenTelemetryTracingProvider(config)
+        # Mock StatusCode to have OK attribute
+        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code:
+            mock_status_code.OK = "OK"
+            provider = OpenTelemetryTracingProvider(config)
 
-        with provider.span("test.span", SpanType.SYSTEM) as span:
-            assert isinstance(span, OpenTelemetrySpan)
-            assert span._span == mock_otel_span
+            with provider.span("test.span", SpanType.SYSTEM) as span:
+                assert isinstance(span, OpenTelemetrySpan)
+                assert span._span == mock_otel_span
 
-        # Span should be ended and status set on the underlying otel span
-        mock_otel_span.end.assert_called_once()
+            # Span should be ended and status set on the underlying otel span
+            mock_otel_span.end.assert_called_once()
 
     @patch("puffinflow.core.observability.tracing._OPENTELEMETRY_AVAILABLE", True)
     @patch("puffinflow.core.observability.tracing.trace")
@@ -360,17 +365,20 @@ class TestOpenTelemetryTracingProvider:
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
 
-        provider = OpenTelemetryTracingProvider(config)
+        # Mock StatusCode to have ERROR attribute
+        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code:
+            mock_status_code.ERROR = "ERROR"
+            provider = OpenTelemetryTracingProvider(config)
 
-        test_exception = Exception("Test error")
+            test_exception = Exception("Test error")
 
-        with pytest.raises(Exception, match="Test error"):
-            with provider.span("test.span"):
-                raise test_exception
+            with pytest.raises(Exception, match="Test error"):
+                with provider.span("test.span"):
+                    raise test_exception
 
-        # Exception should be recorded and span ended on the underlying otel span
-        mock_otel_span.record_exception.assert_called_once_with(test_exception)
-        mock_otel_span.end.assert_called_once()
+            # Exception should be recorded and span ended on the underlying otel span
+            mock_otel_span.record_exception.assert_called_once_with(test_exception)
+            mock_otel_span.end.assert_called_once()
 
     @patch("puffinflow.core.observability.tracing.trace")
     @patch("puffinflow.core.observability.tracing.TracerProvider")

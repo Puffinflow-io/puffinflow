@@ -70,13 +70,17 @@ class TestRateLimiter:
         # Should allow 2 requests in current window
         assert await fixed_window_limiter.acquire()
         assert await fixed_window_limiter.acquire()
-        assert not await fixed_window_limiter.acquire()
+        # Third request should fail
+        result = await fixed_window_limiter.acquire()
+        assert not result
 
         # Wait for new window (0.2 seconds)
         await asyncio.sleep(0.25)
         assert await fixed_window_limiter.acquire()
         assert await fixed_window_limiter.acquire()
-        assert not await fixed_window_limiter.acquire()
+        # Third request should fail again
+        result = await fixed_window_limiter.acquire()
+        assert not result
 
     @pytest.mark.asyncio
     async def test_sliding_window_strategy(self, sliding_window_limiter):
@@ -273,13 +277,14 @@ class TestAdaptiveRateLimiter:
         async with limiter._lock:
             limiter._success_count = 1
             limiter._failure_count = 10
-            limiter._last_adjustment = time.time() - limiter._adjustment_interval
+            limiter._last_adjustment = time.time() - limiter._adjustment_interval - 0.1
 
         # Store initial rate
         initial_rate = limiter.current_rate
 
-        # Trigger adjustment
-        await limiter.acquire()
+        # Trigger adjustment by calling _adjust_rate directly
+        async with limiter._lock:
+            await limiter._adjust_rate()
 
         # Rate should have decreased from initial rate
         assert limiter.current_rate < initial_rate

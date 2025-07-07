@@ -64,13 +64,17 @@ class TestBufferedEventProcessor:
         config = EventsConfig(enabled=True)
         processor = BufferedEventProcessor(config)
 
-        mock_task = Mock()
+        # Create an actual task to mock
+        async def dummy_task():
+            await asyncio.sleep(0.1)
+        
+        mock_task = asyncio.create_task(dummy_task())
         processor._task = mock_task
 
         await processor.shutdown()
 
         assert processor._shutdown is True
-        mock_task.cancel.assert_called_once()
+        assert mock_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_shutdown_no_task(self):
