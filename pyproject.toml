@@ -10,10 +10,10 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
-    { name = "Mohamed Ahmed", email = "your.email@example.com" },
+    { name = "Mohamed Ahmed", email = "mohamed.ahmed.4894@gmail.com" },
 ]
 maintainers = [
-    { name = "Mohamed Ahmed", email = "your.email@example.com" },
+    { name = "Mohamed Ahmed", email = "mohamed.ahmed.4894@gmail.com" },
 ]
 keywords = [
     "workflow",
@@ -174,12 +174,12 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/puffinflow"
+Homepage = "https://github.com/m-ahmed-elbeskeri/puffinflow-main"
 Documentation = "https://puffinflow.readthedocs.io"
-Repository = "https://github.com/yourusername/puffinflow.git"
-"Bug Tracker" = "https://github.com/yourusername/puffinflow/issues"
-Changelog = "https://github.com/yourusername/puffinflow/blob/main/CHANGELOG.md"
-Funding = "https://github.com/sponsors/yourusername"
+Repository = "https://github.com/m-ahmed-elbeskeri/puffinflow-main.git"
+"Bug Tracker" = "https://github.com/m-ahmed-elbeskeri/puffinflow-main/issues"
+Changelog = "https://github.com/m-ahmed-elbeskeri/puffinflow-main/blob/main/CHANGELOG.md"
+Funding = "https://github.com/sponsors/m-ahmed-elbeskeri"
 
 [project.scripts]
 puffinflow = "puffinflow.cli.main:app"

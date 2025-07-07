@@ -4,85 +4,88 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/puffinflow.svg)](https://pypi.org/project/puffinflow/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Stop writing complex workflow orchestration code. Just define agents and let PuffinFlow handle the rest.**
+**PuffinFlow is a powerful Python framework for developers who need to rapidly prototype LLM workflows and seamlessly transition them to production-ready systems.**
 
-Turn this messy workflow code:
-```python
-# 😵 Before: Complex orchestration nightmare
-def process_data():
-    try:
-        raw_data = fetch_data()
-        if validate_data(raw_data):
-            processed = transform_data(raw_data)
-            if processed:
-                result = analyze_data(processed)
-                if result.confidence > 0.8:
-                    store_results(result)
-                    notify_completion()
-                else:
-                    retry_analysis()
-    except Exception as e:
-        handle_error(e)
-        maybe_retry()
-```
+Perfect for AI engineers, data scientists, and backend developers who want to focus on workflow logic rather than infrastructure complexity.
 
-Into this simple, reliable agent:
-```python
-# 🚀 After: Clean, self-managing workflow
-class DataPipeline(Agent):
-    @state(cpu=2.0, memory=1024.0)
-    async def fetch_data(self, context):
-        data = await get_external_data()
-        return "validate" if data else "error"
+## Get started
 
-    @state(cpu=1.0, memory=512.0)
-    async def validate(self, context):
-        return "transform" if context.data.is_valid else "error"
-
-    @state(cpu=4.0, memory=2048.0)
-    async def transform(self, context):
-        context.result = await process_data(context.data)
-        return "complete"
-```
-
-**567,000+ operations/second** • **Sub-millisecond latency** • **Production-ready**
-
----
-
-## Why Developers Love PuffinFlow
-
-**🔥 No More Workflow Hell** - Stop writing nested try/catch blocks and complex state management
-**⚡ Insanely Fast** - 567K+ ops/sec performance that beats traditional orchestrators
-**🧠 Smart Resource Management** - Automatically handles CPU/memory allocation and scaling
-**🛠️ Works With Your Stack** - Drop into FastAPI, Django, or any Python app
-
-## Get Started in 30 Seconds
+Install PuffinFlow:
 
 ```bash
 pip install puffinflow
 ```
 
+Then, create an agent using the state decorator:
+
 ```python
 from puffinflow import Agent, state
 
-class EmailProcessor(Agent):
-    @state
-    async def validate_email(self, context):
-        if "@" in context.email:
-            return "send_email"
-        return "invalid"
+class DataProcessor(Agent):
+    @state(cpu=2.0, memory=1024.0)
+    async def fetch_data(self, context):
+        """Fetch data from external source."""
+        data = await get_external_data()
+        context.set_variable("raw_data", data)
+        return "validate_data" if data else "error"
 
-    @state
-    async def send_email(self, context):
-        await send_email(context.email, context.message)
+    @state(cpu=1.0, memory=512.0)  
+    async def validate_data(self, context):
+        """Validate the fetched data."""
+        data = context.get_variable("raw_data")
+        if self.is_valid(data):
+            return "process_data"
+        return "error"
+
+    @state(cpu=4.0, memory=2048.0)
+    async def process_data(self, context):
+        """Process the validated data."""
+        data = context.get_variable("raw_data")
+        result = await self.transform_data(data)
+        context.set_output("processed_data", result)
         return "complete"
 
-# Run it
-agent = EmailProcessor()
-result = await agent.run({"email": "user@example.com", "message": "Hello!"})
+# Run the agent
+agent = DataProcessor("data-processor")
+result = await agent.run()
 ```
 
-**That's it.** PuffinFlow handles retries, resource management, error handling, and scaling automatically.
+For more information, see the [Quickstart](https://puffinflow.readthedocs.io/en/latest/guides/quickstart.html). Or, to learn how to build complex multi-agent workflows with coordination and observability, see the [Advanced Examples](./examples/).
+
+## Core benefits
+
+PuffinFlow bridges the gap between quick prototyping and production deployment. Start building your LLM workflow in minutes, then scale to production without rewriting code:
+
+**Prototype to Production**: Begin with simple agents and seamlessly add resource management, observability, and coordination as your needs grow.
+
+**Intelligent resource management**: Automatically allocate and manage CPU, memory, and other resources based on state requirements with built-in quotas and limits.
+
+**Zero-config observability**: Comprehensive monitoring with OpenTelemetry integration, custom metrics, distributed tracing, and real-time alerting that works out of the box.
+
+**Built-in reliability**: Circuit breakers, bulkheads, and leak detection ensure robust operation under various failure conditions without additional configuration.
+
+**Agent coordination**: Scale from single agents to complex multi-agent workflows with teams, pools, and orchestrators using the same simple API.
+
+**Production performance**: Achieve 567,000+ operations/second with sub-millisecond latency, designed for real-world production workloads.
+
+## PuffinFlow's ecosystem
+
+While PuffinFlow can be used standalone, it integrates with popular Python frameworks and tools:
+
+**FastAPI & Django** — Seamlessly integrate PuffinFlow agents into web applications with built-in async support and resource management.
+
+**Celery & Redis** — Enhance existing task queues with stateful workflows, advanced coordination, and comprehensive monitoring.
+
+**OpenTelemetry** — Full observability stack with distributed tracing, metrics collection, and integration with monitoring platforms like Prometheus and Jaeger.
+
+**Kubernetes** — Production-ready deployment with container orchestration, automatic scaling, and cloud-native observability.
+
+## Additional resources
+
+- **[Documentation](https://puffinflow.readthedocs.io/)**: Complete guides and API reference
+- **[Examples](./examples/)**: Ready-to-run code examples for common patterns
+- **[Advanced Guides](./docs/source/guides/)**: Deep dives into resource management, coordination, and observability
+- **[Benchmarks](./benchmarks/)**: Performance metrics and optimization guides
 
 ---
 
@@ -91,22 +94,25 @@ result = await agent.run({"email": "user@example.com", "message": "Hello!"})
 ### 🔥 Image Processing Pipeline
 ```python
 class ImageProcessor(Agent):
-    @state(cpu=2.0)
+    @state(cpu=2.0, memory=1024.0)
     async def resize_image(self, context):
-        image = await resize(context.image_url, size=(800, 600))
-        context.processed_image = image
+        image_url = context.get_variable("image_url")
+        resized = await resize_image(image_url, size=(800, 600))
+        context.set_variable("resized_image", resized)
         return "add_watermark"
 
-    @state(cpu=1.0)
+    @state(cpu=1.0, memory=512.0)
     async def add_watermark(self, context):
-        watermarked = await add_watermark(context.processed_image)
-        context.final_image = watermarked
-        return "upload_to_s3"
+        image = context.get_variable("resized_image")
+        watermarked = await add_watermark(image)
+        context.set_variable("final_image", watermarked)
+        return "upload_to_storage"
 
-    @state(cpu=1.0)
-    async def upload_to_s3(self, context):
-        url = await upload_to_s3(context.final_image)
-        context.result_url = url
+    @state(cpu=1.0, memory=256.0)
+    async def upload_to_storage(self, context):
+        image = context.get_variable("final_image")
+        url = await upload_to_s3(image)
+        context.set_output("result_url", url)
         return "complete"
 ```
 
@@ -115,98 +121,49 @@ class ImageProcessor(Agent):
 class MLTrainer(Agent):
     @state(cpu=8.0, memory=4096.0)
     async def train_model(self, context):
-        model = await train_neural_network(context.dataset)
+        dataset = context.get_variable("dataset")
+        model = await train_neural_network(dataset)
+        context.set_variable("model", model)
+        context.set_output("accuracy", model.accuracy)
+        
         if model.accuracy > 0.9:
             return "deploy_model"
         return "retrain_with_more_data"
 
-    @state(cpu=2.0)
+    @state(cpu=2.0, memory=1024.0)
     async def deploy_model(self, context):
-        await deploy_to_production(context.model)
+        model = context.get_variable("model")
+        await deploy_to_production(model)
+        context.set_output("deployment_status", "success")
         return "complete"
 ```
 
-### 🧠 LLM Agent Pipeline
+### 🔄 Multi-Agent Coordination
 ```python
-class LLMAgent(Agent):
-    @state(cpu=2.0, memory=2048.0)
-    async def generate_response(self, context):
-        response = await llm_call(context.prompt)
-        context.raw_response = response
-        return "validate_output"
+from puffinflow import create_team, AgentTeam
 
-    @state
-    async def validate_output(self, context):
-        if is_safe_content(context.raw_response):
-            return "format_response"
-        return "regenerate_with_filter"
-
-    @state
-    async def format_response(self, context):
-        context.final_response = format_markdown(context.raw_response)
-        return "complete"
-```
-
-### 🔄 Start Simple, Scale to Production
-```python
-# Development: Simple single-agent workflow
-dev_agent = EmailProcessor()
-await dev_agent.run({"email": "test@example.com"})
-
-# Production: Multi-agent coordination with monitoring
-production_team = create_team([
+# Coordinate multiple agents
+email_team = create_team([
     EmailValidator("validator"),
-    EmailProcessor("processor"),
+    EmailProcessor("processor"), 
     EmailTracker("tracker")
 ])
-await production_team.execute_with_monitoring()
+
+# Execute with built-in coordination
+result = await email_team.execute_parallel()
 ```
 
 ---
 
 ## 🎯 Use Cases
 
-### 📊 Data Pipelines
-Build resilient ETL workflows with automatic retries, resource management, and monitoring.
+**📊 Data Pipelines** — Build resilient ETL workflows with automatic retries, resource management, and comprehensive monitoring.
 
-### 🤖 ML Workflows
-Orchestrate training pipelines, model deployment, and inference workflows with checkpointing and rollback.
+**🤖 ML Workflows** — Orchestrate training pipelines, model deployment, and inference workflows with checkpointing and observability.
 
-### 🌐 Microservices
-Coordinate distributed services with circuit breakers, bulkheads, and intelligent load balancing.
+**🌐 Microservices** — Coordinate distributed services with circuit breakers, bulkheads, and intelligent load balancing.
 
-### ⚡ Event Processing
-Handle high-throughput event streams with backpressure control and automatic scaling.
-
----
-
-## 📚 Learn More
-
-- **[📖 Documentation](https://puffinflow.readthedocs.io/)** - Complete guides and API reference
-- **[🚀 Examples](./examples/)** - Ready-to-run code examples
-- **[🎯 Tutorials](./docs/source/guides/)** - Step-by-step learning path
-- **[🔧 Advanced Patterns](./docs/source/guides/advanced.rst)** - Production deployment strategies
-
----
-
-## 🤝 Community & Support
-
-- **[🐛 Issues](https://github.com/m-ahmed-elbeskeri/puffinflow/issues)** - Bug reports and feature requests
-- **[💬 Discussions](https://github.com/m-ahmed-elbeskeri/puffinflow/discussions)** - Community Q&A
-- **[📧 Email](mailto:mohamed.ahmed.4894@gmail.com)** - Direct contact for support
-
----
-
-## 🚀 Production Ready
-
-**Deploy with confidence** - PuffinFlow handles the hard stuff:
-- **Automatic retries** with exponential backoff
-- **Resource management** and CPU/memory limits
-- **Built-in monitoring** and observability
-- **Kubernetes integration** for container deployments
-- **Type safety** throughout the entire framework
-
----
+**⚡ Event Processing** — Handle high-throughput event streams with backpressure control and automatic scaling.
 
 ## 📊 Performance
 
@@ -214,7 +171,7 @@ PuffinFlow is built for production workloads with excellent performance characte
 
 ### Core Performance Metrics
 - **567,000+ operations/second** for basic agent operations
-- **27,000+ operations/second** for complex data processing
+- **27,000+ operations/second** for complex data processing  
 - **1,100+ operations/second** for CPU-intensive tasks
 - **Sub-millisecond** state transition latency (0.00-1.97ms range)
 
@@ -231,7 +188,15 @@ PuffinFlow is built for production workloads with excellent performance characte
 
 [View detailed benchmarks →](./benchmarks/)
 
----
+## 🤝 Community & Support
+
+- **[🐛 Issues](https://github.com/m-ahmed-elbeskeri/puffinflow/issues)** — Bug reports and feature requests
+- **[💬 Discussions](https://github.com/m-ahmed-elbeskeri/puffinflow/discussions)** — Community Q&A
+- **[📧 Email](mailto:mohamed.ahmed.4894@gmail.com)** — Direct contact for support
+
+## Acknowledgements
+
+PuffinFlow is inspired by workflow orchestration principles and builds upon the Python async ecosystem. The framework emphasizes practical workflow management with production-ready features. PuffinFlow is built by Mohamed Ahmed, designed for developers who need reliable, observable, and scalable workflow orchestration.
 
 ## 📜 License
 
@@ -241,7 +206,7 @@ PuffinFlow is released under the [MIT License](LICENSE). Free for commercial and
 
 <div align="center">
 
-**Ready to build something amazing?**
+**Ready to build production-ready workflows?**
 
 [Get Started →](https://puffinflow.readthedocs.io/en/latest/guides/quickstart.html) | [View Examples →](./examples/) | [Join Community →](https://github.com/m-ahmed-elbeskeri/puffinflow/discussions)
 
