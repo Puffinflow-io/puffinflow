@@ -160,8 +160,7 @@ class TestResourceType:
         """Test iteration over ResourceType enum."""
         all_types = list(ResourceType)
 
-        # Flag enums only include non-zero power-of-2 members when iterating
-        # NONE (0) and composite flags like ALL are excluded from iteration
+        # Define the expected basic resource types (power-of-2 values)
         expected_basic_types = [
             ResourceType.CPU,
             ResourceType.MEMORY,
@@ -170,21 +169,27 @@ class TestResourceType:
             ResourceType.GPU,
         ]
 
-        assert len(all_types) == len(expected_basic_types)
-
+        # Test that all expected basic types are present in iteration
         for rt in expected_basic_types:
             assert rt in all_types, f"{rt} not found in ResourceType iteration"
 
-        # Verify NONE and ALL exist but aren't in iteration (this is correct behavior)
-        assert (
-            ResourceType.NONE not in all_types
-        )  # NONE (0) excluded from Flag iteration
-        assert (
-            ResourceType.ALL not in all_types
-        )  # Composite flags excluded from iteration
+        # Test that all iterated types are either basic types or known composite types
+        # (Handle different Python versions that may include NONE/ALL in iteration)
+        for rt in all_types:
+            assert rt in expected_basic_types or rt in [ResourceType.NONE, ResourceType.ALL], \
+                f"Unexpected ResourceType in iteration: {rt}"
 
-        # But they should still be accessible
+        # Verify that we have at least the expected basic types
+        # (Don't do strict length check since some platforms may include NONE/ALL)
+        basic_types_found = [rt for rt in all_types if rt in expected_basic_types]
+        assert len(basic_types_found) == len(expected_basic_types), \
+            f"Missing basic types. Expected: {expected_basic_types}, Found: {basic_types_found}"
+
+        # Verify NONE and ALL are always accessible regardless of iteration behavior
         assert ResourceType.NONE.value == 0
+        assert ResourceType.ALL.value == 31
+        
+        # Test that ALL is the combination of all basic types
         assert (
             ResourceType.CPU
             | ResourceType.MEMORY
@@ -192,7 +197,11 @@ class TestResourceType:
             | ResourceType.NETWORK
             | ResourceType.GPU
         ) == ResourceType.ALL
-        assert ResourceType.ALL.value == 31
+
+        # Test that each basic type is a power of 2 (valid flag)
+        for rt in expected_basic_types:
+            assert rt.value > 0 and (rt.value & (rt.value - 1)) == 0, \
+                f"{rt.name} value {rt.value} is not a power of 2"
 
 
 class TestGetResourceAmount:

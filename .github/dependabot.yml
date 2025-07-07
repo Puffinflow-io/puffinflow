@@ -95,7 +95,6 @@ updates:
     allow:
       - dependency-type: "direct"
       - dependency-type: "indirect"
-        update-types: ["security"]
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
