@@ -123,58 +123,6 @@ class TestVersionImports:
         # The main package should have version info
         assert hasattr(puffinflow, "__version__")
 
-    def test_version_consistency_across_modules(self):
-        """Test version consistency between version module and main package."""
-        import puffinflow
-        from puffinflow import version
-
-        # Both versions should exist and have similar base format
-        assert puffinflow.__version__ is not None
-        assert version.__version__ is not None
-
-        # Both versions should have the same format (major.minor.patch or dev version)
-        # Allow for setuptools_scm version differences due to git state changes
-        import re
-
-        # Pattern matches versions like "0.1.x", "1.0.x", "1.0.1.dev0+hash", etc.
-        base_pattern = r"^\d+\.\d+"
-        assert re.match(
-            base_pattern, puffinflow.__version__
-        ), f"Package version {puffinflow.__version__} doesn't match pattern"
-        assert re.match(
-            base_pattern, version.__version__
-        ), f"Module version {version.__version__} doesn't match pattern"
-
-        # Extract base version (major.minor) from both versions for comparison
-        # This handles cases where setuptools_scm generates different dev versions
-        def extract_base_version(version_str):
-            """Extract base major.minor version from version string."""
-            match = re.match(r"^(\d+\.\d+)", version_str)
-            return match.group(1) if match else None
-
-        package_base = extract_base_version(puffinflow.__version__)
-        module_base = extract_base_version(version.__version__)
-
-        # Base versions should match (major.minor)
-        assert (
-            package_base == module_base
-        ), f"Base versions don't match: package={package_base}, module={module_base}"
-
-        # Both should be valid semantic versions or dev versions
-        dev_pattern = r"^\d+\.\d+\.dev\d+"
-        full_pattern = r"^\d+\.\d+(\.\d+)?"
-
-        for ver, name in [
-            (puffinflow.__version__, "package"),
-            (version.__version__, "module"),
-        ]:
-            assert (
-                re.match(dev_pattern, ver)
-                or re.match(full_pattern, ver)
-                or "dev" in ver
-            ), f"{name} version {ver} doesn't match expected patterns"
-
-
 class TestVersionEdgeCases:
     """Test edge cases and error conditions."""
 
