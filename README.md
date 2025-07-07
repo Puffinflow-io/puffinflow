@@ -29,7 +29,7 @@ class DataProcessor(Agent):
         context.set_variable("raw_data", data)
         return "validate_data" if data else "error"
 
-    @state(cpu=1.0, memory=512.0)  
+    @state(cpu=1.0, memory=512.0)
     async def validate_data(self, context):
         """Validate the fetched data."""
         data = context.get_variable("raw_data")
@@ -125,7 +125,7 @@ class MLTrainer(Agent):
         model = await train_neural_network(dataset)
         context.set_variable("model", model)
         context.set_output("accuracy", model.accuracy)
-        
+
         if model.accuracy > 0.9:
             return "deploy_model"
         return "retrain_with_more_data"
@@ -145,7 +145,7 @@ from puffinflow import create_team, AgentTeam
 # Coordinate multiple agents
 email_team = create_team([
     EmailValidator("validator"),
-    EmailProcessor("processor"), 
+    EmailProcessor("processor"),
     EmailTracker("tracker")
 ])
 
@@ -171,7 +171,7 @@ PuffinFlow is built for production workloads with excellent performance characte
 
 ### Core Performance Metrics
 - **567,000+ operations/second** for basic agent operations
-- **27,000+ operations/second** for complex data processing  
+- **27,000+ operations/second** for complex data processing
 - **1,100+ operations/second** for CPU-intensive tasks
 - **Sub-millisecond** state transition latency (0.00-1.97ms range)
 
