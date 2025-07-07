@@ -194,6 +194,7 @@ include = ["puffinflow*"]
 
 [tool.setuptools_scm]
 write_to = "src/puffinflow/version.py"
+local_scheme = "no-local-version"
 
 [tool.ruff]
 target-version = "py39"
