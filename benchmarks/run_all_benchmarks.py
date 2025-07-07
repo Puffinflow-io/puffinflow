@@ -16,7 +16,7 @@ from typing import Any
 import psutil
 
 # Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 class BenchmarkSuite:
@@ -36,11 +36,15 @@ class BenchmarkSuite:
             "python_version": sys.version,
             "cpu_count": os.cpu_count(),
             "memory_total_gb": round(psutil.virtual_memory().total / (1024**3), 2),
-            "cpu_freq_mhz": psutil.cpu_freq().current if psutil.cpu_freq() else "Unknown",
-            "timestamp": self.timestamp
+            "cpu_freq_mhz": psutil.cpu_freq().current
+            if psutil.cpu_freq()
+            else "Unknown",
+            "timestamp": self.timestamp,
         }
 
-    def run_benchmark_module(self, module_name: str, module_path: str) -> dict[str, Any]:
+    def run_benchmark_module(
+        self, module_name: str, module_path: str
+    ) -> dict[str, Any]:
         """Run a single benchmark module."""
         print(f"\n{'='*80}")
         print(f"Running {module_name}")
@@ -74,12 +78,17 @@ class BenchmarkSuite:
                         "max_time": r.max_time,
                         "median_time": r.median_time,
                         "std_dev": r.std_dev,
-                        "throughput_ops_per_sec": getattr(r, 'throughput_ops_per_sec', 0)
-                    } for r in results
-                ]
+                        "throughput_ops_per_sec": getattr(
+                            r, "throughput_ops_per_sec", 0
+                        ),
+                    }
+                    for r in results
+                ],
             }
 
-            print(f"\n✅ {module_name} completed successfully in {benchmark_info['execution_time_seconds']:.2f}s")
+            print(
+                f"\n✅ {module_name} completed successfully in {benchmark_info['execution_time_seconds']:.2f}s"
+            )
 
         except Exception as e:
             end_time = time.time()
@@ -88,7 +97,7 @@ class BenchmarkSuite:
                 "status": "failed",
                 "execution_time_seconds": round(end_time - start_time, 2),
                 "error": str(e),
-                "results": []
+                "results": [],
             }
 
             print(f"\n❌ {module_name} failed: {e!s}")
@@ -118,13 +127,15 @@ class BenchmarkSuite:
                 benchmark_results.append(result)
             else:
                 print(f"⚠️  Warning: {module_file} not found, skipping...")
-                benchmark_results.append({
-                    "module": module_name,
-                    "status": "skipped",
-                    "execution_time_seconds": 0,
-                    "error": "Module file not found",
-                    "results": []
-                })
+                benchmark_results.append(
+                    {
+                        "module": module_name,
+                        "status": "skipped",
+                        "execution_time_seconds": 0,
+                        "error": "Module file not found",
+                        "results": [],
+                    }
+                )
 
         # Compile final results
         final_results = {
@@ -132,12 +143,20 @@ class BenchmarkSuite:
             "benchmark_run": {
                 "timestamp": self.timestamp,
                 "total_modules": len(benchmark_modules),
-                "successful_modules": len([r for r in benchmark_results if r["status"] == "success"]),
-                "failed_modules": len([r for r in benchmark_results if r["status"] == "failed"]),
-                "skipped_modules": len([r for r in benchmark_results if r["status"] == "skipped"]),
-                "total_execution_time_seconds": sum(r["execution_time_seconds"] for r in benchmark_results)
+                "successful_modules": len(
+                    [r for r in benchmark_results if r["status"] == "success"]
+                ),
+                "failed_modules": len(
+                    [r for r in benchmark_results if r["status"] == "failed"]
+                ),
+                "skipped_modules": len(
+                    [r for r in benchmark_results if r["status"] == "skipped"]
+                ),
+                "total_execution_time_seconds": sum(
+                    r["execution_time_seconds"] for r in benchmark_results
+                ),
             },
-            "benchmarks": benchmark_results
+            "benchmarks": benchmark_results,
         }
 
         self.results = final_results
@@ -146,21 +165,25 @@ class BenchmarkSuite:
     def save_results(self, format: str = "json") -> str:
         """Save benchmark results to file."""
         if format == "json":
-            filename = f"benchmark_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filename = (
+                f"benchmark_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
             filepath = self.output_dir / filename
 
-            with filepath.open('w') as f:
+            with filepath.open("w") as f:
                 json.dump(self.results, f, indent=2)
 
             return str(filepath)
 
         elif format == "html":
-            filename = f"benchmark_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            filename = (
+                f"benchmark_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            )
             filepath = self.output_dir / filename
 
             html_content = self._generate_html_report()
 
-            with filepath.open('w') as f:
+            with filepath.open("w") as f:
                 f.write(html_content)
 
             return str(filepath)
@@ -238,8 +261,10 @@ class BenchmarkSuite:
             successful_modules=self.results["benchmark_run"]["successful_modules"],
             failed_modules=self.results["benchmark_run"]["failed_modules"],
             skipped_modules=self.results["benchmark_run"]["skipped_modules"],
-            total_execution_time_seconds=self.results["benchmark_run"]["total_execution_time_seconds"],
-            benchmark_sections=benchmark_sections
+            total_execution_time_seconds=self.results["benchmark_run"][
+                "total_execution_time_seconds"
+            ],
+            benchmark_sections=benchmark_sections,
         )
 
     def _generate_benchmark_table(self, benchmark: dict[str, Any]) -> str:
@@ -247,7 +272,7 @@ class BenchmarkSuite:
         if benchmark["status"] != "success" or not benchmark["results"]:
             if benchmark["status"] == "failed":
                 return f'<p class="failed">Error: {benchmark.get("error", "Unknown error")}</p>'
-            return '<p>No results available</p>'
+            return "<p>No results available</p>"
 
         table_html = """
         <table class="benchmark-table">
@@ -284,50 +309,66 @@ class BenchmarkSuite:
 
     def print_summary(self):
         """Print a summary of benchmark results."""
-        print("\n" + "="*100)
+        print("\n" + "=" * 100)
         print("🎯 BENCHMARK SUITE SUMMARY")
-        print("="*100)
+        print("=" * 100)
 
         print(f"📊 Total Modules: {self.results['benchmark_run']['total_modules']}")
         print(f"✅ Successful: {self.results['benchmark_run']['successful_modules']}")
         print(f"❌ Failed: {self.results['benchmark_run']['failed_modules']}")
         print(f"⏭️  Skipped: {self.results['benchmark_run']['skipped_modules']}")
-        print(f"⏱️  Total Time: {self.results['benchmark_run']['total_execution_time_seconds']:.2f}s")
+        print(
+            f"⏱️  Total Time: {self.results['benchmark_run']['total_execution_time_seconds']:.2f}s"
+        )
 
         # Print top performing benchmarks
         all_results = []
         for benchmark in self.results["benchmarks"]:
             if benchmark["status"] == "success":
                 for result in benchmark["results"]:
-                    all_results.append({
-                        "module": benchmark["module"],
-                        "name": result["name"],
-                        "throughput": result["throughput_ops_per_sec"],
-                        "duration": result["duration_ms"]
-                    })
+                    all_results.append(
+                        {
+                            "module": benchmark["module"],
+                            "name": result["name"],
+                            "throughput": result["throughput_ops_per_sec"],
+                            "duration": result["duration_ms"],
+                        }
+                    )
 
         if all_results:
             print("\n🏆 TOP PERFORMING BENCHMARKS (by throughput):")
-            top_benchmarks = sorted(all_results, key=lambda x: x["throughput"], reverse=True)[:10]
+            top_benchmarks = sorted(
+                all_results, key=lambda x: x["throughput"], reverse=True
+            )[:10]
 
             for i, benchmark in enumerate(top_benchmarks, 1):
-                print(f"{i:2d}. {benchmark['name']:<40} | {benchmark['throughput']:>10.2f} ops/s | {benchmark['duration']:>8.2f}ms")
+                print(
+                    f"{i:2d}. {benchmark['name']:<40} | {benchmark['throughput']:>10.2f} ops/s | {benchmark['duration']:>8.2f}ms"
+                )
 
             print("\n⚡ FASTEST BENCHMARKS (by duration):")
             fastest_benchmarks = sorted(all_results, key=lambda x: x["duration"])[:10]
 
             for i, benchmark in enumerate(fastest_benchmarks, 1):
-                print(f"{i:2d}. {benchmark['name']:<40} | {benchmark['duration']:>8.2f}ms | {benchmark['throughput']:>10.2f} ops/s")
+                print(
+                    f"{i:2d}. {benchmark['name']:<40} | {benchmark['duration']:>8.2f}ms | {benchmark['throughput']:>10.2f} ops/s"
+                )
 
-        print("="*100)
+        print("=" * 100)
 
 
 def main():
     """Main function to run benchmark suite."""
     parser = argparse.ArgumentParser(description="Run PuffinFlow benchmark suite")
-    parser.add_argument("--output-dir", default="benchmark_results", help="Output directory for results")
-    parser.add_argument("--format", choices=["json", "html"], default="json", help="Output format")
-    parser.add_argument("--save-results", action="store_true", help="Save results to file")
+    parser.add_argument(
+        "--output-dir", default="benchmark_results", help="Output directory for results"
+    )
+    parser.add_argument(
+        "--format", choices=["json", "html"], default="json", help="Output format"
+    )
+    parser.add_argument(
+        "--save-results", action="store_true", help="Save results to file"
+    )
 
     args = parser.parse_args()
 
@@ -347,7 +388,9 @@ def main():
 
     # Return exit code based on results
     if results["benchmark_run"]["failed_modules"] > 0:
-        print(f"\n⚠️  {results['benchmark_run']['failed_modules']} benchmark modules failed!")
+        print(
+            f"\n⚠️  {results['benchmark_run']['failed_modules']} benchmark modules failed!"
+        )
         return 1
 
     print("\n🎉 All benchmarks completed successfully!")

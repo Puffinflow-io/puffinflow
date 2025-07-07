@@ -24,12 +24,13 @@ from puffinflow.core.resources.quotas import ResourceQuotas
 from puffinflow.core.resources.requirements import ResourceRequirements
 
 # Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 @dataclass
 class BenchmarkResult:
     """Benchmark result container."""
+
     name: str
     duration_ms: float
     memory_mb: float
@@ -56,7 +57,7 @@ class ResourceBenchmarkRunner:
         iterations: int = 100,
         warmup_iterations: int = 10,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BenchmarkResult:
         """Run a benchmark with performance monitoring."""
         print(f"Running benchmark: {name}")
@@ -110,7 +111,7 @@ class ResourceBenchmarkRunner:
             max_time=max_time,
             median_time=median_time,
             std_dev=std_dev,
-            throughput_ops_per_sec=throughput
+            throughput_ops_per_sec=throughput,
         )
 
         self.results.append(result)
@@ -119,16 +120,20 @@ class ResourceBenchmarkRunner:
 
     def print_results(self):
         """Print benchmark results in a formatted table."""
-        print("\n" + "="*140)
+        print("\n" + "=" * 140)
         print("RESOURCE MANAGEMENT BENCHMARK RESULTS")
-        print("="*140)
-        print(f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Throughput (ops/s)':<18} {'Memory (MB)':<12} {'CPU %':<8}")
-        print("-"*140)
+        print("=" * 140)
+        print(
+            f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Throughput (ops/s)':<18} {'Memory (MB)':<12} {'CPU %':<8}"
+        )
+        print("-" * 140)
 
         for result in self.results:
-            print(f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.throughput_ops_per_sec:<18.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}")
+            print(
+                f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.throughput_ops_per_sec:<18.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}"
+            )
 
-        print("="*140)
+        print("=" * 140)
 
 
 class ResourceManagementBenchmarks:
@@ -148,15 +153,12 @@ class ResourceManagementBenchmarks:
             "memory_mb": memory_mb,
             "custom_resource_1": 10,
             "custom_resource_2": 5,
-            "gpu_memory": 2048
+            "gpu_memory": 2048,
         }
 
     def benchmark_single_resource_acquisition(self):
         """Benchmark single resource acquisition and release."""
-        requirements = ResourceRequirements(
-            cpu_cores=1,
-            memory_mb=512
-        )
+        requirements = ResourceRequirements(cpu_cores=1, memory_mb=512)
 
         resource_id = self.pool.acquire(requirements, timeout=1.0)
         if resource_id:
@@ -169,10 +171,7 @@ class ResourceManagementBenchmarks:
         requirements = ResourceRequirements(
             cpu_cores=2,
             memory_mb=1024,
-            custom_resources={
-                "custom_resource_1": 2,
-                "gpu_memory": 256
-            }
+            custom_resources={"custom_resource_1": 2, "gpu_memory": 256},
         )
 
         resource_id = self.pool.acquire(requirements, timeout=1.0)
@@ -196,6 +195,7 @@ class ResourceManagementBenchmarks:
 
     def benchmark_concurrent_acquisitions(self, num_threads: int = 10):
         """Benchmark concurrent resource acquisitions."""
+
         def acquire_and_release():
             requirements = ResourceRequirements(cpu_cores=1, memory_mb=256)
             resource_id = self.pool.acquire(requirements, timeout=1.0)
@@ -225,16 +225,10 @@ class ResourceManagementBenchmarks:
         allocator = FirstFitAllocator()
 
         # Setup available resources
-        available = {
-            "cpu_cores": 16,
-            "memory_mb": 8192,
-            "custom_resource_1": 10
-        }
+        available = {"cpu_cores": 16, "memory_mb": 8192, "custom_resource_1": 10}
 
         requirements = ResourceRequirements(
-            cpu_cores=2,
-            memory_mb=1024,
-            custom_resources={"custom_resource_1": 2}
+            cpu_cores=2, memory_mb=1024, custom_resources={"custom_resource_1": 2}
         )
 
         result = allocator.allocate(available, requirements)
@@ -245,16 +239,10 @@ class ResourceManagementBenchmarks:
         allocator = BestFitAllocator()
 
         # Setup available resources
-        available = {
-            "cpu_cores": 16,
-            "memory_mb": 8192,
-            "custom_resource_1": 10
-        }
+        available = {"cpu_cores": 16, "memory_mb": 8192, "custom_resource_1": 10}
 
         requirements = ResourceRequirements(
-            cpu_cores=2,
-            memory_mb=1024,
-            custom_resources={"custom_resource_1": 2}
+            cpu_cores=2, memory_mb=1024, custom_resources={"custom_resource_1": 2}
         )
 
         result = allocator.allocate(available, requirements)
@@ -265,16 +253,10 @@ class ResourceManagementBenchmarks:
         allocator = PriorityAllocator()
 
         # Setup available resources
-        available = {
-            "cpu_cores": 16,
-            "memory_mb": 8192,
-            "custom_resource_1": 10
-        }
+        available = {"cpu_cores": 16, "memory_mb": 8192, "custom_resource_1": 10}
 
         requirements = ResourceRequirements(
-            cpu_cores=2,
-            memory_mb=1024,
-            custom_resources={"custom_resource_1": 2}
+            cpu_cores=2, memory_mb=1024, custom_resources={"custom_resource_1": 2}
         )
 
         result = allocator.allocate(available, requirements, priority=5)
@@ -294,12 +276,13 @@ class ResourceManagementBenchmarks:
         if resource_id:
             # Now try to trigger preemption
             high_priority_requirements = ResourceRequirements(
-                cpu_cores=2,
-                memory_mb=1024
+                cpu_cores=2, memory_mb=1024
             )
 
             # This should trigger preemption logic
-            preempted = self.pool._try_preemption(high_priority_requirements, priority=10)
+            preempted = self.pool._try_preemption(
+                high_priority_requirements, priority=10
+            )
 
             # Clean up
             self.pool.release(resource_id)
@@ -334,7 +317,7 @@ def main():
     benchmarks = ResourceManagementBenchmarks()
 
     print("Starting PuffinFlow Resource Management Benchmarks")
-    print("="*60)
+    print("=" * 60)
 
     # Setup resource pool
     benchmarks.setup_pool_with_resources()
@@ -343,70 +326,60 @@ def main():
     runner.run_benchmark(
         "Single Resource Acquisition",
         benchmarks.benchmark_single_resource_acquisition,
-        iterations=1000
+        iterations=1000,
     )
 
     runner.run_benchmark(
         "Complex Resource Acquisition",
         benchmarks.benchmark_complex_resource_acquisition,
-        iterations=500
+        iterations=500,
     )
 
     runner.run_benchmark(
-        "Resource Contention",
-        benchmarks.benchmark_resource_contention,
-        iterations=200
+        "Resource Contention", benchmarks.benchmark_resource_contention, iterations=200
     )
 
     runner.run_benchmark(
         "Concurrent Acquisitions (10 threads)",
         benchmarks.benchmark_concurrent_acquisitions,
         iterations=50,
-        num_threads=10
+        num_threads=10,
     )
 
     # Quota and allocation strategy benchmarks
     runner.run_benchmark(
-        "Quota Checking",
-        benchmarks.benchmark_quota_checking,
-        iterations=10000
+        "Quota Checking", benchmarks.benchmark_quota_checking, iterations=10000
     )
 
     runner.run_benchmark(
-        "FirstFit Allocator",
-        benchmarks.benchmark_allocator_first_fit,
-        iterations=5000
+        "FirstFit Allocator", benchmarks.benchmark_allocator_first_fit, iterations=5000
     )
 
     runner.run_benchmark(
-        "BestFit Allocator",
-        benchmarks.benchmark_allocator_best_fit,
-        iterations=5000
+        "BestFit Allocator", benchmarks.benchmark_allocator_best_fit, iterations=5000
     )
 
     runner.run_benchmark(
-        "Priority Allocator",
-        benchmarks.benchmark_allocator_priority,
-        iterations=5000
+        "Priority Allocator", benchmarks.benchmark_allocator_priority, iterations=5000
     )
 
     # Advanced resource pool operations
     runner.run_benchmark(
         "Resource Pool Can Allocate",
         benchmarks.benchmark_resource_pool_can_allocate,
-        iterations=10000
+        iterations=10000,
     )
 
     runner.run_benchmark(
         "Resource Pool Preemption",
         benchmarks.benchmark_resource_pool_preemption,
-        iterations=100
+        iterations=100,
     )
 
     runner.run_benchmark(
         "Resource Leak Detection",
         benchmarks.benchmark_resource_leak_detection,
-        iterations=1000
+        iterations=1000,
     )
 
     # Print final results

@@ -21,12 +21,13 @@ from puffinflow.core.observability.metrics import PrometheusMetricsProvider
 from puffinflow.core.observability.tracing import OpenTelemetryTracingProvider
 
 # Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 @dataclass
 class BenchmarkResult:
     """Benchmark result container."""
+
     name: str
     duration_ms: float
     memory_mb: float
@@ -53,7 +54,7 @@ class ObservabilityBenchmarkRunner:
         iterations: int = 100,
         warmup_iterations: int = 10,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BenchmarkResult:
         """Run a benchmark with performance monitoring."""
         print(f"Running benchmark: {name}")
@@ -107,7 +108,7 @@ class ObservabilityBenchmarkRunner:
             max_time=max_time,
             median_time=median_time,
             std_dev=std_dev,
-            throughput_ops_per_sec=throughput
+            throughput_ops_per_sec=throughput,
         )
 
         self.results.append(result)
@@ -116,16 +117,20 @@ class ObservabilityBenchmarkRunner:
 
     def print_results(self):
         """Print benchmark results in a formatted table."""
-        print("\n" + "="*140)
+        print("\n" + "=" * 140)
         print("OBSERVABILITY BENCHMARK RESULTS")
-        print("="*140)
-        print(f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Throughput (ops/s)':<18} {'Memory (MB)':<12} {'CPU %':<8}")
-        print("-"*140)
+        print("=" * 140)
+        print(
+            f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Throughput (ops/s)':<18} {'Memory (MB)':<12} {'CPU %':<8}"
+        )
+        print("-" * 140)
 
         for result in self.results:
-            print(f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.throughput_ops_per_sec:<18.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}")
+            print(
+                f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.throughput_ops_per_sec:<18.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}"
+            )
 
-        print("="*140)
+        print("=" * 140)
 
 
 class ObservabilityBenchmarks:
@@ -156,7 +161,9 @@ class ObservabilityBenchmarks:
     def benchmark_counter_recording(self):
         """Benchmark counter metric recording."""
         if "test_counter" not in self.counters:
-            self.counters["test_counter"] = self.metrics_provider.get_counter("test_counter")
+            self.counters["test_counter"] = self.metrics_provider.get_counter(
+                "test_counter"
+            )
 
         counter = self.counters["test_counter"]
         counter.record(1.0)
@@ -165,7 +172,9 @@ class ObservabilityBenchmarks:
     def benchmark_histogram_recording(self):
         """Benchmark histogram metric recording."""
         if "test_histogram" not in self.histograms:
-            self.histograms["test_histogram"] = self.metrics_provider.get_histogram("test_histogram")
+            self.histograms["test_histogram"] = self.metrics_provider.get_histogram(
+                "test_histogram"
+            )
 
         histogram = self.histograms["test_histogram"]
         histogram.record(42.5)
@@ -225,8 +234,8 @@ class ObservabilityBenchmarks:
             attributes={
                 "service.name": "benchmark",
                 "operation.type": "test",
-                "user.id": "123"
-            }
+                "user.id": "123",
+            },
         )
         if span:
             span.end()
@@ -259,7 +268,7 @@ class ObservabilityBenchmarks:
         event_data = {
             "type": "test_event",
             "timestamp": time.time(),
-            "data": {"key": "value"}
+            "data": {"key": "value"},
         }
 
         self.event_manager.emit("test_event", event_data)
@@ -267,6 +276,7 @@ class ObservabilityBenchmarks:
 
     def benchmark_event_manager_with_handlers(self):
         """Benchmark event manager with handlers."""
+
         # Register a handler
         def test_handler(event_data):
             pass
@@ -277,7 +287,7 @@ class ObservabilityBenchmarks:
         event_data = {
             "type": "benchmark_event",
             "timestamp": time.time(),
-            "data": {"processed": True}
+            "data": {"processed": True},
         }
 
         self.event_manager.emit("benchmark_event", event_data)
@@ -285,6 +295,7 @@ class ObservabilityBenchmarks:
 
     def benchmark_alert_manager_check(self):
         """Benchmark alert manager condition checking."""
+
         # Define a simple alert condition
         def cpu_high_condition():
             return psutil.cpu_percent(interval=0.1) > 90
@@ -295,6 +306,7 @@ class ObservabilityBenchmarks:
 
     def benchmark_alert_manager_trigger(self):
         """Benchmark alert manager trigger."""
+
         # Define a simple alert condition that always triggers
         def always_true_condition():
             return True
@@ -319,7 +331,7 @@ class ObservabilityBenchmarks:
         # Enable observability for the agent
         agent.enable_observability(
             metrics_provider=self.metrics_provider,
-            tracing_provider=self.tracing_provider
+            tracing_provider=self.tracing_provider,
         )
 
         # Run the agent
@@ -390,132 +402,118 @@ def main():
     benchmarks = ObservabilityBenchmarks()
 
     print("Starting PuffinFlow Observability Benchmarks")
-    print("="*50)
+    print("=" * 50)
 
     # Metrics benchmarks
     runner.run_benchmark(
-        "Counter Recording",
-        benchmarks.benchmark_counter_recording,
-        iterations=50000
+        "Counter Recording", benchmarks.benchmark_counter_recording, iterations=50000
     )
 
     runner.run_benchmark(
         "Histogram Recording",
         benchmarks.benchmark_histogram_recording,
-        iterations=50000
+        iterations=50000,
     )
 
     runner.run_benchmark(
-        "Gauge Recording",
-        benchmarks.benchmark_gauge_recording,
-        iterations=50000
+        "Gauge Recording", benchmarks.benchmark_gauge_recording, iterations=50000
     )
 
     runner.run_benchmark(
-        "Metric with Labels",
-        benchmarks.benchmark_metric_with_labels,
-        iterations=10000
+        "Metric with Labels", benchmarks.benchmark_metric_with_labels, iterations=10000
     )
 
     runner.run_benchmark(
         "Concurrent Metric Recording (10 threads)",
         benchmarks.benchmark_concurrent_metric_recording,
         iterations=1000,
-        num_threads=10
+        num_threads=10,
     )
 
     runner.run_benchmark(
         "Metric Cardinality Protection",
         benchmarks.benchmark_metric_cardinality_protection,
-        iterations=1000
+        iterations=1000,
     )
 
     # Tracing benchmarks
     runner.run_benchmark(
         "Tracing Span Creation",
         benchmarks.benchmark_tracing_span_creation,
-        iterations=10000
+        iterations=10000,
     )
 
     runner.run_benchmark(
         "Tracing Span with Attributes",
         benchmarks.benchmark_tracing_span_with_attributes,
-        iterations=10000
+        iterations=10000,
     )
 
     runner.run_benchmark(
         "Nested Span Creation",
         benchmarks.benchmark_nested_span_creation,
-        iterations=5000
+        iterations=5000,
     )
 
     runner.run_benchmark(
         "Span Event Recording",
         benchmarks.benchmark_span_event_recording,
-        iterations=10000
+        iterations=10000,
     )
 
     # Event management benchmarks
     runner.run_benchmark(
-        "Event Manager Emit",
-        benchmarks.benchmark_event_manager_emit,
-        iterations=10000
+        "Event Manager Emit", benchmarks.benchmark_event_manager_emit, iterations=10000
     )
 
     runner.run_benchmark(
         "Event Manager with Handlers",
         benchmarks.benchmark_event_manager_with_handlers,
-        iterations=5000
+        iterations=5000,
     )
 
     # Alert management benchmarks
     runner.run_benchmark(
-        "Alert Manager Check",
-        benchmarks.benchmark_alert_manager_check,
-        iterations=1000
+        "Alert Manager Check", benchmarks.benchmark_alert_manager_check, iterations=1000
     )
 
     runner.run_benchmark(
         "Alert Manager Trigger",
         benchmarks.benchmark_alert_manager_trigger,
-        iterations=1000
+        iterations=1000,
     )
 
     # Integration benchmarks
     runner.run_benchmark(
         "Observability Core Integration",
         benchmarks.benchmark_observability_core_integration,
-        iterations=1000
+        iterations=1000,
     )
 
     runner.run_benchmark(
         "Agent Observability Integration",
         benchmarks.benchmark_agent_observability_integration,
-        iterations=100
+        iterations=100,
     )
 
     runner.run_benchmark(
-        "Metric Collection",
-        benchmarks.benchmark_metric_collection,
-        iterations=1000
+        "Metric Collection", benchmarks.benchmark_metric_collection, iterations=1000
     )
 
     runner.run_benchmark(
         "High Frequency Metrics",
         benchmarks.benchmark_high_frequency_metrics,
-        iterations=1000
+        iterations=1000,
     )
 
     runner.run_benchmark(
-        "Metric Memory Usage",
-        benchmarks.benchmark_metric_memory_usage,
-        iterations=100
+        "Metric Memory Usage", benchmarks.benchmark_metric_memory_usage, iterations=100
     )
 
     runner.run_benchmark(
         "Trace Context Propagation",
         benchmarks.benchmark_trace_context_propagation,
-        iterations=1000
+        iterations=1000,
     )
 
     # Print final results

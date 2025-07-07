@@ -20,12 +20,13 @@ from puffinflow.core.coordination.primitives import Barrier, CoordinationPrimiti
 from puffinflow.core.coordination.rate_limiter import RateLimiter
 
 # Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 @dataclass
 class BenchmarkResult:
     """Benchmark result container."""
+
     name: str
     duration_ms: float
     memory_mb: float
@@ -52,7 +53,7 @@ class CoordinationBenchmarkRunner:
         iterations: int = 100,
         warmup_iterations: int = 10,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BenchmarkResult:
         """Run a benchmark with performance monitoring."""
         print(f"Running benchmark: {name}")
@@ -106,7 +107,7 @@ class CoordinationBenchmarkRunner:
             max_time=max_time,
             median_time=median_time,
             std_dev=std_dev,
-            throughput_ops_per_sec=throughput
+            throughput_ops_per_sec=throughput,
         )
 
         self.results.append(result)
@@ -115,16 +116,20 @@ class CoordinationBenchmarkRunner:
 
     def print_results(self):
         """Print benchmark results in a formatted table."""
-        print("\n" + "="*140)
+        print("\n" + "=" * 140)
         print("COORDINATION AND SYNCHRONIZATION BENCHMARK RESULTS")
-        print("="*140)
-        print(f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Throughput (ops/s)':<18} {'Memory (MB)':<12} {'CPU %':<8}")
-        print("-"*140)
+        print("=" * 140)
+        print(
+            f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Throughput (ops/s)':<18} {'Memory (MB)':<12} {'CPU %':<8}"
+        )
+        print("-" * 140)
 
         for result in self.results:
-            print(f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.throughput_ops_per_sec:<18.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}")
+            print(
+                f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.throughput_ops_per_sec:<18.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}"
+            )
 
-        print("="*140)
+        print("=" * 140)
 
 
 class CoordinationBenchmarks:
@@ -199,7 +204,9 @@ class CoordinationBenchmarks:
 
     def benchmark_semaphore_contention(self, num_threads: int = 10):
         """Benchmark semaphore contention with multiple threads."""
-        primitive = CoordinationPrimitive("contention_semaphore", "semaphore", max_count=3)
+        primitive = CoordinationPrimitive(
+            "contention_semaphore", "semaphore", max_count=3
+        )
         results = []
 
         def acquire_release():
@@ -255,11 +262,7 @@ class CoordinationBenchmarks:
         agent = self.create_simple_agent()
 
         # Coordinate state execution
-        await self.coordinator.coordinate_state_execution(
-            agent,
-            "simple_task",
-            {}
-        )
+        await self.coordinator.coordinate_state_execution(agent, "simple_task", {})
 
         return True
 
@@ -269,7 +272,7 @@ class CoordinationBenchmarks:
             name="benchmark_pool",
             agent_factory=lambda: self.create_simple_agent(),
             min_size=1,
-            max_size=10
+            max_size=10,
         )
 
         return agent_pool.name == "benchmark_pool"
@@ -280,7 +283,7 @@ class CoordinationBenchmarks:
             name="work_pool",
             agent_factory=lambda: self.create_simple_agent(),
             min_size=1,
-            max_size=5
+            max_size=5,
         )
 
         # Start the pool
@@ -290,7 +293,7 @@ class CoordinationBenchmarks:
         work_item = {
             "type": "agent_execution",
             "agent_name": "benchmark_agent",
-            "inputs": {}
+            "inputs": {},
         }
 
         try:
@@ -304,7 +307,7 @@ class CoordinationBenchmarks:
         processor = WorkProcessor(
             name="benchmark_processor",
             agent_factory=lambda: self.create_simple_agent(),
-            max_workers=5
+            max_workers=5,
         )
 
         return processor.name == "benchmark_processor"
@@ -341,7 +344,9 @@ class CoordinationBenchmarks:
         # Check state after release
         is_available_final = primitive.is_available()
 
-        return is_available and success and not is_available_after and is_available_final
+        return (
+            is_available and success and not is_available_after and is_available_final
+        )
 
     def benchmark_quota_management(self):
         """Benchmark quota management in primitives."""
@@ -370,25 +375,25 @@ def main():
     benchmarks = CoordinationBenchmarks()
 
     print("Starting PuffinFlow Coordination and Synchronization Benchmarks")
-    print("="*70)
+    print("=" * 70)
 
     # Basic coordination primitive benchmarks
     runner.run_benchmark(
         "Coordination Primitive Lock",
         benchmarks.benchmark_coordination_primitive_lock,
-        iterations=10000
+        iterations=10000,
     )
 
     runner.run_benchmark(
         "Coordination Primitive Semaphore",
         benchmarks.benchmark_coordination_primitive_semaphore,
-        iterations=10000
+        iterations=10000,
     )
 
     runner.run_benchmark(
         "Coordination Primitive Barrier",
         benchmarks.benchmark_coordination_primitive_barrier,
-        iterations=1000
+        iterations=1000,
     )
 
     # Contention benchmarks
@@ -396,79 +401,73 @@ def main():
         "Concurrent Lock Contention (10 threads)",
         benchmarks.benchmark_concurrent_lock_contention,
         iterations=100,
-        num_threads=10
+        num_threads=10,
     )
 
     runner.run_benchmark(
         "Semaphore Contention (10 threads)",
         benchmarks.benchmark_semaphore_contention,
         iterations=100,
-        num_threads=10
+        num_threads=10,
     )
 
     runner.run_benchmark(
         "Barrier Synchronization (5 threads)",
         benchmarks.benchmark_barrier_synchronization,
         iterations=50,
-        num_threads=5
+        num_threads=5,
     )
 
     # Rate limiting benchmarks
     runner.run_benchmark(
-        "Rate Limiter",
-        benchmarks.benchmark_rate_limiter,
-        iterations=10000
+        "Rate Limiter", benchmarks.benchmark_rate_limiter, iterations=10000
     )
 
     runner.run_benchmark(
         "Rate Limiter Contention (20 threads)",
         benchmarks.benchmark_rate_limiter_contention,
         iterations=100,
-        num_threads=20
+        num_threads=20,
     )
 
     # Agent coordination benchmarks
     runner.run_benchmark(
         "Agent Coordinator State Execution",
         benchmarks.benchmark_agent_coordinator_state_execution,
-        iterations=100
+        iterations=100,
     )
 
     runner.run_benchmark(
-        "Agent Pool Creation",
-        benchmarks.benchmark_agent_pool_creation,
-        iterations=1000
+        "Agent Pool Creation", benchmarks.benchmark_agent_pool_creation, iterations=1000
     )
 
     runner.run_benchmark(
         "Agent Pool Work Processing",
         benchmarks.benchmark_agent_pool_work_processing,
-        iterations=20
+        iterations=20,
     )
 
     runner.run_benchmark(
         "Work Processor Creation",
         benchmarks.benchmark_work_processor_creation,
-        iterations=1000
+        iterations=1000,
     )
 
     runner.run_benchmark(
         "Coordinator Agent Enhancement",
         benchmarks.benchmark_coordinator_enhance_agent,
-        iterations=50
+        iterations=50,
     )
 
     # State management benchmarks
     runner.run_benchmark(
         "Primitive State Management",
         benchmarks.benchmark_primitive_state_management,
-        iterations=5000
+        iterations=5000,
     )
 
     runner.run_benchmark(
-        "Quota Management",
-        benchmarks.benchmark_quota_management,
-        iterations=1000
+        "Quota Management", benchmarks.benchmark_quota_management, iterations=1000
     )
 
     # Print final results

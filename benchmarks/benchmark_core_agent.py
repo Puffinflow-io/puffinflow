@@ -20,12 +20,13 @@ from puffinflow.core.resources.pool import ResourcePool
 from puffinflow.core.resources.requirements import ResourceRequirements
 
 # Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 @dataclass
 class BenchmarkResult:
     """Benchmark result container."""
+
     name: str
     duration_ms: float
     memory_mb: float
@@ -51,7 +52,7 @@ class BenchmarkRunner:
         iterations: int = 100,
         warmup_iterations: int = 10,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BenchmarkResult:
         """Run a benchmark with performance monitoring."""
         print(f"Running benchmark: {name}")
@@ -98,7 +99,7 @@ class BenchmarkRunner:
             min_time=min_time,
             max_time=max_time,
             median_time=median_time,
-            std_dev=std_dev
+            std_dev=std_dev,
         )
 
         self.results.append(result)
@@ -107,16 +108,20 @@ class BenchmarkRunner:
 
     def print_results(self):
         """Print benchmark results in a formatted table."""
-        print("\n" + "="*120)
+        print("\n" + "=" * 120)
         print("BENCHMARK RESULTS")
-        print("="*120)
-        print(f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Memory (MB)':<12} {'CPU %':<8}")
-        print("-"*120)
+        print("=" * 120)
+        print(
+            f"{'Benchmark':<40} {'Avg (ms)':<10} {'Min (ms)':<10} {'Max (ms)':<10} {'Median (ms)':<12} {'StdDev':<10} {'Memory (MB)':<12} {'CPU %':<8}"
+        )
+        print("-" * 120)
 
         for result in self.results:
-            print(f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}")
+            print(
+                f"{result.name:<40} {result.duration_ms:<10.2f} {result.min_time:<10.2f} {result.max_time:<10.2f} {result.median_time:<12.2f} {result.std_dev:<10.2f} {result.memory_mb:<12.2f} {result.cpu_percent:<8.2f}"
+            )
 
-        print("="*120)
+        print("=" * 120)
 
 
 class AgentBenchmarks:
@@ -171,9 +176,7 @@ class AgentBenchmarks:
 
         @agent.state(
             resource_requirements=ResourceRequirements(
-                cpu_cores=1,
-                memory_mb=100,
-                custom_resources={"special_resource": 1}
+                cpu_cores=1, memory_mb=100, custom_resources={"special_resource": 1}
             )
         )
         def resource_intensive_task(ctx):
@@ -242,57 +245,53 @@ def main():
     benchmarks = AgentBenchmarks()
 
     print("Starting PuffinFlow Core Agent Benchmarks")
-    print("="*50)
+    print("=" * 50)
 
     # Agent execution benchmarks
     runner.run_benchmark(
         "Simple Agent Execution",
         benchmarks.benchmark_simple_agent_execution,
-        iterations=50
+        iterations=50,
     )
 
     runner.run_benchmark(
         "Complex Agent Execution",
         benchmarks.benchmark_complex_agent_execution,
-        iterations=30
+        iterations=30,
     )
 
     runner.run_benchmark(
-        "Resource Heavy Agent",
-        benchmarks.benchmark_resource_heavy_agent,
-        iterations=20
+        "Resource Heavy Agent", benchmarks.benchmark_resource_heavy_agent, iterations=20
     )
 
     runner.run_benchmark(
         "Concurrent Agents (10)",
         benchmarks.benchmark_concurrent_agents,
         iterations=10,
-        num_agents=10
+        num_agents=10,
     )
 
     runner.run_benchmark(
         "State Dependency Resolution",
         benchmarks.benchmark_state_dependency_resolution,
-        iterations=1000
+        iterations=1000,
     )
 
     # Resource management benchmarks
     runner.run_benchmark(
         "Resource Acquisition",
         benchmarks.benchmark_resource_acquisition,
-        iterations=1000
+        iterations=1000,
     )
 
     runner.run_benchmark(
         "Coordination Primitive",
         benchmarks.benchmark_coordination_primitive,
-        iterations=1000
+        iterations=1000,
     )
 
     runner.run_benchmark(
-        "Metrics Recording",
-        benchmarks.benchmark_metrics_recording,
-        iterations=10000
+        "Metrics Recording", benchmarks.benchmark_metrics_recording, iterations=10000
     )
 
     # Print final results

@@ -13,7 +13,7 @@ from pathlib import Path
 import psutil
 
 # Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
     HAS_PUFFINFLOW = True
@@ -24,6 +24,7 @@ except ImportError:
 @dataclass
 class BenchmarkResult:
     """Benchmark result container."""
+
     name: str
     duration_ms: float
     memory_mb: float
@@ -95,7 +96,7 @@ class SimpleBenchmarkRunner:
             max_time=max_time,
             median_time=median_time,
             std_dev=std_dev,
-            throughput_ops_per_sec=throughput
+            throughput_ops_per_sec=throughput,
         )
 
         self.results.append(result)
@@ -124,8 +125,12 @@ def benchmark_basic_operations():
 
     # Run benchmarks
     runner.run_benchmark("List Creation (100 items)", list_creation, iterations=10000)
-    runner.run_benchmark("List Processing (1000 items)", list_processing, iterations=5000)
-    runner.run_benchmark("Dict Operations (100 items)", dict_operations, iterations=5000)
+    runner.run_benchmark(
+        "List Processing (1000 items)", list_processing, iterations=5000
+    )
+    runner.run_benchmark(
+        "Dict Operations (100 items)", dict_operations, iterations=5000
+    )
 
     return runner.results
 
@@ -150,7 +155,9 @@ def benchmark_async_operations():
         return asyncio.run(concurrent_async_tasks())
 
     runner.run_benchmark("Simple Async Task", run_async_benchmark, iterations=1000)
-    runner.run_benchmark("Concurrent Async Tasks (10)", run_concurrent_benchmark, iterations=500)
+    runner.run_benchmark(
+        "Concurrent Async Tasks (10)", run_concurrent_benchmark, iterations=500
+    )
 
     return runner.results
 
@@ -173,8 +180,12 @@ def benchmark_resource_intensive():
             data.append(list(range(100)))
         return len(data)
 
-    runner.run_benchmark("CPU Intensive (10k operations)", cpu_intensive, iterations=1000)
-    runner.run_benchmark("Memory Intensive (100k items)", memory_intensive, iterations=500)
+    runner.run_benchmark(
+        "CPU Intensive (10k operations)", cpu_intensive, iterations=1000
+    )
+    runner.run_benchmark(
+        "Memory Intensive (100k items)", memory_intensive, iterations=500
+    )
 
     return runner.results
 
@@ -205,7 +216,9 @@ def main():
     print("=" * 80)
 
     for result in all_results:
-        print(f"{result.name:<40} | {result.duration_ms:>8.2f}ms | {result.throughput_ops_per_sec:>10.2f} ops/s")
+        print(
+            f"{result.name:<40} | {result.duration_ms:>8.2f}ms | {result.throughput_ops_per_sec:>10.2f} ops/s"
+        )
 
     print("=" * 80)
 
@@ -214,7 +227,9 @@ def main():
     highest_throughput = max(all_results, key=lambda x: x.throughput_ops_per_sec)
 
     print(f"🏆 Fastest Operation: {fastest.name} ({fastest.duration_ms:.2f}ms)")
-    print(f"⚡ Highest Throughput: {highest_throughput.name} ({highest_throughput.throughput_ops_per_sec:.2f} ops/s)")
+    print(
+        f"⚡ Highest Throughput: {highest_throughput.name} ({highest_throughput.throughput_ops_per_sec:.2f} ops/s)"
+    )
 
     return all_results
 

@@ -1,0 +1,48 @@
+{
+  "system_info": {
+    "platform": "linux",
+    "python_version": "3.12.3 (main, Jun 18 2025, 17:59:45) [GCC 13.3.0]",
+    "cpu_count": 16,
+    "memory_total_gb": 3.68,
+    "cpu_freq_mhz": 2304.0,
+    "timestamp": "2025-07-07T12:03:15.752960"
+  },
+  "benchmark_run": {
+    "timestamp": "2025-07-07T12:03:15.752960",
+    "total_modules": 4,
+    "successful_modules": 0,
+    "failed_modules": 4,
+    "skipped_modules": 0,
+    "total_execution_time_seconds": 0.92
+  },
+  "benchmarks": [
+    {
+      "module": "Core Agent Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.92,
+      "error": "AgentCoordinator.__init__() missing 1 required positional argument: 'agent'",
+      "results": []
+    },
+    {
+      "module": "Resource Management Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.0,
+      "error": "cannot import name 'ResourceQuotas' from 'puffinflow.core.resources.quotas' (/home/administrator/puffinflow-main/benchmarks/../src/puffinflow/core/resources/quotas.py)",
+      "results": []
+    },
+    {
+      "module": "Coordination Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.0,
+      "error": "AgentCoordinator.__init__() missing 1 required positional argument: 'agent'",
+      "results": []
+    },
+    {
+      "module": "Observability Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.0,
+      "error": "cannot import name 'EventManager' from 'puffinflow.core.observability.events' (/home/administrator/puffinflow-main/benchmarks/../src/puffinflow/core/observability/events.py)",
+      "results": []
+    }
+  ]
+}

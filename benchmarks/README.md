@@ -218,7 +218,7 @@ class MyBenchmarks:
     def __init__(self):
         # Initialize test objects
         pass
-    
+
     def benchmark_my_operation(self):
         # Implement your benchmark
         # Return True for success, False for failure
@@ -231,7 +231,7 @@ class MyBenchmarks:
 def main():
     runner = BenchmarkRunner()
     benchmarks = MyBenchmarks()
-    
+
     runner.run_benchmark(
         "My Operation",
         benchmarks.benchmark_my_operation,
