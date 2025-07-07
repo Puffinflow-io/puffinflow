@@ -13,14 +13,14 @@ from pathlib import Path
 
 import psutil
 
-# Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
-
 from puffinflow.core.agent.base import Agent
 from puffinflow.core.coordination.agent_pool import AgentPool, WorkProcessor
 from puffinflow.core.coordination.coordinator import AgentCoordinator
 from puffinflow.core.coordination.primitives import Barrier, CoordinationPrimitive
 from puffinflow.core.coordination.rate_limiter import RateLimiter
+
+# Add the src directory to the Python path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 
 @dataclass

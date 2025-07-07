@@ -13,15 +13,15 @@ from pathlib import Path
 
 import psutil
 
-# Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
-
 from puffinflow.core.agent.base import Agent
 from puffinflow.core.observability.alerting import AlertManager
 from puffinflow.core.observability.core import ObservabilityCore
 from puffinflow.core.observability.events import EventManager
 from puffinflow.core.observability.metrics import PrometheusMetricsProvider
 from puffinflow.core.observability.tracing import OpenTelemetryTracingProvider
+
+# Add the src directory to the Python path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 
 @dataclass
