@@ -183,6 +183,7 @@ Funding = "https://github.com/sponsors/yourusername"
 
 [project.scripts]
 puffinflow = "puffinflow.cli.main:app"
+puffinflow-benchmark = "benchmarks.run_all_benchmarks:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

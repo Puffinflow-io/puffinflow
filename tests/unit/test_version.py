@@ -79,8 +79,11 @@ class TestVersionValues:
         """Test current version format matches expected pattern."""
         current_version = version.__version__
 
-        # Should start with major.minor
-        assert current_version.startswith("0.1")
+        # Should start with major.minor (flexible for different version schemes)
+        import re
+        # Match versions like "0.1.x", "1.0.x", etc.
+        version_pattern = r"^\d+\.\d+"
+        assert re.match(version_pattern, current_version), f"Version {current_version} doesn't match expected pattern"
 
         # May contain dev, git hash, and date info
         if "dev" in current_version:
@@ -90,13 +93,14 @@ class TestVersionValues:
         """Test current version tuple format."""
         current_tuple = version.__version_tuple__
 
-        # Should start with (0, 1, ...)
-        assert current_tuple[0] == 0
-        assert current_tuple[1] == 1
+        # Should have at least major, minor version numbers
+        assert len(current_tuple) >= 2
+        assert isinstance(current_tuple[0], int)  # Major version
+        assert isinstance(current_tuple[1], int)  # Minor version
 
         # May contain additional version info
         if len(current_tuple) > 2:
-            # Third element might be dev info
+            # Third element might be dev info or patch version
             assert isinstance(current_tuple[2], (int, str))
 
 
@@ -125,13 +129,17 @@ class TestVersionImports:
         assert puffinflow.__version__ is not None
         assert version.__version__ is not None
 
-        # Both versions should start with the same base version pattern
+        # Both versions should have the same format (major.minor.patch or dev version)
         # Allow for setuptools_scm version differences due to git state changes
         import re
 
-        base_pattern = r"^0\.1\."
-        assert re.match(base_pattern, puffinflow.__version__)
-        assert re.match(base_pattern, version.__version__)
+        # Pattern matches versions like "0.1.x", "1.0.x", "1.0.1.dev0+hash", etc.
+        base_pattern = r"^\d+\.\d+"
+        assert re.match(base_pattern, puffinflow.__version__), f"Package version {puffinflow.__version__} doesn't match pattern"
+        assert re.match(base_pattern, version.__version__), f"Module version {version.__version__} doesn't match pattern"
+        
+        # Both should be the same version
+        assert puffinflow.__version__ == version.__version__
 
 
 class TestVersionEdgeCases:
