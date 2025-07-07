@@ -378,7 +378,7 @@ class StateBuilder:
         from .flexible import state
 
         decorator = state(config=self._config)
-        return decorator(func)
+        return decorator(func)  # type: ignore[no-any-return]
 
     def decorator(self) -> Callable[..., Any]:
         """Get decorator function."""

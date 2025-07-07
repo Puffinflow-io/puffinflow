@@ -7,7 +7,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -70,9 +70,9 @@ class WorkQueue:
     """Priority queue for work items."""
 
     def __init__(self, max_size: Optional[int] = None):
-        self._queue: deque = deque()
+        self._queue: deque[WorkItem] = deque()
         self._max_size = max_size
-        self._priority_queue: list[WorkItem] = []
+        self._priority_queue: list[Tuple[int, WorkItem]] = []
         self._use_priority = False
 
     def add_work(self, work_item: WorkItem) -> bool:
@@ -84,7 +84,7 @@ class WorkQueue:
             self._use_priority = True
             import heapq
 
-            heapq.heappush(self._priority_queue, (-work_item.priority, work_item))  # type: ignore[misc]
+            heapq.heappush(self._priority_queue, (-work_item.priority, work_item))
         else:
             self._queue.append(work_item)
 
@@ -97,15 +97,15 @@ class WorkQueue:
             import heapq
 
             priority_tuple = heapq.heappop(self._priority_queue)
-            _, work_item = priority_tuple  # type: ignore[misc]
+            _, work_item = priority_tuple
             work_item.assigned_at = time.time()
-            return work_item  # type: ignore[no-any-return]
+            return work_item
 
         # Then regular queue
         if self._queue:
             work_item = self._queue.popleft()
             work_item.assigned_at = time.time()
-            return work_item  # type: ignore[no-any-return]
+            return work_item
 
         return None
 
@@ -261,7 +261,7 @@ class AgentPool:
                 elif self.scaling_policy == ScalingPolicy.AUTO_CPU:
                     # Scale based on CPU usage (placeholder)
                     try:
-                        import psutil
+                        import psutil  # type: ignore[import-untyped]
 
                         cpu_percent = psutil.cpu_percent()
 

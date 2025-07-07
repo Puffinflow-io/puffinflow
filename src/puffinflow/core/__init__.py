@@ -44,11 +44,11 @@ except ImportError:
             pass
 
     # Assign to actual names to avoid redefinition
-    CircuitBreaker = MockCircuitBreaker
-    CircuitBreakerConfig = MockCircuitBreakerConfig
-    Bulkhead = MockBulkhead
-    BulkheadConfig = MockBulkheadConfig
-    ResourceLeakDetector = MockResourceLeakDetector
+    CircuitBreaker = MockCircuitBreaker  # type: ignore[assignment,misc]
+    CircuitBreakerConfig = MockCircuitBreakerConfig  # type: ignore[assignment,misc]
+    Bulkhead = MockBulkhead  # type: ignore[assignment,misc]
+    BulkheadConfig = MockBulkheadConfig  # type: ignore[assignment,misc]
+    ResourceLeakDetector = MockResourceLeakDetector  # type: ignore[assignment,misc]
 
 
 # Import state decorator if available
@@ -58,7 +58,7 @@ except ImportError:
     # Create a simple mock state decorator
     from typing import Any, Callable
 
-    def state(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def state(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:  # type: ignore[misc]
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             # Create ResourceRequirements from kwargs
             requirements = ResourceRequirements()
