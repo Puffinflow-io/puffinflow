@@ -36,7 +36,7 @@ class RateLimiter:
     _window_requests: dict[float, int] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._tokens = self.burst_size
         self._last_update = time.time()
 
@@ -258,7 +258,7 @@ class LeakyBucket(RateLimiter):
 
             return False
 
-    def _leak(self, now: float):
+    def _leak(self, now: float) -> None:
         """Leak requests from bucket"""
         time_passed = now - self._last_leak
         leak_count = int(time_passed * self.max_rate)
@@ -405,7 +405,7 @@ class AdaptiveRateLimiter:
 
         return success
 
-    async def _adjust_rate(self):
+    async def _adjust_rate(self) -> None:
         """Adjust rate based on success/failure ratio"""
         total = self._success_count + self._failure_count
         if total == 0:

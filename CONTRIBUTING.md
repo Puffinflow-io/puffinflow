@@ -177,11 +177,11 @@ def process_state(state: AgentState) -> AgentResult:
 # Good: Docstrings
 class Agent:
     """A workflow agent that can execute states.
-    
+
     Args:
         name: Unique identifier for the agent
         context: Optional execution context
-        
+
     Example:
         >>> agent = Agent("data-processor")
         >>> result = await agent.run()
@@ -254,25 +254,25 @@ from puffinflow.core.agent import Agent
 
 class TestAgent:
     """Test cases for Agent class."""
-    
+
     def test_agent_creation(self):
         """Test basic agent creation."""
         agent = Agent("test-agent")
         assert agent.name == "test-agent"
         assert agent.status == AgentStatus.IDLE
-    
+
     @pytest.mark.asyncio
     async def test_agent_execution(self):
         """Test agent state execution."""
         agent = Agent("test-agent")
-        
+
         @agent.state
         async def process_data(context):
             return {"result": "processed"}
-        
+
         result = await agent.run_state("process_data")
         assert result["result"] == "processed"
-    
+
     def test_resource_requirements(self):
         """Test agent resource requirements."""
         agent = Agent("test-agent")
@@ -295,11 +295,11 @@ def mock_resource_pool():
 async def sample_agent():
     """Create a sample agent for testing."""
     agent = Agent("test-agent")
-    
+
     @agent.state
     async def sample_state(context):
         return {"status": "success"}
-    
+
     return agent
 ```
 
@@ -313,9 +313,9 @@ from memory_profiler import profile
 def test_agent_creation_performance():
     """Test agent creation performance."""
     start_time = time.time()
-    
+
     agents = [Agent(f"agent-{i}") for i in range(1000)]
-    
+
     end_time = time.time()
     assert end_time - start_time < 1.0  # Should create 1000 agents in <1s
 
@@ -326,7 +326,7 @@ def test_memory_usage():
     for i in range(100):
         agent = Agent(f"agent-{i}")
         agents.append(agent)
-    
+
     # Memory usage should be reasonable
     assert len(agents) == 100
 ```
@@ -338,24 +338,24 @@ def test_memory_usage():
 We follow Google-style docstrings:
 
 ```python
-def calculate_allocation(requirements: ResourceRequirements, 
+def calculate_allocation(requirements: ResourceRequirements,
                         available: ResourceCapacity) -> Optional[Allocation]:
     """Calculate resource allocation based on requirements and availability.
-    
+
     This function implements the core allocation algorithm, considering
     resource types, priorities, and availability constraints.
-    
+
     Args:
         requirements: Resource requirements specification
         available: Currently available resource capacity
-        
+
     Returns:
         Resource allocation if possible, None if insufficient resources
-        
+
     Raises:
         ValueError: If requirements are invalid
         ResourceError: If allocation algorithm fails
-        
+
     Example:
         >>> requirements = ResourceRequirements(cpu=2.0, memory=1024)
         >>> capacity = ResourceCapacity(cpu=8.0, memory=4096)
@@ -391,15 +391,15 @@ from puffinflow import Agent, Coordinator
 async def main():
     # Create coordinator
     coordinator = Coordinator()
-    
+
     # Create agents
     agent1 = Agent("data-processor")
     agent2 = Agent("data-analyzer")
-    
+
     # Add agents to coordinator
     coordinator.add_agent(agent1)
     coordinator.add_agent(agent2)
-    
+
     # Execute coordinated workflow
     result = await coordinator.execute_workflow()
     print(f"Workflow result: {result}")
@@ -429,11 +429,11 @@ if __name__ == "__main__":
 def test_input_validation():
     """Test that inputs are properly validated."""
     agent = Agent("test-agent")
-    
+
     # Test injection attempts
     with pytest.raises(ValueError):
         agent.set_name("'; DROP TABLE agents; --")
-    
+
     # Test oversized inputs
     with pytest.raises(ValueError):
         huge_name = "a" * 10000
@@ -523,7 +523,7 @@ New contributors can request mentorship:
 
 ---
 
-**Thank you for contributing to PuffinFlow!** 
+**Thank you for contributing to PuffinFlow!**
 
 Your contributions help make workflow orchestration more accessible and powerful for everyone. We appreciate your time, effort, and expertise in making PuffinFlow better.
 

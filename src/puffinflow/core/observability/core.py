@@ -1,6 +1,7 @@
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Optional
+from typing import Any, Optional
 
 from .alerting import WebhookAlerting
 from .config import ObservabilityConfig
@@ -72,39 +73,47 @@ class ObservabilityManager:
 
     async def shutdown(self) -> None:
         """Shutdown all components"""
-        if self._events:
+        if self._events and hasattr(self._events, "shutdown"):
             await self._events.shutdown()
         self._initialized = False
 
     # Convenience methods
     @contextmanager
-    def trace(self, name: str, **attributes):
+    def trace(self, name: str, **attributes: Any) -> Iterator[Any]:
         """Create trace span"""
-        if self._tracing:
+        if self._tracing and hasattr(self._tracing, "span"):
             with self._tracing.span(name, **attributes) as span:
                 yield span
         else:
             yield None
 
-    def counter(self, name: str, description: str = "", labels=None):
+    def counter(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Any:
         """Create counter metric"""
         if self._metrics:
             return self._metrics.counter(name, description, labels)
         return None
 
-    def gauge(self, name: str, description: str = "", labels=None):
+    def gauge(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Any:
         """Create gauge metric"""
         if self._metrics:
             return self._metrics.gauge(name, description, labels)
         return None
 
-    def histogram(self, name: str, description: str = "", labels=None):
+    def histogram(
+        self, name: str, description: str = "", labels: Optional[list[str]] = None
+    ) -> Any:
         """Create histogram metric"""
         if self._metrics:
             return self._metrics.histogram(name, description, labels)
         return None
 
-    async def alert(self, message: str, severity: str = "warning", **attributes):
+    async def alert(
+        self, message: str, severity: str = "warning", **attributes: Any
+    ) -> None:
         """Send alert"""
         if self._alerting:
             from .interfaces import AlertSeverity

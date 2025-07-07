@@ -111,7 +111,7 @@ class TracingProvider(ABC):
         name: str,
         span_type: SpanType = SpanType.SYSTEM,
         parent: Optional[SpanContext] = None,
-        **attributes,
+        **attributes: Any,
     ) -> Span:
         """Start a new span"""
 
@@ -124,7 +124,7 @@ class Metric(ABC):
     """Abstract metric interface"""
 
     @abstractmethod
-    def record(self, value: float, **labels) -> None:
+    def record(self, value: float, **labels: Any) -> None:
         """Record metric value"""
 
 

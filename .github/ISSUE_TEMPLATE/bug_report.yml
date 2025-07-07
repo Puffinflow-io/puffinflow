@@ -101,7 +101,7 @@ body:
       render: python
       placeholder: |
         from puffinflow import Agent
-        
+
         # Your minimal example here
     validations:
       required: false

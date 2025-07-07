@@ -12,7 +12,7 @@ on:
     branches: [main]
     paths:
       - '**/requirements*.txt'
-      - '**/pyproject.toml' 
+      - '**/pyproject.toml'
       - '**/setup.py'
       - '**/Pipfile*'
   schedule:
@@ -45,7 +45,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install safety pip-audit semgrep cyclonedx-bom
 
-      - name: Install project dependencies 
+      - name: Install project dependencies
         run: |
           pip install -e ".[dev,test]"
 
@@ -91,7 +91,7 @@ jobs:
         run: |
           echo "## 🔒 Dependency Security Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Safety results
           if [ -f safety-report.json ]; then
             SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "0")
@@ -101,7 +101,7 @@ jobs:
               echo "✅ **Safety**: No known vulnerabilities found" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-          
+
           # pip-audit results
           if [ -f pip-audit-report.json ]; then
             PIP_AUDIT_ISSUES=$(jq '.vulnerabilities | length' pip-audit-report.json 2>/dev/null || echo "0")
@@ -111,13 +111,13 @@ jobs:
               echo "✅ **pip-audit**: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-          
+
           # Outdated packages
           if [ -f outdated-packages.json ]; then
             OUTDATED_COUNT=$(jq length outdated-packages.json 2>/dev/null || echo "0")
             echo "📦 **Outdated packages**: $OUTDATED_COUNT packages have updates available" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 SBOM Generated" >> $GITHUB_STEP_SUMMARY
           echo "Software Bill of Materials available in artifacts" >> $GITHUB_STEP_SUMMARY
@@ -167,7 +167,7 @@ jobs:
         run: |
           echo "⚖️ **License Compliance Report**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Generate comprehensive license report
           pip-licenses --format=markdown --output-file=LICENSE-REPORT.md
           pip-licenses --summary >> $GITHUB_STEP_SUMMARY
@@ -176,19 +176,19 @@ jobs:
         run: |
           # Define allowed licenses (adjust based on your organization's policy)
           ALLOWED_LICENSES="MIT,Apache Software License,BSD License,Python Software Foundation License,Mozilla Public License 2.0 (MPL 2.0)"
-          
+
           # Check for potentially problematic licenses
           pip-licenses --format=json > all-licenses.json
-          
+
           echo "### 🚨 License Compatibility Check" >> $GITHUB_STEP_SUMMARY
-          
+
           # Check for GPL licenses (might conflict with proprietary use)
           if grep -i "gpl" all-licenses.json; then
             echo "⚠️ GPL licenses detected - review for compatibility" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ No GPL licenses detected" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Check for unknown licenses
           if grep -i "unknown" all-licenses.json; then
             echo "⚠️ Unknown licenses detected - manual review needed" >> $GITHUB_STEP_SUMMARY

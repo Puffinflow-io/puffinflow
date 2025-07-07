@@ -46,7 +46,7 @@ class ResourceRequirements:
     timeout: Optional[float] = None
     resource_types: ResourceType = ResourceType.ALL
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Ensure resource_types is always a valid ResourceType enum."""
         try:
             # Check if resource_types is valid
@@ -71,8 +71,10 @@ class ResourceRequirements:
             logger.error(f"Error in ResourceRequirements.__post_init__: {e}")
             # Fallback to a safe default
             object.__setattr__(self, "resource_types", ResourceType.ALL)
+        else:
+            pass
 
-    def _auto_determine_resource_types(self):
+    def _auto_determine_resource_types(self) -> None:
         """Auto-determine resource_types from individual resource amounts."""
         resource_types = ResourceType.NONE
 
@@ -211,7 +213,9 @@ def get_resource_amount(
     total = 0.0
     for rt, attr in RESOURCE_ATTRIBUTE_MAPPING.items():
         try:
-            if rt in resource_type and safe_check_resource_type(requirements, rt):
+            if (resource_type.value & rt.value) != 0 and safe_check_resource_type(
+                requirements, rt
+            ):
                 total += getattr(requirements, attr, 0.0)
         except TypeError:
             # Fallback if 'in' operation fails

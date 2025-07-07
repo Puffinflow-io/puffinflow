@@ -1,5 +1,6 @@
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Optional
 
@@ -150,7 +151,7 @@ class OpenTelemetryTracingProvider(TracingProvider):
         name: str,
         span_type: SpanType = SpanType.SYSTEM,
         parent: Optional[SpanContext] = None,
-        **attributes,
+        **attributes: Any,
     ) -> Span:
         """Start new span"""
         # Create span context
@@ -193,8 +194,8 @@ class OpenTelemetryTracingProvider(TracingProvider):
         name: str,
         span_type: SpanType = SpanType.SYSTEM,
         parent: Optional[SpanContext] = None,
-        **attributes,
-    ):
+        **attributes: Any,
+    ) -> Iterator[Span]:
         """Context manager for spans"""
         span = self.start_span(name, span_type, parent, **attributes)
         try:

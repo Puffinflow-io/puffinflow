@@ -42,14 +42,14 @@ jobs:
         run: |
           echo "## 📊 Code Quality Metrics" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Cyclomatic complexity
           echo "### Cyclomatic Complexity" >> $GITHUB_STEP_SUMMARY
           radon cc src/ --min=B --show-complexity >> complexity-report.txt
           echo '```' >> $GITHUB_STEP_SUMMARY
           head -20 complexity-report.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          
+
           # Maintainability index
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Maintainability Index" >> $GITHUB_STEP_SUMMARY
@@ -77,14 +77,14 @@ jobs:
           # Simple duplication check
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Code Duplication" >> $GITHUB_STEP_SUMMARY
-          
+
           # Count Python files and total lines
           PYTHON_FILES=$(find src/ -name "*.py" | wc -l)
           TOTAL_LINES=$(find src/ -name "*.py" -exec wc -l {} + | tail -1 | awk '{print $1}')
-          
+
           echo "- **Python files**: $PYTHON_FILES" >> $GITHUB_STEP_SUMMARY
           echo "- **Total lines**: $TOTAL_LINES" >> $GITHUB_STEP_SUMMARY
-          
+
           # Average lines per file
           if [ "$PYTHON_FILES" -gt 0 ]; then
             AVG_LINES=$((TOTAL_LINES / PYTHON_FILES))
@@ -123,7 +123,7 @@ jobs:
         run: |
           echo "## 📚 Documentation Metrics" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Docstring coverage
           echo "### Docstring Coverage" >> $GITHUB_STEP_SUMMARY
           interrogate src/ --verbose --fail-under=70 > docstring-coverage.txt || true
@@ -136,7 +136,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docstring Style Check" >> $GITHUB_STEP_SUMMARY
           pydocstyle src/ --count > docstring-style.txt || true
-          
+
           STYLE_ISSUES=$(cat docstring-style.txt | tail -1 | grep -o '[0-9]\+' || echo "0")
           if [ "$STYLE_ISSUES" -gt 0 ]; then
             echo "⚠️ Found $STYLE_ISSUES docstring style issues" >> $GITHUB_STEP_SUMMARY
@@ -178,7 +178,7 @@ jobs:
             # Create basic docs config if not exists
             echo "# Minimal docs config" > docs/conf.py
           fi
-          
+
           cd docs && make html || echo "Docs built with warnings"
 
       - name: Install accessibility testing tools
@@ -189,7 +189,7 @@ jobs:
         run: |
           echo "♿ **Accessibility Audit**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -d docs/_build/html ]; then
             # Basic accessibility check
             echo "Documentation accessibility check completed" >> $GITHUB_STEP_SUMMARY
@@ -209,7 +209,7 @@ jobs:
         run: |
           echo "🔐 **Supply Chain Security**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Check recent commits for signatures
           RECENT_COMMITS=$(git log --oneline -n 10)
           echo "### Recent Commits Verified" >> $GITHUB_STEP_SUMMARY
@@ -221,12 +221,12 @@ jobs:
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Dependency Provenance" >> $GITHUB_STEP_SUMMARY
-          
+
           # Basic check for pip requirements
           if [ -f pyproject.toml ]; then
             echo "✅ Using pyproject.toml for dependency management" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Check for lock files
           if [ -f poetry.lock ] || [ -f Pipfile.lock ]; then
             echo "✅ Dependency lock file present" >> $GITHUB_STEP_SUMMARY
@@ -246,22 +246,22 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Generated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Job status summary
           echo "## Job Status Summary" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ needs.code-quality-metrics.result }}" == "success" ]; then
             echo "✅ **Code Quality**: Passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Code Quality**: Failed or skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ needs.documentation-coverage.result }}" == "success" ]; then
             echo "✅ **Documentation**: Passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Documentation**: Failed or skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ needs.accessibility-audit.result }}" == "success" ]; then
             echo "✅ **Accessibility**: Passed" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.accessibility-audit.result }}" == "skipped" ]; then
@@ -269,13 +269,13 @@ jobs:
           else
             echo "❌ **Accessibility**: Failed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ needs.supply-chain-security.result }}" == "success" ]; then
             echo "✅ **Supply Chain**: Passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Supply Chain**: Failed or skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Compliance Checklist" >> $GITHUB_STEP_SUMMARY
           echo "- [x] Code quality metrics collected" >> $GITHUB_STEP_SUMMARY

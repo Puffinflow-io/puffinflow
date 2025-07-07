@@ -104,26 +104,26 @@ jobs:
         run: |
           USERS=${{ github.event.inputs.load_test_users || '50' }}
           DURATION=${{ github.event.inputs.benchmark_duration || '30' }}
-          
+
           # Create simple locustfile if it doesn't exist
           if [ ! -f locustfile.py ]; then
             cat > locustfile.py << 'EOF'
           from locust import HttpUser, task, between
-          
+
           class PuffinFlowUser(HttpUser):
               wait_time = between(1, 3)
-              
+
               @task
               def test_health(self):
                   # Basic health check simulation
                   pass
-                  
+
               def on_start(self):
                   # Setup user session
                   pass
           EOF
           fi
-          
+
           # Run load test (headless mode)
           locust --headless --users=$USERS --spawn-rate=10 --run-time=${DURATION}s --host=http://localhost:8000 --html=load-test-report.html || echo "Load test completed"
 
@@ -171,49 +171,49 @@ jobs:
           import gc
           import sys
           from memory_profiler import profile
-          
+
           from puffinflow.core.agent.base import Agent
           from puffinflow.core.resources.pool import ResourcePool
-          
+
           def test_agent_memory_usage():
               """Test that agents don't leak memory."""
               initial_objects = len(gc.get_objects())
-              
+
               # Create and destroy multiple agents
               for i in range(100):
                   agent = Agent(f"test_agent_{i}")
                   del agent
-              
+
               gc.collect()
               final_objects = len(gc.get_objects())
-              
+
               # Allow some growth but not excessive
               growth = final_objects - initial_objects
               assert growth < 1000, f"Potential memory leak: {growth} new objects"
-          
+
           def test_resource_pool_memory_usage():
               """Test resource pool memory management."""
               import tracemalloc
-              
+
               tracemalloc.start()
-              
+
               pool = ResourcePool()
-              
+
               # Simulate heavy usage
               for i in range(50):
                   try:
                       pool.acquire("test_agent", None)
                   except:
                       pass
-              
+
               current, peak = tracemalloc.get_traced_memory()
               tracemalloc.stop()
-              
+
               # Memory usage should be reasonable
               assert current < 10 * 1024 * 1024, f"High memory usage: {current} bytes"
           EOF
           fi
-          
+
           python -m pytest tests/performance/test_memory_leaks.py -v --tb=short || echo "Memory tests completed"
 
       - name: Generate memory report

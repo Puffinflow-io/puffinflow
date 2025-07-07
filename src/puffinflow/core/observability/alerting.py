@@ -16,18 +16,20 @@ class Alert:
     message: str
     severity: AlertSeverity
     attributes: dict[str, Any]
-    timestamp: datetime = None
+    timestamp: Optional[datetime] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.timestamp is None:
             self.timestamp = datetime.now()
+        else:
+            pass
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "message": self.message,
             "severity": self.severity.value,
             "attributes": self.attributes,
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
 
 
@@ -58,7 +60,7 @@ class WebhookAlerting(AlertingProvider):
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _send_webhook(self, url: str, payload: dict[str, Any]):
+    async def _send_webhook(self, url: str, payload: dict[str, Any]) -> None:
         """Send single webhook"""
         try:
             async with (

@@ -168,7 +168,7 @@ agent = Agent("secure-agent", resource_requirements=requirements)
 def process_user_input(user_data: str) -> str:
     if not user_data or len(user_data) > 1000:
         raise ValueError("Invalid input length")
-    
+
     # Sanitize input
     sanitized = user_data.strip()
     return sanitized
@@ -179,7 +179,7 @@ from pydantic import BaseModel, validator
 class WorkflowConfig(BaseModel):
     name: str
     max_agents: int
-    
+
     @validator('name')
     def validate_name(cls, v):
         if not v.isalnum():
@@ -216,17 +216,17 @@ async def process_payment(context):
 def test_agent_input_validation():
     """Test that agent properly validates inputs."""
     agent = Agent("test-agent")
-    
+
     # Test SQL injection attempt
     malicious_input = "'; DROP TABLE users; --"
     with pytest.raises(ValueError):
         agent.process_input(malicious_input)
-    
+
     # Test XSS attempt
     xss_input = "<script>alert('xss')</script>"
     with pytest.raises(ValueError):
         agent.process_input(xss_input)
-    
+
     # Test oversized input
     huge_input = "a" * 1000000
     with pytest.raises(ValueError):

@@ -493,7 +493,8 @@ class TestConcurrency:
 
             # Create multiple concurrent allocation tasks
             tasks = [
-                allocate_resource(2.0) for _ in range(8)  # 8 * 2.0 = 16.0 > 10.0 limit
+                allocate_resource(2.0)
+                for _ in range(8)  # 8 * 2.0 = 16.0 > 10.0 limit
             ]
 
             results = await asyncio.gather(*tasks)

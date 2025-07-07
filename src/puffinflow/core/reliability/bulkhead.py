@@ -1,6 +1,7 @@
 """Bulkhead pattern for resource isolation."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -30,7 +31,7 @@ class Bulkhead:
         self._active_tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
-    async def isolate(self):
+    async def isolate(self) -> AsyncIterator[None]:
         """Execute function within bulkhead constraints"""
         # Check queue capacity
         if self._queue_size >= self.config.max_queue_size:
@@ -71,7 +72,7 @@ class Bulkhead:
 class BulkheadRegistry:
     """Simple registry for bulkheads"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._bulkheads: dict[str, Bulkhead] = {}
 
     def get_or_create(

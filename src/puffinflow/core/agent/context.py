@@ -6,18 +6,18 @@ import time
 from typing import Any, Callable, Optional, TypeVar, Union
 
 try:
-    from pydantic import BaseModel
+    from pydantic import BaseModel as PydanticBaseModel
 
     _PYD_VER = 2
-    _PBM = BaseModel
+    _PBM = PydanticBaseModel
 except ImportError:
     try:
-        from pydantic.v1 import BaseModel
+        from pydantic.v1 import BaseModel as PydanticBaseModel
 
         _PYD_VER = 1
-        _PBM = BaseModel
+        _PBM = PydanticBaseModel
     except ImportError as _e:
-        _PBM = None
+        _PBM = type("BaseModel", (object,), {})
         _PYD_VER = 0
         _PYD_ERR = _e
 
@@ -58,7 +58,7 @@ class Context:
         self._cache: dict[str, tuple] = {}  # (value, expiry_time)
         self._outputs: dict[str, Any] = {}
         self._metadata: dict[str, Any] = {}
-        self._metrics: dict[str, Any] = {}
+        self._metrics: dict[str, Union[int, float]] = {}
         self._restore_metadata()
 
     def _restore_metadata(self) -> None:

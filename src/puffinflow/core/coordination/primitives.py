@@ -135,13 +135,13 @@ class CoordinationPrimitive:
             self._last_error = str(e)
             raise
 
-    def _acquire_for(self, caller_id: str):
+    def _acquire_for(self, caller_id: str) -> None:
         """Internal acquisition helper"""
         self._owners.add(caller_id)
         self._acquired_times[caller_id] = time.time()
         self._state = ResourceState.ACQUIRED
 
-    def _remove_owner(self, caller_id: str):
+    def _remove_owner(self, caller_id: str) -> None:
         """Internal removal helper"""
         self._owners.discard(caller_id)
         self._acquired_times.pop(caller_id, None)
@@ -149,7 +149,7 @@ class CoordinationPrimitive:
         if not self._owners:
             self._state = ResourceState.AVAILABLE
 
-    def _cleanup_expired(self):
+    def _cleanup_expired(self) -> None:
         """Clean up expired acquisitions"""
         now = time.time()
         expired = [
@@ -205,14 +205,14 @@ class Mutex(CoordinationPrimitive):
     def __init__(self, name: str, ttl: float = 30.0):
         super().__init__(name=name, type=PrimitiveType.MUTEX, ttl=ttl, max_count=1)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "Mutex":
         """Async context manager support"""
         caller_id = str(uuid.uuid4())
         self._context_caller_id = caller_id
         await self.acquire(caller_id)
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager support"""
         if hasattr(self, "_context_caller_id"):
             await self.release(self._context_caller_id)
@@ -317,7 +317,7 @@ class Lease(CoordinationPrimitive):
 
         return await super().release(caller_id)
 
-    async def _auto_renew_loop(self, caller_id: str):
+    async def _auto_renew_loop(self, caller_id: str) -> None:
         """Auto-renew lease periodically"""
         while True:
             try:
@@ -398,7 +398,7 @@ class Quota(CoordinationPrimitive):
         self._last_reset = time.time()
         self._reset_task: Optional[asyncio.Task] = None
 
-    def _start_reset_task_if_needed(self):
+    def _start_reset_task_if_needed(self) -> None:
         """Start the background reset task if configured and not already running."""
         if self.reset_interval and self._reset_task is None:
             self._reset_task = asyncio.create_task(self._reset_loop())
@@ -408,7 +408,7 @@ class Quota(CoordinationPrimitive):
         self._start_reset_task_if_needed()
         return await self.acquire(caller_id, quota_amount=amount)
 
-    async def release_quota(self, caller_id: str, amount: float):
+    async def release_quota(self, caller_id: str, amount: float) -> None:
         """Release quota (give back)"""
         self._start_reset_task_if_needed()
         async with self._lock:
@@ -428,7 +428,7 @@ class Quota(CoordinationPrimitive):
         """Get current usage by caller"""
         return dict(self._quota_usage)
 
-    async def reset(self):
+    async def reset(self) -> None:
         """Reset all quota usage"""
         self._start_reset_task_if_needed()
         async with self._lock:
@@ -436,7 +436,7 @@ class Quota(CoordinationPrimitive):
             self._last_reset = time.time()
             logger.info("quota_reset", quota=self.name)
 
-    async def _reset_loop(self):
+    async def _reset_loop(self) -> None:
         """Periodic quota reset"""
         while True:
             try:
@@ -450,7 +450,7 @@ class Quota(CoordinationPrimitive):
             except Exception as e:
                 logger.error("quota_reset_error", quota=self.name, error=str(e))
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup reset task"""
         if self._reset_task and not self._reset_task.done():
             self._reset_task.cancel()
@@ -458,7 +458,7 @@ class Quota(CoordinationPrimitive):
 
 # Factory function
 def create_primitive(
-    primitive_type: PrimitiveType, name: str, **kwargs
+    primitive_type: PrimitiveType, name: str, **kwargs: Any
 ) -> CoordinationPrimitive:
     """Create a coordination primitive by type"""
     primitives = {
@@ -475,4 +475,4 @@ def create_primitive(
     if primitive_class == CoordinationPrimitive:
         return CoordinationPrimitive(name=name, type=primitive_type, **kwargs)
     else:
-        return primitive_class(name=name, **kwargs)
+        return primitive_class(name=name, **kwargs)  # type: ignore[no-any-return]

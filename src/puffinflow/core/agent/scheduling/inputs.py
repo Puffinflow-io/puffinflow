@@ -28,7 +28,7 @@ class ScheduledInput:
     input_type: InputType
     ttl: Optional[int] = None  # For cached inputs
 
-    def apply_to_context(self, context) -> None:
+    def apply_to_context(self, context: Any) -> None:
         """Apply this input to a context."""
         if self.input_type == InputType.SECRET:
             context.set_secret(self.key, self.value)
@@ -122,7 +122,7 @@ def parse_magic_prefix(key: str, value: Any) -> ScheduledInput:
         return ScheduledInput(key, value, InputType.VARIABLE)
 
 
-def parse_inputs(**inputs) -> dict[str, ScheduledInput]:
+def parse_inputs(**inputs: Any) -> dict[str, ScheduledInput]:
     """Parse all inputs with magic prefixes.
 
     Args:

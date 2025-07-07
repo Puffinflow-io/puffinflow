@@ -1,5 +1,5 @@
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 from prometheus_client import CollectorRegistry, generate_latest
 from prometheus_client import Counter as PrometheusCounter
@@ -14,15 +14,15 @@ class PrometheusMetric(Metric):
     """Prometheus metric wrapper"""
 
     def __init__(
-        self, prometheus_metric, metric_type: MetricType, cardinality_limit: int
-    ):
+        self, prometheus_metric: Any, metric_type: MetricType, cardinality_limit: int
+    ) -> None:
         self._prometheus_metric = prometheus_metric
         self._metric_type = metric_type
         self._cardinality_limit = cardinality_limit
         self._series_count = 0
         self._lock = threading.Lock()
 
-    def record(self, value: float, **labels) -> None:
+    def record(self, value: float, **labels: Any) -> None:
         """Record metric value"""
         # Basic cardinality protection
         with self._lock:
@@ -61,27 +61,31 @@ class PrometheusMetricsProvider(MetricsProvider):
     def __init__(self, config: MetricsConfig):
         self.config = config
         self._registry = CollectorRegistry()
-        self._metrics_cache = {}
+        self._metrics_cache: dict[str, Metric] = {}
         self._lock = threading.Lock()
 
     def counter(
         self, name: str, description: str = "", labels: Optional[list[str]] = None
     ) -> Metric:
         """Create counter metric"""
-        return self._get_or_create_metric(name, MetricType.COUNTER, description, labels)
+        return self._get_or_create_metric(
+            name, MetricType.COUNTER, description, labels or []
+        )
 
     def gauge(
         self, name: str, description: str = "", labels: Optional[list[str]] = None
     ) -> Metric:
         """Create gauge metric"""
-        return self._get_or_create_metric(name, MetricType.GAUGE, description, labels)
+        return self._get_or_create_metric(
+            name, MetricType.GAUGE, description, labels or []
+        )
 
     def histogram(
         self, name: str, description: str = "", labels: Optional[list[str]] = None
     ) -> Metric:
         """Create histogram metric"""
         return self._get_or_create_metric(
-            name, MetricType.HISTOGRAM, description, labels
+            name, MetricType.HISTOGRAM, description, labels or []
         )
 
     def _get_or_create_metric(
@@ -128,4 +132,5 @@ class PrometheusMetricsProvider(MetricsProvider):
 
     def export_metrics(self) -> str:
         """Export metrics in Prometheus format"""
-        return generate_latest(self._registry).decode("utf-8")
+        result = generate_latest(self._registry)
+        return result.decode("utf-8")

@@ -1,6 +1,7 @@
 import asyncio
+import contextlib
 from collections import deque
-from typing import Callable
+from typing import Any, Callable, Optional
 
 from .config import EventsConfig
 from .interfaces import EventProcessor, ObservabilityEvent
@@ -11,32 +12,34 @@ class BufferedEventProcessor(EventProcessor):
 
     def __init__(self, config: EventsConfig):
         self.config = config
-        self.buffer = deque(maxlen=config.buffer_size)
-        self.subscribers = []
-        self._task = None
+        self.buffer: Any = deque(maxlen=config.buffer_size)
+        self.subscribers: list[Callable[[ObservabilityEvent], None]] = []
+        self._task: Optional[Any] = None
         self._shutdown = False
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize event processor"""
         if self.config.enabled:
             self._task = asyncio.create_task(self._process_loop())
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Shutdown event processor"""
         self._shutdown = True
         if self._task:
             self._task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._task
 
     async def process_event(self, event: ObservabilityEvent) -> None:
         """Add event to buffer"""
         if self.config.enabled:
             self.buffer.append(event)
 
-    def subscribe(self, callback: Callable[[ObservabilityEvent], None]):
+    def subscribe(self, callback: Callable[[ObservabilityEvent], None]) -> None:
         """Subscribe to events"""
         self.subscribers.append(callback)
 
-    async def _process_loop(self):
+    async def _process_loop(self) -> None:
         """Process events from buffer"""
         while not self._shutdown:
             try:
