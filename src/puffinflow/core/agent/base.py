@@ -3,7 +3,6 @@
 import asyncio
 import json
 import logging
-import os
 import pickle
 import time
 import weakref
@@ -36,6 +35,7 @@ except ImportError:
 # Import ResourceRequirements conditionally
 try:
     from ..resources.requirements import ResourceRequirements
+
     _ResourceRequirements: Optional[type] = ResourceRequirements
 except ImportError:
     _ResourceRequirements = None
@@ -54,19 +54,23 @@ logger = logging.getLogger(__name__)
 # Checkpoint persistence interfaces
 class CheckpointStorage(Protocol):
     """Protocol for checkpoint storage backends."""
-    
-    async def save_checkpoint(self, agent_name: str, checkpoint: AgentCheckpoint) -> str:
+
+    async def save_checkpoint(
+        self, agent_name: str, checkpoint: AgentCheckpoint
+    ) -> str:
         """Save checkpoint and return checkpoint ID."""
         ...
-    
-    async def load_checkpoint(self, agent_name: str, checkpoint_id: Optional[str] = None) -> Optional[AgentCheckpoint]:
+
+    async def load_checkpoint(
+        self, agent_name: str, checkpoint_id: Optional[str] = None
+    ) -> Optional[AgentCheckpoint]:
         """Load checkpoint by ID or latest for agent."""
         ...
-    
+
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List available checkpoint IDs for agent."""
         ...
-    
+
     async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
         """Delete a specific checkpoint."""
         ...
@@ -74,11 +78,11 @@ class CheckpointStorage(Protocol):
 
 class FileCheckpointStorage:
     """File-based checkpoint storage."""
-    
+
     def __init__(self, base_path: str = "./checkpoints", format: str = "pickle"):
         """
         Initialize file storage.
-        
+
         Args:
             base_path: Directory to store checkpoint files
             format: Storage format ('pickle' or 'json')
@@ -87,25 +91,27 @@ class FileCheckpointStorage:
         self.format = format.lower()
         if self.format not in ("pickle", "json"):
             raise ValueError(f"Unsupported format: {format}. Use 'pickle' or 'json'")
-        
+
         # Create directory if it doesn't exist
         self.base_path.mkdir(parents=True, exist_ok=True)
-    
+
     def _get_checkpoint_path(self, agent_name: str, checkpoint_id: str) -> Path:
         """Get file path for checkpoint."""
         agent_dir = self.base_path / agent_name
         agent_dir.mkdir(exist_ok=True)
         ext = "pkl" if self.format == "pickle" else "json"
         return agent_dir / f"{checkpoint_id}.{ext}"
-    
-    async def save_checkpoint(self, agent_name: str, checkpoint: AgentCheckpoint) -> str:
+
+    async def save_checkpoint(
+        self, agent_name: str, checkpoint: AgentCheckpoint
+    ) -> str:
         """Save checkpoint to file."""
         checkpoint_id = f"checkpoint_{int(checkpoint.timestamp)}"
         file_path = self._get_checkpoint_path(agent_name, checkpoint_id)
-        
+
         try:
             if self.format == "pickle":
-                with open(file_path, "wb") as f:
+                with file_path.open("wb") as f:
                     pickle.dump(checkpoint, f)
             else:  # json
                 # Convert checkpoint to JSON-serializable format
@@ -126,7 +132,7 @@ class FileCheckpointStorage:
                                 "last_success": ps.metadata.last_success,
                                 "state_id": ps.metadata.state_id,
                                 "priority": ps.metadata.priority.value,
-                            }
+                            },
                         }
                         for ps in checkpoint.priority_queue
                     ],
@@ -148,18 +154,20 @@ class FileCheckpointStorage:
                     "shared_state": checkpoint.shared_state,
                     "session_start": checkpoint.session_start,
                 }
-                
-                with open(file_path, "w") as f:
+
+                with file_path.open("w") as f:
                     json.dump(checkpoint_data, f, indent=2, default=str)
-            
+
             logger.info(f"Checkpoint saved to {file_path}")
             return checkpoint_id
-            
+
         except Exception as e:
             logger.error(f"Failed to save checkpoint to {file_path}: {e}")
             raise
-    
-    async def load_checkpoint(self, agent_name: str, checkpoint_id: Optional[str] = None) -> Optional[AgentCheckpoint]:
+
+    async def load_checkpoint(
+        self, agent_name: str, checkpoint_id: Optional[str] = None
+    ) -> Optional[AgentCheckpoint]:
         """Load checkpoint from file."""
         if checkpoint_id is None:
             # Load latest checkpoint
@@ -167,25 +175,31 @@ class FileCheckpointStorage:
             if not checkpoints:
                 return None
             checkpoint_id = checkpoints[-1]  # Latest by timestamp
-        
+
         file_path = self._get_checkpoint_path(agent_name, checkpoint_id)
-        
+
         if not file_path.exists():
             logger.warning(f"Checkpoint file not found: {file_path}")
             return None
-        
+
         try:
             if self.format == "pickle":
-                with open(file_path, "rb") as f:
+                with file_path.open("rb") as f:
                     checkpoint: AgentCheckpoint = pickle.load(f)
                     return checkpoint
             else:  # json
-                with open(file_path, "r") as f:
+                with file_path.open("r") as f:
                     data = json.load(f)
-                
+
                 # Reconstruct checkpoint from JSON data
-                from .state import AgentStatus, Priority, StateMetadata, StateStatus, PrioritizedState
-                
+                from .state import (
+                    AgentStatus,
+                    PrioritizedState,
+                    Priority,
+                    StateMetadata,
+                    StateStatus,
+                )
+
                 checkpoint = AgentCheckpoint(
                     timestamp=data["timestamp"],
                     agent_name=data["agent_name"],
@@ -203,7 +217,7 @@ class FileCheckpointStorage:
                                 last_success=ps["metadata"]["last_success"],
                                 state_id=ps["metadata"]["state_id"],
                                 priority=Priority(ps["metadata"]["priority"]),
-                            )
+                            ),
                         )
                         for ps in data["priority_queue"]
                     ],
@@ -225,33 +239,32 @@ class FileCheckpointStorage:
                     shared_state=data["shared_state"],
                     session_start=data["session_start"],
                 )
-                
+
                 return checkpoint
-                
+
         except Exception as e:
             logger.error(f"Failed to load checkpoint from {file_path}: {e}")
             return None
-    
+
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List available checkpoint files."""
         agent_dir = self.base_path / agent_name
         if not agent_dir.exists():
             return []
-        
+
         ext = "pkl" if self.format == "pickle" else "json"
-        checkpoint_files = [
-            f.stem for f in agent_dir.glob(f"*.{ext}")
-            if f.is_file()
-        ]
-        
+        checkpoint_files = [f.stem for f in agent_dir.glob(f"*.{ext}") if f.is_file()]
+
         # Sort by timestamp (extract from filename)
-        checkpoint_files.sort(key=lambda x: int(x.split('_')[-1]) if x.split('_')[-1].isdigit() else 0)
+        checkpoint_files.sort(
+            key=lambda x: int(x.split("_")[-1]) if x.split("_")[-1].isdigit() else 0
+        )
         return checkpoint_files
-    
+
     async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
         """Delete checkpoint file."""
         file_path = self._get_checkpoint_path(agent_name, checkpoint_id)
-        
+
         try:
             if file_path.exists():
                 file_path.unlink()
@@ -265,57 +278,70 @@ class FileCheckpointStorage:
 
 class MemoryCheckpointStorage:
     """In-memory checkpoint storage for testing."""
-    
+
     def __init__(self) -> None:
         self._checkpoints: dict[str, dict[str, AgentCheckpoint]] = {}
-    
-    async def save_checkpoint(self, agent_name: str, checkpoint: AgentCheckpoint) -> str:
+
+    async def save_checkpoint(
+        self, agent_name: str, checkpoint: AgentCheckpoint
+    ) -> str:
         """Save checkpoint to memory."""
         checkpoint_id = f"checkpoint_{int(checkpoint.timestamp)}"
-        
+
         if agent_name not in self._checkpoints:
             self._checkpoints[agent_name] = {}
-        
+
         # Deep copy to prevent modifications
         import copy
+
         self._checkpoints[agent_name][checkpoint_id] = copy.deepcopy(checkpoint)
-        
+
         logger.info(f"Checkpoint saved to memory: {agent_name}/{checkpoint_id}")
         return checkpoint_id
-    
-    async def load_checkpoint(self, agent_name: str, checkpoint_id: Optional[str] = None) -> Optional[AgentCheckpoint]:
+
+    async def load_checkpoint(
+        self, agent_name: str, checkpoint_id: Optional[str] = None
+    ) -> Optional[AgentCheckpoint]:
         """Load checkpoint from memory."""
         if agent_name not in self._checkpoints:
             return None
-        
+
         agent_checkpoints = self._checkpoints[agent_name]
-        
+
         if checkpoint_id is None:
             # Get latest checkpoint
             if not agent_checkpoints:
                 return None
-            latest_id = max(agent_checkpoints.keys(), key=lambda x: int(x.split('_')[-1]))
+            latest_id = max(
+                agent_checkpoints.keys(), key=lambda x: int(x.split("_")[-1])
+            )
             checkpoint_id = latest_id
-        
+
         checkpoint = agent_checkpoints.get(checkpoint_id)
         if checkpoint:
             # Return deep copy to prevent modifications
             import copy
+
             return copy.deepcopy(checkpoint)
         return None
-    
+
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoints in memory."""
         if agent_name not in self._checkpoints:
             return []
-        
+
         checkpoints = list(self._checkpoints[agent_name].keys())
-        checkpoints.sort(key=lambda x: int(x.split('_')[-1]) if x.split('_')[-1].isdigit() else 0)
+        checkpoints.sort(
+            key=lambda x: int(x.split("_")[-1]) if x.split("_")[-1].isdigit() else 0
+        )
         return checkpoints
-    
+
     async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
         """Delete checkpoint from memory."""
-        if agent_name in self._checkpoints and checkpoint_id in self._checkpoints[agent_name]:
+        if (
+            agent_name in self._checkpoints
+            and checkpoint_id in self._checkpoints[agent_name]
+        ):
             del self._checkpoints[agent_name][checkpoint_id]
             logger.info(f"Deleted checkpoint from memory: {agent_name}/{checkpoint_id}")
             return True
@@ -835,7 +861,9 @@ class Agent:
         name: str,
         func: Callable,
         dependencies: Optional[list[str]] = None,
-        resources: Optional[Any] = None,  # Using Any since ResourceRequirements may not be available
+        resources: Optional[
+            Any
+        ] = None,  # Using Any since ResourceRequirements may not be available
         priority: Optional[Priority] = None,
         retry_policy: Optional[RetryPolicy] = None,
         coordination_primitives: Optional[list["CoordinationPrimitive"]] = None,
@@ -887,7 +915,9 @@ class Agent:
         """Extract resource requirements from decorator metadata."""
         if hasattr(func, "_resource_requirements"):
             requirements = func._resource_requirements
-            if _ResourceRequirements is not None and isinstance(requirements, _ResourceRequirements):
+            if _ResourceRequirements is not None and isinstance(
+                requirements, _ResourceRequirements
+            ):
                 return requirements
         return None
 
@@ -910,15 +940,16 @@ class Agent:
     async def save_checkpoint(self) -> str:
         """Save current state as checkpoint with persistent storage."""
         checkpoint = self.create_checkpoint()
-        
+
         try:
             checkpoint_id = await self.checkpoint_storage.save_checkpoint(
-                agent_name=self.name,
-                checkpoint=checkpoint
+                agent_name=self.name, checkpoint=checkpoint
             )
-            logger.info(f"Checkpoint saved for agent {self.name} with ID: {checkpoint_id}")
+            logger.info(
+                f"Checkpoint saved for agent {self.name} with ID: {checkpoint_id}"
+            )
             return checkpoint_id
-            
+
         except Exception as e:
             logger.error(f"Failed to save checkpoint for agent {self.name}: {e}")
             raise
@@ -926,27 +957,28 @@ class Agent:
     async def load_checkpoint(self, checkpoint_id: Optional[str] = None) -> bool:
         """
         Load agent state from a checkpoint.
-        
+
         Args:
             checkpoint_id: Specific checkpoint ID to load, or None for latest
-            
+
         Returns:
             True if checkpoint was loaded successfully, False otherwise
         """
         try:
             checkpoint = await self.checkpoint_storage.load_checkpoint(
-                agent_name=self.name,
-                checkpoint_id=checkpoint_id
+                agent_name=self.name, checkpoint_id=checkpoint_id
             )
-            
+
             if checkpoint is None:
                 logger.warning(f"No checkpoint found for agent {self.name}")
                 return False
-            
+
             await self.restore_from_checkpoint(checkpoint)
-            logger.info(f"Agent {self.name} restored from checkpoint {checkpoint_id or 'latest'}")
+            logger.info(
+                f"Agent {self.name} restored from checkpoint {checkpoint_id or 'latest'}"
+            )
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to load checkpoint for agent {self.name}: {e}")
             return False
@@ -962,12 +994,16 @@ class Agent:
     async def delete_checkpoint(self, checkpoint_id: str) -> bool:
         """Delete a specific checkpoint."""
         try:
-            success = await self.checkpoint_storage.delete_checkpoint(self.name, checkpoint_id)
+            success = await self.checkpoint_storage.delete_checkpoint(
+                self.name, checkpoint_id
+            )
             if success:
                 logger.info(f"Deleted checkpoint {checkpoint_id} for agent {self.name}")
             return success
         except Exception as e:
-            logger.error(f"Failed to delete checkpoint {checkpoint_id} for agent {self.name}: {e}")
+            logger.error(
+                f"Failed to delete checkpoint {checkpoint_id} for agent {self.name}: {e}"
+            )
             return False
 
     # Execution control
@@ -1061,7 +1097,7 @@ class Agent:
 
         # Get timeout from resources or default
         state_timeout = None
-        if metadata.resources and hasattr(metadata.resources, 'timeout'):
+        if metadata.resources and hasattr(metadata.resources, "timeout"):
             state_timeout = metadata.resources.timeout
 
         # Acquire resources (pass agent name for leak detection)

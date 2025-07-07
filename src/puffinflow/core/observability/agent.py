@@ -11,7 +11,10 @@ class ObservableAgent(Agent):
     """Agent with observability"""
 
     def __init__(
-        self, name: str, observability: Optional[ObservabilityManager] = None, **kwargs: Any
+        self,
+        name: str,
+        observability: Optional[ObservabilityManager] = None,
+        **kwargs: Any,
     ) -> None:
         # Extract workflow_id before passing kwargs to parent
         self.workflow_id = kwargs.pop("workflow_id", f"workflow_{int(time.time())}")

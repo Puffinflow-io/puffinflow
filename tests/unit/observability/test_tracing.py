@@ -333,8 +333,11 @@ class TestOpenTelemetryTracingProvider:
         mock_trace.get_tracer.return_value = mock_tracer
 
         # Mock StatusCode and Status to have OK attribute
-        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code, \
-             patch("puffinflow.core.observability.tracing.Status") as mock_status:
+        with patch(
+            "puffinflow.core.observability.tracing.StatusCode"
+        ) as mock_status_code, patch(
+            "puffinflow.core.observability.tracing.Status"
+        ) as mock_status:
             mock_status_code.OK = "OK"
             mock_status.return_value = Mock()
             provider = OpenTelemetryTracingProvider(config)
@@ -368,8 +371,11 @@ class TestOpenTelemetryTracingProvider:
         mock_trace.get_tracer.return_value = mock_tracer
 
         # Mock StatusCode and Status to have ERROR attribute
-        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code, \
-             patch("puffinflow.core.observability.tracing.Status") as mock_status:
+        with patch(
+            "puffinflow.core.observability.tracing.StatusCode"
+        ) as mock_status_code, patch(
+            "puffinflow.core.observability.tracing.Status"
+        ) as mock_status:
             mock_status_code.ERROR = "ERROR"
             mock_status.return_value = Mock()
             provider = OpenTelemetryTracingProvider(config)

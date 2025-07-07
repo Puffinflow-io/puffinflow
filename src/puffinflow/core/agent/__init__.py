@@ -93,7 +93,9 @@ except ImportError:
 
 
 # Team decorators for convenience
-def create_team_decorator(team_name: str, **defaults: Any) -> Callable[[Callable], Callable]:
+def create_team_decorator(
+    team_name: str, **defaults: Any
+) -> Callable[[Callable], Callable]:
     """Create a decorator for team-specific agents."""
     try:
         from .decorators.flexible import create_custom_decorator
@@ -108,7 +110,9 @@ def create_team_decorator(team_name: str, **defaults: Any) -> Callable[[Callable
         return lambda func: func
 
 
-def create_environment_decorator(env: str, **defaults: Any) -> Callable[[Callable], Callable]:
+def create_environment_decorator(
+    env: str, **defaults: Any
+) -> Callable[[Callable], Callable]:
     """Create a decorator for environment-specific agents."""
     try:
         from .decorators.flexible import create_custom_decorator
@@ -123,7 +127,9 @@ def create_environment_decorator(env: str, **defaults: Any) -> Callable[[Callabl
         return lambda func: func
 
 
-def create_service_decorator(service_name: str, **defaults: Any) -> Callable[[Callable], Callable]:
+def create_service_decorator(
+    service_name: str, **defaults: Any
+) -> Callable[[Callable], Callable]:
     """Create a decorator for service-specific agents."""
     try:
         from .decorators.flexible import create_custom_decorator
@@ -138,7 +144,9 @@ def create_service_decorator(service_name: str, **defaults: Any) -> Callable[[Ca
         return lambda func: func
 
 
-def create_reliable_team_decorator(team_name: str, **defaults: Any) -> Callable[[Callable], Callable]:
+def create_reliable_team_decorator(
+    team_name: str, **defaults: Any
+) -> Callable[[Callable], Callable]:
     """Create a decorator for reliable team agents."""
     try:
         from .decorators.flexible import create_custom_decorator
@@ -155,7 +163,9 @@ def create_reliable_team_decorator(team_name: str, **defaults: Any) -> Callable[
         return lambda func: func
 
 
-def create_external_team_decorator(team_name: str, **defaults: Any) -> Callable[[Callable], Callable]:
+def create_external_team_decorator(
+    team_name: str, **defaults: Any
+) -> Callable[[Callable], Callable]:
     """Create a decorator for external service team agents."""
     try:
         from .decorators.flexible import create_custom_decorator

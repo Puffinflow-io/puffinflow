@@ -612,7 +612,9 @@ def enhance_agent(
 
     # Add execution span context manager
     @contextlib.asynccontextmanager
-    async def _execution_span(state_name: str, attempt_id: str) -> AsyncGenerator[None, None]:
+    async def _execution_span(
+        state_name: str, attempt_id: str
+    ) -> AsyncGenerator[None, None]:
         """Create execution span for monitoring."""
         if hasattr(agent, "_monitor"):
             try:

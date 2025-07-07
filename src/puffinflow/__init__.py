@@ -116,6 +116,7 @@ __all__ = [
     "state",
 ]
 
+
 def get_version() -> str:
     """Get PuffinFlow version."""
     return __version__

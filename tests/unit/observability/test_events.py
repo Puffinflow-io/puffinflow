@@ -67,7 +67,7 @@ class TestBufferedEventProcessor:
         # Create an actual task to mock
         async def dummy_task():
             await asyncio.sleep(0.1)
-        
+
         mock_task = asyncio.create_task(dummy_task())
         processor._task = mock_task
 

@@ -123,7 +123,9 @@ class AllocationMetrics:
         self.queue_lengths: list[int] = []  # Historical queue length snapshots
         self.wait_times: list[float] = []  # Request wait times
 
-    def record_allocation(self, result: AllocationResult, wait_time: float = 0.0) -> None:
+    def record_allocation(
+        self, result: AllocationResult, wait_time: float = 0.0
+    ) -> None:
         """Record metrics for a completed allocation attempt.
 
         Args:

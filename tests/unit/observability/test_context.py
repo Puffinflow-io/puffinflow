@@ -291,6 +291,7 @@ class TestObservableContext:
         # Verify the event structure (if captured)
         if captured_event:
             from datetime import datetime
+
             assert captured_event.timestamp == datetime.fromtimestamp(1234567890.0)
             assert captured_event.event_type == "log"
             assert captured_event.source == "context"

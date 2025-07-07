@@ -176,19 +176,22 @@ class TestResourceType:
         # Test that all iterated types are either basic types or known composite types
         # (Handle different Python versions that may include NONE/ALL in iteration)
         for rt in all_types:
-            assert rt in expected_basic_types or rt in [ResourceType.NONE, ResourceType.ALL], \
-                f"Unexpected ResourceType in iteration: {rt}"
+            assert rt in expected_basic_types or rt in [
+                ResourceType.NONE,
+                ResourceType.ALL,
+            ], f"Unexpected ResourceType in iteration: {rt}"
 
         # Verify that we have at least the expected basic types
         # (Don't do strict length check since some platforms may include NONE/ALL)
         basic_types_found = [rt for rt in all_types if rt in expected_basic_types]
-        assert len(basic_types_found) == len(expected_basic_types), \
-            f"Missing basic types. Expected: {expected_basic_types}, Found: {basic_types_found}"
+        assert (
+            len(basic_types_found) == len(expected_basic_types)
+        ), f"Missing basic types. Expected: {expected_basic_types}, Found: {basic_types_found}"
 
         # Verify NONE and ALL are always accessible regardless of iteration behavior
         assert ResourceType.NONE.value == 0
         assert ResourceType.ALL.value == 31
-        
+
         # Test that ALL is the combination of all basic types
         assert (
             ResourceType.CPU
@@ -200,8 +203,9 @@ class TestResourceType:
 
         # Test that each basic type is a power of 2 (valid flag)
         for rt in expected_basic_types:
-            assert rt.value > 0 and (rt.value & (rt.value - 1)) == 0, \
-                f"{rt.name} value {rt.value} is not a power of 2"
+            assert (
+                rt.value > 0 and (rt.value & (rt.value - 1)) == 0
+            ), f"{rt.name} value {rt.value} is not a power of 2"
 
 
 class TestGetResourceAmount:

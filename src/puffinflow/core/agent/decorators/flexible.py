@@ -667,7 +667,9 @@ class FlexibleStateDecorator:
         """Create a new profile."""
         return StateProfile(name=name, **config)
 
-    def register_profile(self, profile: Union[StateProfile, str], **config: Any) -> None:
+    def register_profile(
+        self, profile: Union[StateProfile, str], **config: Any
+    ) -> None:
         """Register a new profile globally."""
         if isinstance(profile, str):
             profile = StateProfile(name=profile, **config)
