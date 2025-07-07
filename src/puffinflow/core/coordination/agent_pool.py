@@ -261,24 +261,24 @@ class AgentPool:
                 elif self.scaling_policy == ScalingPolicy.AUTO_CPU:
                     # Scale based on CPU usage with adaptive thresholds and hysteresis
                     try:
-                        import psutil  # type: ignore[import-untyped]
+                        import psutil
 
                         # Get CPU usage over a short interval for more accurate measurement
                         cpu_percent = psutil.cpu_percent(interval=1.0)
-                        
+
                         # Get system load average to understand CPU pressure
                         try:
                             load_avg = psutil.getloadavg()[0]  # 1-minute load average
                             cpu_count = psutil.cpu_count()
-                            load_per_cpu = load_avg / cpu_count if cpu_count > 0 else load_avg
+                            load_per_cpu = load_avg / cpu_count if cpu_count is not None and cpu_count > 0 else load_avg
                         except (AttributeError, OSError):
                             # getloadavg not available on Windows
                             load_per_cpu = cpu_percent / 100.0
-                        
+
                         # Adaptive thresholds based on agent pool state
                         base_scale_up_cpu = 75.0
                         base_scale_down_cpu = 25.0
-                        
+
                         # Adjust thresholds based on queue pressure
                         queue_pressure = queue_size / max(active_count, 1)
                         if queue_pressure > 2.0:
@@ -286,22 +286,22 @@ class AgentPool:
                             scale_up_cpu = max(base_scale_up_cpu - 15, 60.0)
                         else:
                             scale_up_cpu = base_scale_up_cpu
-                        
+
                         if queue_pressure < 0.5:
                             # Low queue pressure - higher CPU threshold for scaling down
                             scale_down_cpu = min(base_scale_down_cpu + 15, 40.0)
                         else:
                             scale_down_cpu = base_scale_down_cpu
-                        
+
                         # Hysteresis: track recent scaling decisions to prevent flapping
                         current_time = time.time()
                         if not hasattr(self, '_last_cpu_scale_time'):
                             self._last_cpu_scale_time = 0.0
                         if not hasattr(self, '_cpu_scale_cooldown'):
                             self._cpu_scale_cooldown = 30.0  # 30 second cooldown
-                        
+
                         time_since_last_scale = current_time - self._last_cpu_scale_time
-                        
+
                         # Scale up conditions: high CPU AND (queue backlog OR high load average)
                         should_scale_up = (
                             cpu_percent > scale_up_cpu and
@@ -309,7 +309,7 @@ class AgentPool:
                             active_count < self.max_size and
                             time_since_last_scale > self._cpu_scale_cooldown
                         )
-                        
+
                         # Scale down conditions: low CPU AND low load AND idle agents available
                         should_scale_down = (
                             cpu_percent < scale_down_cpu and
@@ -318,7 +318,7 @@ class AgentPool:
                             active_count > self.min_size and
                             time_since_last_scale > self._cpu_scale_cooldown
                         )
-                        
+
                         if should_scale_up:
                             logger.info(
                                 f"CPU-based scale up: CPU={cpu_percent:.1f}%, "
@@ -333,7 +333,7 @@ class AgentPool:
                             )
                             await self.scale_down()
                             self._last_cpu_scale_time = current_time
-                        
+
                         # Update metrics for monitoring
                         self._metrics.update({
                             "cpu_percent": cpu_percent,
@@ -342,7 +342,7 @@ class AgentPool:
                             "scale_down_cpu_threshold": scale_down_cpu,
                             "queue_pressure": queue_pressure,
                         })
-                        
+
                     except ImportError:
                         logger.warning("psutil not available for CPU-based scaling")
 
