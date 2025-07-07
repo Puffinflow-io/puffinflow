@@ -332,9 +332,11 @@ class TestOpenTelemetryTracingProvider:
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
 
-        # Mock StatusCode to have OK attribute
-        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code:
+        # Mock StatusCode and Status to have OK attribute
+        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code, \
+             patch("puffinflow.core.observability.tracing.Status") as mock_status:
             mock_status_code.OK = "OK"
+            mock_status.return_value = Mock()
             provider = OpenTelemetryTracingProvider(config)
 
             with provider.span("test.span", SpanType.SYSTEM) as span:
@@ -365,9 +367,11 @@ class TestOpenTelemetryTracingProvider:
         mock_tracer.start_span.return_value = mock_otel_span
         mock_trace.get_tracer.return_value = mock_tracer
 
-        # Mock StatusCode to have ERROR attribute
-        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code:
+        # Mock StatusCode and Status to have ERROR attribute
+        with patch("puffinflow.core.observability.tracing.StatusCode") as mock_status_code, \
+             patch("puffinflow.core.observability.tracing.Status") as mock_status:
             mock_status_code.ERROR = "ERROR"
+            mock_status.return_value = Mock()
             provider = OpenTelemetryTracingProvider(config)
 
             test_exception = Exception("Test error")

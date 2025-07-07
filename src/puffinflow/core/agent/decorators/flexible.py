@@ -287,9 +287,9 @@ class FlexibleStateDecorator:
     """
 
     def __init__(self) -> None:
-        self.default_config = {}
+        self.default_config: dict[str, Any] = {}
 
-    def __call__(self, *args, **kwargs) -> Callable[..., Any]:
+    def __call__(self, *args: Any, **kwargs: Any) -> Callable[..., Any]:
         """
         Handle multiple call patterns:
         - @state
@@ -313,7 +313,7 @@ class FlexibleStateDecorator:
 
         return decorator
 
-    def _merge_configurations(self, *args, **kwargs) -> dict[str, Any]:
+    def _merge_configurations(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Merge configuration from multiple sources in priority order."""
         final_config = {}
 
@@ -657,17 +657,17 @@ class FlexibleStateDecorator:
 
         return func
 
-    def with_defaults(self, **defaults) -> "FlexibleStateDecorator":
+    def with_defaults(self, **defaults: Any) -> "FlexibleStateDecorator":
         """Create a new decorator with different default values."""
         new_decorator = FlexibleStateDecorator()
         new_decorator.default_config = {**self.default_config, **defaults}
         return new_decorator
 
-    def create_profile(self, name: str, **config) -> StateProfile:
+    def create_profile(self, name: str, **config: Any) -> StateProfile:
         """Create a new profile."""
         return StateProfile(name=name, **config)
 
-    def register_profile(self, profile: Union[StateProfile, str], **config) -> None:
+    def register_profile(self, profile: Union[StateProfile, str], **config: Any) -> None:
         """Register a new profile globally."""
         if isinstance(profile, str):
             profile = StateProfile(name=profile, **config)
@@ -707,6 +707,6 @@ def list_profiles() -> list[str]:
     return list(PROFILES.keys())
 
 
-def create_custom_decorator(**defaults) -> FlexibleStateDecorator:
+def create_custom_decorator(**defaults: Any) -> FlexibleStateDecorator:
     """Create a custom decorator with specific defaults."""
     return state.with_defaults(**defaults)

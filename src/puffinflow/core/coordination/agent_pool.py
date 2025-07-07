@@ -7,7 +7,10 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 from ..agent.base import Agent, AgentResult
 
@@ -81,7 +84,7 @@ class WorkQueue:
             self._use_priority = True
             import heapq
 
-            heapq.heappush(self._priority_queue, (-work_item.priority, work_item))
+            heapq.heappush(self._priority_queue, (-work_item.priority, work_item))  # type: ignore[misc]
         else:
             self._queue.append(work_item)
 
@@ -93,15 +96,16 @@ class WorkQueue:
         if self._priority_queue:
             import heapq
 
-            _, work_item = heapq.heappop(self._priority_queue)
+            priority_tuple = heapq.heappop(self._priority_queue)
+            _, work_item = priority_tuple  # type: ignore[misc]
             work_item.assigned_at = time.time()
-            return work_item
+            return work_item  # type: ignore[no-any-return]
 
         # Then regular queue
         if self._queue:
             work_item = self._queue.popleft()
             work_item.assigned_at = time.time()
-            return work_item
+            return work_item  # type: ignore[no-any-return]
 
         return None
 
@@ -301,14 +305,14 @@ class PoolContext:
     def __init__(self, pool: AgentPool):
         self.pool = pool
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AgentPool":
         """Enter context - start auto-scaling if enabled."""
         if self.pool.scaling_policy != ScalingPolicy.MANUAL:
             # Auto-scaling will be started when processing begins
             pass
         return self.pool
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit context - cleanup."""
         if self.pool._scaling_task:
             self.pool._scaling_task.cancel()
@@ -331,7 +335,7 @@ class WorkProcessor:
         self._running = False
         self._worker_tasks: list[asyncio.Task] = []
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> "AsyncGenerator[CompletedWork, None]":
         """Async iterator for completed work."""
         if not self._running:
             await self._start_processing()
@@ -425,8 +429,9 @@ class WorkProcessor:
                         # Max retries reached
                         self.pool._metrics["total_errors"] += 1
 
+                        from ..agent import AgentStatus
                         error_result = AgentResult(
-                            agent_name=agent.name, status="failed", error=e
+                            agent_name=agent.name, status=AgentStatus.FAILED, error=e
                         )
 
                         completed_work = CompletedWork(
@@ -487,7 +492,8 @@ class DynamicProcessingPool:
 
         # Process with auto-scaling
         async with self.pool.auto_scale() as pool:
-            async for completed_work in pool.process_queue(self.work_queue):
+            work_processor = pool.process_queue(self.work_queue)
+            async for completed_work in work_processor:
                 result_dict = {
                     "work_item_id": completed_work.work_item.id,
                     "agent_name": completed_work.agent.name,

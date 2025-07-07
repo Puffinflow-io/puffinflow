@@ -11,7 +11,7 @@ from .agent_team import AgentTeam, TeamResult
 class Agents:
     """Fluent API for agent coordination."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._agents: list[Agent] = []
         self._stages: list[dict] = []
         self._conditions: list[dict] = []
@@ -151,7 +151,10 @@ class Agents:
     async def get_best_by(self, metric: str, maximize: bool = True) -> AgentResult:
         """Get agent with best metric."""
         result = await self.run_parallel()
-        return result.get_best_by(metric, maximize)
+        best_result = result.get_best_by(metric, maximize)
+        if best_result is None:
+            raise ValueError(f"No agent found with metric '{metric}'")
+        return best_result
 
     async def aggregate_stage_results(self, stage_name: str) -> dict[str, Any]:
         """Aggregate results from a specific stage."""
@@ -175,7 +178,11 @@ class Agents:
         if self._stages:
             result = await self.run_with_coordination()
             if hasattr(result, "get_final_result"):
-                return result.get_final_result()
+                final_result = result.get_final_result()
+                if isinstance(final_result, dict):
+                    return final_result
+                else:
+                    return {"result": final_result}
 
         team_result = await self.run_parallel()
         return {
@@ -287,7 +294,7 @@ class PipelineAgents:
 
     async def run(self) -> "FluentResult":
         """Run pipeline."""
-        results = {}
+        results: dict[str, Any] = {}
 
         for i, agent in enumerate(self.agents):
             # Set up inputs from previous agent if configured
@@ -337,7 +344,7 @@ class FluentResult:
             # Handle other result types
             self._team_result = result
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Delegate to underlying result."""
         return getattr(self._team_result, name)
 

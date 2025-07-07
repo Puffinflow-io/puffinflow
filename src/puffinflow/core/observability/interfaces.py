@@ -1,10 +1,11 @@
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 
 
 class SpanType(Enum):

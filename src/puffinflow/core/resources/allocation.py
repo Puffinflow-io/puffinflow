@@ -65,7 +65,7 @@ class AllocationRequest:
     )  # When request was created
     deadline: Optional[datetime] = None  # Optional deadline for allocation
 
-    def __lt__(self, other):
+    def __lt__(self, other: "AllocationRequest") -> bool:
         """Define ordering for priority queue operations.
 
         Higher priority values are considered "less than" for max-heap behavior.
@@ -111,7 +111,7 @@ class AllocationMetrics:
     resource utilization, and queue behavior.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize metrics tracking."""
         self.total_requests = 0  # Total number of allocation requests
         self.successful_allocations = 0  # Number of successful allocations
@@ -123,7 +123,7 @@ class AllocationMetrics:
         self.queue_lengths: list[int] = []  # Historical queue length snapshots
         self.wait_times: list[float] = []  # Request wait times
 
-    def record_allocation(self, result: AllocationResult, wait_time: float = 0.0):
+    def record_allocation(self, result: AllocationResult, wait_time: float = 0.0) -> None:
         """Record metrics for a completed allocation attempt.
 
         Args:
@@ -686,7 +686,7 @@ class FairShareAllocator(ResourceAllocator):
         """Order requests by usage history (least used requesters first)."""
         return sorted(requests, key=lambda r: self._usage_history[r.requester_id])
 
-    def reset_usage_history(self):
+    def reset_usage_history(self) -> None:
         """Reset usage history for a new allocation period."""
         self._usage_history.clear()
         self._allocation_counts.clear()
@@ -704,7 +704,7 @@ class WeightedAllocator(ResourceAllocator):
         super().__init__(resource_pool)
         self._weights: dict[str, float] = {}  # Requester-specific weights
 
-    def set_weight(self, requester_id: str, weight: float):
+    def set_weight(self, requester_id: str, weight: float) -> None:
         """Set allocation weight for a specific requester.
 
         Args:
@@ -785,4 +785,4 @@ def create_allocator(
         # Default to first-fit for unknown strategies
         allocator_class = FirstFitAllocator
 
-    return allocator_class(resource_pool)
+    return allocator_class(resource_pool)  # type: ignore[abstract]

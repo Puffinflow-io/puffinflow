@@ -31,11 +31,11 @@ class StageConfig:
     name: str
     agents: list[str]
     strategy: str = ExecutionStrategy.PARALLEL
-    depends_on: list[str] = None
+    depends_on: Optional[list[str]] = None
     condition: Optional[Callable] = None
     timeout: Optional[float] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.depends_on is None:
             self.depends_on = []
 
@@ -66,7 +66,7 @@ class GroupResult:
     def __init__(self, team_result: TeamResult):
         self._team_result = team_result
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Delegate to team result."""
         return getattr(self._team_result, name)
 
@@ -159,7 +159,8 @@ class AgentOrchestrator:
     async def run(self) -> "OrchestrationResult":
         """Run the complete orchestration."""
         async with self.run_with_monitoring() as execution:
-            return await execution.wait_for_completion()
+            result = await execution.wait_for_completion()
+            return result
 
 
 class OrchestrationExecution:
@@ -174,14 +175,14 @@ class OrchestrationExecution:
         self._running_stages: dict[str, asyncio.Task] = {}
         self._stage_timings: dict[str, tuple] = {}
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "OrchestrationExecution":
         """Start execution."""
         import time
 
         self.start_time = time.time()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """End execution."""
         import time
 
@@ -208,7 +209,7 @@ class OrchestrationExecution:
             raise ValueError(f"Stage {stage_name} not found")
 
         # Check dependencies
-        for dep in stage_config.depends_on:
+        for dep in stage_config.depends_on or []:
             if dep not in self._completed_stages:
                 await self.wait_for_stage(dep)
 

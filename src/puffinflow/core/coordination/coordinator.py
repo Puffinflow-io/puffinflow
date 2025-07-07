@@ -7,8 +7,9 @@ import logging
 import time
 import uuid
 import weakref
+from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import asdict, dataclass
-from typing import Any, AsyncGenerator, Awaitable, Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from .deadlock import DeadlockDetector
 from .primitives import (

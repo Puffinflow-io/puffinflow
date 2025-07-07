@@ -1,7 +1,8 @@
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, Optional
 from datetime import datetime
+from typing import Any, Optional
 
 from ..agent.context import Context
 from .core import ObservabilityManager

@@ -56,7 +56,7 @@ class ResourceRequirements:
                     f"Bitwise test successful: {self.resource_types} & CPU = {test_result}"
                 )
             except Exception as e:
-                logger.error(f"Bitwise operation failed: {e}")
+                logger.warning(f"Bitwise operation failed: {e}")
                 self._auto_determine_resource_types()
 
         except Exception as e:

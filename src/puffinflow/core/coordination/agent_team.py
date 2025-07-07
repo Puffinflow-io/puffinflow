@@ -58,7 +58,7 @@ class TeamResult:
         if not valid_results:
             return None
 
-        def get_value(result):
+        def get_value(result: Any) -> Any:
             return result.get_output(metric) or result.get_metric(metric) or 0
 
         return (
@@ -127,7 +127,7 @@ class Event:
 class EventBus:
     """Event bus for agent communication."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._handlers: dict[str, list[Callable]] = defaultdict(list)
         self._event_history: list[Event] = []
         self._max_history = 1000
@@ -425,8 +425,8 @@ class AgentTeam:
         """Run agents respecting dependencies."""
         start_time = time.time()
         results = {}
-        completed = set()
-        running = {}
+        completed: set[str] = set()
+        running: dict[str, Any] = {}
 
         try:
             while len(completed) < len(self._agents):
@@ -542,12 +542,12 @@ class AgentTeam:
             await agent.cancel_all()
 
     # Context manager support
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AgentTeam":
         """Async context manager entry."""
         self._running = True
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         self._running = False
         await self.cancel_all()

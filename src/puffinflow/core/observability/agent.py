@@ -73,7 +73,7 @@ class ObservableAgent(Agent):
                         self.workflow_duration.record(
                             duration, agent_name=self.name, status="success"
                         )
-                    
+
                     return result
 
                 except Exception as e:

@@ -54,7 +54,7 @@ def create_mock_agent():
 
     agent.state_metadata = {}
     agent._startup_tasks = []
-    agent._add_to_queue = Mock()
+    agent._add_to_queue = AsyncMock()
     agent.run_state = AsyncMock()
     return agent
 
@@ -72,7 +72,7 @@ def create_real_agent():
         agent.max_concurrent = 2
         agent.add_state = Mock()
         agent.state_metadata = {}
-        agent._add_to_queue = Mock()
+        agent._add_to_queue = AsyncMock()
         agent.run_state = AsyncMock()
         return agent
 
@@ -749,7 +749,7 @@ class TestAgentEnhancement:
             enhanced_agent.add_state("test_state", test_state)
 
             # Mock _add_to_queue
-            enhanced_agent._add_to_queue = Mock()
+            enhanced_agent._add_to_queue = AsyncMock()
 
             # Execution should be blocked by coordination
             await enhanced_agent.run_state("test_state")

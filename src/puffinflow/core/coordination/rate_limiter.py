@@ -68,7 +68,7 @@ class RateLimiter:
                 # Check rate
                 total_requests = sum(self._window_requests.values())
                 if total_requests < self.max_rate:
-                    self._window_requests[now] = 1
+                    self._window_requests[now] = self._window_requests.get(now, 0) + 1
                     return True
 
             elif self.strategy == RateLimitStrategy.FIXED_WINDOW:
@@ -91,7 +91,7 @@ class RateLimiter:
 
                 # For the base RateLimiter, max_rate represents requests per window
                 if requests < self.max_rate:
-                    self._window_requests[now] = 1
+                    self._window_requests[now] = self._window_requests.get(now, 0) + 1
                     return True
 
             elif self.strategy == RateLimitStrategy.SLIDING_WINDOW:

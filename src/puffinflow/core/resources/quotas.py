@@ -288,11 +288,9 @@ class QuotaManager:
                     and usage.current + requested <= limit.burst_limit
                 )
 
-            elif limit.policy == QuotaPolicy.RATE_LIMIT:
+            else:  # limit.policy == QuotaPolicy.RATE_LIMIT
                 # Check rate limit
                 return self._check_rate_limit(usage, limit)
-
-            return False
 
     def _check_rate_limit(self, usage: QuotaUsage, limit: QuotaLimit) -> bool:
         """Check if rate limit is exceeded."""

@@ -141,8 +141,8 @@ class Agent:
 
         # Resource and reliability components - lazy initialization
         self._resource_pool = resource_pool
-        self._circuit_breaker: Optional["CircuitBreaker"] = None
-        self._bulkhead: Optional["Bulkhead"] = None
+        self._circuit_breaker: Optional[CircuitBreaker] = None
+        self._bulkhead: Optional[Bulkhead] = None
         self._circuit_breaker_config = circuit_breaker_config
         self._bulkhead_config = bulkhead_config
 

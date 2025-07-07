@@ -23,25 +23,32 @@ except ImportError:
     # Create mock classes if reliability module is not available
     from typing import Any
 
-    class CircuitBreaker:
+    class MockCircuitBreaker:
         def __init__(self, config: Any) -> None:
             pass
 
-    class CircuitBreakerConfig:
+    class MockCircuitBreakerConfig:
         def __init__(self, **kwargs: Any) -> None:
             pass
 
-    class Bulkhead:
+    class MockBulkhead:
         def __init__(self, config: Any) -> None:
             pass
 
-    class BulkheadConfig:
+    class MockBulkheadConfig:
         def __init__(self, **kwargs: Any) -> None:
             pass
 
-    class ResourceLeakDetector:
+    class MockResourceLeakDetector:
         def __init__(self, **kwargs: Any) -> None:
             pass
+
+    # Assign to actual names to avoid redefinition
+    CircuitBreaker = MockCircuitBreaker
+    CircuitBreakerConfig = MockCircuitBreakerConfig
+    Bulkhead = MockBulkhead
+    BulkheadConfig = MockBulkheadConfig
+    ResourceLeakDetector = MockResourceLeakDetector
 
 
 # Import state decorator if available

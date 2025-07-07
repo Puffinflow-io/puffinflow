@@ -1,6 +1,7 @@
 """Agent module with enhanced coordination features."""
 
 from typing import Any, Callable
+
 from .base import Agent, AgentResult, ResourceTimeoutError
 from .checkpoint import AgentCheckpoint
 from .context import Context, StateType

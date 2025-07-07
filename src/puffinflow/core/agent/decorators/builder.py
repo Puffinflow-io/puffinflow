@@ -11,7 +11,7 @@ class StateBuilder:
     """Builder pattern for constructing state configurations."""
 
     def __init__(self) -> None:
-        self._config = {}
+        self._config: dict[str, Any] = {}
 
     # Resource methods
     def cpu(self, units: float) -> "StateBuilder":
@@ -377,7 +377,8 @@ class StateBuilder:
         """Use as decorator."""
         from .flexible import state
 
-        return state(config=self._config)(func)
+        decorator = state(config=self._config)
+        return decorator(func)
 
     def decorator(self) -> Callable[..., Any]:
         """Get decorator function."""

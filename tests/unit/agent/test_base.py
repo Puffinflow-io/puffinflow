@@ -1428,7 +1428,7 @@ class TestEdgeCases:
         """Test decorator requirements extraction."""
         # Mock function with requirements
         mock_func = Mock()
-        mock_func._resource_requirements = Mock()
+        mock_func._resource_requirements = ResourceRequirements(cpu_units=1.0, memory_mb=100.0)
 
         requirements = agent._extract_decorator_requirements(mock_func)
         assert requirements is mock_func._resource_requirements

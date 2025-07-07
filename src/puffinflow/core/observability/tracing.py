@@ -15,16 +15,16 @@ try:
 
     _OPENTELEMETRY_AVAILABLE = True
 except ImportError:
-    # Create mock classes for when OpenTelemetry is not available
-    trace = None  # type: ignore
-    JaegerExporter = None  # type: ignore
-    OTLPSpanExporter = None  # type: ignore
-    Resource = None  # type: ignore
-    TracerProvider = None  # type: ignore
-    BatchSpanProcessor = None  # type: ignore
-    ConsoleSpanExporter = None  # type: ignore
-    Status = None  # type: ignore
-    StatusCode = None  # type: ignore
+    # Create mock classes for when OpenTelemetry is not available  # type: ignore[misc]
+    trace = None  # type: ignore[assignment]
+    JaegerExporter = None  # type: ignore[misc,assignment]
+    OTLPSpanExporter = None  # type: ignore[misc,assignment]
+    Resource = None  # type: ignore[misc,assignment]
+    TracerProvider = None  # type: ignore[misc,assignment]
+    BatchSpanProcessor = None  # type: ignore[misc,assignment]
+    ConsoleSpanExporter = None  # type: ignore[misc,assignment]
+    Status = None  # type: ignore[misc,assignment]
+    StatusCode = None  # type: ignore[misc,assignment]
     _OPENTELEMETRY_AVAILABLE = False
 
 from .config import TracingConfig
