@@ -1,11 +1,15 @@
 """Enhanced Agent with direct access and coordination features."""
 
 import asyncio
+import json
 import logging
+import os
+import pickle
 import time
 import weakref
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Union
 
 from .checkpoint import AgentCheckpoint
 from .context import Context
@@ -45,6 +49,277 @@ if TYPE_CHECKING:
     from ..resources.pool import ResourcePool
 
 logger = logging.getLogger(__name__)
+
+
+# Checkpoint persistence interfaces
+class CheckpointStorage(Protocol):
+    """Protocol for checkpoint storage backends."""
+    
+    async def save_checkpoint(self, agent_name: str, checkpoint: AgentCheckpoint) -> str:
+        """Save checkpoint and return checkpoint ID."""
+        ...
+    
+    async def load_checkpoint(self, agent_name: str, checkpoint_id: Optional[str] = None) -> Optional[AgentCheckpoint]:
+        """Load checkpoint by ID or latest for agent."""
+        ...
+    
+    async def list_checkpoints(self, agent_name: str) -> list[str]:
+        """List available checkpoint IDs for agent."""
+        ...
+    
+    async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
+        """Delete a specific checkpoint."""
+        ...
+
+
+class FileCheckpointStorage:
+    """File-based checkpoint storage."""
+    
+    def __init__(self, base_path: str = "./checkpoints", format: str = "pickle"):
+        """
+        Initialize file storage.
+        
+        Args:
+            base_path: Directory to store checkpoint files
+            format: Storage format ('pickle' or 'json')
+        """
+        self.base_path = Path(base_path)
+        self.format = format.lower()
+        if self.format not in ("pickle", "json"):
+            raise ValueError(f"Unsupported format: {format}. Use 'pickle' or 'json'")
+        
+        # Create directory if it doesn't exist
+        self.base_path.mkdir(parents=True, exist_ok=True)
+    
+    def _get_checkpoint_path(self, agent_name: str, checkpoint_id: str) -> Path:
+        """Get file path for checkpoint."""
+        agent_dir = self.base_path / agent_name
+        agent_dir.mkdir(exist_ok=True)
+        ext = "pkl" if self.format == "pickle" else "json"
+        return agent_dir / f"{checkpoint_id}.{ext}"
+    
+    async def save_checkpoint(self, agent_name: str, checkpoint: AgentCheckpoint) -> str:
+        """Save checkpoint to file."""
+        checkpoint_id = f"checkpoint_{int(checkpoint.timestamp)}"
+        file_path = self._get_checkpoint_path(agent_name, checkpoint_id)
+        
+        try:
+            if self.format == "pickle":
+                with open(file_path, "wb") as f:
+                    pickle.dump(checkpoint, f)
+            else:  # json
+                # Convert checkpoint to JSON-serializable format
+                checkpoint_data = {
+                    "timestamp": checkpoint.timestamp,
+                    "agent_name": checkpoint.agent_name,
+                    "agent_status": checkpoint.agent_status.value,
+                    "priority_queue": [
+                        {
+                            "priority": ps.priority,
+                            "timestamp": ps.timestamp,
+                            "state_name": ps.state_name,
+                            "metadata": {
+                                "status": ps.metadata.status.value,
+                                "attempts": ps.metadata.attempts,
+                                "max_retries": ps.metadata.max_retries,
+                                "last_execution": ps.metadata.last_execution,
+                                "last_success": ps.metadata.last_success,
+                                "state_id": ps.metadata.state_id,
+                                "priority": ps.metadata.priority.value,
+                            }
+                        }
+                        for ps in checkpoint.priority_queue
+                    ],
+                    "state_metadata": {
+                        k: {
+                            "status": v.status.value,
+                            "attempts": v.attempts,
+                            "max_retries": v.max_retries,
+                            "last_execution": v.last_execution,
+                            "last_success": v.last_success,
+                            "state_id": v.state_id,
+                            "priority": v.priority.value,
+                        }
+                        for k, v in checkpoint.state_metadata.items()
+                    },
+                    "running_states": list(checkpoint.running_states),
+                    "completed_states": list(checkpoint.completed_states),
+                    "completed_once": list(checkpoint.completed_once),
+                    "shared_state": checkpoint.shared_state,
+                    "session_start": checkpoint.session_start,
+                }
+                
+                with open(file_path, "w") as f:
+                    json.dump(checkpoint_data, f, indent=2, default=str)
+            
+            logger.info(f"Checkpoint saved to {file_path}")
+            return checkpoint_id
+            
+        except Exception as e:
+            logger.error(f"Failed to save checkpoint to {file_path}: {e}")
+            raise
+    
+    async def load_checkpoint(self, agent_name: str, checkpoint_id: Optional[str] = None) -> Optional[AgentCheckpoint]:
+        """Load checkpoint from file."""
+        if checkpoint_id is None:
+            # Load latest checkpoint
+            checkpoints = await self.list_checkpoints(agent_name)
+            if not checkpoints:
+                return None
+            checkpoint_id = checkpoints[-1]  # Latest by timestamp
+        
+        file_path = self._get_checkpoint_path(agent_name, checkpoint_id)
+        
+        if not file_path.exists():
+            logger.warning(f"Checkpoint file not found: {file_path}")
+            return None
+        
+        try:
+            if self.format == "pickle":
+                with open(file_path, "rb") as f:
+                    checkpoint: AgentCheckpoint = pickle.load(f)
+                    return checkpoint
+            else:  # json
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+                
+                # Reconstruct checkpoint from JSON data
+                from .state import AgentStatus, Priority, StateMetadata, StateStatus, PrioritizedState
+                
+                checkpoint = AgentCheckpoint(
+                    timestamp=data["timestamp"],
+                    agent_name=data["agent_name"],
+                    agent_status=AgentStatus(data["agent_status"]),
+                    priority_queue=[
+                        PrioritizedState(
+                            priority=ps["priority"],
+                            timestamp=ps["timestamp"],
+                            state_name=ps["state_name"],
+                            metadata=StateMetadata(
+                                status=StateStatus(ps["metadata"]["status"]),
+                                attempts=ps["metadata"]["attempts"],
+                                max_retries=ps["metadata"]["max_retries"],
+                                last_execution=ps["metadata"]["last_execution"],
+                                last_success=ps["metadata"]["last_success"],
+                                state_id=ps["metadata"]["state_id"],
+                                priority=Priority(ps["metadata"]["priority"]),
+                            )
+                        )
+                        for ps in data["priority_queue"]
+                    ],
+                    state_metadata={
+                        k: StateMetadata(
+                            status=StateStatus(v["status"]),
+                            attempts=v["attempts"],
+                            max_retries=v["max_retries"],
+                            last_execution=v["last_execution"],
+                            last_success=v["last_success"],
+                            state_id=v["state_id"],
+                            priority=Priority(v["priority"]),
+                        )
+                        for k, v in data["state_metadata"].items()
+                    },
+                    running_states=set(data["running_states"]),
+                    completed_states=set(data["completed_states"]),
+                    completed_once=set(data["completed_once"]),
+                    shared_state=data["shared_state"],
+                    session_start=data["session_start"],
+                )
+                
+                return checkpoint
+                
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint from {file_path}: {e}")
+            return None
+    
+    async def list_checkpoints(self, agent_name: str) -> list[str]:
+        """List available checkpoint files."""
+        agent_dir = self.base_path / agent_name
+        if not agent_dir.exists():
+            return []
+        
+        ext = "pkl" if self.format == "pickle" else "json"
+        checkpoint_files = [
+            f.stem for f in agent_dir.glob(f"*.{ext}")
+            if f.is_file()
+        ]
+        
+        # Sort by timestamp (extract from filename)
+        checkpoint_files.sort(key=lambda x: int(x.split('_')[-1]) if x.split('_')[-1].isdigit() else 0)
+        return checkpoint_files
+    
+    async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
+        """Delete checkpoint file."""
+        file_path = self._get_checkpoint_path(agent_name, checkpoint_id)
+        
+        try:
+            if file_path.exists():
+                file_path.unlink()
+                logger.info(f"Deleted checkpoint: {file_path}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to delete checkpoint {file_path}: {e}")
+            return False
+
+
+class MemoryCheckpointStorage:
+    """In-memory checkpoint storage for testing."""
+    
+    def __init__(self) -> None:
+        self._checkpoints: dict[str, dict[str, AgentCheckpoint]] = {}
+    
+    async def save_checkpoint(self, agent_name: str, checkpoint: AgentCheckpoint) -> str:
+        """Save checkpoint to memory."""
+        checkpoint_id = f"checkpoint_{int(checkpoint.timestamp)}"
+        
+        if agent_name not in self._checkpoints:
+            self._checkpoints[agent_name] = {}
+        
+        # Deep copy to prevent modifications
+        import copy
+        self._checkpoints[agent_name][checkpoint_id] = copy.deepcopy(checkpoint)
+        
+        logger.info(f"Checkpoint saved to memory: {agent_name}/{checkpoint_id}")
+        return checkpoint_id
+    
+    async def load_checkpoint(self, agent_name: str, checkpoint_id: Optional[str] = None) -> Optional[AgentCheckpoint]:
+        """Load checkpoint from memory."""
+        if agent_name not in self._checkpoints:
+            return None
+        
+        agent_checkpoints = self._checkpoints[agent_name]
+        
+        if checkpoint_id is None:
+            # Get latest checkpoint
+            if not agent_checkpoints:
+                return None
+            latest_id = max(agent_checkpoints.keys(), key=lambda x: int(x.split('_')[-1]))
+            checkpoint_id = latest_id
+        
+        checkpoint = agent_checkpoints.get(checkpoint_id)
+        if checkpoint:
+            # Return deep copy to prevent modifications
+            import copy
+            return copy.deepcopy(checkpoint)
+        return None
+    
+    async def list_checkpoints(self, agent_name: str) -> list[str]:
+        """List checkpoints in memory."""
+        if agent_name not in self._checkpoints:
+            return []
+        
+        checkpoints = list(self._checkpoints[agent_name].keys())
+        checkpoints.sort(key=lambda x: int(x.split('_')[-1]) if x.split('_')[-1].isdigit() else 0)
+        return checkpoints
+    
+    async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
+        """Delete checkpoint from memory."""
+        if agent_name in self._checkpoints and checkpoint_id in self._checkpoints[agent_name]:
+            del self._checkpoints[agent_name][checkpoint_id]
+            logger.info(f"Deleted checkpoint from memory: {agent_name}/{checkpoint_id}")
+            return True
+        return False
 
 
 @dataclass
@@ -108,6 +383,7 @@ class Agent:
         max_concurrent: int = 5,
         enable_dead_letter: bool = True,
         state_timeout: Optional[float] = None,
+        checkpoint_storage: Optional[CheckpointStorage] = None,
         **kwargs: Any,
     ) -> None:
         self.name = name
@@ -126,6 +402,7 @@ class Agent:
         # Configuration
         self.max_concurrent = max_concurrent
         self.state_timeout = state_timeout
+        self.checkpoint_storage = checkpoint_storage or MemoryCheckpointStorage()
 
         # Enhanced features
         self._context: Optional[Context] = None
@@ -630,11 +907,68 @@ class Agent:
         self.shared_state = checkpoint.shared_state.copy()
         self.session_start = checkpoint.session_start
 
-    def save_checkpoint(self) -> None:
-        """Save current state as checkpoint (placeholder for persistence)."""
-        self.create_checkpoint()
-        # In real implementation, this would persist to storage
-        logger.info(f"Checkpoint saved for agent {self.name}")
+    async def save_checkpoint(self) -> str:
+        """Save current state as checkpoint with persistent storage."""
+        checkpoint = self.create_checkpoint()
+        
+        try:
+            checkpoint_id = await self.checkpoint_storage.save_checkpoint(
+                agent_name=self.name,
+                checkpoint=checkpoint
+            )
+            logger.info(f"Checkpoint saved for agent {self.name} with ID: {checkpoint_id}")
+            return checkpoint_id
+            
+        except Exception as e:
+            logger.error(f"Failed to save checkpoint for agent {self.name}: {e}")
+            raise
+
+    async def load_checkpoint(self, checkpoint_id: Optional[str] = None) -> bool:
+        """
+        Load agent state from a checkpoint.
+        
+        Args:
+            checkpoint_id: Specific checkpoint ID to load, or None for latest
+            
+        Returns:
+            True if checkpoint was loaded successfully, False otherwise
+        """
+        try:
+            checkpoint = await self.checkpoint_storage.load_checkpoint(
+                agent_name=self.name,
+                checkpoint_id=checkpoint_id
+            )
+            
+            if checkpoint is None:
+                logger.warning(f"No checkpoint found for agent {self.name}")
+                return False
+            
+            await self.restore_from_checkpoint(checkpoint)
+            logger.info(f"Agent {self.name} restored from checkpoint {checkpoint_id or 'latest'}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint for agent {self.name}: {e}")
+            return False
+
+    async def list_checkpoints(self) -> list[str]:
+        """List available checkpoint IDs for this agent."""
+        try:
+            return await self.checkpoint_storage.list_checkpoints(self.name)
+        except Exception as e:
+            logger.error(f"Failed to list checkpoints for agent {self.name}: {e}")
+            return []
+
+    async def delete_checkpoint(self, checkpoint_id: str) -> bool:
+        """Delete a specific checkpoint."""
+        try:
+            success = await self.checkpoint_storage.delete_checkpoint(self.name, checkpoint_id)
+            if success:
+                logger.info(f"Deleted checkpoint {checkpoint_id} for agent {self.name}")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to delete checkpoint {checkpoint_id} for agent {self.name}: {e}")
+            return False
 
     # Execution control
     async def pause(self) -> AgentCheckpoint:
