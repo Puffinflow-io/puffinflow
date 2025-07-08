@@ -207,3 +207,4 @@ trufflehog-results.json
 .bandit
 .safety
 .semgrep
+.vercel
