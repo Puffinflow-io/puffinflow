@@ -10,7 +10,7 @@ import QuickStart from './components/QuickStart';
 import CtaSection from './components/CtaSection';
 import Footer from './components/Footer';
 import UseCases from './components/UseCases';
-import { DocsPage, GettingStartedPage, ContextAndDataPage, ResourceManagementPage, ErrorHandlingPage, CheckpointingPage, RAGRecipePage } from './components/DocsPage';
+import { DocsPage, GettingStartedPage, ContextAndDataPage, ResourceManagementPage, ErrorHandlingPage, CheckpointingPage, RAGRecipePage, ReliabilityPage, ObservabilityPage, CoordinationPage, MultiAgentPage, ResourcesPage, TroubleshootingPage, APIReferencePage } from './components/DocsPage';
 
 const AnimatedSection: React.FC<{ children: React.ReactNode, animationType?: string }> = ({ children, animationType = 'reveal-up' }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -70,6 +70,34 @@ const getRouteInfo = () => {
     if (hash.startsWith('docs/rag-recipe')) {
         const [, anchor] = hash.split('#');
         return { path: '/docs/rag-recipe', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/reliability')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/reliability', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/observability')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/observability', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/coordination')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/coordination', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/multiagent')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/multiagent', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/resources')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/resources', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/troubleshooting')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/troubleshooting', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/api-reference')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/api-reference', anchor: anchor || null };
     }
     if (hash.startsWith('docs')) {
         const [, anchor] = hash.split('#');
@@ -169,6 +197,20 @@ const App: React.FC = () => {
             return <CheckpointingPage />;
         case '/docs/rag-recipe':
             return <RAGRecipePage />;
+        case '/docs/reliability':
+            return <ReliabilityPage />;
+        case '/docs/observability':
+            return <ObservabilityPage />;
+        case '/docs/coordination':
+            return <CoordinationPage />;
+        case '/docs/multiagent':
+            return <MultiAgentPage />;
+        case '/docs/resources':
+            return <ResourcesPage />;
+        case '/docs/troubleshooting':
+            return <TroubleshootingPage />;
+        case '/docs/api-reference':
+            return <APIReferencePage />;
         default:
           return <MainPage />;
       }

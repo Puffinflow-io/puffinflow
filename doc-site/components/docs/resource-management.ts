@@ -100,7 +100,7 @@ Start by understanding what your operation actually does:
 import asyncio
 import time
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 from puffinflow.core.agent.state import Priority
 
 agent = Agent("resource-analysis-agent")
@@ -713,7 +713,7 @@ async def long_term_resource_reservation(context):
 \`\`\`python
 import asyncio
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 
 # Sophisticated quota management system
 class AdvancedQuotaManager:

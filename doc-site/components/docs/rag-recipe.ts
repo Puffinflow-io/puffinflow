@@ -24,7 +24,7 @@ import asyncio
 from pathlib import Path
 from typing import List, Dict, Any
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 
 # Using LangChain for RAG components
 from langchain.text_splitter import RecursiveCharacterTextSplitter

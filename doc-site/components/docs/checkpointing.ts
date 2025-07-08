@@ -32,7 +32,7 @@ Checkpoints solve critical problems in workflow orchestration:
 \`\`\`python
 import asyncio
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 
 agent = Agent("my-workflow")
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 \`\`\`python
 import asyncio
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 
 agent = Agent("data-pipeline")
 

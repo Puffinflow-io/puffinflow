@@ -16,10 +16,10 @@ const Header: React.FC = () => {
             <PuffinLogo className="h-10 w-auto" />
           </a>
           <nav className="hidden md:flex items-center space-x-2">
-            <a href="#why-puffinflow" onClick={(e) => handleNavClick(e, '#why-puffinflow')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Why Puffinflow?</a>
+            <a href="#why-puffinflow" onClick={(e) => handleNavClick(e, '#why-puffinflow')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Platform</a>
             <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Features</a>
-            <a href="#compare" onClick={(e) => handleNavClick(e, '#compare')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Tool Comparison</a>
-            <a href="#docs" onClick={(e) => handleNavClick(e, '#docs')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Docs</a>
+            <a href="#compare" onClick={(e) => handleNavClick(e, '#compare')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Enterprise</a>
+            <a href="#docs" onClick={(e) => handleNavClick(e, '#docs')} className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">Documentation</a>
             <a href="https://github.com/puffinflow-io/puffinflow" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium px-3 py-2 rounded-md hover:bg-white/5">GitHub</a>
           </nav>
           <div className="flex items-center space-x-4">

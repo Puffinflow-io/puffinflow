@@ -46,7 +46,7 @@ Start with simple retry mechanisms for operations that might fail transiently.
 import asyncio
 import random
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 
 agent = Agent("error-handling-agent")
 
@@ -117,7 +117,7 @@ When basic retry counts aren't enough, create custom retry policies with sophist
 import asyncio
 import time
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 from puffinflow.core.agent.base import RetryPolicy
 
 agent = Agent("retry-policy-agent")
@@ -260,7 +260,7 @@ Timeouts prevent operations from hanging indefinitely and ensure system responsi
 import asyncio
 import random
 from puffinflow import Agent
-from puffinflow.decorators import state
+from puffinflow import state
 
 agent = Agent("timeout-agent")
 
@@ -350,7 +350,7 @@ Use priorities to ensure critical operations get resources and attention during 
 import asyncio
 import random
 from puffinflow import Agent
-from puffinflow.decorators import state, critical_state
+from puffinflow import state, critical_state
 from puffinflow.core.agent.state import Priority
 
 agent = Agent("priority-agent", max_concurrent=2)
@@ -494,7 +494,7 @@ Circuit breakers prevent cascade failures by stopping calls to failing services 
 3. **HALF_OPEN** - Testing if service has recovered
 
 \`\`\`python
-from puffinflow.decorators import state
+from puffinflow import state
 from puffinflow.core.reliability.circuit_breaker import CircuitBreakerConfig
 
 # Circuit breaker for external APIs
@@ -611,7 +611,7 @@ Bulkheads isolate different types of operations to prevent failures in one area 
 - **Any operation** where you want to limit concurrent execution
 
 \`\`\`python
-from puffinflow.decorators import state
+from puffinflow import state
 from puffinflow.core.reliability.bulkhead import BulkheadConfig
 
 # Bulkhead for database operations
@@ -748,7 +748,7 @@ Dead letter queues capture operations that have exhausted all retry attempts, al
 - **Audit trails** where you need to track all failures
 
 \`\`\`python
-from puffinflow.decorators import state
+from puffinflow import state
 from puffinflow.core.agent.base import RetryPolicy
 
 # Retry policy that sends failures to dead letter queue
@@ -928,7 +928,7 @@ For production systems, combine multiple resilience patterns for robust operatio
 ### The Resilient Service Pattern
 
 \`\`\`python
-from puffinflow.decorators import state
+from puffinflow import state
 from puffinflow.core.agent.state import Priority
 from puffinflow.core.agent.base import RetryPolicy
 from puffinflow.core.reliability.circuit_breaker import CircuitBreakerConfig

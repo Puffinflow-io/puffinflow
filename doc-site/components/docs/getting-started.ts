@@ -57,7 +57,7 @@ async def process_data(context):
 
 ### With Decorator (For Advanced Features Later)
 \`\`\`python
-from puffinflow.decorators import state
+from puffinflow import state
 
 @state
 async def process_data(context):
@@ -289,7 +289,7 @@ if __name__ == "__main__":
 Add the \`@state\` decorator when you need advanced features later:
 
 \`\`\`python
-from puffinflow.decorators import state
+from puffinflow import state
 
 # Advanced features example (you don't need this initially)
 @state(cpu=2.0, memory=1024, priority="high", timeout=60.0)
@@ -474,14 +474,422 @@ Analysis: AI Analysis: Analyze these search results for query 'machine...
 Final report available in context: True
 \`\`\`
 
+## 🚀 Real-World Production Example
+
+Here's a complete example of a production-ready document processing workflow:
+
+\`\`\`python
+import asyncio
+import logging
+from pathlib import Path
+from puffinflow import Agent, state, Priority
+from puffinflow.observability import MetricsCollector
+from puffinflow.utils import save_checkpoint
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize metrics
+metrics = MetricsCollector(namespace="document_processor")
+
+# Create production agent
+processor = Agent("document-processor")
+
+@state(
+    cpu=2.0,
+    memory=1024,
+    priority=Priority.HIGH,
+    max_retries=3,
+    timeout=120.0
+)
+async def validate_document(context):
+    """Validate uploaded document format and size."""
+    logger.info("Starting document validation")
+    metrics.increment("validation_started")
+    
+    try:
+        file_path = context.get_variable("file_path")
+        file_size = Path(file_path).stat().st_size
+        
+        # Validate file size (max 10MB)
+        if file_size > 10 * 1024 * 1024:
+            context.set_variable("error", "File too large")
+            metrics.increment("validation_failed", tags={"reason": "file_size"})
+            return "error_handler"
+        
+        # Validate file format
+        if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
+            context.set_variable("error", "Unsupported file format")
+            metrics.increment("validation_failed", tags={"reason": "format"})
+            return "error_handler"
+        
+        context.set_variable("file_size", file_size)
+        logger.info(f"Document validated: {file_size} bytes")
+        metrics.increment("validation_succeeded")
+        
+        return "extract_content"
+        
+    except Exception as e:
+        logger.error(f"Validation error: {e}")
+        context.set_variable("error", str(e))
+        metrics.increment("validation_failed", tags={"reason": "exception"})
+        return "error_handler"
+
+@state(
+    cpu=4.0,
+    memory=2048,
+    priority=Priority.NORMAL,
+    max_retries=2,
+    timeout=300.0
+)
+async def extract_content(context):
+    """Extract text content from document."""
+    logger.info("Starting content extraction")
+    metrics.increment("extraction_started")
+    
+    with metrics.timer("extraction_time"):
+        try:
+            file_path = context.get_variable("file_path")
+            
+            # Simulate content extraction
+            await asyncio.sleep(2)  # Replace with actual extraction
+            
+            content = f"Extracted content from {file_path}"
+            word_count = len(content.split())
+            
+            context.set_variable("content", content)
+            context.set_variable("word_count", word_count)
+            
+            logger.info(f"Content extracted: {word_count} words")
+            metrics.gauge("content_word_count", word_count)
+            metrics.increment("extraction_succeeded")
+            
+            return "analyze_content"
+            
+        except Exception as e:
+            logger.error(f"Extraction error: {e}")
+            context.set_variable("error", str(e))
+            metrics.increment("extraction_failed")
+            return "error_handler"
+
+@state(
+    cpu=2.0,
+    memory=1024,
+    priority=Priority.NORMAL,
+    max_retries=1,
+    timeout=180.0
+)
+async def analyze_content(context):
+    """Analyze content with AI/ML processing."""
+    logger.info("Starting content analysis")
+    metrics.increment("analysis_started")
+    
+    with metrics.timer("analysis_time"):
+        try:
+            content = context.get_variable("content")
+            word_count = context.get_variable("word_count")
+            
+            # Simulate AI analysis
+            await asyncio.sleep(1)  # Replace with actual AI processing
+            
+            analysis = {
+                "sentiment": "positive",
+                "topics": ["technology", "business"],
+                "summary": f"Document contains {word_count} words about technology and business.",
+                "confidence": 0.95
+            }
+            
+            context.set_variable("analysis", analysis)
+            logger.info(f"Analysis complete: {analysis['sentiment']} sentiment")
+            metrics.gauge("analysis_confidence", analysis["confidence"])
+            metrics.increment("analysis_succeeded")
+            
+            return "save_results"
+            
+        except Exception as e:
+            logger.error(f"Analysis error: {e}")
+            context.set_variable("error", str(e))
+            metrics.increment("analysis_failed")
+            return "error_handler"
+
+@state(
+    cpu=1.0,
+    memory=512,
+    priority=Priority.NORMAL,
+    max_retries=2,
+    timeout=60.0
+)
+async def save_results(context):
+    """Save processing results to database."""
+    logger.info("Saving results")
+    metrics.increment("save_started")
+    
+    try:
+        analysis = context.get_variable("analysis")
+        file_path = context.get_variable("file_path")
+        
+        # Simulate database save
+        await asyncio.sleep(0.5)  # Replace with actual database operation
+        
+        result_id = f"doc_{hash(file_path)}"
+        results = {
+            "id": result_id,
+            "file_path": file_path,
+            "analysis": analysis,
+            "processed_at": "2024-01-15T10:30:00Z"
+        }
+        
+        context.set_variable("results", results)
+        logger.info(f"Results saved with ID: {result_id}")
+        metrics.increment("save_succeeded")
+        
+        return "send_notification"
+        
+    except Exception as e:
+        logger.error(f"Save error: {e}")
+        context.set_variable("error", str(e))
+        metrics.increment("save_failed")
+        return "error_handler"
+
+@state(
+    cpu=0.5,
+    memory=256,
+    priority=Priority.LOW,
+    max_retries=3,
+    timeout=30.0
+)
+async def send_notification(context):
+    """Send completion notification."""
+    logger.info("Sending notification")
+    metrics.increment("notification_started")
+    
+    try:
+        results = context.get_variable("results")
+        
+        # Simulate notification
+        await asyncio.sleep(0.2)  # Replace with actual notification service
+        
+        notification = {
+            "type": "success",
+            "message": f"Document {results['id']} processed successfully",
+            "timestamp": "2024-01-15T10:35:00Z"
+        }
+        
+        context.set_variable("notification", notification)
+        logger.info("Notification sent successfully")
+        metrics.increment("notification_succeeded")
+        
+        return None  # End workflow
+        
+    except Exception as e:
+        logger.error(f"Notification error: {e}")
+        context.set_variable("error", str(e))
+        metrics.increment("notification_failed")
+        return "error_handler"
+
+@state(
+    cpu=0.5,
+    memory=256,
+    priority=Priority.HIGH,
+    max_retries=1,
+    timeout=30.0
+)
+async def error_handler(context):
+    """Handle errors and cleanup."""
+    logger.error("Handling workflow error")
+    metrics.increment("error_handled")
+    
+    try:
+        error = context.get_variable("error")
+        file_path = context.get_variable("file_path", "unknown")
+        
+        # Log error details
+        logger.error(f"Workflow failed for {file_path}: {error}")
+        
+        # Cleanup resources
+        await cleanup_resources(file_path)
+        
+        # Send error notification
+        error_notification = {
+            "type": "error",
+            "message": f"Document processing failed: {error}",
+            "file_path": file_path,
+            "timestamp": "2024-01-15T10:30:00Z"
+        }
+        
+        context.set_variable("error_notification", error_notification)
+        logger.info("Error handling completed")
+        
+        return None  # End workflow
+        
+    except Exception as e:
+        logger.critical(f"Error handler failed: {e}")
+        metrics.increment("error_handler_failed")
+        return None
+
+async def cleanup_resources(file_path):
+    """Cleanup any allocated resources."""
+    logger.info(f"Cleaning up resources for {file_path}")
+    # Add cleanup logic here
+    pass
+
+# Example usage
+async def process_document(file_path: str):
+    """Process a document through the complete workflow."""
+    logger.info(f"Starting document processing: {file_path}")
+    
+    try:
+        # Run workflow with error handling
+        context = await processor.run(
+            initial_context={"file_path": file_path}
+        )
+        
+        # Save checkpoint periodically
+        save_checkpoint(context, f"checkpoint_{hash(file_path)}.json")
+        
+        # Check results
+        if context.has_variable("results"):
+            results = context.get_variable("results")
+            logger.info(f"Processing completed successfully: {results['id']}")
+            return results
+        else:
+            error = context.get_variable("error", "Unknown error")
+            logger.error(f"Processing failed: {error}")
+            return None
+            
+    except Exception as e:
+        logger.critical(f"Workflow execution failed: {e}")
+        metrics.increment("workflow_failed")
+        return None
+
+# Production usage
+if __name__ == "__main__":
+    # Process multiple documents
+    documents = [
+        "/path/to/document1.pdf",
+        "/path/to/document2.docx",
+        "/path/to/document3.txt"
+    ]
+    
+    async def main():
+        tasks = []
+        for doc in documents:
+            task = asyncio.create_task(process_document(doc))
+            tasks.append(task)
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Summary
+        successful = sum(1 for r in results if r is not None and not isinstance(r, Exception))
+        logger.info(f"Processed {successful}/{len(documents)} documents successfully")
+    
+    asyncio.run(main())
+\`\`\`
+
+This example demonstrates:
+- **Production-ready error handling** with retry logic and cleanup
+- **Comprehensive monitoring** with metrics and logging
+- **Resource management** with appropriate CPU/memory allocation
+- **Prioritization** of critical vs. background tasks
+- **Fault tolerance** with checkpointing and recovery
+- **Concurrent processing** of multiple documents
+
+## 📚 Common Patterns and Best Practices
+
+### 1. **Error Handling Pattern**
+
+\`\`\`python
+@state(max_retries=3, timeout=60.0)
+async def robust_state(context):
+    try:
+        # Your business logic
+        result = await risky_operation()
+        context.set_variable("result", result)
+        return "success_state"
+    except SpecificError as e:
+        logger.warning(f"Recoverable error: {e}")
+        context.set_variable("retry_count", context.get_state("retry_count", 0) + 1)
+        return "retry_state"
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        context.set_variable("error", str(e))
+        return "error_handler"
+\`\`\`
+
+### 2. **Data Validation Pattern**
+
+\`\`\`python
+from pydantic import BaseModel, ValidationError
+
+class InputData(BaseModel):
+    user_id: int
+    email: str
+    preferences: dict
+
+@state
+async def validate_input(context):
+    try:
+        raw_data = context.get_variable("raw_input")
+        validated_data = InputData(**raw_data)
+        context.set_validated_data("input", validated_data)
+        return "process_data"
+    except ValidationError as e:
+        context.set_variable("validation_errors", e.errors())
+        return "validation_error"
+\`\`\`
+
+### 3. **Resource Optimization Pattern**
+
+\`\`\`python
+@state(cpu=0.5, memory=256, priority=Priority.LOW)
+async def lightweight_task(context):
+    # Light processing
+    return "next_state"
+
+@state(cpu=4.0, memory=2048, priority=Priority.HIGH)
+async def heavy_task(context):
+    # CPU/memory intensive processing
+    return "next_state"
+\`\`\`
+
+### 4. **Monitoring Pattern**
+
+\`\`\`python
+from puffinflow.observability import MetricsCollector
+
+metrics = MetricsCollector()
+
+@state
+async def monitored_state(context):
+    metrics.increment("state_executions")
+    
+    start_time = time.time()
+    try:
+        with metrics.timer("operation_duration"):
+            result = await business_operation()
+        
+        metrics.gauge("result_size", len(result))
+        metrics.increment("successful_operations")
+        
+        context.set_variable("result", result)
+        return "next_state"
+    except Exception as e:
+        metrics.increment("failed_operations")
+        raise
+\`\`\`
+
 ## 🎯 Next Steps
 
 You now know the fundamentals! Here's what to explore next:
 
-1. **[Context and Data →](#docs/context-and-data)** - Deep dive into data management
+1. **[Context and Data →](#docs/context-and-data)** - Deep dive into data management and validation
 2. **[Resource Management →](#docs/resource-management)** - Control CPU, memory, and rate limits
-3. **[Error Handling →](#docs/error-handling)** - Build resilient workflows
-4. **[Checkpointing →](#docs/checkpointing)** - Save and resume progress
+3. **[Error Handling →](#docs/error-handling)** - Build resilient workflows with retries and circuit breakers
+4. **[Checkpointing →](#docs/checkpointing)** - Save and resume progress for long-running workflows
+5. **[Observability →](#docs/observability)** - Monitor and debug your workflows in production
+6. **[API Reference →](#docs/api-reference)** - Complete reference for all classes and methods
+7. **[Troubleshooting →](#docs/troubleshooting)** - Solve common issues and debug problems
 
 **Pro tip:** Start simple with basic workflows, then gradually add advanced features as your needs grow! 🌱
 `.trim();

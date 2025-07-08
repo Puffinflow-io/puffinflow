@@ -1,6 +1,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { SunIcon, MoonIcon, ClipboardIcon, ClipboardCheckIcon } from './Icons';
+import { 
+    SunIcon, 
+    MoonIcon, 
+    ClipboardIcon, 
+    ClipboardCheckIcon,
+    BookOpenIcon,
+    RocketLaunchIcon,
+    DatabaseIcon,
+    BoltIcon,
+    ShieldIcon,
+    ArchiveBoxIcon,
+    CogIcon,
+    ChartBarIcon,
+    UsersIcon,
+    CpuChipIcon,
+    LinkIcon,
+    AcademicCapIcon,
+    MagnifyingGlassIcon
+} from './Icons';
 import CodeWindow from './CodeWindow';
 import { introductionMarkdown } from './docs/introduction';
 import { gettingStartedMarkdown } from './docs/getting-started';
@@ -9,6 +27,13 @@ import { resourceManagementMarkdown } from './docs/resource-management';
 import { errorHandlingMarkdown } from './docs/error-handling';
 import { checkpointingMarkdown } from './docs/checkpointing';
 import { ragRecipeMarkdown } from './docs/rag-recipe';
+import { reliabilityMarkdown } from './docs/reliability';
+import { observabilityMarkdown } from './docs/observability';
+import { coordinationMarkdown } from './docs/coordination';
+import { multiagentMarkdown } from './docs/multiagent';
+import { resourcesMarkdown } from './docs/resources';
+import { troubleshootingMarkdown } from './docs/troubleshooting';
+import { apiReferenceMarkdown } from './docs/api-reference';
 
 const InlineCode: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <code className="font-mono text-sm">{children}</code>
@@ -18,8 +43,8 @@ interface DocsLayoutProps {
     children: React.ReactNode;
     sidebarLinks: { id: string; label: string }[];
     pageMarkdown: string;
-    currentPage: 'introduction' | 'getting-started' | 'context-and-data' | 'resource-management' | 'error-handling' | 'checkpointing' | 'rag-recipe';
-    pageKey: 'docs' | 'docs/getting-started' | 'docs/context-and-data' | 'docs/resource-management' | 'docs/error-handling' | 'docs/checkpointing' | 'docs/rag-recipe';
+    currentPage: 'introduction' | 'getting-started' | 'context-and-data' | 'resource-management' | 'error-handling' | 'checkpointing' | 'rag-recipe' | 'reliability' | 'observability' | 'coordination' | 'multiagent' | 'resources' | 'troubleshooting' | 'api-reference';
+    pageKey: 'docs' | 'docs/getting-started' | 'docs/context-and-data' | 'docs/resource-management' | 'docs/error-handling' | 'docs/checkpointing' | 'docs/rag-recipe' | 'docs/reliability' | 'docs/observability' | 'docs/coordination' | 'docs/multiagent' | 'docs/resources' | 'docs/troubleshooting' | 'docs/api-reference';
 }
 
 const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMarkdown, currentPage, pageKey }) => {
@@ -86,16 +111,23 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMar
     };
 
     const docsNavLinks = [
-        { href: '#docs', label: 'Introduction', page: 'introduction' },
-        { href: '#docs/getting-started', label: 'Getting Started', page: 'getting-started' },
-        { href: '#docs/context-and-data', label: 'Context and Data', page: 'context-and-data' },
-        { href: '#docs/resource-management', label: 'Resource Management', page: 'resource-management' },
-        { href: '#docs/error-handling', label: 'Error Handling', page: 'error-handling' },
-        { href: '#docs/checkpointing', label: 'Checkpointing', page: 'checkpointing' }
+        { href: '#docs', label: 'Introduction', page: 'introduction', icon: BookOpenIcon },
+        { href: '#docs/getting-started', label: 'Getting Started', page: 'getting-started', icon: RocketLaunchIcon },
+        { href: '#docs/context-and-data', label: 'Context and Data', page: 'context-and-data', icon: DatabaseIcon },
+        { href: '#docs/resource-management', label: 'Resource Management', page: 'resource-management', icon: BoltIcon },
+        { href: '#docs/error-handling', label: 'Error Handling', page: 'error-handling', icon: ShieldIcon },
+        { href: '#docs/checkpointing', label: 'Checkpointing', page: 'checkpointing', icon: ArchiveBoxIcon },
+        { href: '#docs/reliability', label: 'Reliability', page: 'reliability', icon: CogIcon },
+        { href: '#docs/observability', label: 'Observability', page: 'observability', icon: ChartBarIcon },
+        { href: '#docs/coordination', label: 'Coordination', page: 'coordination', icon: LinkIcon },
+        { href: '#docs/multiagent', label: 'Multi-Agent', page: 'multiagent', icon: UsersIcon },
+        { href: '#docs/resources', label: 'Resources', page: 'resources', icon: AcademicCapIcon },
+        { href: '#docs/troubleshooting', label: 'Troubleshooting', page: 'troubleshooting', icon: MagnifyingGlassIcon },
+        { href: '#docs/api-reference', label: 'API Reference', page: 'api-reference', icon: BookOpenIcon }
     ];
 
     const recipesNavLinks = [
-        { href: '#docs/rag-recipe', label: 'Production RAG', page: 'rag-recipe' },
+        { href: '#docs/rag-recipe', label: 'Production RAG', page: 'rag-recipe', icon: MagnifyingGlassIcon },
     ];
 
     return (
@@ -105,31 +137,39 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMar
                     <nav className="sticky top-28 docs-sidebar">
                         <h3 className="text-sm font-bold uppercase tracking-wider mb-4">Documentation</h3>
                         <ul className="space-y-2 mb-4">
-                            {docsNavLinks.map(link => (
-                                <li key={link.page}>
-                                    <a
-                                        href={link.href}
-                                        onClick={(e) => handleNavClick(e, link.href)}
-                                        className={`block transition-colors duration-200 text-base font-medium ${currentPage === link.page ? 'active' : ''}`}
-                                    >
-                                        {link.label}
-                                    </a>
-                                </li>
-                            ))}
+                            {docsNavLinks.map(link => {
+                                const IconComponent = link.icon;
+                                return (
+                                    <li key={link.page}>
+                                        <a
+                                            href={link.href}
+                                            onClick={(e) => handleNavClick(e, link.href)}
+                                            className={`flex items-center gap-2 transition-colors duration-200 text-base font-medium ${currentPage === link.page ? 'active' : ''}`}
+                                        >
+                                            <IconComponent className="h-4 w-4 flex-shrink-0" />
+                                            {link.label}
+                                        </a>
+                                    </li>
+                                );
+                            })}
                         </ul>
                         <h3 className="text-sm font-bold uppercase tracking-wider mb-4">Recipes</h3>
                         <ul className="space-y-2 mb-8 border-b dark:border-white/10 pb-6">
-                             {recipesNavLinks.map(link => (
-                                <li key={link.page}>
-                                    <a
-                                        href={link.href}
-                                        onClick={(e) => handleNavClick(e, link.href)}
-                                        className={`block transition-colors duration-200 text-base font-medium ${currentPage === link.page ? 'active' : ''}`}
-                                    >
-                                        {link.label}
-                                    </a>
-                                </li>
-                            ))}
+                             {recipesNavLinks.map(link => {
+                                const IconComponent = link.icon;
+                                return (
+                                    <li key={link.page}>
+                                        <a
+                                            href={link.href}
+                                            onClick={(e) => handleNavClick(e, link.href)}
+                                            className={`flex items-center gap-2 transition-colors duration-200 text-base font-medium ${currentPage === link.page ? 'active' : ''}`}
+                                        >
+                                            <IconComponent className="h-4 w-4 flex-shrink-0" />
+                                            {link.label}
+                                        </a>
+                                    </li>
+                                );
+                            })}
                         </ul>
                         <h3 className="text-sm font-bold uppercase tracking-wider mb-4">On this page</h3>
                         <ul className="space-y-2">
@@ -178,6 +218,7 @@ export const DocsPage: React.FC = () => {
         { id: 'what-is-puffinflow', label: 'What is Puffinflow?' },
         { id: 'why-another-tool', label: 'Why Another Tool?' },
         { id: 'when-to-choose', label: 'When to Choose' },
+        { id: 'documentation-sections', label: 'Documentation Sections' },
     ];
 
     const headacheData = [
@@ -228,6 +269,169 @@ export const DocsPage: React.FC = () => {
                         </ul>
                     </li>
                 </ul>
+            </section>
+
+            <section id="documentation-sections">
+                <h2>Documentation Sections</h2>
+                <p>Explore our comprehensive documentation covering all aspects of Puffinflow development:</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/getting-started" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <RocketLaunchIcon className="h-5 w-5" />
+                                Getting Started
+                            </a>
+                        </h3>
+                        <p>Step-by-step guide to building your first Puffinflow workflow with examples and best practices.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/context-and-data" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <DatabaseIcon className="h-5 w-5" />
+                                Context & Data
+                            </a>
+                        </h3>
+                        <p>Learn how to share data between states using Puffinflow's powerful context system.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/resource-management" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <BoltIcon className="h-5 w-5" />
+                                Resource Management
+                            </a>
+                        </h3>
+                        <p>Control CPU, memory, rate limits, and resource allocation for optimal performance.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/error-handling" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <ShieldIcon className="h-5 w-5" />
+                                Error Handling
+                            </a>
+                        </h3>
+                        <p>Build resilient workflows with comprehensive error handling and recovery patterns.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/checkpointing" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <ArchiveBoxIcon className="h-5 w-5" />
+                                Checkpointing
+                            </a>
+                        </h3>
+                        <p>Save and resume workflow progress for long-running processes and reliability.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/reliability" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <CogIcon className="h-5 w-5" />
+                                Reliability
+                            </a>
+                        </h3>
+                        <p>Production-ready patterns including circuit breakers, bulkheads, and monitoring.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/observability" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <ChartBarIcon className="h-5 w-5" />
+                                Observability
+                            </a>
+                        </h3>
+                        <p>Comprehensive monitoring, metrics collection, distributed tracing, and alerting.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/coordination" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <LinkIcon className="h-5 w-5" />
+                                Coordination
+                            </a>
+                        </h3>
+                        <p>Synchronization primitives and patterns for coordinating multiple agents.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/multiagent" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <UsersIcon className="h-5 w-5" />
+                                Multi-Agent Systems
+                            </a>
+                        </h3>
+                        <p>Build sophisticated multi-agent systems with team structures and collaboration.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/resources" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <AcademicCapIcon className="h-5 w-5" />
+                                Resources
+                            </a>
+                        </h3>
+                        <p>Learning materials, examples, community links, and troubleshooting guides.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/rag-recipe" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <MagnifyingGlassIcon className="h-5 w-5" />
+                                RAG Recipe
+                            </a>
+                        </h3>
+                        <p>Complete tutorial for building production-ready RAG systems with Puffinflow.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/troubleshooting" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <MagnifyingGlassIcon className="h-5 w-5" />
+                                Troubleshooting
+                            </a>
+                        </h3>
+                        <p>Comprehensive guide to debugging and resolving common issues with Puffinflow.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/api-reference" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <BookOpenIcon className="h-5 w-5" />
+                                API Reference
+                            </a>
+                        </h3>
+                        <p>Complete reference documentation for all Puffinflow classes, methods, and functions.</p>
+                    </div>
+                </div>
+                
+                <style jsx>{`
+                    .docs-card {
+                        padding: 1.5rem;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 0.5rem;
+                        background: rgba(255, 255, 255, 0.02);
+                        transition: all 0.2s ease;
+                    }
+                    .docs-card:hover {
+                        background: rgba(255, 255, 255, 0.05);
+                        border-color: rgba(251, 146, 60, 0.3);
+                        transform: translateY(-2px);
+                    }
+                    .docs-card h3 {
+                        margin-top: 0;
+                        margin-bottom: 0.5rem;
+                        font-size: 1.125rem;
+                    }
+                    .docs-card p {
+                        margin-bottom: 0;
+                        color: #D1D5DB;
+                        font-size: 0.875rem;
+                        line-height: 1.5;
+                    }
+                `}</style>
             </section>
         </DocsLayout>
     );
@@ -3138,6 +3342,957 @@ async def run_multi_agent_system():
                 </ul>
                 <p>Start with the basic implementation and incrementally add these features as your RAG system grows in complexity and scale!</p>
             </section>
+        </DocsLayout>
+    );
+};
+
+export const ReliabilityPage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'introduction', label: 'Introduction' },
+        { id: 'circuit-breaker', label: 'Circuit Breaker Pattern' },
+        { id: 'bulkhead', label: 'Bulkhead Isolation' },
+        { id: 'timeout-retry', label: 'Timeout & Retry' },
+        { id: 'health-monitoring', label: 'Health Monitoring' },
+        { id: 'disaster-recovery', label: 'Disaster Recovery' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={reliabilityMarkdown} currentPage="reliability" pageKey="docs/reliability">
+            <section id="reliability">
+                <h1>Reliability & Production Patterns</h1>
+                <p>Puffinflow provides comprehensive reliability patterns to ensure your workflows operate consistently in production environments. This guide covers health monitoring, graceful degradation, system resilience, and operational best practices for building bulletproof AI workflows.</p>
+                
+                <h2 id="circuit-breaker">Circuit Breaker Pattern</h2>
+                <p>Prevent cascading failures by automatically detecting and isolating failing services.</p>
+                <CodeWindow language="python" fileName="circuit_breaker.py" code={`from puffinflow import Agent, CircuitBreaker, state
+
+# Create circuit breaker for external service calls
+api_breaker = CircuitBreaker(
+    failure_threshold=5,  # Trip after 5 failures
+    recovery_timeout=60,  # Try again after 60 seconds
+    expected_exception=ConnectionError
+)
+
+agent = Agent("resilient-workflow")
+
+@state(circuit_breaker=api_breaker)
+async def call_external_api(context):
+    """Protected API call with circuit breaker"""
+    try:
+        response = await external_api.get_data()
+        context.set_variable("api_response", response)
+        return "process_data"
+    except ConnectionError:
+        # Circuit breaker will handle this
+        context.set_variable("api_failed", True)
+        return "fallback_handler"
+
+@state
+async def fallback_handler(context):
+    """Graceful degradation when API fails"""
+    print("API unavailable, using cached data")
+    cached_data = context.get_variable("cached_data", {})
+    context.set_variable("api_response", cached_data)
+    return "process_data"`} />
+
+                <h2 id="bulkhead">Bulkhead Isolation</h2>
+                <p>Isolate critical resources to prevent resource exhaustion from affecting the entire system.</p>
+                <CodeWindow language="python" fileName="bulkhead.py" code={`from puffinflow import Agent, Bulkhead, state
+
+# Separate resource pools for different priorities
+critical_pool = Bulkhead("critical", max_concurrent=3)
+standard_pool = Bulkhead("standard", max_concurrent=10)
+
+@state(bulkhead=critical_pool, priority="high")
+async def critical_operation(context):
+    """High-priority operation with dedicated resources"""
+    result = await perform_critical_task()
+    context.set_variable("critical_result", result)
+    return "complete"
+
+@state(bulkhead=standard_pool)
+async def standard_operation(context):
+    """Standard operation that won't starve critical operations"""
+    result = await perform_standard_task()
+    context.set_variable("standard_result", result)
+    return "complete"`} />
+
+                <h2 id="health-monitoring">Health Monitoring</h2>
+                <p>Implement comprehensive health checks and monitoring for proactive issue detection.</p>
+                <CodeWindow language="python" fileName="health_monitoring.py" code={`from puffinflow import Agent, state
+import asyncio
+import time
+
+class HealthMonitor:
+    def __init__(self):
+        self.checks = {}
+        self.last_check = time.time()
+    
+    async def register_check(self, name, check_func):
+        """Register a health check function"""
+        self.checks[name] = check_func
+    
+    async def run_health_checks(self):
+        """Run all registered health checks"""
+        results = {}
+        for name, check_func in self.checks.items():
+            try:
+                result = await check_func()
+                results[name] = {"status": "healthy", "result": result}
+            except Exception as e:
+                results[name] = {"status": "unhealthy", "error": str(e)}
+        
+        return results
+
+monitor = HealthMonitor()
+
+@state
+async def system_health_check(context):
+    """Comprehensive system health monitoring"""
+    
+    # Register health checks
+    await monitor.register_check("database", check_database_connection)
+    await monitor.register_check("external_api", check_api_availability)
+    await monitor.register_check("memory", check_memory_usage)
+    await monitor.register_check("disk_space", check_disk_space)
+    
+    # Run all checks
+    health_results = await monitor.run_health_checks()
+    
+    # Determine overall health
+    unhealthy_services = [name for name, result in health_results.items() 
+                         if result["status"] == "unhealthy"]
+    
+    overall_health = "healthy" if not unhealthy_services else "degraded"
+    
+    context.set_variable("health_status", overall_health)
+    context.set_variable("health_details", health_results)
+    context.set_output("unhealthy_services_count", len(unhealthy_services))
+    
+    if unhealthy_services:
+        print(f"⚠️ System health degraded. Unhealthy: {unhealthy_services}")
+        return "handle_degraded_health"
+    else:
+        print("✅ All systems healthy")
+        return "continue_normal_operation"
+
+async def check_database_connection():
+    # Simulate database health check
+    await asyncio.sleep(0.1)
+    return {"connection_time_ms": 50, "active_connections": 5}
+
+async def check_api_availability():
+    # Simulate external API health check
+    await asyncio.sleep(0.1)
+    return {"response_time_ms": 150, "status": "operational"}
+
+async def check_memory_usage():
+    # Simulate memory usage check
+    return {"used_percent": 65, "available_gb": 2.1}
+
+async def check_disk_space():
+    # Simulate disk space check
+    return {"used_percent": 45, "available_gb": 25.8}`} />
+
+                <h2 id="disaster-recovery">Disaster Recovery</h2>
+                <p>Implement comprehensive backup and recovery strategies for critical workflow data.</p>
+                <CodeWindow language="python" fileName="disaster_recovery.py" code={`from puffinflow import Agent, state
+import json
+import asyncio
+from datetime import datetime
+
+class DisasterRecoveryManager:
+    def __init__(self, backup_location):
+        self.backup_location = backup_location
+        self.recovery_points = []
+    
+    async def create_backup(self, context_data, metadata=None):
+        """Create a recovery point"""
+        timestamp = datetime.now().isoformat()
+        backup_data = {
+            "timestamp": timestamp,
+            "context_data": context_data,
+            "metadata": metadata or {},
+            "version": "1.0"
+        }
+        
+        backup_file = f"{self.backup_location}/backup_{timestamp}.json"
+        with open(backup_file, 'w') as f:
+            json.dump(backup_data, f, indent=2)
+        
+        self.recovery_points.append(backup_file)
+        return backup_file
+    
+    async def restore_from_backup(self, backup_file):
+        """Restore system state from backup"""
+        with open(backup_file, 'r') as f:
+            backup_data = json.load(f)
+        
+        return backup_data["context_data"]
+
+recovery_manager = DisasterRecoveryManager("/backups")
+
+@state(checkpoint_interval=30.0)
+async def critical_data_processing(context):
+    """Critical operation with disaster recovery"""
+    
+    # Create recovery point before critical operation
+    current_state = {
+        "processed_items": context.get_variable("processed_items", []),
+        "progress": context.get_variable("progress", 0),
+        "configuration": context.get_variable("config", {})
+    }
+    
+    backup_file = await recovery_manager.create_backup(
+        current_state,
+        metadata={"operation": "critical_processing", "stage": "pre_operation"}
+    )
+    
+    context.set_variable("recovery_point", backup_file)
+    print(f"🛡️ Recovery point created: {backup_file}")
+    
+    try:
+        # Perform critical operation
+        result = await perform_critical_operation()
+        context.set_variable("operation_result", result)
+        
+        # Create post-operation backup
+        final_state = {**current_state, "operation_result": result}
+        final_backup = await recovery_manager.create_backup(
+            final_state,
+            metadata={"operation": "critical_processing", "stage": "post_operation"}
+        )
+        
+        print(f"✅ Operation complete. Final backup: {final_backup}")
+        return "operation_success"
+        
+    except Exception as e:
+        print(f"❌ Critical operation failed: {e}")
+        print(f"🔄 Recovery point available: {backup_file}")
+        context.set_variable("failure_reason", str(e))
+        return "disaster_recovery"
+
+@state
+async def disaster_recovery(context):
+    """Recover from critical failure"""
+    recovery_point = context.get_variable("recovery_point")
+    
+    if recovery_point:
+        print(f"🔄 Initiating disaster recovery from: {recovery_point}")
+        
+        # Restore previous state
+        restored_state = await recovery_manager.restore_from_backup(recovery_point)
+        
+        # Restore context variables
+        for key, value in restored_state.items():
+            context.set_variable(key, value)
+        
+        # Set recovery metadata
+        context.set_variable("recovered_from_disaster", True)
+        context.set_variable("recovery_timestamp", datetime.now().isoformat())
+        
+        print("✅ System state restored from backup")
+        return "retry_operation"
+    else:
+        print("❌ No recovery point available")
+        return "manual_intervention_required"
+
+async def perform_critical_operation():
+    # Simulate critical operation that might fail
+    await asyncio.sleep(1.0)
+    # Uncomment to simulate failure
+    # raise Exception("Critical operation failed")
+    return {"status": "success", "data": "processed_data"}`} />
+            </section>
+        </DocsLayout>
+    );
+};
+
+export const ObservabilityPage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'introduction', label: 'Introduction' },
+        { id: 'metrics', label: 'Metrics Collection' },
+        { id: 'tracing', label: 'Distributed Tracing' },
+        { id: 'logging', label: 'Structured Logging' },
+        { id: 'alerting', label: 'Alerting & Monitoring' },
+        { id: 'dashboards', label: 'Dashboards' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={observabilityMarkdown} currentPage="observability" pageKey="docs/observability">
+            <section id="observability">
+                <h1>Observability & Monitoring</h1>
+                <p>Comprehensive observability stack for monitoring, alerting, and debugging Puffinflow workflows in production.</p>
+                
+                <h2 id="metrics">Metrics Collection</h2>
+                <p>Collect and track key performance indicators for your workflows.</p>
+                <CodeWindow language="python" fileName="metrics.py" code={`from puffinflow import Agent, state
+import time
+from dataclasses import dataclass
+from typing import Dict, List
+
+@dataclass
+class MetricsCollector:
+    def __init__(self):
+        self.counters = {}
+        self.histograms = {}
+        self.gauges = {}
+    
+    def increment_counter(self, name: str, value: int = 1, tags: Dict = None):
+        """Increment a counter metric"""
+        key = f"{name}:{tags or {}}"
+        self.counters[key] = self.counters.get(key, 0) + value
+    
+    def record_histogram(self, name: str, value: float, tags: Dict = None):
+        """Record a histogram value"""
+        key = f"{name}:{tags or {}}"
+        if key not in self.histograms:
+            self.histograms[key] = []
+        self.histograms[key].append(value)
+    
+    def set_gauge(self, name: str, value: float, tags: Dict = None):
+        """Set a gauge value"""
+        key = f"{name}:{tags or {}}"
+        self.gauges[key] = value
+
+metrics = MetricsCollector()
+
+@state
+async def collect_workflow_metrics(context):
+    """Collect comprehensive workflow metrics"""
+    start_time = time.time()
+    
+    # Counter metrics
+    metrics.increment_counter("workflow.started", tags={"workflow": "data_processing"})
+    
+    # Process data
+    data_size = len(context.get_variable("input_data", []))
+    processing_time = await process_data_with_timing(context)
+    
+    # Record performance metrics
+    metrics.record_histogram("workflow.duration_seconds", processing_time)
+    metrics.record_histogram("workflow.data_size_items", data_size)
+    
+    # Set current state gauges
+    metrics.set_gauge("workflow.active_workers", 5)
+    metrics.set_gauge("workflow.memory_usage_mb", 256.5)
+    
+    # Success/failure tracking
+    if context.get_variable("processing_successful", True):
+        metrics.increment_counter("workflow.completed")
+    else:
+        metrics.increment_counter("workflow.failed")
+    
+    # Store metrics in context for reporting
+    context.set_output("processing_time", processing_time)
+    context.set_output("data_items_processed", data_size)
+    
+    return "export_metrics"
+
+async def process_data_with_timing(context):
+    """Process data and return timing"""
+    start = time.time()
+    # Simulate data processing
+    await asyncio.sleep(0.5)
+    return time.time() - start`} />
+
+                <h2 id="tracing">Distributed Tracing</h2>
+                <p>Track requests across multiple services and workflow states.</p>
+                <CodeWindow language="python" fileName="tracing.py" code={`from puffinflow import Agent, state
+import uuid
+import json
+from datetime import datetime
+from typing import Optional
+
+class TraceSpan:
+    def __init__(self, operation_name: str, parent_span: Optional['TraceSpan'] = None):
+        self.span_id = str(uuid.uuid4())
+        self.trace_id = parent_span.trace_id if parent_span else str(uuid.uuid4())
+        self.parent_id = parent_span.span_id if parent_span else None
+        self.operation_name = operation_name
+        self.start_time = datetime.now().isoformat()
+        self.end_time = None
+        self.tags = {}
+        self.logs = []
+    
+    def set_tag(self, key: str, value: str):
+        """Add a tag to the span"""
+        self.tags[key] = value
+    
+    def log(self, message: str, level: str = "info"):
+        """Add a log entry to the span"""
+        self.logs.append({
+            "timestamp": datetime.now().isoformat(),
+            "level": level,
+            "message": message
+        })
+    
+    def finish(self):
+        """Mark the span as completed"""
+        self.end_time = datetime.now().isoformat()
+    
+    def to_dict(self):
+        """Convert span to dictionary for export"""
+        return {
+            "span_id": self.span_id,
+            "trace_id": self.trace_id,
+            "parent_id": self.parent_id,
+            "operation_name": self.operation_name,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "tags": self.tags,
+            "logs": self.logs
+        }
+
+@state
+async def traced_workflow_step(context):
+    """Execute workflow step with distributed tracing"""
+    
+    # Get parent span from context or create root span
+    parent_span = context.get_variable("current_span")
+    span = TraceSpan("data_processing_step", parent_span)
+    
+    # Set span metadata
+    span.set_tag("service", "puffinflow")
+    span.set_tag("operation", "data_processing")
+    span.set_tag("version", "1.0")
+    
+    try:
+        span.log("Starting data processing step")
+        
+        # Store current span in context for child operations
+        context.set_variable("current_span", span)
+        
+        # Simulate work with child spans
+        result = await traced_data_processing(context)
+        
+        span.set_tag("status", "success")
+        span.log(f"Processing completed. Result: {result}")
+        
+        context.set_variable("processing_result", result)
+        
+    except Exception as e:
+        span.set_tag("status", "error")
+        span.set_tag("error.message", str(e))
+        span.log(f"Processing failed: {e}", level="error")
+        raise
+    
+    finally:
+        span.finish()
+        
+        # Store span for export
+        spans = context.get_variable("trace_spans", [])
+        spans.append(span.to_dict())
+        context.set_variable("trace_spans", spans)
+    
+    return "export_traces"
+
+async def traced_data_processing(context):
+    """Data processing with child span"""
+    parent_span = context.get_variable("current_span")
+    child_span = TraceSpan("database_query", parent_span)
+    
+    try:
+        child_span.set_tag("db.type", "postgresql")
+        child_span.set_tag("db.statement", "SELECT * FROM users")
+        child_span.log("Executing database query")
+        
+        # Simulate database work
+        await asyncio.sleep(0.2)
+        
+        child_span.log("Query completed successfully")
+        return {"status": "success", "rows": 150}
+        
+    finally:
+        child_span.finish()
+        
+        # Add child span to trace
+        spans = context.get_variable("trace_spans", [])
+        spans.append(child_span.to_dict())
+        context.set_variable("trace_spans", spans)`} />
+
+                <h2 id="alerting">Alerting & Monitoring</h2>
+                <p>Set up intelligent alerting for workflow health and performance issues.</p>
+                <CodeWindow language="python" fileName="alerting.py" code={`from puffinflow import Agent, state
+import asyncio
+from datetime import datetime, timedelta
+from typing import List, Dict, Callable
+
+class AlertRule:
+    def __init__(self, name: str, condition: Callable, threshold: float, 
+                 duration: int = 60, severity: str = "warning"):
+        self.name = name
+        self.condition = condition
+        self.threshold = threshold
+        self.duration = duration  # seconds
+        self.severity = severity
+        self.triggered_at = None
+        self.is_triggered = False
+
+class AlertManager:
+    def __init__(self):
+        self.rules = []
+        self.alerts = []
+        self.notification_handlers = []
+    
+    def add_rule(self, rule: AlertRule):
+        """Add an alerting rule"""
+        self.rules.append(rule)
+    
+    def add_notification_handler(self, handler: Callable):
+        """Add a notification handler (email, slack, etc.)"""
+        self.notification_handlers.append(handler)
+    
+    async def evaluate_rules(self, metrics: Dict):
+        """Evaluate all alerting rules against current metrics"""
+        current_time = datetime.now()
+        
+        for rule in self.rules:
+            try:
+                # Check if condition is met
+                value = rule.condition(metrics)
+                condition_met = value > rule.threshold
+                
+                if condition_met and not rule.is_triggered:
+                    # Start tracking this potential alert
+                    if rule.triggered_at is None:
+                        rule.triggered_at = current_time
+                    
+                    # Check if duration threshold is met
+                    elif (current_time - rule.triggered_at).seconds >= rule.duration:
+                        await self._trigger_alert(rule, value, metrics)
+                        rule.is_triggered = True
+                
+                elif not condition_met:
+                    # Reset rule state
+                    if rule.is_triggered:
+                        await self._resolve_alert(rule)
+                    rule.triggered_at = None
+                    rule.is_triggered = False
+                    
+            except Exception as e:
+                print(f"Error evaluating rule {rule.name}: {e}")
+    
+    async def _trigger_alert(self, rule: AlertRule, value: float, metrics: Dict):
+        """Trigger an alert"""
+        alert = {
+            "id": f"alert_{len(self.alerts)}",
+            "rule_name": rule.name,
+            "severity": rule.severity,
+            "value": value,
+            "threshold": rule.threshold,
+            "triggered_at": datetime.now().isoformat(),
+            "status": "active",
+            "message": f"{rule.name}: {value} > {rule.threshold}"
+        }
+        
+        self.alerts.append(alert)
+        
+        # Send notifications
+        for handler in self.notification_handlers:
+            await handler(alert)
+    
+    async def _resolve_alert(self, rule: AlertRule):
+        """Resolve an alert"""
+        for alert in self.alerts:
+            if alert["rule_name"] == rule.name and alert["status"] == "active":
+                alert["status"] = "resolved"
+                alert["resolved_at"] = datetime.now().isoformat()
+
+# Create alert manager and rules
+alert_manager = AlertManager()
+
+# Define alerting rules
+error_rate_rule = AlertRule(
+    name="High Error Rate",
+    condition=lambda m: m.get("error_rate", 0) * 100,
+    threshold=5.0,  # 5% error rate
+    duration=120,   # 2 minutes
+    severity="critical"
+)
+
+response_time_rule = AlertRule(
+    name="High Response Time",
+    condition=lambda m: m.get("avg_response_time", 0),
+    threshold=2.0,  # 2 seconds
+    duration=300,   # 5 minutes
+    severity="warning"
+)
+
+memory_usage_rule = AlertRule(
+    name="High Memory Usage",
+    condition=lambda m: m.get("memory_usage_percent", 0),
+    threshold=85.0,  # 85%
+    duration=60,    # 1 minute
+    severity="warning"
+)
+
+alert_manager.add_rule(error_rate_rule)
+alert_manager.add_rule(response_time_rule)
+alert_manager.add_rule(memory_usage_rule)
+
+@state
+async def monitor_and_alert(context):
+    """Monitor system metrics and trigger alerts"""
+    
+    # Collect current metrics
+    metrics = {
+        "error_rate": context.get_output("error_rate", 0.02),  # 2%
+        "avg_response_time": context.get_output("avg_response_time", 1.5),  # 1.5s
+        "memory_usage_percent": context.get_output("memory_usage_percent", 75),  # 75%
+        "active_connections": context.get_output("active_connections", 100),
+        "queue_depth": context.get_output("queue_depth", 50)
+    }
+    
+    # Evaluate alerting rules
+    await alert_manager.evaluate_rules(metrics)
+    
+    # Store alert status in context
+    active_alerts = [a for a in alert_manager.alerts if a["status"] == "active"]
+    context.set_variable("active_alerts", active_alerts)
+    context.set_output("alert_count", len(active_alerts))
+    
+    # Log current status
+    if active_alerts:
+        print(f"⚠️ {len(active_alerts)} active alerts")
+        for alert in active_alerts:
+            print(f"  - {alert['rule_name']}: {alert['message']}")
+    else:
+        print("✅ All systems normal - no active alerts")
+    
+    return "continue_monitoring"
+
+# Notification handlers
+async def slack_notification_handler(alert):
+    """Send alert to Slack"""
+    print(f"📱 Slack Alert: {alert['message']}")
+    # Implement actual Slack webhook call
+
+async def email_notification_handler(alert):
+    """Send alert via email"""
+    print(f"📧 Email Alert: {alert['message']}")
+    # Implement actual email sending
+
+# Register notification handlers
+alert_manager.add_notification_handler(slack_notification_handler)
+alert_manager.add_notification_handler(email_notification_handler)`} />
+            </section>
+        </DocsLayout>
+    );
+};
+
+export const CoordinationPage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'introduction', label: 'Introduction' },
+        { id: 'synchronization', label: 'Synchronization Primitives' },
+        { id: 'resource-pools', label: 'Resource Pools' },
+        { id: 'distributed-workflows', label: 'Distributed Workflows' },
+        { id: 'coordination-patterns', label: 'Coordination Patterns' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={coordinationMarkdown} currentPage="coordination" pageKey="docs/coordination">
+            <section id="coordination">
+                <h1>Coordination & Synchronization</h1>
+                <p>Advanced patterns for coordinating multiple agents and managing shared resources in distributed workflows.</p>
+                
+                <h2 id="synchronization">Synchronization Primitives</h2>
+                <p>Use semaphores, mutexes, and barriers to coordinate access to shared resources.</p>
+                <CodeWindow language="python" fileName="synchronization.py" code={`from puffinflow import Agent, state
+from puffinflow.core.coordination.primitives import Semaphore, Mutex, Barrier
+
+# Create coordination primitives
+api_semaphore = Semaphore("api_calls", max_count=5)
+file_mutex = Mutex("file_access")
+sync_barrier = Barrier("processing_sync", parties=3)
+
+@state
+async def coordinated_api_call(context):
+    """Make API call with semaphore coordination"""
+    agent_id = context.get_variable("agent_id")
+    
+    print(f"Agent {agent_id}: Waiting for API semaphore...")
+    await api_semaphore.acquire(agent_id)
+    
+    try:
+        print(f"Agent {agent_id}: Making API call")
+        # Simulate API call
+        await asyncio.sleep(2.0)
+        result = {"status": "success", "data": "api_response"}
+        context.set_variable("api_result", result)
+        
+    finally:
+        await api_semaphore.release(agent_id)
+        print(f"Agent {agent_id}: Released API semaphore")
+    
+    return "process_result"`} />
+
+                <h2 id="resource-pools">Resource Pools</h2>
+                <p>Manage shared resource pools for optimal resource utilization.</p>
+                <CodeWindow language="python" fileName="resource_pools.py" code={`from puffinflow import Agent, ResourcePool, state
+
+# Create resource pools
+gpu_pool = ResourcePool("gpu", capacity=2)
+memory_pool = ResourcePool("memory", capacity=8192)  # 8GB
+
+@state(resources={"gpu": 1, "memory": 2048})
+async def gpu_intensive_task(context):
+    """Task requiring GPU and memory resources"""
+    print("Executing GPU-intensive task...")
+    
+    # Simulate GPU computation
+    await asyncio.sleep(3.0)
+    
+    result = {"model_output": "processed", "accuracy": 0.95}
+    context.set_variable("gpu_result", result)
+    
+    return "finalize_results"`} />
+            </section>
+        </DocsLayout>
+    );
+};
+
+export const MultiAgentPage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'introduction', label: 'Introduction' },
+        { id: 'agent-communication', label: 'Agent Communication' },
+        { id: 'team-structures', label: 'Team Structures' },
+        { id: 'swarm-intelligence', label: 'Swarm Intelligence' },
+        { id: 'multi-agent-patterns', label: 'Multi-Agent Patterns' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={multiagentMarkdown} currentPage="multiagent" pageKey="docs/multiagent">
+            <section id="multiagent">
+                <h1>Multi-Agent Systems & Collaboration</h1>
+                <p>Building sophisticated multi-agent systems with coordinated workflows, team structures, and collaborative intelligence.</p>
+                
+                <h2 id="agent-communication">Agent Communication</h2>
+                <p>Enable agents to communicate and coordinate through message passing and shared state.</p>
+                <CodeWindow language="python" fileName="communication.py" code={`from puffinflow import Agent, AgentTeam, EventBus, state
+
+# Create event bus for agent communication
+event_bus = EventBus()
+
+# Define multiple coordinated agents
+coordinator = Agent("coordinator")
+worker_1 = Agent("worker-1")
+worker_2 = Agent("worker-2")
+
+@state
+async def coordinate_work(context):
+    """Coordinator distributes work to workers"""
+    tasks = ["task_1", "task_2", "task_3", "task_4"]
+    
+    # Send tasks to workers via event bus
+    for i, task in enumerate(tasks):
+        worker_id = f"worker-{(i % 2) + 1}"
+        await event_bus.publish("task_assigned", {
+            "task_id": task,
+            "worker_id": worker_id,
+            "priority": "normal"
+        })
+    
+    context.set_variable("tasks_distributed", len(tasks))
+    return "monitor_progress"
+
+@state
+async def process_assigned_task(context):
+    """Worker processes assigned tasks"""
+    agent_id = context.get_variable("agent_id")
+    
+    # Listen for task assignments
+    message = await event_bus.subscribe("task_assigned", 
+                                       filter_fn=lambda msg: msg["worker_id"] == agent_id)
+    
+    if message:
+        task_id = message["task_id"]
+        print(f"{agent_id}: Processing {task_id}")
+        
+        # Simulate work
+        await asyncio.sleep(1.0)
+        
+        # Report completion
+        await event_bus.publish("task_completed", {
+            "task_id": task_id,
+            "worker_id": agent_id,
+            "result": f"completed_{task_id}"
+        })
+        
+        context.set_variable("last_completed_task", task_id)
+    
+    return "wait_for_next_task"`} />
+
+                <h2 id="team-structures">Team Structures</h2>
+                <p>Organize agents into teams with specialized roles and responsibilities.</p>
+                <CodeWindow language="python" fileName="teams.py" code={`from puffinflow import AgentTeam, create_team, state
+
+# Create specialized agent team
+processing_team = create_team("data-processing-team", {
+    "max_agents": 5,
+    "coordination_strategy": "round_robin",
+    "load_balancing": True
+})
+
+@state
+async def team_data_processing(context):
+    """Process data using coordinated team"""
+    data_batches = context.get_variable("data_batches", [])
+    
+    # Distribute work across team members
+    results = await processing_team.distribute_work(
+        work_items=data_batches,
+        work_function=process_data_batch
+    )
+    
+    # Aggregate results
+    total_processed = sum(r["processed_count"] for r in results)
+    context.set_variable("total_processed", total_processed)
+    
+    return "finalize_processing"
+
+async def process_data_batch(batch_data):
+    """Process a single data batch"""
+    # Simulate processing
+    await asyncio.sleep(0.5)
+    return {
+        "processed_count": len(batch_data),
+        "status": "success"
+    }`} />
+            </section>
+        </DocsLayout>
+    );
+};
+
+export const ResourcesPage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'introduction', label: 'Introduction' },
+        { id: 'learning-paths', label: 'Learning Paths' },
+        { id: 'installation', label: 'Installation Guide' },
+        { id: 'community', label: 'Community & Support' },
+        { id: 'troubleshooting', label: 'Troubleshooting' },
+        { id: 'examples', label: 'Examples & Recipes' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={resourcesMarkdown} currentPage="resources" pageKey="docs/resources">
+            <section id="resources">
+                <h1>Resources & Learning Materials</h1>
+                <p>Comprehensive collection of learning materials, examples, and resources to master Puffinflow development.</p>
+                
+                <h2 id="learning-paths">Learning Paths</h2>
+                <p>Structured learning paths for different experience levels and use cases.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
+                    <div className="learning-path-card">
+                        <h3>Beginner Path</h3>
+                        <ol>
+                            <li>Getting Started</li>
+                            <li>Context & Data</li>
+                            <li>Basic Error Handling</li>
+                            <li>Simple Workflows</li>
+                        </ol>
+                    </div>
+                    
+                    <div className="learning-path-card">
+                        <h3>Production Path</h3>
+                        <ol>
+                            <li>Resource Management</li>
+                            <li>Reliability Patterns</li>
+                            <li>Observability</li>
+                            <li>Multi-Agent Systems</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <h2 id="installation">Installation Guide</h2>
+                <p>Complete installation instructions for different environments.</p>
+                <CodeWindow language="bash" fileName="install.sh" code={`# Install Puffinflow
+pip install puffinflow
+
+# Install with optional dependencies
+pip install puffinflow[observability,coordination]
+
+# Development installation
+pip install -e .[dev]
+
+# Verify installation
+python -c "import puffinflow; print(puffinflow.get_version())"`} />
+
+                <h2 id="troubleshooting">Common Issues</h2>
+                <p>Solutions to frequently encountered problems.</p>
+                <div className="space-y-4">
+                    <div className="troubleshooting-item">
+                        <h4>Import Error: Cannot import 'state'</h4>
+                        <p>Solution: Use <code>from puffinflow import state</code> instead of <code>from puffinflow.decorators import state</code></p>
+                    </div>
+                    <div className="troubleshooting-item">
+                        <h4>Context variables not persisting</h4>
+                        <p>Solution: Ensure you're using <code>context.set_variable()</code> and <code>context.get_variable()</code> correctly</p>
+                    </div>
+                </div>
+                
+                <style jsx>{`
+                    .learning-path-card {
+                        padding: 1.5rem;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 0.5rem;
+                        background: rgba(255, 255, 255, 0.02);
+                    }
+                    .troubleshooting-item {
+                        padding: 1rem;
+                        border-left: 3px solid #fb923c;
+                        background: rgba(251, 146, 60, 0.1);
+                        border-radius: 0 0.375rem 0.375rem 0;
+                    }
+                    .troubleshooting-item h4 {
+                        margin: 0 0 0.5rem 0;
+                        color: #fb923c;
+                    }
+                    .troubleshooting-item p {
+                        margin: 0;
+                    }
+                `}</style>
+            </section>
+        </DocsLayout>
+    );
+};
+
+export const TroubleshootingPage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'installation-issues', label: 'Installation Issues' },
+        { id: 'runtime-issues', label: 'Runtime Issues' },
+        { id: 'performance-issues', label: 'Performance Issues' },
+        { id: 'common-error-messages', label: 'Common Error Messages' },
+        { id: 'development-and-testing', label: 'Development & Testing' },
+        { id: 'production-deployment', label: 'Production Deployment' },
+        { id: 'getting-help', label: 'Getting Help' },
+        { id: 'advanced-troubleshooting', label: 'Advanced Troubleshooting' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={troubleshootingMarkdown} currentPage="troubleshooting" pageKey="docs/troubleshooting">
+        </DocsLayout>
+    );
+};
+
+export const APIReferencePage: React.FC = () => {
+    const sidebarLinks = [
+        { id: 'core-classes', label: 'Core Classes' },
+        { id: 'agent', label: 'Agent' },
+        { id: 'context', label: 'Context' },
+        { id: 'decorators', label: 'Decorators' },
+        { id: 'enums-and-constants', label: 'Enums & Constants' },
+        { id: 'coordination', label: 'Coordination' },
+        { id: 'observability', label: 'Observability' },
+        { id: 'configuration', label: 'Configuration' },
+        { id: 'error-handling', label: 'Error Handling' },
+        { id: 'utilities', label: 'Utilities' },
+        { id: 'type-hints', label: 'Type Hints' },
+    ];
+
+    return (
+        <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={apiReferenceMarkdown} currentPage="api-reference" pageKey="docs/api-reference">
         </DocsLayout>
     );
 };
