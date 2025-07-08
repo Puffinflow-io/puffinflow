@@ -10,7 +10,7 @@ import QuickStart from './components/QuickStart';
 import CtaSection from './components/CtaSection';
 import Footer from './components/Footer';
 import UseCases from './components/UseCases';
-import { DocsPage, GettingStartedPage, ContextAndDataPage, ResourceManagementPage, ErrorHandlingPage, CheckpointingPage, RAGRecipePage, ReliabilityPage, ObservabilityPage, CoordinationPage, MultiAgentPage, ResourcesPage, TroubleshootingPage, APIReferencePage } from './components/DocsPage';
+import { DocsPage, GettingStartedPage, ContextAndDataPage, ResourceManagementPage, ErrorHandlingPage, CheckpointingPage, RAGRecipePage, ReliabilityPage, ObservabilityPage, CoordinationPage, MultiAgentPage, ResourcesPage, TroubleshootingPage, APIReferencePage, DeploymentPage } from './components/DocsPage';
 
 const AnimatedSection: React.FC<{ children: React.ReactNode, animationType?: string }> = ({ children, animationType = 'reveal-up' }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -98,6 +98,10 @@ const getRouteInfo = () => {
     if (hash.startsWith('docs/api-reference')) {
         const [, anchor] = hash.split('#');
         return { path: '/docs/api-reference', anchor: anchor || null };
+    }
+    if (hash.startsWith('docs/deployment')) {
+        const [, anchor] = hash.split('#');
+        return { path: '/docs/deployment', anchor: anchor || null };
     }
     if (hash.startsWith('docs')) {
         const [, anchor] = hash.split('#');
@@ -211,6 +215,8 @@ const App: React.FC = () => {
             return <TroubleshootingPage />;
         case '/docs/api-reference':
             return <APIReferencePage />;
+        case '/docs/deployment':
+            return <DeploymentPage />;
         default:
           return <MainPage />;
       }

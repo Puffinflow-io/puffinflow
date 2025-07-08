@@ -34,6 +34,7 @@ import { multiagentMarkdown } from './docs/multiagent';
 import { resourcesMarkdown } from './docs/resources';
 import { troubleshootingMarkdown } from './docs/troubleshooting';
 import { apiReferenceMarkdown } from './docs/api-reference';
+import { deploymentMarkdown } from './docs/deployment';
 
 const InlineCode: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <code className="font-mono text-sm">{children}</code>
@@ -43,8 +44,8 @@ interface DocsLayoutProps {
     children: React.ReactNode;
     sidebarLinks: { id: string; label: string }[];
     pageMarkdown: string;
-    currentPage: 'introduction' | 'getting-started' | 'context-and-data' | 'resource-management' | 'error-handling' | 'checkpointing' | 'rag-recipe' | 'reliability' | 'observability' | 'coordination' | 'multiagent' | 'resources' | 'troubleshooting' | 'api-reference';
-    pageKey: 'docs' | 'docs/getting-started' | 'docs/context-and-data' | 'docs/resource-management' | 'docs/error-handling' | 'docs/checkpointing' | 'docs/rag-recipe' | 'docs/reliability' | 'docs/observability' | 'docs/coordination' | 'docs/multiagent' | 'docs/resources' | 'docs/troubleshooting' | 'docs/api-reference';
+    currentPage: 'introduction' | 'getting-started' | 'context-and-data' | 'resource-management' | 'error-handling' | 'checkpointing' | 'rag-recipe' | 'reliability' | 'observability' | 'coordination' | 'multiagent' | 'resources' | 'troubleshooting' | 'api-reference' | 'deployment';
+    pageKey: 'docs' | 'docs/getting-started' | 'docs/context-and-data' | 'docs/resource-management' | 'docs/error-handling' | 'docs/checkpointing' | 'docs/rag-recipe' | 'docs/reliability' | 'docs/observability' | 'docs/coordination' | 'docs/multiagent' | 'docs/resources' | 'docs/troubleshooting' | 'docs/api-reference' | 'docs/deployment';
 }
 
 const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMarkdown, currentPage, pageKey }) => {
@@ -404,6 +405,16 @@ export const DocsPage: React.FC = () => {
                             </a>
                         </h3>
                         <p>Complete reference documentation for all Puffinflow classes, methods, and functions.</p>
+                    </div>
+                    
+                    <div className="docs-card">
+                        <h3>
+                            <a href="#docs/deployment" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
+                                <RocketLaunchIcon className="h-5 w-5" />
+                                Deployment
+                            </a>
+                        </h3>
+                        <p>Deploy your Puffinflow applications to production with containerization, cloud platforms, and CI/CD pipelines.</p>
                     </div>
                 </div>
                 
@@ -5058,6 +5069,36 @@ AgentFactory = Callable[[], Agent]
 # Context data types
 ContextData = Dict[str, Any]
 StateResult = Optional[Union[str, List[str]]]`} fileName="type_hints.py" />
+            </section>
+        </DocsLayout>
+    );
+};
+
+
+export const DeploymentPage: React.FC = () => {
+    return (
+        <DocsLayout 
+            sidebarLinks={[
+                { id: "overview", label: "Overview" },
+                { id: "local-development-setup", label: "Local Development" },
+                { id: "containerization-with-docker", label: "Containerization" },
+                { id: "production-ready-application-structure", label: "Production Structure" },
+                { id: "cloud-platform-deployment", label: "Cloud Deployment" },
+                { id: "vercel-deployment-for-web-applications", label: "Vercel Deployment" },
+                { id: "environment-specific-configurations", label: "Environment Configs" },
+                { id: "cicd-pipeline", label: "CI/CD Pipeline" },
+                { id: "monitoring-and-logging", label: "Monitoring" },
+                { id: "security-best-practices", label: "Security" },
+                { id: "troubleshooting-common-issues", label: "Troubleshooting" },
+                { id: "production-checklist", label: "Production Checklist" },
+            ]}
+            pageMarkdown={deploymentMarkdown}
+            currentPage="deployment"
+            pageKey="docs/deployment"
+        >
+            <section id="overview">
+                <h2>Overview</h2>
+                <p>Learn how to deploy your Puffinflow applications to production with containerization, cloud platforms, and CI/CD pipelines.</p>
             </section>
         </DocsLayout>
     );
