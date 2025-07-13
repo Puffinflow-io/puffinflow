@@ -1,6 +1,8 @@
 """Debug dynamic flow control."""
 import asyncio
+
 from puffinflow import Agent
+
 
 async def main():
     agent = Agent("dynamic-flow-test")
@@ -9,7 +11,7 @@ async def main():
         print("🔍 Checking user type...")
         user_type = "premium"
         context.set_variable("user_type", user_type)
-        
+
         if user_type == "premium":
             print("  -> Returning premium_flow")
             return "premium_flow"
@@ -40,12 +42,13 @@ async def main():
 
     print("Entry states:", agent._find_entry_states())
     print("Dependencies:", agent.dependencies)
-    
+
     result = await agent.run()
-    
+
     print(f"\nCompleted states: {result.metadata['states_completed']}")
     print(f"User type: {result.get_variable('user_type')}")
     print(f"Features: {result.get_variable('features')}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

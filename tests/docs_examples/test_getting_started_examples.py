@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+
 import pytest
 
 from puffinflow import Agent, state
@@ -88,12 +89,14 @@ class TestGettingStartedExamples:
 
         # Add states to workflow with proper dependencies for sequential execution
         agent.add_state("fetch_data", fetch_data)
-        agent.add_state("calculate_metrics", calculate_metrics, dependencies=["fetch_data"])
+        agent.add_state(
+            "calculate_metrics", calculate_metrics, dependencies=["fetch_data"]
+        )
         agent.add_state("send_report", send_report, dependencies=["calculate_metrics"])
 
         # Run the complete pipeline
         result = await agent.run()
-        
+
         # Verify results
         assert result.get_variable("user_count") == 1250
         assert result.get_variable("revenue") == 45000
@@ -125,7 +128,7 @@ class TestGettingStartedExamples:
         agent.add_state("step_three", step_three, dependencies=["step_two"])
 
         result = await agent.run()
-        
+
         # Verify execution order and results
         assert execution_order == ["step_one", "step_two", "step_three"]
         assert result.get_variable("step1_done") is True
@@ -157,14 +160,17 @@ class TestGettingStartedExamples:
         # generate_report waits for BOTH to complete
         agent.add_state("fetch_user_data", fetch_user_data)
         agent.add_state("fetch_sales_data", fetch_sales_data)
-        agent.add_state("generate_report", generate_report,
-                       dependencies=["fetch_user_data", "fetch_sales_data"])
+        agent.add_state(
+            "generate_report",
+            generate_report,
+            dependencies=["fetch_user_data", "fetch_sales_data"],
+        )
 
         result = await agent.run()
-        
+
         print(f"Final variables: {result.variables}")
         print(f"Final outputs: {result.outputs}")
-        
+
         # Verify all data is present
         assert result.get_variable("user_count") == 1250
         assert result.get_variable("revenue") == 45000
@@ -200,7 +206,10 @@ class TestGettingStartedExamples:
         async def send_welcome(context):
             user_type = context.get_variable("user_type")
             features = context.get_variable("features")
-            context.set_variable("welcome_message", f"Welcome {user_type} user! Features: {', '.join(features)}")
+            context.set_variable(
+                "welcome_message",
+                f"Welcome {user_type} user! Features: {', '.join(features)}",
+            )
 
         # Add all states - only check_user_type should start as entry state
         agent.add_state("check_user_type", check_user_type)
@@ -209,7 +218,7 @@ class TestGettingStartedExamples:
         agent.add_state("send_welcome", send_welcome)
 
         result = await agent.run()
-        
+
         # Verify premium flow was executed
         assert result.get_variable("user_type") == "premium"
         assert "advanced_analytics" in result.get_variable("features")
@@ -228,14 +237,18 @@ class TestGettingStartedExamples:
 
         async def send_confirmation(context):
             order_id = context.get_variable("order_id")
-            context.set_variable("confirmation_sent", f"Confirmation sent for {order_id}")
+            context.set_variable(
+                "confirmation_sent", f"Confirmation sent for {order_id}"
+            )
 
         async def update_inventory(context):
             context.set_variable("inventory_updated", "Inventory updated")
 
         async def charge_payment(context):
             order_id = context.get_variable("order_id")
-            context.set_variable("payment_processed", f"Payment processed for {order_id}")
+            context.set_variable(
+                "payment_processed", f"Payment processed for {order_id}"
+            )
 
         agent.add_state("process_order", process_order)
         agent.add_state("send_confirmation", send_confirmation)
@@ -243,7 +256,7 @@ class TestGettingStartedExamples:
         agent.add_state("charge_payment", charge_payment)
 
         result = await agent.run()
-        
+
         # Verify all parallel operations completed
         assert result.get_variable("order_id") == "ORD-123"
         assert "ORD-123" in result.get_variable("confirmation_sent")
@@ -267,7 +280,7 @@ class TestGettingStartedExamples:
             transformed = {
                 "total_sales": total_sales,
                 "customer_count": customer_count,
-                "avg_sale": total_sales / customer_count
+                "avg_sale": total_sales / customer_count,
             }
 
             context.set_variable("processed_data", transformed)
@@ -283,11 +296,11 @@ class TestGettingStartedExamples:
         agent.add_state("load", load, dependencies=["transform"])
 
         result = await agent.run()
-        
+
         # Verify pipeline results
         raw_data = result.get_variable("raw_data")
         processed_data = result.get_variable("processed_data")
-        
+
         assert len(raw_data["sales"]) == 3
         assert len(raw_data["customers"]) == 3
         assert processed_data["total_sales"] == 450
@@ -306,18 +319,22 @@ class TestGettingStartedExamples:
 
         agent.add_state("intensive_task", intensive_task)
         result = await agent.run()
-        
+
         assert result.get_variable("task_completed") is True
 
     async def test_ai_research_assistant_workflow(self):
         """Test complete AI research assistant workflow."""
+
         # Simulate external APIs
         async def search_web(query):
             """Simulate web search API"""
             await asyncio.sleep(0.1)  # Reduced for faster tests
             return [
-                {"title": f"Article about {query}", "content": f"Detailed info on {query}..."},
-                {"title": f"{query} trends", "content": f"Latest trends in {query}..."}
+                {
+                    "title": f"Article about {query}",
+                    "content": f"Detailed info on {query}...",
+                },
+                {"title": f"{query} trends", "content": f"Latest trends in {query}..."},
             ]
 
         async def call_llm(prompt):
@@ -384,7 +401,7 @@ class TestGettingStartedExamples:
                 "sources_found": len(results),
                 "analysis": analysis,
                 "generated_at": "2024-01-15 10:30:00",
-                "confidence": "high"
+                "confidence": "high",
             }
 
             context.set_variable("final_report", report)
@@ -399,7 +416,7 @@ class TestGettingStartedExamples:
 
         # Set initial context
         research_agent.set_variable("search_query", "machine learning trends 2024")
-        
+
         # Run research workflow
         result = await research_agent.run()
 
@@ -431,7 +448,7 @@ class TestGettingStartedExamples:
 
         # Set initial context with invalid query
         research_agent.set_variable("search_query", "ai")  # Too short
-        
+
         # Test with invalid query
         result = await research_agent.run()
 

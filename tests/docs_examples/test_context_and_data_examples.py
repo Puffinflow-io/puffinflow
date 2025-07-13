@@ -1,8 +1,7 @@
 """Test all examples from the context and data documentation."""
 
-import asyncio
 import pytest
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from puffinflow import Agent
 
@@ -23,7 +22,9 @@ class TestContextAndDataExamples:
         async def process_data(context):
             user = context.get_variable("user")
             count = context.get_variable("count")
-            context.set_variable("processed", f"Processing {user['name']}, user {user['id']} of {count}")
+            context.set_variable(
+                "processed", f"Processing {user['name']}, user {user['id']} of {count}"
+            )
 
         agent.add_state("fetch_data", fetch_data)
         agent.add_state("process_data", process_data)
@@ -36,27 +37,27 @@ class TestContextAndDataExamples:
         assert user["name"] == "Alice"
         assert user["email"] == "alice@example.com"
         assert result.get_variable("count") == 1250
-        assert "Processing Alice, user 123 of 1250" == result.get_variable("processed")
+        assert result.get_variable("processed") == "Processing Alice, user 123 of 1250"
 
     async def test_type_safe_variables(self):
         """Test type-safe variable usage example."""
         agent = Agent("type-safe-test")
 
         async def initialize(context):
-            context.set_typed_variable("user_count", 100)      # Locked to int
-            context.set_typed_variable("avg_score", 85.5)      # Locked to float
+            context.set_typed_variable("user_count", 100)  # Locked to int
+            context.set_typed_variable("avg_score", 85.5)  # Locked to float
 
         async def update(context):
-            context.set_typed_variable("user_count", 150)      # ✅ Works
-            
+            context.set_typed_variable("user_count", 150)  # ✅ Works
+
             # Test that type errors would be caught
             try:
                 context.set_typed_variable("user_count", "150")  # Should fail
-                assert False, "Should have raised TypeError"
+                raise AssertionError("Should have raised TypeError")
             except (TypeError, ValueError):
                 pass  # Expected
 
-            count = context.get_typed_variable("user_count")   # Type param optional
+            count = context.get_typed_variable("user_count")  # Type param optional
             context.set_variable("count_message", f"Count: {count}")
 
         agent.add_state("initialize", initialize)
@@ -67,10 +68,11 @@ class TestContextAndDataExamples:
         # Verify typed variables work correctly
         assert result.get_variable("user_count") == 150
         assert result.get_variable("avg_score") == 85.5
-        assert "Count: 150" == result.get_variable("count_message")
+        assert result.get_variable("count_message") == "Count: 150"
 
     async def test_validated_data_with_pydantic(self):
         """Test validated data with Pydantic example."""
+
         class User(BaseModel):
             id: int
             name: str
@@ -112,11 +114,11 @@ class TestContextAndDataExamples:
             url = context.get_constant("api_url")
             retries = context.get_constant("max_retries")
             context.set_variable("config_used", f"URL: {url}, Retries: {retries}")
-            
+
             # Test that constants can't be changed
             try:
                 context.set_constant("api_url", "different")  # Should fail
-                assert False, "Should have raised ValueError"
+                raise AssertionError("Should have raised ValueError")
             except ValueError:
                 pass  # Expected
 
@@ -128,7 +130,10 @@ class TestContextAndDataExamples:
         # Verify constants
         assert result.get_variable("api_url") == "https://api.example.com"
         assert result.get_variable("max_retries") == 3
-        assert "URL: https://api.example.com, Retries: 3" == result.get_variable("config_used")
+        assert (
+            result.get_variable("config_used")
+            == "URL: https://api.example.com, Retries: 3"
+        )
 
     async def test_secrets_management(self):
         """Test secrets management example."""
@@ -150,7 +155,7 @@ class TestContextAndDataExamples:
         # Verify secrets (note: we can access them in tests, but normally they'd be secured)
         assert result.get_variable("api_key") == "sk-1234567890abcdef"
         assert result.get_variable("db_password") == "super_secure_password"
-        assert "API key loaded: sk-12345..." == result.get_variable("key_preview")
+        assert result.get_variable("key_preview") == "API key loaded: sk-12345..."
 
     async def test_cached_data_with_ttl(self):
         """Test cached data with TTL example."""
@@ -158,7 +163,7 @@ class TestContextAndDataExamples:
 
         async def cache_data(context):
             context.set_cached("session", {"user_id": 123}, ttl=300)  # 5 minutes
-            context.set_cached("temp_result", {"data": "value"}, ttl=60)   # 1 minute
+            context.set_cached("temp_result", {"data": "value"}, ttl=60)  # 1 minute
 
         async def use_cache(context):
             session = context.get_cached("session", default="EXPIRED")
@@ -174,7 +179,7 @@ class TestContextAndDataExamples:
         # Verify cached data (should still be valid since we just set it)
         session = result.get_variable("session")
         assert session == {"user_id": 123}
-        
+
         temp_result = result.get_variable("temp_result")
         assert temp_result == {"data": "value"}
 
@@ -217,7 +222,9 @@ class TestContextAndDataExamples:
         async def summary(context):
             revenue = context.get_output("total_revenue")
             count = context.get_output("order_count")
-            context.set_variable("summary_message", f"Revenue: ${revenue}, Orders: {count}")
+            context.set_variable(
+                "summary_message", f"Revenue: ${revenue}, Orders: {count}"
+            )
 
         agent.add_state("calculate", calculate)
         agent.add_state("summary", summary)
@@ -227,10 +234,11 @@ class TestContextAndDataExamples:
         # Verify outputs
         assert result.get_variable("total_revenue") == 300
         assert result.get_variable("order_count") == 2
-        assert "Revenue: $300, Orders: 2" == result.get_variable("summary_message")
+        assert result.get_variable("summary_message") == "Revenue: $300, Orders: 2"
 
     async def test_complete_order_processing_example(self):
         """Test complete order processing example."""
+
         class Order(BaseModel):
             id: int
             total: float
@@ -256,35 +264,42 @@ class TestContextAndDataExamples:
         async def send_confirmation(context):
             order = context.get_validated_data("order", Order)
             amount = context.get_typed_variable("amount_charged")  # Type param optional
-            payment_key = context.get_secret("payment_key")
+            _payment_key = context.get_secret("payment_key")  # Used for validation
 
             # Final outputs
             context.set_output("order_id", order.id)
             context.set_output("amount_processed", amount)
-            context.set_variable("confirmation_message", f"✅ Order {order.id} completed: ${amount}")
+            context.set_variable(
+                "confirmation_message", f"✅ Order {order.id} completed: ${amount}"
+            )
 
         agent.add_state("setup", setup)
         agent.add_state("process_order", process_order, dependencies=["setup"])
-        agent.add_state("send_confirmation", send_confirmation, dependencies=["process_order"])
+        agent.add_state(
+            "send_confirmation", send_confirmation, dependencies=["process_order"]
+        )
 
         result = await agent.run()
 
         # Verify complete order processing
         assert result.get_variable("tax_rate") == 0.08
         assert result.get_variable("payment_key") == "pk_123456"
-        
+
         order = result.get_variable("order")
         assert order.id == 123
         assert order.total == 99.99
         assert order.customer_email == "user@example.com"
-        
+
         session = result.get_variable("session")
         assert session["order_id"] == 123
-        
+
         assert result.get_variable("amount_charged") == 99.99
         assert result.get_variable("order_id") == 123
         assert result.get_variable("amount_processed") == 99.99
-        assert "✅ Order 123 completed: $99.99" == result.get_variable("confirmation_message")
+        assert (
+            result.get_variable("confirmation_message")
+            == "✅ Order 123 completed: $99.99"
+        )
 
     async def test_error_handling_for_invalid_types(self):
         """Test that type errors are properly handled."""
@@ -293,18 +308,18 @@ class TestContextAndDataExamples:
         async def test_type_errors(context):
             # Set initial typed variable
             context.set_typed_variable("count", 100)
-            
+
             # Try to set wrong type - should fail
             try:
                 context.set_typed_variable("count", "not a number")
-                assert False, "Should have raised an error"
+                raise AssertionError("Should have raised an error")
             except (TypeError, ValueError):
                 context.set_variable("type_error_caught", True)
-            
+
             # Try to access non-existent constant
             try:
                 context.get_constant("non_existent")
-                assert False, "Should have raised an error" 
+                raise AssertionError("Should have raised an error")
             except (KeyError, ValueError):
                 context.set_variable("missing_constant_error_caught", True)
 

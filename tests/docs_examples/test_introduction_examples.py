@@ -44,17 +44,17 @@ class TestIntroductionExamples:
 
         # Run it with initial context
         result = await agent.run(initial_context={"search_query": "latest AI trends"})
-        
+
         # Verify the workflow completed successfully
         final_report = result.get_variable("final_report")
         assert final_report is not None
         assert "latest AI trends" in final_report
         assert "Analysis of 1 articles" in final_report
-        
+
         # Verify intermediate results
         raw_results = result.get_variable("raw_results")
         assert len(raw_results) == 1
-        assert "Article about latest AI trends" == raw_results[0]["title"]
-        
+        assert raw_results[0]["title"] == "Article about latest AI trends"
+
         analysis = result.get_variable("analysis")
-        assert "Analysis of 1 articles about the query" == analysis
+        assert analysis == "Analysis of 1 articles about the query"
