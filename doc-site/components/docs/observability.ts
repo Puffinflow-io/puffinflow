@@ -6,7 +6,7 @@ Puffinflow provides comprehensive observability capabilities to monitor, trace, 
 
 **Observability is more than monitoring** - it's about understanding:
 - **What** is happening in your workflows
-- **Why** performance degrades or failures occur  
+- **Why** performance degrades or failures occur
 - **Where** bottlenecks and issues originate
 - **When** problems start and how they evolve
 - **How** to quickly diagnose and resolve issues
@@ -38,40 +38,51 @@ from puffinflow import state
 from puffinflow.core.agent.state import Priority
 from puffinflow.core.observability.metrics import MetricsCollector, Counter, Histogram, Gauge
 
-# Initialize metrics collector
-metrics = MetricsCollector(namespace="puffinflow_app")
+# Set up observability
+from puffinflow.core.observability import setup_observability, get_observability
+from puffinflow.core.observability.config import ObservabilityConfig
+
+# Configure observability
+observability_config = ObservabilityConfig(
+    metrics_enabled=True,
+    tracing_enabled=True,
+    namespace="puffinflow_app"
+)
+
+# Initialize observability system
+setup_observability(observability_config)
+observability = get_observability()
 
 # Create custom metrics
-request_counter = Counter("workflow_requests_total", "Total workflow requests", ["workflow_type", "status"])
-response_time = Histogram("workflow_duration_seconds", "Workflow execution time", ["workflow_name"])
-active_workflows = Gauge("active_workflows_current", "Currently active workflows")
-queue_depth = Gauge("workflow_queue_depth", "Workflow queue depth", ["priority"])
+request_counter = observability.metrics.counter("workflow_requests_total", "Total workflow requests", ["workflow_type", "status"])
+response_time = observability.metrics.histogram("workflow_duration_seconds", "Workflow execution time", ["workflow_name"])
+active_workflows = observability.metrics.gauge("active_workflows_current", "Currently active workflows")
+queue_depth = observability.metrics.gauge("workflow_queue_depth", "Workflow queue depth", ["priority"])
 
 observability_agent = Agent("observability-demo")
 
 @state(
+    cpu=2.0,
+    memory=1024,
     priority=Priority.NORMAL,
-    timeout=30.0,
-    # Enable automatic metrics collection
-    metrics_enabled=True,
-    custom_metrics=["execution_time", "memory_usage", "api_calls"]
+    timeout=30.0
 )
 async def ai_processing_task(context):
     """AI processing task with comprehensive metrics"""
     print("🤖 AI processing with metrics...")
-    
+
     # Start timing
     start_time = time.time()
-    
+
     # Custom business metrics
     task_id = context.get_variable("task_id", "task_001")
     model_type = context.get_variable("model_type", "gpt-4")
-    
+
     try:
-        # Increment request counter
-        request_counter.inc({"workflow_type": "ai_processing", "status": "started"})
-        active_workflows.inc()
-        
+        # Record metrics
+        request_counter.record(1.0, workflow_type="ai_processing", status="started")
+        active_workflows.record(1.0)
+
         # Simulate AI processing work
         processing_steps = [
             {"name": "input_validation", "duration": 0.1},
@@ -79,32 +90,32 @@ async def ai_processing_task(context):
             {"name": "output_processing", "duration": 0.3},
             {"name": "result_validation", "duration": 0.1}
         ]
-        
+
         step_metrics = []
         for step in processing_steps:
             step_start = time.time()
-            
+
             print(f"   🔄 {step['name']}...")
             await asyncio.sleep(step['duration'])
-            
+
             step_duration = time.time() - step_start
             step_metrics.append({
                 "step": step['name'],
                 "duration": step_duration,
                 "timestamp": step_start
             })
-            
+
             # Record step-level metrics
             metrics.record_histogram(
                 f"ai_step_duration_seconds",
                 step_duration,
                 {"step_name": step['name'], "model_type": model_type}
             )
-        
+
         # Calculate total processing time
         total_duration = time.time() - start_time
         response_time.observe(total_duration, {"workflow_name": "ai_processing"})
-        
+
         # Record business metrics
         context.set_variable("processing_metrics", {
             "task_id": task_id,
@@ -116,18 +127,18 @@ async def ai_processing_task(context):
             "cache_hits": 2,
             "cache_misses": 1
         })
-        
+
         # Success metrics
         request_counter.inc({"workflow_type": "ai_processing", "status": "completed"})
-        
+
         print(f"✅ AI processing completed in {total_duration:.2f}s")
-        
+
     except Exception as e:
         # Error metrics
         request_counter.inc({"workflow_type": "ai_processing", "status": "failed"})
         print(f"❌ AI processing failed: {e}")
         raise
-    
+
     finally:
         active_workflows.dec()
 
@@ -138,9 +149,9 @@ async def ai_processing_task(context):
 async def data_pipeline_task(context):
     """Data pipeline with custom metrics"""
     print("📊 Data pipeline with metrics...")
-    
+
     start_time = time.time()
-    
+
     try:
         # Simulate data pipeline metrics
         pipeline_metrics = {
@@ -150,24 +161,24 @@ async def data_pipeline_task(context):
             "api_calls": 0,
             "cache_operations": 0
         }
-        
+
         # Simulate processing batches
         batch_sizes = [100, 150, 120, 80, 200]
-        
+
         for i, batch_size in enumerate(batch_sizes):
             batch_start = time.time()
-            
+
             print(f"   📦 Processing batch {i+1}: {batch_size} records")
-            
+
             # Simulate processing time based on batch size
             processing_time = batch_size * 0.001
             await asyncio.sleep(processing_time)
-            
+
             # Update metrics
             pipeline_metrics["records_processed"] += batch_size
             pipeline_metrics["bytes_processed"] += batch_size * 1024  # 1KB per record
             pipeline_metrics["api_calls"] += 1
-            
+
             # Record batch metrics
             batch_duration = time.time() - batch_start
             metrics.record_histogram(
@@ -175,7 +186,7 @@ async def data_pipeline_task(context):
                 batch_duration,
                 {"batch_size_range": get_size_range(batch_size)}
             )
-            
+
             # Record throughput
             throughput = batch_size / batch_duration
             metrics.record_gauge(
@@ -183,25 +194,25 @@ async def data_pipeline_task(context):
                 throughput,
                 {"pipeline_stage": "processing"}
             )
-        
+
         total_duration = time.time() - start_time
-        
+
         # Record pipeline completion metrics
         metrics.record_histogram(
             "pipeline_total_duration_seconds",
             total_duration
         )
-        
+
         metrics.record_counter(
             "pipeline_records_total",
             pipeline_metrics["records_processed"],
             {"status": "processed"}
         )
-        
+
         context.set_variable("pipeline_metrics", pipeline_metrics)
-        
+
         print(f"✅ Pipeline completed: {pipeline_metrics['records_processed']} records in {total_duration:.2f}s")
-        
+
     except Exception as e:
         metrics.record_counter("pipeline_errors_total", 1, {"error_type": type(e).__name__})
         raise
@@ -219,7 +230,7 @@ def get_size_range(size: int) -> str:
 async def collect_system_metrics(context):
     """Collect system-wide metrics"""
     print("📈 Collecting system metrics...")
-    
+
     # Simulate system metrics collection
     system_metrics = {
         "cpu_usage_percent": 45.2,
@@ -233,26 +244,26 @@ async def collect_system_metrics(context):
             "low_priority": 8
         }
     }
-    
+
     # Record system metrics
     for metric_name, value in system_metrics.items():
         if metric_name != "queue_sizes":
             metrics.record_gauge(f"system_{metric_name}", value)
-    
+
     # Record queue metrics
     for priority, depth in system_metrics["queue_sizes"].items():
         queue_depth.set(depth, {"priority": priority})
-    
+
     # Calculate and record derived metrics
     total_queue_depth = sum(system_metrics["queue_sizes"].values())
     metrics.record_gauge("total_queue_depth", total_queue_depth)
-    
+
     # Memory utilization efficiency
     memory_efficiency = (system_metrics["memory_usage_percent"] / 100) * (system_metrics["cpu_usage_percent"] / 100)
     metrics.record_gauge("resource_efficiency_ratio", memory_efficiency)
-    
+
     context.set_variable("system_metrics", system_metrics)
-    
+
     print(f"📊 System metrics: CPU {system_metrics['cpu_usage_percent']}%, "
           f"Memory {system_metrics['memory_usage_percent']}%, "
           f"Queue depth {total_queue_depth}")
@@ -261,12 +272,12 @@ async def collect_system_metrics(context):
 async def generate_metrics_report(context):
     """Generate comprehensive metrics report"""
     print("📋 Generating metrics report...")
-    
+
     # Gather metrics from all tasks
     processing_metrics = context.get_variable("processing_metrics", {})
     pipeline_metrics = context.get_variable("pipeline_metrics", {})
     system_metrics = context.get_variable("system_metrics", {})
-    
+
     # Generate aggregated report
     metrics_report = {
         "collection_timestamp": time.time(),
@@ -295,9 +306,9 @@ async def generate_metrics_report(context):
             }
         }
     }
-    
+
     context.set_output("metrics_report", metrics_report)
-    
+
     print("📊 Metrics Report Summary:")
     print(f"   🤖 AI Processing: {processing_metrics.get('total_duration', 0):.2f}s, {processing_metrics.get('tokens_processed', 0)} tokens")
     print(f"   📊 Data Pipeline: {pipeline_metrics.get('records_processed', 0)} records processed")
@@ -348,13 +359,13 @@ class DistributedTracer:
     def __init__(self):
         self.active_spans = {}
         self.completed_spans = []
-    
+
     def start_span(self, operation_name: str, parent_span_id: Optional[str] = None, trace_id: Optional[str] = None) -> TraceSpan:
         """Start a new tracing span"""
         span_id = str(uuid.uuid4())[:8]
         if not trace_id:
             trace_id = str(uuid.uuid4())[:8]
-        
+
         span = TraceSpan(
             span_id=span_id,
             trace_id=trace_id,
@@ -362,25 +373,25 @@ class DistributedTracer:
             operation_name=operation_name,
             start_time=time.time()
         )
-        
+
         self.active_spans[span_id] = span
         return span
-    
+
     def finish_span(self, span_id: str, status: str = "success"):
         """Finish a tracing span"""
         if span_id in self.active_spans:
             span = self.active_spans[span_id]
             span.end_time = time.time()
             span.status = status
-            
+
             self.completed_spans.append(span)
             del self.active_spans[span_id]
-    
+
     def add_span_tag(self, span_id: str, key: str, value: str):
         """Add tag to span"""
         if span_id in self.active_spans:
             self.active_spans[span_id].tags[key] = value
-    
+
     def add_span_log(self, span_id: str, message: str, level: str = "info"):
         """Add log entry to span"""
         if span_id in self.active_spans:
@@ -389,17 +400,17 @@ class DistributedTracer:
                 "message": message,
                 "level": level
             })
-    
+
     def get_trace(self, trace_id: str) -> List[TraceSpan]:
         """Get all spans for a trace"""
         spans = []
-        
+
         # Get completed spans
         spans.extend([span for span in self.completed_spans if span.trace_id == trace_id])
-        
+
         # Get active spans
         spans.extend([span for span in self.active_spans.values() if span.trace_id == trace_id])
-        
+
         return sorted(spans, key=lambda s: s.start_time)
 
 # Global tracer instance
@@ -412,33 +423,33 @@ tracing_agent = Agent("distributed-tracing-demo")
 async def orchestrator_task(context):
     """Main orchestrator with distributed tracing"""
     print("🎭 Orchestrator starting with tracing...")
-    
+
     # Start root span
     trace_id = str(uuid.uuid4())[:8]
     root_span = tracer.start_span("workflow_orchestration", trace_id=trace_id)
-    
+
     try:
         tracer.add_span_tag(root_span.span_id, "workflow_type", "ai_pipeline")
         tracer.add_span_tag(root_span.span_id, "user_id", "user_123")
         tracer.add_span_log(root_span.span_id, "Orchestration started")
-        
+
         # Store trace context
         context.set_variable("trace_id", trace_id)
         context.set_variable("parent_span_id", root_span.span_id)
-        
+
         # Simulate orchestrator work
         await asyncio.sleep(0.5)
-        
+
         # Call dependent services
         await ai_service_call(context)
         await data_service_call(context)
         await notification_service_call(context)
-        
+
         tracer.add_span_log(root_span.span_id, "All services completed successfully")
         tracer.finish_span(root_span.span_id, "success")
-        
+
         print(f"✅ Orchestration completed (trace: {trace_id})")
-        
+
     except Exception as e:
         tracer.add_span_log(root_span.span_id, f"Orchestration failed: {str(e)}", "error")
         tracer.finish_span(root_span.span_id, "error")
@@ -448,33 +459,33 @@ async def ai_service_call(context):
     """AI service with child span"""
     trace_id = context.get_variable("trace_id")
     parent_span_id = context.get_variable("parent_span_id")
-    
+
     # Start child span
     ai_span = tracer.start_span("ai_inference", parent_span_id=parent_span_id, trace_id=trace_id)
-    
+
     try:
         tracer.add_span_tag(ai_span.span_id, "service_name", "ai_service")
         tracer.add_span_tag(ai_span.span_id, "model_type", "gpt-4")
         tracer.add_span_log(ai_span.span_id, "Starting AI inference")
-        
+
         print("   🤖 AI service processing...")
-        
+
         # Simulate AI processing steps
         steps = ["input_validation", "model_loading", "inference", "output_formatting"]
-        
+
         for step in steps:
             step_span = tracer.start_span(f"ai_{step}", parent_span_id=ai_span.span_id, trace_id=trace_id)
-            
+
             tracer.add_span_log(step_span.span_id, f"Executing {step}")
             await asyncio.sleep(0.3)  # Simulate step work
-            
+
             tracer.finish_span(step_span.span_id, "success")
-        
+
         tracer.add_span_log(ai_span.span_id, "AI inference completed")
         tracer.finish_span(ai_span.span_id, "success")
-        
+
         print("   ✅ AI service completed")
-        
+
     except Exception as e:
         tracer.add_span_log(ai_span.span_id, f"AI service failed: {str(e)}", "error")
         tracer.finish_span(ai_span.span_id, "error")
@@ -484,19 +495,19 @@ async def data_service_call(context):
     """Data service with parallel operations"""
     trace_id = context.get_variable("trace_id")
     parent_span_id = context.get_variable("parent_span_id")
-    
+
     # Start data service span
     data_span = tracer.start_span("data_processing", parent_span_id=parent_span_id, trace_id=trace_id)
-    
+
     try:
         tracer.add_span_tag(data_span.span_id, "service_name", "data_service")
         tracer.add_span_log(data_span.span_id, "Starting data processing")
-        
+
         print("   📊 Data service processing...")
-        
+
         # Parallel data operations
         operations = ["fetch_data", "validate_data", "transform_data", "store_data"]
-        
+
         # Simulate parallel execution with tracing
         tasks = []
         for operation in operations:
@@ -504,14 +515,14 @@ async def data_service_call(context):
                 execute_data_operation(operation, data_span.span_id, trace_id)
             )
             tasks.append(task)
-        
+
         await asyncio.gather(*tasks)
-        
+
         tracer.add_span_log(data_span.span_id, "All data operations completed")
         tracer.finish_span(data_span.span_id, "success")
-        
+
         print("   ✅ Data service completed")
-        
+
     except Exception as e:
         tracer.add_span_log(data_span.span_id, f"Data service failed: {str(e)}", "error")
         tracer.finish_span(data_span.span_id, "error")
@@ -520,11 +531,11 @@ async def data_service_call(context):
 async def execute_data_operation(operation: str, parent_span_id: str, trace_id: str):
     """Execute individual data operation with tracing"""
     op_span = tracer.start_span(operation, parent_span_id=parent_span_id, trace_id=trace_id)
-    
+
     try:
         tracer.add_span_tag(op_span.span_id, "operation_type", operation)
         tracer.add_span_log(op_span.span_id, f"Executing {operation}")
-        
+
         # Simulate operation-specific work
         if operation == "fetch_data":
             await asyncio.sleep(0.8)  # Slower operation
@@ -538,9 +549,9 @@ async def execute_data_operation(operation: str, parent_span_id: str, trace_id: 
         elif operation == "store_data":
             await asyncio.sleep(0.4)
             tracer.add_span_tag(op_span.span_id, "records_stored", "1500")
-        
+
         tracer.finish_span(op_span.span_id, "success")
-        
+
     except Exception as e:
         tracer.add_span_log(op_span.span_id, f"Operation failed: {str(e)}", "error")
         tracer.finish_span(op_span.span_id, "error")
@@ -550,42 +561,42 @@ async def notification_service_call(context):
     """Notification service with external dependencies"""
     trace_id = context.get_variable("trace_id")
     parent_span_id = context.get_variable("parent_span_id")
-    
+
     notif_span = tracer.start_span("notification_service", parent_span_id=parent_span_id, trace_id=trace_id)
-    
+
     try:
         tracer.add_span_tag(notif_span.span_id, "service_name", "notification_service")
         tracer.add_span_log(notif_span.span_id, "Starting notification delivery")
-        
+
         print("   📧 Notification service processing...")
-        
+
         # Simulate external service calls with tracing
         external_calls = [
             {"service": "email_gateway", "duration": 0.6},
             {"service": "sms_gateway", "duration": 0.4},
             {"service": "push_notification", "duration": 0.2}
         ]
-        
+
         for call in external_calls:
             call_span = tracer.start_span(
-                f"external_call_{call['service']}", 
-                parent_span_id=notif_span.span_id, 
+                f"external_call_{call['service']}",
+                parent_span_id=notif_span.span_id,
                 trace_id=trace_id
             )
-            
+
             tracer.add_span_tag(call_span.span_id, "external_service", call['service'])
             tracer.add_span_tag(call_span.span_id, "call_type", "http_request")
-            
+
             await asyncio.sleep(call['duration'])
-            
+
             tracer.add_span_tag(call_span.span_id, "response_status", "200")
             tracer.finish_span(call_span.span_id, "success")
-        
+
         tracer.add_span_log(notif_span.span_id, "All notifications sent successfully")
         tracer.finish_span(notif_span.span_id, "success")
-        
+
         print("   ✅ Notification service completed")
-        
+
     except Exception as e:
         tracer.add_span_log(notif_span.span_id, f"Notification service failed: {str(e)}", "error")
         tracer.finish_span(notif_span.span_id, "error")
@@ -595,14 +606,14 @@ async def notification_service_call(context):
 async def analyze_trace_data(context):
     """Analyze collected trace data"""
     print("🔍 Analyzing trace data...")
-    
+
     trace_id = context.get_variable("trace_id")
     trace_spans = tracer.get_trace(trace_id)
-    
+
     if not trace_spans:
         print("⚠️ No trace data found")
         return
-    
+
     # Analyze trace performance
     trace_analysis = {
         "trace_id": trace_id,
@@ -612,14 +623,14 @@ async def analyze_trace_data(context):
         "critical_path": [],
         "error_count": 0
     }
-    
+
     # Find root span
     root_spans = [span for span in trace_spans if span.parent_span_id is None]
     if root_spans:
         root_span = root_spans[0]
         if root_span.end_time:
             trace_analysis["total_duration"] = root_span.end_time - root_span.start_time
-    
+
     # Analyze by service
     for span in trace_spans:
         service_name = span.tags.get("service_name", "unknown")
@@ -629,17 +640,17 @@ async def analyze_trace_data(context):
                 "total_duration": 0,
                 "error_count": 0
             }
-        
+
         trace_analysis["service_breakdown"][service_name]["span_count"] += 1
-        
+
         if span.end_time:
             duration = span.end_time - span.start_time
             trace_analysis["service_breakdown"][service_name]["total_duration"] += duration
-        
+
         if span.status == "error":
             trace_analysis["error_count"] += 1
             trace_analysis["service_breakdown"][service_name]["error_count"] += 1
-    
+
     # Find critical path (longest duration spans)
     completed_spans = [span for span in trace_spans if span.end_time]
     if completed_spans:
@@ -652,14 +663,14 @@ async def analyze_trace_data(context):
             }
             for span in completed_spans[:5]  # Top 5 slowest operations
         ]
-    
+
     context.set_output("trace_analysis", trace_analysis)
-    
+
     print(f"📊 Trace Analysis (ID: {trace_id}):")
     print(f"   Total spans: {trace_analysis['total_spans']}")
     print(f"   Total duration: {trace_analysis['total_duration']:.3f}s")
     print(f"   Errors: {trace_analysis['error_count']}")
-    
+
     if trace_analysis['critical_path']:
         print("   🐌 Slowest operations:")
         for op in trace_analysis['critical_path'][:3]:
@@ -689,7 +700,7 @@ class StructuredLogger:
     def __init__(self, component_name: str):
         self.component_name = component_name
         self.logger = logging.getLogger(component_name)
-        
+
         # Configure structured logging format
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
@@ -698,7 +709,7 @@ class StructuredLogger:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
-    
+
     def log(self, level: LogLevel, message: str, context: Optional[Dict[str, Any]] = None, **kwargs):
         """Log structured message with context"""
         log_entry = {
@@ -707,9 +718,9 @@ class StructuredLogger:
             "context": context or {},
             **kwargs
         }
-        
+
         log_message = json.dumps(log_entry, default=str)
-        
+
         if level == LogLevel.DEBUG:
             self.logger.debug(log_message)
         elif level == LogLevel.INFO:
@@ -720,19 +731,19 @@ class StructuredLogger:
             self.logger.error(log_message)
         elif level == LogLevel.CRITICAL:
             self.logger.critical(log_message)
-    
+
     def debug(self, message: str, **kwargs):
         self.log(LogLevel.DEBUG, message, **kwargs)
-    
+
     def info(self, message: str, **kwargs):
         self.log(LogLevel.INFO, message, **kwargs)
-    
+
     def warning(self, message: str, **kwargs):
         self.log(LogLevel.WARNING, message, **kwargs)
-    
+
     def error(self, message: str, **kwargs):
         self.log(LogLevel.ERROR, message, **kwargs)
-    
+
     def critical(self, message: str, **kwargs):
         self.log(LogLevel.CRITICAL, message, **kwargs)
 
@@ -748,7 +759,7 @@ data_logger = StructuredLogger("data_pipeline")
 async def workflow_with_logging(context):
     """Workflow with comprehensive structured logging"""
     print("📝 Workflow with structured logging...")
-    
+
     # Start workflow logging
     workflow_logger.info(
         "Workflow execution started",
@@ -756,7 +767,7 @@ async def workflow_with_logging(context):
         user_id="user_123",
         workflow_type="ai_data_pipeline"
     )
-    
+
     try:
         # Log workflow parameters
         workflow_params = {
@@ -765,16 +776,16 @@ async def workflow_with_logging(context):
             "model_type": "gpt-4",
             "priority": "normal"
         }
-        
+
         workflow_logger.debug(
             "Workflow parameters configured",
             parameters=workflow_params
         )
-        
+
         # Execute workflow steps with logging
         await ai_processing_with_logging(context)
         await data_processing_with_logging(context)
-        
+
         # Log successful completion
         workflow_logger.info(
             "Workflow execution completed successfully",
@@ -783,7 +794,7 @@ async def workflow_with_logging(context):
             records_processed=1500,
             api_calls_made=5
         )
-        
+
     except Exception as e:
         # Log error with full context
         workflow_logger.error(
@@ -798,7 +809,7 @@ async def workflow_with_logging(context):
 async def ai_processing_with_logging(context):
     """AI processing with detailed logging"""
     ai_logger.info("AI processing started")
-    
+
     try:
         # Log model initialization
         ai_logger.debug(
@@ -807,12 +818,12 @@ async def ai_processing_with_logging(context):
             temperature=0.7,
             max_tokens=1000
         )
-        
+
         # Simulate processing with progress logging
         total_items = 100
         for i in range(0, total_items, 20):
             await asyncio.sleep(0.3)
-            
+
             # Log progress
             ai_logger.debug(
                 "Processing progress",
@@ -820,7 +831,7 @@ async def ai_processing_with_logging(context):
                 total_items=total_items,
                 progress_percentage=((i + 20) / total_items) * 100
             )
-        
+
         # Log performance metrics
         ai_logger.info(
             "AI processing completed",
@@ -830,7 +841,7 @@ async def ai_processing_with_logging(context):
             cache_hits=2,
             processing_duration_seconds=1.5
         )
-        
+
     except Exception as e:
         ai_logger.error(
             "AI processing failed",
@@ -843,7 +854,7 @@ async def ai_processing_with_logging(context):
 async def data_processing_with_logging(context):
     """Data processing with structured event logging"""
     data_logger.info("Data processing pipeline started")
-    
+
     try:
         # Log data source information
         data_logger.info(
@@ -852,7 +863,7 @@ async def data_processing_with_logging(context):
             connection_string="postgresql://localhost:5432/prod",
             timeout_seconds=30
         )
-        
+
         # Simulate data processing stages
         stages = [
             {"name": "extract", "duration": 0.8, "records": 1500},
@@ -860,30 +871,30 @@ async def data_processing_with_logging(context):
             {"name": "transform", "duration": 0.6, "transformations": 8},
             {"name": "load", "duration": 0.4, "loaded": 1495}
         ]
-        
+
         for stage in stages:
             stage_start = time.time()
-            
+
             data_logger.info(
                 f"Starting {stage['name']} stage",
                 stage=stage['name'],
                 expected_duration=stage['duration']
             )
-            
+
             await asyncio.sleep(stage['duration'])
-            
+
             stage_actual_duration = time.time() - stage_start
-            
+
             # Log stage completion with metrics
             stage_metrics = {k: v for k, v in stage.items() if k != "duration"}
-            
+
             data_logger.info(
                 f"Completed {stage['name']} stage",
                 stage=stage['name'],
                 duration_seconds=stage_actual_duration,
                 metrics=stage_metrics
             )
-            
+
             # Log performance warnings
             if stage_actual_duration > stage['duration'] * 1.2:
                 data_logger.warning(
@@ -893,7 +904,7 @@ async def data_processing_with_logging(context):
                     actual_duration=stage_actual_duration,
                     performance_impact="moderate"
                 )
-        
+
         # Log final pipeline metrics
         data_logger.info(
             "Data processing pipeline completed",
@@ -902,7 +913,7 @@ async def data_processing_with_logging(context):
             error_rate_percentage=0.33,
             pipeline_duration_seconds=2.1
         )
-        
+
     except Exception as e:
         data_logger.error(
             "Data processing pipeline failed",
@@ -916,10 +927,10 @@ async def data_processing_with_logging(context):
 async def log_analysis_demo(context):
     """Demonstrate log analysis capabilities"""
     print("🔍 Log analysis demonstration...")
-    
+
     # In a real implementation, this would parse actual log files
     # Here we simulate analyzing collected logs
-    
+
     simulated_logs = [
         {"level": "info", "component": "workflow_engine", "message": "Workflow execution started"},
         {"level": "debug", "component": "ai_service", "message": "Processing progress", "progress_percentage": 40},
@@ -928,7 +939,7 @@ async def log_analysis_demo(context):
         {"level": "error", "component": "external_api", "message": "API rate limit exceeded"},
         {"level": "info", "component": "workflow_engine", "message": "Workflow execution completed"}
     ]
-    
+
     # Analyze log patterns
     log_analysis = {
         "total_logs": len(simulated_logs),
@@ -937,17 +948,17 @@ async def log_analysis_demo(context):
         "warnings_and_errors": [],
         "performance_issues": []
     }
-    
+
     for log_entry in simulated_logs:
         level = log_entry["level"]
         component = log_entry["component"]
-        
+
         # Count by level
         log_analysis["by_level"][level] = log_analysis["by_level"].get(level, 0) + 1
-        
+
         # Count by component
         log_analysis["by_component"][component] = log_analysis["by_component"].get(component, 0) + 1
-        
+
         # Collect warnings and errors
         if level in ["warning", "error", "critical"]:
             log_analysis["warnings_and_errors"].append({
@@ -955,16 +966,16 @@ async def log_analysis_demo(context):
                 "component": component,
                 "message": log_entry["message"]
             })
-        
+
         # Identify performance issues
         if "exceeded" in log_entry["message"] or "slow" in log_entry["message"]:
             log_analysis["performance_issues"].append({
                 "component": component,
                 "issue": log_entry["message"]
             })
-    
+
     context.set_output("log_analysis", log_analysis)
-    
+
     print("📊 Log Analysis Results:")
     print(f"   Total logs: {log_analysis['total_logs']}")
     print(f"   By level: {log_analysis['by_level']}")
@@ -1012,7 +1023,7 @@ class AlertManager:
         self.active_alerts = {}
         self.alert_history = []
         self.notification_channels = {}
-    
+
     def add_alert_rule(self, name: str, condition: Callable, severity: AlertSeverity, channels: List[AlertChannel]):
         """Add alert rule"""
         self.alert_rules.append({
@@ -1021,11 +1032,11 @@ class AlertManager:
             "severity": severity,
             "channels": channels
         })
-    
+
     def evaluate_alerts(self, metrics: Dict[str, Any], context: Dict[str, Any] = None):
         """Evaluate all alert rules against current metrics"""
         triggered_alerts = []
-        
+
         for rule in self.alert_rules:
             try:
                 if rule["condition"](metrics, context or {}):
@@ -1039,15 +1050,15 @@ class AlertManager:
                         tags=context.get("tags", {}) if context else {},
                         metrics=metrics
                     )
-                    
+
                     triggered_alerts.append(alert)
                     self.active_alerts[alert.alert_id] = alert
-                    
+
             except Exception as e:
                 print(f"Error evaluating alert rule {rule['name']}: {e}")
-        
+
         return triggered_alerts
-    
+
     def resolve_alert(self, alert_id: str):
         """Resolve an active alert"""
         if alert_id in self.active_alerts:
@@ -1117,7 +1128,7 @@ alerting_agent = Agent("alerting-demo")
 async def monitor_and_alert(context):
     """Monitor system metrics and trigger alerts"""
     print("🚨 Monitoring system for alert conditions...")
-    
+
     # Simulate collecting current metrics
     current_metrics = {
         "error_rate_percentage": 7.5,  # High error rate
@@ -1128,7 +1139,7 @@ async def monitor_and_alert(context):
         "active_connections": 150,
         "api_calls_per_minute": 1200
     }
-    
+
     # Alert context
     alert_context = {
         "component": "workflow_engine",
@@ -1139,24 +1150,24 @@ async def monitor_and_alert(context):
             "datacenter": "us-east-1"
         }
     }
-    
+
     # Evaluate alert conditions
     triggered_alerts = alert_manager.evaluate_alerts(current_metrics, alert_context)
-    
+
     # Process triggered alerts
     if triggered_alerts:
         print(f"🔔 {len(triggered_alerts)} alert(s) triggered:")
-        
+
         for alert in triggered_alerts:
             print(f"   {alert.severity.value.upper()}: {alert.title}")
             print(f"      Component: {alert.component}")
             print(f"      Metrics: {alert.metrics}")
-            
+
             # Simulate sending notifications
             await send_alert_notifications(alert)
     else:
         print("✅ No alert conditions triggered")
-    
+
     # Store monitoring results
     context.set_variable("current_metrics", current_metrics)
     context.set_variable("triggered_alerts", [alert.__dict__ for alert in triggered_alerts])
@@ -1165,15 +1176,15 @@ async def monitor_and_alert(context):
 async def send_alert_notifications(alert: Alert):
     """Send alert notifications through configured channels"""
     print(f"📤 Sending {alert.severity.value} alert notifications...")
-    
+
     # Simulate sending to different channels
     channels = ["slack", "email"]  # Would be determined by alert rules
-    
+
     for channel in channels:
         try:
             await asyncio.sleep(0.1)  # Simulate network call
             print(f"   ✅ Sent to {channel}")
-            
+
         except Exception as e:
             print(f"   ❌ Failed to send to {channel}: {e}")
 
@@ -1181,10 +1192,10 @@ async def send_alert_notifications(alert: Alert):
 async def alert_dashboard(context):
     """Generate alert dashboard and summary"""
     print("📊 Generating alert dashboard...")
-    
+
     active_alerts = list(alert_manager.active_alerts.values())
     alert_history = alert_manager.alert_history[-10:]  # Last 10 resolved alerts
-    
+
     # Analyze alert patterns
     alert_summary = {
         "active_alerts": len(active_alerts),
@@ -1194,34 +1205,34 @@ async def alert_dashboard(context):
         "alert_frequency": {},
         "top_alert_sources": {}
     }
-    
+
     # Analyze active alerts
     for alert in active_alerts:
         severity = alert.severity.value
         component = alert.component
-        
+
         alert_summary["alerts_by_severity"][severity] = alert_summary["alerts_by_severity"].get(severity, 0) + 1
         alert_summary["alerts_by_component"][component] = alert_summary["alerts_by_component"].get(component, 0) + 1
-    
+
     # Analyze historical patterns
     all_alerts = active_alerts + alert_history
     for alert in all_alerts:
         # Count alert frequency by title
         title = alert.title
         alert_summary["alert_frequency"][title] = alert_summary["alert_frequency"].get(title, 0) + 1
-    
+
     # Identify top alert sources
     alert_summary["top_alert_sources"] = dict(
         sorted(alert_summary["alert_frequency"].items(), key=lambda x: x[1], reverse=True)[:5]
     )
-    
+
     context.set_output("alert_summary", alert_summary)
-    
+
     print("🎯 Alert Dashboard Summary:")
     print(f"   Active alerts: {alert_summary['active_alerts']}")
     print(f"   By severity: {alert_summary['alerts_by_severity']}")
     print(f"   Recent resolved: {alert_summary['recent_resolved']}")
-    
+
     if alert_summary['top_alert_sources']:
         print("   Top alert sources:")
         for source, count in list(alert_summary['top_alert_sources'].items())[:3]:
@@ -1245,35 +1256,35 @@ class PerformanceProfiler:
     def __init__(self):
         self.profiles = {}
         self.benchmarks = {}
-    
+
     def profile_function(self, func_name: str, func, *args, **kwargs):
         """Profile a function execution"""
         profiler = cProfile.Profile()
-        
+
         result = None
         try:
             profiler.enable()
             result = func(*args, **kwargs)
             profiler.disable()
-            
+
             # Capture profile stats
             stats_stream = StringIO()
             stats = pstats.Stats(profiler, stream=stats_stream)
             stats.sort_stats('cumulative')
             stats.print_stats(20)  # Top 20 functions
-            
+
             self.profiles[func_name] = {
                 "stats_output": stats_stream.getvalue(),
                 "total_calls": stats.total_calls,
                 "total_time": stats.total_tt,
                 "timestamp": time.time()
             }
-            
+
         except Exception as e:
             print(f"Profiling error for {func_name}: {e}")
-        
+
         return result
-    
+
     def get_profile_summary(self, func_name: str) -> Dict:
         """Get profile summary for a function"""
         return self.profiles.get(func_name, {})
@@ -1288,7 +1299,7 @@ performance_agent = Agent("performance-monitoring")
 async def cpu_intensive_task_with_profiling(context):
     """CPU-intensive task with performance profiling"""
     print("🔥 CPU-intensive task with profiling...")
-    
+
     def cpu_heavy_computation():
         """Simulate CPU-heavy computation"""
         result = 0
@@ -1299,15 +1310,15 @@ async def cpu_intensive_task_with_profiling(context):
                 temp = f"processing_{i}"
                 temp = temp.upper().lower()
         return result
-    
+
     # Profile the computation
     start_time = time.time()
     result = profiler.profile_function("cpu_heavy_computation", cpu_heavy_computation)
     total_time = time.time() - start_time
-    
+
     # Get profiling results
     profile_data = profiler.get_profile_summary("cpu_heavy_computation")
-    
+
     performance_metrics = {
         "function_name": "cpu_heavy_computation",
         "result": result,
@@ -1316,9 +1327,9 @@ async def cpu_intensive_task_with_profiling(context):
         "total_function_calls": profile_data.get("total_calls", 0),
         "performance_overhead": total_time - profile_data.get("total_time", 0)
     }
-    
+
     context.set_variable("cpu_performance", performance_metrics)
-    
+
     print(f"✅ CPU task completed: {result}")
     print(f"   Execution time: {total_time:.3f}s")
     print(f"   Function calls: {profile_data.get('total_calls', 0)}")
@@ -1327,34 +1338,34 @@ async def cpu_intensive_task_with_profiling(context):
 async def memory_intensive_task_with_monitoring(context):
     """Memory-intensive task with memory monitoring"""
     print("💾 Memory-intensive task with monitoring...")
-    
+
     memory_usage_snapshots = []
-    
+
     def get_memory_usage():
         """Simulate memory usage measurement"""
         # In real implementation, would use psutil or similar
         import sys
         return sys.getsizeof(locals()) + sys.getsizeof(globals())
-    
+
     # Initial memory snapshot
     initial_memory = get_memory_usage()
     memory_usage_snapshots.append({"stage": "start", "memory_bytes": initial_memory, "timestamp": time.time()})
-    
+
     # Simulate memory-intensive operations
     data_structures = {}
-    
+
     # Stage 1: Create large data structures
     print("   📈 Stage 1: Creating large data structures...")
     large_list = list(range(100000))
     large_dict = {i: f"value_{i}" for i in range(50000)}
     data_structures["large_list"] = large_list
     data_structures["large_dict"] = large_dict
-    
+
     memory_after_stage1 = get_memory_usage()
     memory_usage_snapshots.append({"stage": "after_creation", "memory_bytes": memory_after_stage1, "timestamp": time.time()})
-    
+
     await asyncio.sleep(0.5)
-    
+
     # Stage 2: Process data
     print("   ⚙️ Stage 2: Processing data...")
     processed_data = []
@@ -1362,25 +1373,25 @@ async def memory_intensive_task_with_monitoring(context):
         chunk = large_list[i:i+1000]
         processed_chunk = [x * 2 for x in chunk]
         processed_data.extend(processed_chunk)
-    
+
     memory_after_stage2 = get_memory_usage()
     memory_usage_snapshots.append({"stage": "after_processing", "memory_bytes": memory_after_stage2, "timestamp": time.time()})
-    
+
     await asyncio.sleep(0.3)
-    
+
     # Stage 3: Cleanup
     print("   🧹 Stage 3: Cleanup...")
     del large_list, large_dict, processed_data
     data_structures.clear()
-    
+
     memory_after_cleanup = get_memory_usage()
     memory_usage_snapshots.append({"stage": "after_cleanup", "memory_bytes": memory_after_cleanup, "timestamp": time.time()})
-    
+
     # Analyze memory usage pattern
     max_memory = max(snapshot["memory_bytes"] for snapshot in memory_usage_snapshots)
     memory_growth = max_memory - initial_memory
     memory_efficiency = (memory_after_cleanup - initial_memory) / max(memory_growth, 1)
-    
+
     memory_analysis = {
         "initial_memory_bytes": initial_memory,
         "peak_memory_bytes": max_memory,
@@ -1389,9 +1400,9 @@ async def memory_intensive_task_with_monitoring(context):
         "memory_efficiency_ratio": memory_efficiency,
         "usage_snapshots": memory_usage_snapshots
     }
-    
+
     context.set_variable("memory_analysis", memory_analysis)
-    
+
     print(f"✅ Memory task completed")
     print(f"   Peak memory: {max_memory:,} bytes")
     print(f"   Memory growth: {memory_growth:,} bytes")
@@ -1401,18 +1412,18 @@ async def memory_intensive_task_with_monitoring(context):
 async def io_performance_benchmark(context):
     """I/O performance benchmarking"""
     print("📀 I/O performance benchmark...")
-    
+
     io_benchmarks = {}
-    
+
     # File I/O benchmark
     print("   📁 Testing file I/O performance...")
     file_io_start = time.time()
-    
+
     # Simulate file operations
     test_data = "Test data " * 1000  # 9KB of test data
     write_times = []
     read_times = []
-    
+
     for i in range(10):
         # Write test
         write_start = time.time()
@@ -1420,16 +1431,16 @@ async def io_performance_benchmark(context):
         await asyncio.sleep(0.01)  # Simulate file write
         write_time = time.time() - write_start
         write_times.append(write_time)
-        
+
         # Read test
         read_start = time.time()
         # In real implementation: read from actual file
         await asyncio.sleep(0.005)  # Simulate file read
         read_time = time.time() - read_start
         read_times.append(read_time)
-    
+
     file_io_total = time.time() - file_io_start
-    
+
     io_benchmarks["file_io"] = {
         "total_time": file_io_total,
         "avg_write_time": sum(write_times) / len(write_times),
@@ -1437,11 +1448,11 @@ async def io_performance_benchmark(context):
         "write_throughput_ops_per_sec": len(write_times) / sum(write_times),
         "read_throughput_ops_per_sec": len(read_times) / sum(read_times)
     }
-    
+
     # Network I/O benchmark
     print("   🌐 Testing network I/O performance...")
     network_io_start = time.time()
-    
+
     response_times = []
     for i in range(5):
         request_start = time.time()
@@ -1449,9 +1460,9 @@ async def io_performance_benchmark(context):
         await asyncio.sleep(0.1 + (i * 0.02))  # Variable latency
         response_time = time.time() - request_start
         response_times.append(response_time)
-    
+
     network_io_total = time.time() - network_io_start
-    
+
     io_benchmarks["network_io"] = {
         "total_time": network_io_total,
         "avg_response_time": sum(response_times) / len(response_times),
@@ -1459,9 +1470,9 @@ async def io_performance_benchmark(context):
         "max_response_time": max(response_times),
         "requests_per_second": len(response_times) / sum(response_times)
     }
-    
+
     context.set_variable("io_benchmarks", io_benchmarks)
-    
+
     print(f"✅ I/O benchmark completed")
     print(f"   File I/O: {io_benchmarks['file_io']['write_throughput_ops_per_sec']:.1f} writes/sec")
     print(f"   Network I/O: {io_benchmarks['network_io']['avg_response_time']*1000:.1f}ms avg response")
@@ -1470,12 +1481,12 @@ async def io_performance_benchmark(context):
 async def generate_performance_report(context):
     """Generate comprehensive performance analysis report"""
     print("📊 Generating performance report...")
-    
+
     # Gather performance data
     cpu_performance = context.get_variable("cpu_performance", {})
     memory_analysis = context.get_variable("memory_analysis", {})
     io_benchmarks = context.get_variable("io_benchmarks", {})
-    
+
     # Create comprehensive report
     performance_report = {
         "report_timestamp": time.time(),
@@ -1498,20 +1509,20 @@ async def generate_performance_report(context):
             "network_requests_per_sec": io_benchmarks.get("network_io", {}).get("requests_per_second", 0)
         }
     }
-    
+
     # Performance scoring
     scores = calculate_performance_scores(performance_report)
     performance_report["performance_scores"] = scores
     performance_report["overall_score"] = sum(scores.values()) / len(scores)
-    
+
     context.set_output("performance_report", performance_report)
-    
+
     print("🎯 Performance Report Summary:")
     print(f"   Overall Score: {performance_report['overall_score']:.1f}/100")
     print(f"   CPU Score: {scores['cpu_score']:.1f}/100")
     print(f"   Memory Score: {scores['memory_score']:.1f}/100")
     print(f"   I/O Score: {scores['io_score']:.1f}/100")
-    
+
     # Performance recommendations
     recommendations = generate_performance_recommendations(performance_report)
     if recommendations:
@@ -1522,12 +1533,12 @@ async def generate_performance_report(context):
 def calculate_performance_scores(report: dict) -> dict:
     """Calculate performance scores from 0-100"""
     scores = {}
-    
+
     # CPU Score (based on efficiency)
     cpu_calls_per_sec = report["cpu_analysis"]["calls_per_second"]
     cpu_score = min(100, (cpu_calls_per_sec / 100000) * 100)  # Normalize to 100k calls/sec
     scores["cpu_score"] = cpu_score
-    
+
     # Memory Score (based on efficiency and leak detection)
     memory_efficiency = report["memory_analysis"]["efficiency_ratio"]
     memory_leak = report["memory_analysis"]["memory_leak_indicator"]
@@ -1535,36 +1546,36 @@ def calculate_performance_scores(report: dict) -> dict:
     if memory_leak:
         memory_score *= 0.7  # Penalize for potential memory leaks
     scores["memory_score"] = max(0, memory_score)
-    
+
     # I/O Score (based on throughput and latency)
     file_write_score = min(100, (report["io_performance"]["file_write_ops_per_sec"] / 1000) * 100)
     network_latency_score = max(0, 100 - (report["io_performance"]["network_avg_latency_ms"] / 10))
     io_score = (file_write_score + network_latency_score) / 2
     scores["io_score"] = io_score
-    
+
     return scores
 
 def generate_performance_recommendations(report: dict) -> List[str]:
     """Generate performance optimization recommendations"""
     recommendations = []
-    
+
     scores = report["performance_scores"]
-    
+
     if scores["cpu_score"] < 70:
         recommendations.append("Consider optimizing CPU-intensive operations or algorithm complexity")
-    
+
     if scores["memory_score"] < 70:
         recommendations.append("Review memory usage patterns and implement garbage collection optimization")
-    
+
     if report["memory_analysis"]["memory_leak_indicator"]:
         recommendations.append("Investigate potential memory leaks in data structure cleanup")
-    
+
     if scores["io_score"] < 70:
         recommendations.append("Optimize I/O operations with caching, batching, or async patterns")
-    
+
     if report["io_performance"]["network_avg_latency_ms"] > 200:
         recommendations.append("Consider connection pooling or CDN usage for network operations")
-    
+
     return recommendations
 \`\`\`
 
@@ -1621,6 +1632,41 @@ metrics.record_histogram("duration_seconds", 1.5)
 
 # Alerting
 alert_manager.evaluate_alerts(current_metrics, context)
+\`\`\`
+
+## Running Observability-Enabled Workflows
+
+Here's how to set up and run a complete observability demo:
+
+\`\`\`python
+# Set up observability
+setup_observability(observability_config)
+
+# Create agent with observable states
+observability_agent = Agent("observability-demo")
+
+# Add states to agent
+observability_agent.add_state("ai_processing", ai_processing_task)
+observability_agent.add_state("data_pipeline", data_pipeline_task)
+observability_agent.add_state("system_monitoring", system_monitoring_task)
+observability_agent.add_state("metrics_reporter", metrics_reporter_task)
+
+# Run with observability
+async def run_observable_workflow():
+    result = await observability_agent.run(initial_context={
+        "task_id": "demo_001",
+        "model_type": "gpt-4",
+        "dataset_size": 1000
+    })
+
+    # Get metrics report
+    metrics_report = result.get_variable("metrics_report")
+    print(f"Workflow completed with metrics: {metrics_report}")
+
+    return result
+
+# Execute
+asyncio.run(run_observable_workflow())
 \`\`\`
 
 Observability transforms your Puffinflow workflows from black boxes into transparent, debuggable, and optimizable systems. Start with basic metrics and logging, then gradually add more sophisticated monitoring as your system grows in complexity.

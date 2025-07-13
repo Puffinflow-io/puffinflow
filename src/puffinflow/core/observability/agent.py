@@ -53,7 +53,11 @@ class ObservableAgent(Agent):
         context.set_variable("workflow_id", self.workflow_id)
         return context
 
-    async def run(self, timeout: Optional[float] = None) -> AgentResult:
+    async def run(
+        self,
+        timeout: Optional[float] = None,
+        initial_context: Optional[dict[str, Any]] = None,
+    ) -> AgentResult:
         """Run workflow with observability"""
         workflow_start = time.time()
 
@@ -65,7 +69,7 @@ class ObservableAgent(Agent):
                 workflow_id=self.workflow_id,
             ) as span:
                 try:
-                    result = await super().run(timeout)
+                    result = await super().run(timeout, initial_context)
 
                     duration = time.time() - workflow_start
                     if span:
@@ -90,7 +94,7 @@ class ObservableAgent(Agent):
                         )
                     raise
         else:
-            return await super().run(timeout)
+            return await super().run(timeout, initial_context)
 
     async def run_state(self, state_name: str) -> None:
         """Run state with observability"""

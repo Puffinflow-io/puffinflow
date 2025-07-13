@@ -49,8 +49,12 @@ Executes the agent workflow.
 
 **Example:**
 \`\`\`python
+# Run with initial data
 result = await agent.run(initial_context={"input": "data"})
 output = result.get_variable("output")
+
+# Run without initial data
+result = await agent.run()
 \`\`\`
 
 #### \`state(func: Optional[Callable] = None, **kwargs) -> Callable\`
@@ -393,14 +397,14 @@ Submits a task to the next available agent.
 \`\`\`python
 def create_worker():
     agent = Agent("worker")
-    
+
     @agent.state
     async def process_task(context):
         data = context.get_variable("task_data")
         result = await process_data(data)
         context.set_variable("result", result)
         return None
-    
+
     return agent
 
 pool = AgentPool(create_worker, size=10)
@@ -440,10 +444,10 @@ metrics = MetricsCollector()
 @state
 async def monitored_state(context):
     metrics.increment("state_executions")
-    
+
     with metrics.timer("processing_time"):
         result = await process_data()
-    
+
     metrics.gauge("result_size", len(result))
     return "next_state"
 \`\`\`

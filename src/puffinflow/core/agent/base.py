@@ -362,14 +362,63 @@ class AgentResult:
     start_time: Optional[float] = None
     end_time: Optional[float] = None
     execution_duration: Optional[float] = None
+    _final_context: Optional[Context] = field(default=None, repr=False)
 
     def get_output(self, key: str, default: Any = None) -> Any:
         """Get output value."""
         return self.outputs.get(key, default)
 
     def get_variable(self, key: str, default: Any = None) -> Any:
-        """Get variable value."""
-        return self.variables.get(key, default)
+        """
+        Get variable value from any context storage type.
+
+        This method is neutral and will look for the key across all storage types:
+        - Regular variables
+        - Typed variables
+        - Constants
+        - Secrets
+        - Cached data
+        - Validated data
+        - Outputs
+        """
+        # First check regular variables
+        if key in self.variables:
+            return self.variables[key]
+
+        # If we have final context, check other storage types
+        if self._final_context:
+            # Check constants
+            const_value = self._final_context.get_constant(key)
+            if const_value is not None:
+                return const_value
+
+            # Check secrets
+            secret_value = self._final_context.get_secret(key)
+            if secret_value is not None:
+                return secret_value
+
+            # Check cached data
+            cached_value = self._final_context.get_cached(key)
+            if cached_value is not None:
+                return cached_value
+
+            # Check outputs
+            output_value = self._final_context.get_output(key)
+            if output_value is not None:
+                return output_value
+
+            # Check if it's validated data (we can't know the type, so we'll check if the key exists in shared_state)
+            if (
+                hasattr(self._final_context, "shared_state")
+                and key in self._final_context.shared_state
+            ):
+                return self._final_context.shared_state[key]
+
+        # Check outputs directly
+        if key in self.outputs:
+            return self.outputs[key]
+
+        return default
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata value."""
@@ -378,6 +427,45 @@ class AgentResult:
     def get_metric(self, key: str, default: Any = None) -> Any:
         """Get metric value."""
         return self.metrics.get(key, default)
+
+    # Advanced context methods
+    def get_typed_variable(self, key: str, expected: Optional[type] = None) -> Any:
+        """Get a typed variable with optional type checking."""
+        if self._final_context:
+            if expected is not None:
+                return self._final_context.get_typed_variable(key, expected)
+            else:
+                # Return the raw value if no type checking is needed
+                return self._final_context.get_variable(key)
+        return self.variables.get(key)
+
+    def get_validated_data(self, key: str, expected: type) -> Any:
+        """Get validated Pydantic data."""
+        if self._final_context:
+            return self._final_context.get_validated_data(key, expected)
+        return None
+
+    def get_constant(self, key: str, default: Any = None) -> Any:
+        """Get a constant value."""
+        if self._final_context:
+            return self._final_context.get_constant(key, default)
+        return default
+
+    def get_secret(self, key: str) -> Optional[str]:
+        """Get a secret value."""
+        if self._final_context:
+            return self._final_context.get_secret(key)
+        return None
+
+    def get_cached(self, key: str, default: Any = None) -> Any:
+        """Get a cached value."""
+        if self._final_context:
+            return self._final_context.get_cached(key, default)
+        return default
+
+    def has_variable(self, key: str) -> bool:
+        """Check if variable exists."""
+        return key in self.variables
 
     @property
     def is_success(self) -> bool:
@@ -855,6 +943,73 @@ class Agent:
         self._context = context
         return context
 
+    def _apply_initial_context(self, initial_context: dict[str, Any]) -> None:
+        """Apply initial context data with support for different data types."""
+        if not self._context:
+            raise RuntimeError(
+                "Context must be created before applying initial context"
+            )
+
+        # Check if it's a structured context (has known section keys)
+        structured_keys = {
+            "variables",
+            "typed_variables",
+            "constants",
+            "secrets",
+            "validated_data",
+            "cached",
+            "outputs",
+            "metadata",
+        }
+
+        is_structured = any(key in structured_keys for key in initial_context)
+
+        if is_structured:
+            # Handle structured format
+            if "variables" in initial_context:
+                for key, value in initial_context["variables"].items():
+                    self._context.set_variable(key, value)
+
+            if "typed_variables" in initial_context:
+                for key, value in initial_context["typed_variables"].items():
+                    self._context.set_typed_variable(key, value)
+
+            if "constants" in initial_context:
+                for key, value in initial_context["constants"].items():
+                    self._context.set_constant(key, value)
+
+            if "secrets" in initial_context:
+                for key, value in initial_context["secrets"].items():
+                    if not isinstance(value, str):
+                        raise TypeError(f"Secret '{key}' must be a string")
+                    self._context.set_secret(key, value)
+
+            if "validated_data" in initial_context:
+                for key, value in initial_context["validated_data"].items():
+                    self._context.set_validated_data(key, value)
+
+            if "cached" in initial_context:
+                for key, cache_config in initial_context["cached"].items():
+                    if isinstance(cache_config, dict) and "value" in cache_config:
+                        value = cache_config["value"]
+                        ttl = cache_config.get("ttl", 300)  # Default 5 minutes
+                        self._context.set_cached(key, value, ttl)
+                    else:
+                        # Simple value, use default TTL
+                        self._context.set_cached(key, cache_config)
+
+            if "outputs" in initial_context:
+                for key, value in initial_context["outputs"].items():
+                    self._context.set_output(key, value)
+
+            if "metadata" in initial_context:
+                for key, value in initial_context["metadata"].items():
+                    self._context.set_metadata(key, value)
+        else:
+            # Handle simple format - treat all as regular variables
+            for key, value in initial_context.items():
+                self._context.set_variable(key, value)
+
     # State management (keeping existing methods)
     def add_state(
         self,
@@ -1021,11 +1176,33 @@ class Agent:
     def _find_entry_states(self) -> list[str]:
         """Find states with no dependencies."""
         entry_states = []
-        for state_name in self.states:
+        state_names = list(self.states.keys())  # Preserve order
+
+        for state_name in state_names:
             deps = self.dependencies.get(state_name, [])
             if not deps:
                 entry_states.append(state_name)
+
         return entry_states
+
+    async def _check_dependent_states(self, completed_state: str) -> None:
+        """Check for states that depend on the completed state and queue them if ready."""
+        for state_name, deps in self.dependencies.items():
+            # Skip if this state doesn't depend on the completed state
+            if completed_state not in deps:
+                continue
+
+            # Skip if state is already completed or running
+            if state_name in self.completed_once or state_name in self.running_states:
+                continue
+
+            # Skip if state is already in queue
+            if any(ps.state_name == state_name for ps in self.priority_queue):
+                continue
+
+            # Check if all dependencies are now satisfied
+            if await self._can_run(state_name):
+                await self._add_to_queue(state_name)
 
     async def _add_to_queue(self, state_name: str, priority_boost: int = 0) -> None:
         """Add state to priority queue."""
@@ -1139,6 +1316,9 @@ class Agent:
             # Track completion
             self.completed_states.add(state_name)
             self.completed_once.add(state_name)
+
+            # Check for dependent states that can now run
+            await self._check_dependent_states(state_name)
 
             # Handle transitions/next states
             await self._handle_state_result(state_name, result)
@@ -1512,8 +1692,29 @@ class Agent:
         return ScheduleBuilder(self, schedule_str)
 
     # Main execution
-    async def run(self, timeout: Optional[float] = None) -> AgentResult:
-        """Run the agent workflow with enhanced result tracking."""
+    async def run(
+        self,
+        timeout: Optional[float] = None,
+        initial_context: Optional[dict[str, Any]] = None,
+    ) -> AgentResult:
+        """
+        Run the agent workflow with enhanced result tracking.
+
+        Args:
+            timeout: Optional timeout in seconds
+            initial_context: Initial context data. Can be:
+                - Simple dict: {"key": value} - sets as regular variables
+                - Structured dict with type hints:
+                  {
+                      "variables": {"key": value},
+                      "typed_variables": {"key": value},
+                      "constants": {"key": value},
+                      "secrets": {"key": "secret_value"},
+                      "validated_data": {"key": pydantic_model_instance},
+                      "cached": {"key": {"value": data, "ttl": 300}},
+                      "outputs": {"key": value}
+                  }
+        """
         start_time = time.time()
         self.status = AgentStatus.RUNNING
 
@@ -1535,6 +1736,10 @@ class Agent:
 
             # Create context with current shared state
             self._create_context(self.shared_state)
+
+            # Apply initial context if provided
+            if initial_context:
+                self._apply_initial_context(initial_context)
 
             # Find entry states (states with no dependencies)
             entry_states = self._find_entry_states()
@@ -1605,6 +1810,7 @@ class Agent:
                 start_time=start_time,
                 end_time=end_time,
                 execution_duration=end_time - start_time,
+                _final_context=self._context,
             )
 
             return result

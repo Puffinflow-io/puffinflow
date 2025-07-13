@@ -2,7 +2,7 @@ export const gettingStartedMarkdown = `# Getting Started with Puffinflow
 
 ## Prerequisites
 
-- **Python 3.8+**
+- **Python 3.9+** (3.9, 3.10, 3.11, 3.12, 3.13 supported)
 - Basic familiarity with \`async/await\` in Python
 - 5 minutes to get your first workflow running! ⏱️
 
@@ -26,20 +26,26 @@ agent = Agent("my-first-workflow")
 # 2. Define a state (just a regular async function)
 async def hello_world(context):
     print("Hello, Puffinflow! 🐧")
-    print(f"Workflow ID: {context.workflow_id}")
+    print(f"Agent name: {agent.name}")
+    context.set_variable("greeting", "Hello from PuffinFlow!")
     return None
 
 # 3. Add state and run it
 agent.add_state("hello_world", hello_world)
 
+async def main():
+    result = await agent.run()
+    print(f"Result: {result.get_variable('greeting')}")
+
 if __name__ == "__main__":
-    asyncio.run(agent.run())
+    asyncio.run(main())
 \`\`\`
 
 **Output:**
 \`\`\`
 Hello, Puffinflow! 🐧
-Workflow ID: my-first-workflow
+Agent name: my-first-workflow
+Result: Hello from PuffinFlow!
 \`\`\`
 
 🎉 **Congratulations!** You just ran your first Puffinflow workflow.
@@ -153,33 +159,40 @@ agent.add_state("step_two", step_two)
 agent.add_state("step_three", step_three)
 \`\`\`
 
-### 2. Static Dependencies
+### 2. Conditional Execution
 
-Explicitly declare what must complete before each state runs:
+Use conditional logic to control when states execute:
 
 \`\`\`python
 async def fetch_user_data(context):
     print("👥 Fetching user data...")
     await asyncio.sleep(0.5)  # Simulate API call
     context.set_variable("user_count", 1250)
+    context.set_variable("user_data_ready", True)
+    return "fetch_sales_data"
 
 async def fetch_sales_data(context):
     print("💰 Fetching sales data...")
     await asyncio.sleep(0.3)  # Simulate API call
     context.set_variable("revenue", 45000)
+    context.set_variable("sales_data_ready", True)
+    return "generate_report"
 
 async def generate_report(context):
+    # Check if prerequisite data is available
+    if not context.get_variable("user_data_ready") or not context.get_variable("sales_data_ready"):
+        print("❌ Data not ready for report generation")
+        return None
+
     print("📊 Generating report...")
     users = context.get_variable("user_count")
     revenue = context.get_variable("revenue")
     print(f"Revenue per user: \${revenue/users:.2f}")
 
-# fetch_user_data and fetch_sales_data run in parallel
-# generate_report waits for BOTH to complete
+# States run in sequence due to return values
 agent.add_state("fetch_user_data", fetch_user_data)
 agent.add_state("fetch_sales_data", fetch_sales_data)
-agent.add_state("generate_report", generate_report,
-                dependencies=["fetch_user_data", "fetch_sales_data"])
+agent.add_state("generate_report", generate_report)
 \`\`\`
 
 ### 3. Dynamic Flow Control
@@ -289,10 +302,10 @@ if __name__ == "__main__":
 Add the \`@state\` decorator when you need advanced features later:
 
 \`\`\`python
-from puffinflow import state
+from puffinflow import state, Priority
 
 # Advanced features example (you don't need this initially)
-@state(cpu=2.0, memory=1024, priority="high", timeout=60.0)
+@state(cpu=2.0, memory=1024, priority=Priority.HIGH, timeout=60.0)
 async def intensive_task(context):
     # This state gets 2 CPU units, 1GB memory, high priority, 60s timeout
     pass
@@ -439,9 +452,10 @@ async def run_research(query):
     print(f"🚀 Starting research on: '{query}'")
     print("-" * 50)
 
-    result = await research_agent.run(
-        initial_context={"search_query": query}
-    )
+    # Set initial context
+    research_agent.set_variable("search_query", query)
+
+    result = await research_agent.run()
 
     print("-" * 50)
     print("✨ Research complete!")
@@ -507,29 +521,29 @@ async def validate_document(context):
     """Validate uploaded document format and size."""
     logger.info("Starting document validation")
     metrics.increment("validation_started")
-    
+
     try:
         file_path = context.get_variable("file_path")
         file_size = Path(file_path).stat().st_size
-        
+
         # Validate file size (max 10MB)
         if file_size > 10 * 1024 * 1024:
             context.set_variable("error", "File too large")
             metrics.increment("validation_failed", tags={"reason": "file_size"})
             return "error_handler"
-        
+
         # Validate file format
         if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
             context.set_variable("error", "Unsupported file format")
             metrics.increment("validation_failed", tags={"reason": "format"})
             return "error_handler"
-        
+
         context.set_variable("file_size", file_size)
         logger.info(f"Document validated: {file_size} bytes")
         metrics.increment("validation_succeeded")
-        
+
         return "extract_content"
-        
+
     except Exception as e:
         logger.error(f"Validation error: {e}")
         context.set_variable("error", str(e))
@@ -547,26 +561,26 @@ async def extract_content(context):
     """Extract text content from document."""
     logger.info("Starting content extraction")
     metrics.increment("extraction_started")
-    
+
     with metrics.timer("extraction_time"):
         try:
             file_path = context.get_variable("file_path")
-            
+
             # Simulate content extraction
             await asyncio.sleep(2)  # Replace with actual extraction
-            
+
             content = f"Extracted content from {file_path}"
             word_count = len(content.split())
-            
+
             context.set_variable("content", content)
             context.set_variable("word_count", word_count)
-            
+
             logger.info(f"Content extracted: {word_count} words")
             metrics.gauge("content_word_count", word_count)
             metrics.increment("extraction_succeeded")
-            
+
             return "analyze_content"
-            
+
         except Exception as e:
             logger.error(f"Extraction error: {e}")
             context.set_variable("error", str(e))
@@ -584,29 +598,29 @@ async def analyze_content(context):
     """Analyze content with AI/ML processing."""
     logger.info("Starting content analysis")
     metrics.increment("analysis_started")
-    
+
     with metrics.timer("analysis_time"):
         try:
             content = context.get_variable("content")
             word_count = context.get_variable("word_count")
-            
+
             # Simulate AI analysis
             await asyncio.sleep(1)  # Replace with actual AI processing
-            
+
             analysis = {
                 "sentiment": "positive",
                 "topics": ["technology", "business"],
                 "summary": f"Document contains {word_count} words about technology and business.",
                 "confidence": 0.95
             }
-            
+
             context.set_variable("analysis", analysis)
             logger.info(f"Analysis complete: {analysis['sentiment']} sentiment")
             metrics.gauge("analysis_confidence", analysis["confidence"])
             metrics.increment("analysis_succeeded")
-            
+
             return "save_results"
-            
+
         except Exception as e:
             logger.error(f"Analysis error: {e}")
             context.set_variable("error", str(e))
@@ -624,14 +638,14 @@ async def save_results(context):
     """Save processing results to database."""
     logger.info("Saving results")
     metrics.increment("save_started")
-    
+
     try:
         analysis = context.get_variable("analysis")
         file_path = context.get_variable("file_path")
-        
+
         # Simulate database save
         await asyncio.sleep(0.5)  # Replace with actual database operation
-        
+
         result_id = f"doc_{hash(file_path)}"
         results = {
             "id": result_id,
@@ -639,13 +653,13 @@ async def save_results(context):
             "analysis": analysis,
             "processed_at": "2024-01-15T10:30:00Z"
         }
-        
+
         context.set_variable("results", results)
         logger.info(f"Results saved with ID: {result_id}")
         metrics.increment("save_succeeded")
-        
+
         return "send_notification"
-        
+
     except Exception as e:
         logger.error(f"Save error: {e}")
         context.set_variable("error", str(e))
@@ -663,25 +677,25 @@ async def send_notification(context):
     """Send completion notification."""
     logger.info("Sending notification")
     metrics.increment("notification_started")
-    
+
     try:
         results = context.get_variable("results")
-        
+
         # Simulate notification
         await asyncio.sleep(0.2)  # Replace with actual notification service
-        
+
         notification = {
             "type": "success",
             "message": f"Document {results['id']} processed successfully",
             "timestamp": "2024-01-15T10:35:00Z"
         }
-        
+
         context.set_variable("notification", notification)
         logger.info("Notification sent successfully")
         metrics.increment("notification_succeeded")
-        
+
         return None  # End workflow
-        
+
     except Exception as e:
         logger.error(f"Notification error: {e}")
         context.set_variable("error", str(e))
@@ -699,17 +713,17 @@ async def error_handler(context):
     """Handle errors and cleanup."""
     logger.error("Handling workflow error")
     metrics.increment("error_handled")
-    
+
     try:
         error = context.get_variable("error")
         file_path = context.get_variable("file_path", "unknown")
-        
+
         # Log error details
         logger.error(f"Workflow failed for {file_path}: {error}")
-        
+
         # Cleanup resources
         await cleanup_resources(file_path)
-        
+
         # Send error notification
         error_notification = {
             "type": "error",
@@ -717,12 +731,12 @@ async def error_handler(context):
             "file_path": file_path,
             "timestamp": "2024-01-15T10:30:00Z"
         }
-        
+
         context.set_variable("error_notification", error_notification)
         logger.info("Error handling completed")
-        
+
         return None  # End workflow
-        
+
     except Exception as e:
         logger.critical(f"Error handler failed: {e}")
         metrics.increment("error_handler_failed")
@@ -738,16 +752,16 @@ async def cleanup_resources(file_path):
 async def process_document(file_path: str):
     """Process a document through the complete workflow."""
     logger.info(f"Starting document processing: {file_path}")
-    
+
     try:
         # Run workflow with error handling
         context = await processor.run(
             initial_context={"file_path": file_path}
         )
-        
+
         # Save checkpoint periodically
         save_checkpoint(context, f"checkpoint_{hash(file_path)}.json")
-        
+
         # Check results
         if context.has_variable("results"):
             results = context.get_variable("results")
@@ -757,7 +771,7 @@ async def process_document(file_path: str):
             error = context.get_variable("error", "Unknown error")
             logger.error(f"Processing failed: {error}")
             return None
-            
+
     except Exception as e:
         logger.critical(f"Workflow execution failed: {e}")
         metrics.increment("workflow_failed")
@@ -771,19 +785,19 @@ if __name__ == "__main__":
         "/path/to/document2.docx",
         "/path/to/document3.txt"
     ]
-    
+
     async def main():
         tasks = []
         for doc in documents:
             task = asyncio.create_task(process_document(doc))
             tasks.append(task)
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Summary
         successful = sum(1 for r in results if r is not None and not isinstance(r, Exception))
         logger.info(f"Processed {successful}/{len(documents)} documents successfully")
-    
+
     asyncio.run(main())
 \`\`\`
 
@@ -863,15 +877,15 @@ metrics = MetricsCollector()
 @state
 async def monitored_state(context):
     metrics.increment("state_executions")
-    
+
     start_time = time.time()
     try:
         with metrics.timer("operation_duration"):
             result = await business_operation()
-        
+
         metrics.gauge("result_size", len(result))
         metrics.increment("successful_operations")
-        
+
         context.set_variable("result", result)
         return "next_state"
     except Exception as e:
