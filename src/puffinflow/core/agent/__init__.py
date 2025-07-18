@@ -9,6 +9,7 @@ from .dependencies import DependencyConfig, DependencyLifecycle, DependencyType
 from .state import (
     AgentStatus,
     DeadLetter,
+    ExecutionMode,
     PrioritizedState,
     Priority,
     RetryPolicy,
@@ -194,6 +195,7 @@ __all__ = [
     "DependencyLifecycle",
     # Dependencies
     "DependencyType",
+    "ExecutionMode",
     "FlexibleStateDecorator",
     # Scheduling (if available)
     "GlobalScheduler",

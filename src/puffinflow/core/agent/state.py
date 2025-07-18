@@ -36,6 +36,16 @@ class Priority(IntEnum):
     CRITICAL = 3
 
 
+class ExecutionMode(str, Enum):
+    """Execution modes for agent workflows."""
+
+    PARALLEL = "parallel"
+    """All states without dependencies run in parallel as entry points."""
+
+    SEQUENTIAL = "sequential"
+    """Only the first state (or explicitly marked entry points) run initially."""
+
+
 class AgentStatus(str, Enum):
     """Agent execution status."""
 
@@ -71,8 +81,7 @@ class StateStatus(str, Enum):
 class StateFunction(Protocol):
     """Protocol for state functions."""
 
-    async def __call__(self, context: "Context") -> StateResult:
-        ...
+    async def __call__(self, context: "Context") -> StateResult: ...
 
 
 @dataclass
@@ -92,6 +101,8 @@ class RetryPolicy:
         )
         if self.jitter:
             delay *= 0.5 + random.random() * 0.5
+        # Ensure delay is never negative
+        delay = max(0.0, delay)
         await asyncio.sleep(delay)
 
 

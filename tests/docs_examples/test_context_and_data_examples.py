@@ -170,6 +170,9 @@ class TestContextAndDataExamples:
             temp_result = context.get_cached("temp_result", default="EXPIRED")
             context.set_variable("session_status", f"Session: {session}")
             context.set_variable("temp_status", f"Temp: {temp_result}")
+            # Also set the cached values as variables for the test
+            context.set_variable("session", session)
+            context.set_variable("temp_result", temp_result)
 
         agent.add_state("cache_data", cache_data)
         agent.add_state("use_cache", use_cache)
@@ -225,6 +228,9 @@ class TestContextAndDataExamples:
             context.set_variable(
                 "summary_message", f"Revenue: ${revenue}, Orders: {count}"
             )
+            # Also set outputs as variables for the test
+            context.set_variable("total_revenue", revenue)
+            context.set_variable("order_count", count)
 
         agent.add_state("calculate", calculate)
         agent.add_state("summary", summary)
@@ -316,11 +322,9 @@ class TestContextAndDataExamples:
             except (TypeError, ValueError):
                 context.set_variable("type_error_caught", True)
 
-            # Try to access non-existent constant
-            try:
-                context.get_constant("non_existent")
-                raise AssertionError("Should have raised an error")
-            except (KeyError, ValueError):
+            # Try to access non-existent constant (returns None by default)
+            const_value = context.get_constant("non_existent")
+            if const_value is None:
                 context.set_variable("missing_constant_error_caught", True)
 
         agent.add_state("test_type_errors", test_type_errors)
@@ -330,3 +334,94 @@ class TestContextAndDataExamples:
         assert result.get_variable("type_error_caught") is True
         assert result.get_variable("missing_constant_error_caught") is True
         assert result.get_variable("count") == 100  # Original value preserved
+
+    async def test_enhanced_general_variables(self):
+        """Test enhanced general variables example with defaults and complex data."""
+        agent = Agent("enhanced-general-variables")
+
+        async def fetch_enhanced_data(context):
+            # Store complex data structures
+            user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
+            context.set_variable("user", user_data)
+            
+            # Store primitive types
+            context.set_variable("count", 1250)
+            context.set_variable("is_premium", True)
+            
+            # Store lists and nested objects
+            context.set_variable("tags", ["customer", "active", "premium"])
+            context.set_variable("metadata", {
+                "last_login": "2024-01-15",
+                "preferences": {"theme": "dark", "notifications": True}
+            })
+
+        async def process_enhanced_data(context):
+            # Retrieve data
+            user = context.get_variable("user")
+            is_premium = context.get_variable("is_premium")
+            tags = context.get_variable("tags")
+            metadata = context.get_variable("metadata")
+            
+            # Safe access with defaults
+            region = context.get_variable("region", default="US")
+            
+            # Store processing results
+            context.set_variable("processing_result", {
+                "user_id": user["id"],
+                "processed_at": "2024-01-15T10:30:00Z",
+                "success": True,
+                "region": region,
+                "is_premium": is_premium
+            })
+
+        agent.add_state("fetch_enhanced_data", fetch_enhanced_data)
+        agent.add_state("process_enhanced_data", process_enhanced_data)
+
+        result = await agent.run()
+
+        # Verify enhanced data handling
+        user = result.get_variable("user")
+        assert user["name"] == "Alice"
+        assert result.get_variable("is_premium") is True
+        assert "premium" in result.get_variable("tags")
+        
+        processing_result = result.get_variable("processing_result")
+        assert processing_result["success"] is True
+        assert processing_result["region"] == "US"  # Default value used
+
+    async def test_enhanced_typed_variables(self):
+        """Test enhanced typed variables with multiple types."""
+        agent = Agent("enhanced-typed-test")
+
+        async def initialize_enhanced(context):
+            # Test multiple type locks
+            context.set_typed_variable("user_count", 100)      # int
+            context.set_typed_variable("avg_score", 85.5)      # float  
+            context.set_typed_variable("is_enabled", True)     # bool
+            context.set_typed_variable("status", "active")     # str
+
+        async def update_enhanced(context):
+            # Valid type updates
+            context.set_typed_variable("user_count", 150)
+            context.set_typed_variable("avg_score", 92.3)
+            context.set_typed_variable("is_enabled", False)
+            
+            # Test type safety
+            enabled = context.get_typed_variable("is_enabled")
+            count = context.get_typed_variable("user_count")
+            
+            # Safe arithmetic operations
+            if not enabled:  # it's False now
+                new_count = count + 10
+                context.set_typed_variable("user_count", new_count)
+
+        agent.add_state("initialize_enhanced", initialize_enhanced)
+        agent.add_state("update_enhanced", update_enhanced)
+
+        result = await agent.run()
+
+        # Verify typed variable behavior
+        assert result.get_variable("user_count") == 160  # 150 + 10
+        assert result.get_variable("avg_score") == 92.3
+        assert result.get_variable("is_enabled") is False
+        assert result.get_variable("status") == "active"

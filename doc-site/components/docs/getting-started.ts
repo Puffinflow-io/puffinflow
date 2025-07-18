@@ -1,5 +1,23 @@
 export const gettingStartedMarkdown = `# Getting Started with Puffinflow
 
+## What is Puffinflow?
+
+Puffinflow is a **workflow orchestration library** for Python that helps you build and manage complex, multi-step processes. Think of it as a way to:
+
+- **Break down complex tasks** into smaller, manageable steps (called "states")
+- **Control the order** in which these steps execute
+- **Share data** between steps seamlessly
+- **Handle errors** and retries automatically
+- **Monitor and scale** your workflows in production
+
+**Real-world examples:**
+- **Data processing pipelines**: Extract data from multiple sources, transform it, and load it into a database
+- **AI/ML workflows**: Fetch data, preprocess it, run AI models, and generate reports
+- **Business automation**: User onboarding, order processing, document workflows
+- **DevOps processes**: CI/CD pipelines, infrastructure deployment, monitoring
+
+**Why use Puffinflow?** Instead of writing complex scripts with nested functions and error handling, you define simple "states" (just async functions) and let Puffinflow handle the orchestration, parallelization, and error management.
+
 ## Prerequisites
 
 Before diving into Puffinflow, make sure you have the following setup:
@@ -75,7 +93,9 @@ Result: Hello from PuffinFlow!
 1. **Agent Creation**: We created an agent named "my-first-workflow" - this is your workflow orchestrator
 2. **State Definition**: We defined a state as a simple async function that takes a context parameter
 3. **Context Usage**: The state stores data in context using \`set_variable()\` and the main function retrieves it with \`get_variable()\`
-4. **Sequential Execution**: The agent runs all added states in the order they were added (unless you specify otherwise)
+4. **Execution**: The agent runs the state and manages the workflow lifecycle
+
+**Flow:** Agent runs hello_world state, which stores data in context, then returns result
 
 This pattern - create agent, define states, add states, run - is the foundation of every Puffinflow workflow, from simple scripts to complex production systems.
 
@@ -174,8 +194,11 @@ agent.add_state("calculate_metrics", calculate_metrics)
 agent.add_state("send_report", send_report)
 
 # Run the complete pipeline
+from puffinflow import ExecutionMode
 asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
 \`\`\`
+
+**Flow:** fetch_data stores data → calculate_metrics reads and processes → send_report reads result
 
 **Output:**
 \`\`\`
@@ -187,25 +210,33 @@ asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
 ✅ Report sent!
 \`\`\`
 
-## Three Ways to Control Workflow Flow
+## Understanding Workflow Flow Control
 
-Understanding workflow control is crucial for building sophisticated automation. Puffinflow gives you three powerful paradigms for controlling execution flow, each suited to different scenarios:
+Puffinflow gives you **two main ways** to control how your states execute:
 
-### Understanding Execution Modes
+1. **Dependencies** - Define which states must complete before others can start
+2. **Return Values** - From within a state function, decide what should run next
 
-Puffinflow supports two execution modes to handle different workflow patterns:
+### Execution Modes: The Foundation
+
+Puffinflow supports two execution modes that determine how your workflow begins:
+
+**Think of it this way:**
+- **PARALLEL Mode**: "Start all states that are ready to run"
+- **SEQUENTIAL Mode**: "Start only the first state, then let return values guide the flow"
 
 #### PARALLEL Mode (Default)
-All states without dependencies run as entry points simultaneously. Perfect for:
+All states without dependencies run as entry points simultaneously. States with dependencies wait for their prerequisites to complete. Perfect for:
 - Batch processing where multiple independent operations can run concurrently
 - Data pipelines with parallel data sources
 - Microservice orchestration
+- Workflows where you want maximum parallelism with dependency management
 
 #### SEQUENTIAL Mode  
-Only the first state runs initially, with flow controlled by return values. Ideal for:
+Only the first state (the one added first) runs initially, with flow controlled by return values from state functions. Dependencies are ignored in this mode. Ideal for:
 - Linear workflows with conditional branching
 - State machines with decision points
-- Workflows where you want explicit control over execution order
+- Workflows where you want explicit control over execution order through return values
 
 \`\`\`python
 from puffinflow import Agent, ExecutionMode
@@ -218,24 +249,26 @@ result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
 result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
 \`\`\`
 
-### Understanding Return Values
+### How Return Values Work
 Every state function can return a value that determines what happens next:
-- **\`None\`**: Continue to the next state in sequence (default behavior)
+- **\`None\`**: End this execution path (default behavior)
 - **\`"state_name"\`**: Jump to a specific state (conditional branching)
 - **\`["state1", "state2"]\`**: Run multiple states in parallel (fan-out pattern)
 
+**Important:** Return values work in both execution modes, but they're most powerful in SEQUENTIAL mode where they control the entire flow.
+
 Let's explore each approach with detailed examples:
 
-### 1. Sequential Execution (Default)
+### 1. Sequential Execution with Dependencies
 
-This is the simplest and most common pattern. States execute one after another in the order you add them to the agent. This works perfectly for linear workflows like data pipelines, processing chains, or step-by-step procedures.
+This is a simple pattern where states execute one after another based on dependencies. When using dependencies, states with no dependencies run first, then their dependent states follow. This works perfectly for linear workflows like data pipelines, processing chains, or step-by-step procedures.
 
 **When to use:** 
 - Linear processes (ETL pipelines, data processing)
 - Step-by-step procedures (user onboarding, order processing)
 - When each step depends on the previous one completing
 
-States run in the order you add them:
+States run based on their dependencies:
 
 \`\`\`python
 agent = Agent("sequential-workflow")
@@ -252,15 +285,18 @@ async def step_three(context):
     print("Step 3: Finalizing")
     print("All steps complete!")
 
-# Runs in this exact order: step_one → step_two → step_three
+# Add states with dependencies for sequential execution
 agent.add_state("step_one", step_one)
-agent.add_state("step_two", step_two)
-agent.add_state("step_three", step_three)
+agent.add_state("step_two", step_two, dependencies=["step_one"])
+agent.add_state("step_three", step_three, dependencies=["step_two"])
+
+# Runs in this exact order: step_one --> step_two --> step_three
+# (Works in both PARALLEL and SEQUENTIAL modes)
 \`\`\`
 
-### 2. Conditional Execution
+### 2. Conditional Execution with Return Values
 
-Use conditional logic to control when states execute:
+Use return values from state functions to create conditional workflows. This is most effective in SEQUENTIAL mode where return values control the entire flow:
 
 \`\`\`python
 async def fetch_user_data(context):
@@ -294,9 +330,9 @@ agent.add_state("fetch_sales_data", fetch_sales_data)
 agent.add_state("generate_report", generate_report)
 \`\`\`
 
-### 3. Dynamic Flow Control
+### 3. Dynamic Flow Control with Branching
 
-Return state names from functions to decide what runs next:
+Return different state names based on data or conditions to create branching workflows:
 
 \`\`\`python
 async def check_user_type(context):
@@ -332,12 +368,13 @@ agent.add_state("basic_flow", basic_flow)
 agent.add_state("send_welcome", send_welcome)
 
 # Use SEQUENTIAL mode for proper flow control
+from puffinflow import ExecutionMode
 asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
 \`\`\`
 
-### Parallel Execution
+### 4. Parallel Execution with Fan-Out
 
-Return a list of state names to run multiple states at once:
+Return a list of state names to run multiple states simultaneously (fan-out pattern):
 
 \`\`\`python
 async def process_order(context):
@@ -371,6 +408,7 @@ async def extract(context):
     data = {"sales": [100, 200, 150], "customers": ["Alice", "Bob", "Charlie"]}
     context.set_variable("raw_data", data)
     print("✅ Data extracted")
+    return None  # Continue to next state
 
 async def transform(context):
     raw_data = context.get_variable("raw_data")
@@ -385,18 +423,22 @@ async def transform(context):
 
     context.set_variable("processed_data", transformed)
     print("✅ Data transformed")
+    return None  # Continue to next state
 
 async def load(context):
     processed_data = context.get_variable("processed_data")
     print(f"✅ Saved: {processed_data}")
+    return None  # End workflow
 
-# Set up the pipeline - runs sequentially
+# Set up the pipeline - runs sequentially using dependencies
 agent.add_state("extract", extract)
 agent.add_state("transform", transform, dependencies=["extract"])
 agent.add_state("load", load, dependencies=["transform"])
 
 if __name__ == "__main__":
-    asyncio.run(agent.run())
+    # Works in both modes due to dependencies
+    asyncio.run(agent.run())  # PARALLEL mode (default)
+    # asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
 \`\`\`
 
 ## When to Use the Decorator
@@ -415,32 +457,33 @@ async def intensive_task(context):
 
 ## Choosing the Right Execution Mode
 
-### When to Use PARALLEL Mode (Default)
+### PARALLEL Mode (Default) - Best for Most Workflows
 
 **Perfect for:**
 - **Batch Processing**: Multiple independent data processing tasks
 - **Microservice Orchestration**: Calling multiple services simultaneously
 - **Data Collection**: Fetching from multiple sources concurrently
 - **Background Tasks**: Running maintenance tasks in parallel
+- **Dependency-based workflows**: When you want to use dependencies to control execution order
 
 **Example:**
 \`\`\`python
-# All these run simultaneously
+# All these run simultaneously (no dependencies)
 agent.add_state("fetch_users", fetch_users)
 agent.add_state("fetch_products", fetch_products) 
 agent.add_state("fetch_orders", fetch_orders)
 
-# PARALLEL mode - all run at once
-await agent.run(execution_mode=ExecutionMode.PARALLEL)
+# PARALLEL mode - all run at once (default behavior)
+await agent.run()  # or explicitly: ExecutionMode.PARALLEL
 \`\`\`
 
-### When to Use SEQUENTIAL Mode
+### SEQUENTIAL Mode - For Complex State Machines
 
 **Perfect for:**
-- **State Machines**: Decision-based workflows with branching logic
-- **Linear Processes**: Step-by-step procedures with dependencies
-- **Conditional Workflows**: Different paths based on data or conditions
-- **User Journeys**: Workflows that follow a specific sequence
+- **State Machines**: Decision-based workflows with complex branching logic
+- **Dynamic Workflows**: When you need return values to control the entire flow
+- **Conditional Workflows**: Different paths based on runtime data or conditions
+- **User Journeys**: Workflows that follow a specific sequence with decision points
 
 **Example:**
 \`\`\`python
@@ -451,8 +494,19 @@ agent.add_state("process", process_data)
 agent.add_state("error", handle_error)
 
 # SEQUENTIAL mode - controlled flow
+from puffinflow import ExecutionMode
 await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
 \`\`\`
+
+### Key Differences Summary
+
+| Feature | PARALLEL Mode | SEQUENTIAL Mode |
+|---------|---------------|-----------------|
+| **How it starts** | All states without dependencies | Only first state added |
+| **Flow control** | Dependencies + return values | Return values (dependencies ignored) |
+| **Best for** | Concurrent tasks with some dependencies | State machines with complex branching |
+| **Performance** | Maximum parallelism | Single-threaded execution path |
+| **Complexity** | Simpler for most workflows | More complex but more control |
 
 ## Quick Reference
 
@@ -475,8 +529,10 @@ agent.add_state("dependent", function, dependencies=["first", "second"])
 
 # Dynamic routing (in state functions)
 async def router(context):
-    return "next_state"           # Single state
-    return ["state1", "state2"]   # Parallel states
+    if some_condition:
+        return "next_state"           # Single state
+    else:
+        return ["state1", "state2"]   # Parallel states
 \`\`\`
 
 ### Context Methods
@@ -484,7 +540,7 @@ async def router(context):
 - \`context.get_variable(key)\` - Retrieve data
 
 ### State Return Values
-- \`None\` - Continue normally
+- \`None\` - End this execution path (no more states from this path)
 - \`"state_name"\` - Run specific state next
 - \`["state1", "state2"]\` - Run multiple states in parallel
 

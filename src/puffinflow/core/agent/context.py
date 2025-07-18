@@ -47,6 +47,8 @@ class Context:
     _META_TYPED = "_meta_typed_"
     _META_VALIDATED = "_meta_validated_"
     _META_METADATA = "_meta_metadata_"
+    _META_CACHE = "_meta_cache_"
+    _META_OUTPUT = "_meta_output_"
     _IMMUTABLE_PREFIXES = ("const_", "secret_")
 
     def __init__(self, shared_state: dict[str, Any], cache_ttl: int = 300) -> None:
@@ -76,6 +78,18 @@ class Context:
         for k in validated_keys:
             orig = k[len(self._META_VALIDATED) :]
             self._validated_types[orig] = self.shared_state[k]
+
+        # Restore cache data
+        cache_keys = [k for k in self.shared_state if k.startswith(self._META_CACHE)]
+        for k in cache_keys:
+            orig = k[len(self._META_CACHE) :]
+            self._cache[orig] = self.shared_state[k]
+
+        # Restore output data
+        output_keys = [k for k in self.shared_state if k.startswith(self._META_OUTPUT)]
+        for k in output_keys:
+            orig = k[len(self._META_OUTPUT) :]
+            self._outputs[orig] = self.shared_state[k]
 
     @staticmethod
     def _now() -> float:
@@ -161,6 +175,8 @@ class Context:
             and not k.startswith(self._META_TYPED)
             and not k.startswith(self._META_VALIDATED)
             and not k.startswith(self._META_METADATA)
+            and not k.startswith(self._META_CACHE)
+            and not k.startswith(self._META_OUTPUT)
         }
 
     # Typed variables (with type consistency checking)
@@ -181,13 +197,15 @@ class Context:
             self._typed_var_types[key] = cls
             self._persist_meta(self._META_TYPED, key, cls)
 
-    def get_typed_variable(self, key: str, expected: type[Any]) -> Optional[Any]:
-        """Get a typed variable with type checking."""
+    def get_typed_variable(
+        self, key: str, expected: Optional[type[Any]] = None
+    ) -> Optional[Any]:
+        """Get a typed variable with optional type checking."""
         val = self.shared_state.get(key)
         if val is None:
             return None
 
-        if not isinstance(val, expected):
+        if expected is not None and not isinstance(val, expected):
             return None
 
         return val
@@ -252,6 +270,8 @@ class Context:
     def set_output(self, key: str, value: Any) -> None:
         """Set an output value."""
         self._outputs[key] = value
+        # Persist to shared state
+        self.shared_state[f"{self._META_OUTPUT}{key}"] = value
 
     def get_output(self, key: str, default: Any = None) -> Any:
         """Get an output value."""
@@ -318,7 +338,10 @@ class Context:
             ttl = self.cache_ttl
 
         expiry_time = self._now() + ttl if ttl > 0 else self._now() - 1
-        self._cache[key] = (value, expiry_time)
+        cache_entry = (value, expiry_time)
+        self._cache[key] = cache_entry
+        # Persist to shared state
+        self.shared_state[f"{self._META_CACHE}{key}"] = cache_entry
 
     def get_cached(self, key: str, default: Any = None) -> Any:
         """Get a cached value, respecting TTL."""
@@ -328,6 +351,10 @@ class Context:
         value, expiry_time = self._cache[key]
         if self._now() > expiry_time:
             del self._cache[key]
+            # Also remove from shared state
+            shared_key = f"{self._META_CACHE}{key}"
+            if shared_key in self.shared_state:
+                del self.shared_state[shared_key]
             return default
 
         return value
@@ -341,6 +368,10 @@ class Context:
 
         for key in expired_keys:
             del self._cache[key]
+            # Also remove from shared state
+            shared_key = f"{self._META_CACHE}{key}"
+            if shared_key in self.shared_state:
+                del self.shared_state[shared_key]
 
         return len(expired_keys)
 

@@ -29,11 +29,9 @@ class AgentProtocol(Protocol):
 
     def _add_to_queue(
         self, state_name: str, priority_boost: int = 0
-    ) -> Awaitable[None]:
-        ...
+    ) -> Awaitable[None]: ...
 
-    async def run_state(self, state_name: str) -> None:
-        ...
+    async def run_state(self, state_name: str) -> None: ...
 
 
 @dataclass

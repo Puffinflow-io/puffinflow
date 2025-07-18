@@ -15,6 +15,7 @@ from .context import Context
 from .state import (
     AgentStatus,
     DeadLetter,
+    ExecutionMode,
     PrioritizedState,
     Priority,
     RetryPolicy,
@@ -1185,6 +1186,27 @@ class Agent:
 
         return entry_states
 
+    def _find_entry_states_by_mode(self, execution_mode: ExecutionMode) -> list[str]:
+        """Find entry states based on execution mode."""
+        if execution_mode == ExecutionMode.PARALLEL:
+            # PARALLEL mode: All states without dependencies are entry points
+            entry_states = self._find_entry_states()
+            if not entry_states:
+                # If no entry states found, use all states for backward compatibility
+                entry_states = list(self.states.keys())
+            return entry_states
+
+        # execution_mode == ExecutionMode.SEQUENTIAL
+        # SEQUENTIAL mode: Only the first state without dependencies runs initially
+        true_entry_states = self._find_entry_states()
+        if true_entry_states:
+            # Return only the first entry state to enforce sequential execution
+            return [true_entry_states[0]]
+        else:
+            # If no true entry states, return the first state
+            state_names = list(self.states.keys())
+            return [state_names[0]] if state_names else []
+
     async def _check_dependent_states(self, completed_state: str) -> None:
         """Check for states that depend on the completed state and queue them if ready."""
         for state_name, deps in self.dependencies.items():
@@ -1696,6 +1718,7 @@ class Agent:
         self,
         timeout: Optional[float] = None,
         initial_context: Optional[dict[str, Any]] = None,
+        execution_mode: ExecutionMode = ExecutionMode.PARALLEL,
     ) -> AgentResult:
         """
         Run the agent workflow with enhanced result tracking.
@@ -1714,6 +1737,9 @@ class Agent:
                       "cached": {"key": {"value": data, "ttl": 300}},
                       "outputs": {"key": value}
                   }
+            execution_mode: Controls how entry states are determined:
+                - PARALLEL (default): All states without dependencies run as entry points
+                - SEQUENTIAL: Only the first state runs initially, flow controlled by return values
         """
         start_time = time.time()
         self.status = AgentStatus.RUNNING
@@ -1741,11 +1767,8 @@ class Agent:
             if initial_context:
                 self._apply_initial_context(initial_context)
 
-            # Find entry states (states with no dependencies)
-            entry_states = self._find_entry_states()
-            if not entry_states:
-                # If no entry states found, use all states (they will be filtered by dependencies during execution)
-                entry_states = list(self.states.keys())
+            # Find entry states based on execution mode
+            entry_states = self._find_entry_states_by_mode(execution_mode)
 
             # Add entry states to queue
             for state_name in entry_states:

@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from puffinflow import Agent, state
+from puffinflow import Agent, ExecutionMode, state
 
 
 @pytest.mark.asyncio
@@ -211,18 +211,25 @@ class TestGettingStartedExamples:
                 f"Welcome {user_type} user! Features: {', '.join(features)}",
             )
 
-        # Add all states - only check_user_type should start as entry state
+        # Add only the entry state initially, then add conditional states
+        # The framework should only execute states that are entry points or called via return values
         agent.add_state("check_user_type", check_user_type)
         agent.add_state("premium_flow", premium_flow)
         agent.add_state("basic_flow", basic_flow)
         agent.add_state("send_welcome", send_welcome)
 
-        result = await agent.run()
+        # Run with SEQUENTIAL mode to ensure proper flow control
+        result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
 
-        # Verify premium flow was executed
+        # Verify the premium flow was executed correctly
         assert result.get_variable("user_type") == "premium"
-        assert "advanced_analytics" in result.get_variable("features")
-        assert "premium" in result.get_variable("welcome_message")
+        features = result.get_variable("features")
+        welcome_message = result.get_variable("welcome_message")
+
+        # With sequential mode, only the premium flow should execute
+        assert features == ["advanced_analytics", "priority_support"]
+        assert welcome_message is not None
+        assert "premium" in welcome_message
 
     async def test_parallel_execution(self):
         """Test parallel execution example."""
@@ -454,3 +461,254 @@ class TestGettingStartedExamples:
 
         assert result.get_variable("error") == "Invalid query - too short"
         assert result.get_variable("clean_query") is None
+
+    async def test_production_document_processor_workflow(self):
+        """Test production-ready document processing workflow with error handling."""
+        from puffinflow import Priority, state
+
+        # Create production agent
+        processor = Agent("document-processor")
+
+        @state(
+            cpu=2.0,
+            memory=1024,
+            priority=Priority.HIGH,
+            max_retries=3,
+            timeout=120.0
+        )
+        async def validate_document(context):
+            """Validate uploaded document format and size."""
+            try:
+                file_path = context.get_variable("file_path")
+                file_size = 5 * 1024 * 1024  # Simulate 5MB file
+
+                # Validate file size (max 10MB)
+                if file_size > 10 * 1024 * 1024:
+                    context.set_variable("error", "File too large")
+                    return "error_handler"
+
+                # Validate file format
+                if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
+                    context.set_variable("error", "Unsupported file format")
+                    return "error_handler"
+
+                context.set_variable("file_size", file_size)
+                return "extract_content"
+
+            except Exception as e:
+                context.set_variable("error", str(e))
+                return "error_handler"
+
+        @state(
+            cpu=4.0,
+            memory=2048,
+            priority=Priority.NORMAL,
+            max_retries=2,
+            timeout=300.0
+        )
+        async def extract_content(context):
+            """Extract text content from document."""
+            try:
+                file_path = context.get_variable("file_path")
+
+                # Simulate content extraction
+                await asyncio.sleep(0.1)  # Reduced for tests
+
+                content = f"Extracted content from {file_path}"
+                word_count = len(content.split())
+
+                context.set_variable("content", content)
+                context.set_variable("word_count", word_count)
+
+                return "analyze_content"
+
+            except Exception as e:
+                context.set_variable("error", str(e))
+                return "error_handler"
+
+        @state(
+            cpu=2.0,
+            memory=1024,
+            priority=Priority.NORMAL,
+            max_retries=1,
+            timeout=180.0
+        )
+        async def analyze_content(context):
+            """Analyze content with AI/ML processing."""
+            try:
+                context.get_variable("content")
+                word_count = context.get_variable("word_count")
+
+                # Simulate AI analysis
+                await asyncio.sleep(0.1)  # Reduced for tests
+
+                analysis = {
+                    "sentiment": "positive",
+                    "topics": ["technology", "business"],
+                    "summary": f"Document contains {word_count} words about technology and business.",
+                    "confidence": 0.95
+                }
+
+                context.set_variable("analysis", analysis)
+                return "save_results"
+
+            except Exception as e:
+                context.set_variable("error", str(e))
+                return "error_handler"
+
+        @state(
+            cpu=1.0,
+            memory=512,
+            priority=Priority.NORMAL,
+            max_retries=2,
+            timeout=60.0
+        )
+        async def save_results(context):
+            """Save processing results to database."""
+            try:
+                analysis = context.get_variable("analysis")
+                file_path = context.get_variable("file_path")
+
+                # Simulate database save
+                await asyncio.sleep(0.1)  # Reduced for tests
+
+                result_id = f"doc_{hash(file_path) % 10000}"  # Simplified for tests
+                results = {
+                    "id": result_id,
+                    "file_path": file_path,
+                    "analysis": analysis,
+                    "processed_at": "2024-01-15T10:30:00Z"
+                }
+
+                context.set_variable("results", results)
+                return "send_notification"
+
+            except Exception as e:
+                context.set_variable("error", str(e))
+                return "error_handler"
+
+        @state(
+            cpu=0.5,
+            memory=256,
+            priority=Priority.LOW,
+            max_retries=3,
+            timeout=30.0
+        )
+        async def send_notification(context):
+            """Send completion notification."""
+            try:
+                results = context.get_variable("results")
+
+                # Simulate notification
+                await asyncio.sleep(0.1)  # Reduced for tests
+
+                notification = {
+                    "type": "success",
+                    "message": f"Document {results['id']} processed successfully",
+                    "timestamp": "2024-01-15T10:35:00Z"
+                }
+
+                context.set_variable("notification", notification)
+                return None  # End workflow
+
+            except Exception as e:
+                context.set_variable("error", str(e))
+                return "error_handler"
+
+        @state(
+            cpu=0.5,
+            memory=256,
+            priority=Priority.HIGH,
+            max_retries=1,
+            timeout=30.0
+        )
+        async def error_handler(context):
+            """Handle errors and cleanup."""
+            try:
+                error = context.get_variable("error")
+                file_path = context.get_variable("file_path", "unknown")
+
+                # Send error notification
+                error_notification = {
+                    "type": "error",
+                    "message": f"Document processing failed: {error}",
+                    "file_path": file_path,
+                    "timestamp": "2024-01-15T10:30:00Z"
+                }
+
+                context.set_variable("error_notification", error_notification)
+                return None  # End workflow
+
+            except Exception as e:
+                context.set_variable("critical_error", str(e))
+                return None
+
+        # Add all states to processor
+        processor.add_state("validate_document", validate_document)
+        processor.add_state("extract_content", extract_content)
+        processor.add_state("analyze_content", analyze_content)
+        processor.add_state("save_results", save_results)
+        processor.add_state("send_notification", send_notification)
+        processor.add_state("error_handler", error_handler)
+
+        # Test successful document processing
+        processor.set_variable("file_path", "/path/to/document.pdf")
+
+        result = await processor.run()
+
+        # Verify successful processing
+        results = result.get_variable("results")
+        notification = result.get_variable("notification")
+
+        assert results is not None
+        assert results["file_path"] == "/path/to/document.pdf"
+        assert results["analysis"]["sentiment"] == "positive"
+        assert notification["type"] == "success"
+        assert "processed successfully" in notification["message"]
+
+    async def test_production_document_processor_error_handling(self):
+        """Test production document processor with error scenarios."""
+        from puffinflow import Priority, state
+
+        processor = Agent("document-processor-error-test")
+
+        @state(priority=Priority.HIGH, max_retries=3, timeout=120.0)
+        async def validate_document(context):
+            """Validate uploaded document - test error case."""
+            file_path = context.get_variable("file_path")
+
+            # Test unsupported file format
+            if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
+                context.set_variable("error", "Unsupported file format")
+                return "error_handler"
+
+            return "extract_content"
+
+        @state(priority=Priority.HIGH, max_retries=1, timeout=30.0)
+        async def error_handler(context):
+            """Handle errors and cleanup."""
+            error = context.get_variable("error")
+            file_path = context.get_variable("file_path", "unknown")
+
+            error_notification = {
+                "type": "error",
+                "message": f"Document processing failed: {error}",
+                "file_path": file_path
+            }
+
+            context.set_variable("error_notification", error_notification)
+            return None
+
+        processor.add_state("validate_document", validate_document)
+        processor.add_state("error_handler", error_handler)
+
+        # Test with unsupported file format
+        processor.set_variable("file_path", "/path/to/document.xyz")
+
+        result = await processor.run()
+
+        # Verify error handling
+        error_notification = result.get_variable("error_notification")
+        assert error_notification is not None
+        assert error_notification["type"] == "error"
+        assert "Unsupported file format" in error_notification["message"]
