@@ -1,6 +1,6 @@
 
 import React from 'react';
-import CodeBlock from './CodeBlock';
+import CodeWindow from './CodeWindow';
 
 const heroCode = `
 # Production AI workflows that actually work
@@ -72,7 +72,7 @@ const Hero: React.FC = () => {
           </div>
         </div>
         <div className="mt-16 max-w-3xl mx-auto">
-            <CodeBlock code={heroCode} language="python" />
+            <CodeWindow code={heroCode} language="python" fileName="main.py" />
         </div>
       </div>
     </section>

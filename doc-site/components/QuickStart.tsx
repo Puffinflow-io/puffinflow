@@ -45,7 +45,7 @@ const QuickStart: React.FC = () => {
                 <div className="max-w-3xl mx-auto space-y-8">
                     <div>
                         <h3 className="text-2xl font-bold text-gray-100 mb-3">1. Install Puffinflow</h3>
-                        <CodeWindow code="pip install puffinflow" language="bash" fileName="Terminal" />
+                        <CodeWindow code="pip install puffinflow" language="bash" fileName="Terminal" showLineNumbers={false} />
                     </div>
                      <div>
                         <h3 className="text-2xl font-bold text-gray-100 mb-3">2. Build Reliable AI Workflows</h3>
