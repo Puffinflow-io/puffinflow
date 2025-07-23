@@ -1,35 +1,351 @@
-export const gettingStartedMarkdown = `# Getting Started with Puffinflow
+export const gettingStartedMarkdown = `# Getting Started with Puffinflow: The Complete Developer Guide
 
 ## What is Puffinflow?
 
-Puffinflow is a **workflow orchestration library** for Python that helps you build and manage complex, multi-step processes. Think of it as a way to:
+Puffinflow is a **next-generation workflow orchestration library** for Python that transforms how you build and manage complex, multi-step processes. Unlike traditional scripting approaches or heavyweight orchestration platforms, Puffinflow provides the perfect balance of simplicity and power for modern Python developers.
 
-- **Break down complex tasks** into smaller, manageable steps (called "states")
-- **Control the order** in which these steps execute
-- **Share data** between steps seamlessly
-- **Handle errors** and retries automatically
-- **Monitor and scale** your workflows in production
+### The Core Philosophy
 
-**Real-world examples:**
-- **Data processing pipelines**: Extract data from multiple sources, transform it, and load it into a database
-- **AI/ML workflows**: Fetch data, preprocess it, run AI models, and generate reports
-- **Business automation**: User onboarding, order processing, document workflows
-- **DevOps processes**: CI/CD pipelines, infrastructure deployment, monitoring
+Think of Puffinflow as your intelligent workflow conductor that helps you:
 
-**Why use Puffinflow?** Instead of writing complex scripts with nested functions and error handling, you define simple "states" (just async functions) and let Puffinflow handle the orchestration, parallelization, and error management.
+- **Break down complex tasks** into smaller, manageable steps called "states"
+- **Control the order** and dependencies of execution with precision
+- **Share data** between steps seamlessly through a robust context system
+- **Handle errors** and retries automatically with sophisticated fault tolerance
+- **Monitor and scale** your workflows in production with built-in observability
+- **Coordinate resources** efficiently to prevent bottlenecks and optimize performance
+- **Maintain state** across failures with checkpointing and recovery mechanisms
 
-## Prerequisites
+### Why Puffinflow Exists: The Orchestration Challenge
 
-Before diving into Puffinflow, make sure you have the following setup:
+Before Puffinflow, developers faced several painful challenges when building complex workflows:
 
-- **Python 3.9+** (we officially support versions 3.9, 3.10, 3.11, 3.12, and 3.13)
+**🔴 Traditional Script Problems:**
+- **Spaghetti code**: Complex nested functions and callbacks
+- **Error handling nightmare**: Manual try/catch blocks everywhere
+- **No parallelization**: Sequential execution only
+- **Resource contention**: No coordination between operations
+- **No observability**: Black box execution with limited monitoring
+- **Brittle dependencies**: Hard-coded execution order
+- **Memory leaks**: No automatic resource cleanup
+- **State management**: Manual data passing between steps
+
+**🔴 Enterprise Platform Problems:**
+- **Over-engineered**: Massive overhead for simple workflows
+- **Vendor lock-in**: Platform-specific implementations
+- **Learning curve**: Complex configuration and setup
+- **Cost**: Expensive licensing and infrastructure
+- **Limited Python support**: Often designed for other languages
+- **Deployment complexity**: Requires specialized infrastructure
+
+**✅ Puffinflow Solution:**
+Puffinflow eliminates these problems by providing:
+- **Simple Python functions** as building blocks
+- **Automatic orchestration** with intelligent scheduling
+- **Built-in fault tolerance** and recovery mechanisms
+- **Resource management** and coordination primitives
+- **Comprehensive observability** out of the box
+- **Production-ready** scaling and performance optimization
+
+### Real-World Use Cases and Examples
+
+Puffinflow excels in diverse scenarios across industries:
+
+#### **Data Processing and ETL**
+- **Extract-Transform-Load pipelines**: Process millions of records from multiple data sources
+- **Real-time analytics**: Stream processing with complex aggregations
+- **Data quality workflows**: Validation, cleansing, and enrichment processes
+- **Migration workflows**: Legacy system data extraction and transformation
+
+\`\`\`python
+# Example: E-commerce analytics pipeline
+async def extract_sales_data(context):
+    # Extract from multiple databases
+    pass
+
+async def transform_customer_data(context):
+    # Clean and enrich customer information
+    pass
+
+async def load_data_warehouse(context):
+    # Load into analytics platform
+    pass
+\`\`\`
+
+#### **AI/ML and Data Science**
+- **Model training pipelines**: Data preprocessing, training, validation, deployment
+- **Inference workflows**: Real-time prediction services with preprocessing
+- **Feature engineering**: Complex data transformation and feature extraction
+- **Experiment management**: A/B testing and model comparison workflows
+
+\`\`\`python
+# Example: ML model training workflow
+async def prepare_training_data(context):
+    # Data preprocessing and feature engineering
+    pass
+
+async def train_model(context):
+    # Model training with hyperparameter optimization
+    pass
+
+async def evaluate_model(context):
+    # Model validation and performance metrics
+    pass
+
+async def deploy_model(context):
+    # Model deployment to production
+    pass
+\`\`\`
+
+#### **Business Process Automation**
+- **Customer onboarding**: Account creation, verification, welcome sequences
+- **Order processing**: Payment, inventory, shipping, notifications
+- **Document workflows**: Generation, approval, distribution, archival
+- **Compliance workflows**: Audit trails, reporting, regulatory compliance
+
+\`\`\`python
+# Example: Customer onboarding workflow
+async def create_account(context):
+    # User account creation and initial setup
+    pass
+
+async def verify_identity(context):
+    # KYC/AML verification process
+    pass
+
+async def setup_services(context):
+    # Provision services and configure access
+    pass
+
+async def send_welcome_package(context):
+    # Welcome emails, documentation, training materials
+    pass
+\`\`\`
+
+#### **DevOps and Infrastructure**
+- **CI/CD pipelines**: Build, test, deploy, monitor application releases
+- **Infrastructure deployment**: Cloud resource provisioning and configuration
+- **Monitoring workflows**: Health checks, alerting, incident response
+- **Backup and recovery**: Data backup, validation, restoration procedures
+
+\`\`\`python
+# Example: Deployment workflow
+async def run_tests(context):
+    # Execute test suites and quality checks
+    pass
+
+async def build_artifacts(context):
+    # Compile and package application
+    pass
+
+async def deploy_staging(context):
+    # Deploy to staging environment
+    pass
+
+async def promote_production(context):
+    # Deploy to production with blue-green strategy
+    pass
+\`\`\`
+
+#### **Financial Services**
+- **Payment processing**: Transaction validation, fraud detection, settlement
+- **Risk management**: Credit scoring, portfolio analysis, regulatory reporting
+- **Trading workflows**: Order execution, risk checks, compliance monitoring
+- **Reconciliation**: Transaction matching and discrepancy resolution
+
+#### **Healthcare and Life Sciences**
+- **Clinical data processing**: Patient data aggregation and analysis
+- **Research workflows**: Clinical trial data collection and analysis
+- **Regulatory compliance**: FDA submission preparation and validation
+- **Image processing**: Medical imaging analysis and reporting
+
+### Why Choose Puffinflow Over Alternatives?
+
+| Feature | Puffinflow | Traditional Scripts | Enterprise Platforms | Other Libraries |
+|---------|------------|-------------------|---------------------|-----------------|
+| **Learning Curve** | ⭐⭐⭐⭐⭐ Minimal | ⭐⭐⭐ Moderate | ⭐ Steep | ⭐⭐ Varies |
+| **Development Speed** | ⭐⭐⭐⭐⭐ Very Fast | ⭐⭐ Slow | ⭐⭐ Slow | ⭐⭐⭐ Moderate |
+| **Error Handling** | ⭐⭐⭐⭐⭐ Automatic | ⭐ Manual | ⭐⭐⭐⭐ Good | ⭐⭐⭐ Varies |
+| **Resource Management** | ⭐⭐⭐⭐⭐ Built-in | ⭐ None | ⭐⭐⭐⭐ Complex | ⭐⭐ Limited |
+| **Observability** | ⭐⭐⭐⭐⭐ Comprehensive | ⭐ None | ⭐⭐⭐⭐ Good | ⭐⭐ Basic |
+| **Scalability** | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐ Limited | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐ Good |
+| **Python Integration** | ⭐⭐⭐⭐⭐ Native | ⭐⭐⭐⭐⭐ Native | ⭐⭐ Adapter | ⭐⭐⭐⭐ Good |
+| **Cost** | ⭐⭐⭐⭐⭐ Free | ⭐⭐⭐⭐⭐ Free | ⭐ Expensive | ⭐⭐⭐⭐ Mostly Free |
+| **Deployment** | ⭐⭐⭐⭐⭐ Any Python Env | ⭐⭐⭐⭐⭐ Any Python Env | ⭐⭐ Specialized | ⭐⭐⭐ Standard |
+
+**Key Advantages:**
+1. **Zero Learning Curve**: If you know Python async/await, you know Puffinflow
+2. **Immediate Productivity**: Build workflows in minutes, not days
+3. **Production Ready**: Built-in fault tolerance, monitoring, and scaling
+4. **Flexible Deployment**: Runs anywhere Python runs
+5. **No Vendor Lock-in**: Open source with standard Python patterns
+6. **Rich Ecosystem**: Integrates with existing Python libraries and tools
+
+## Prerequisites and Development Environment Setup
+
+### System Requirements
+
+Before diving into Puffinflow, ensure your development environment meets these requirements:
+
+#### **Python Version Support**
+- **Python 3.9+** (officially supported versions: 3.9, 3.10, 3.11, 3.12, and 3.13)
   - Puffinflow leverages modern Python features for optimal performance and developer experience
+  - **Type hints** and **asyncio** improvements in newer versions provide better IDE support
+  - **Recommendation**: Python 3.11+ for best performance and feature compatibility
   - If you're on an older version, consider upgrading for the best experience
-- **Basic familiarity with \`async/await\` in Python**
+
+#### **System Resources**
+- **Memory**: Minimum 512MB available RAM (2GB+ recommended for complex workflows)
+- **CPU**: Any modern CPU (multi-core recommended for parallel workflows)
+- **Storage**: 100MB+ available disk space for installation and workflow state
+- **Network**: Internet access for package installation and optional cloud features
+
+#### **Development Tools (Recommended)**
+- **IDE/Editor**: VS Code, PyCharm, or any editor with Python support
+- **Terminal**: Command line access for package management
+- **Git**: Version control for workflow versioning (optional but recommended)
+- **Docker**: For containerized deployments (optional)
+
+### Python Knowledge Requirements
+
+#### **Essential Knowledge**
+- **Basic Python**: Functions, classes, imports, error handling
+- **Async/await fundamentals**: Understanding of asynchronous programming concepts
   - Don't worry if you're new to async Python! Puffinflow workflows are intuitive
   - You'll primarily be writing regular functions with \`async def\` - we handle the complexity
-- **5 minutes to get your first workflow running!** ⏱️
-  - This guide will have you building production-ready workflows in no time
+  - **Quick refresher**: \`async def\` creates a coroutine, \`await\` calls other coroutines
+
+#### **Helpful but Not Required**
+- **Context managers**: Understanding \`with\` statements (helpful for resource management)
+- **Decorators**: Basic understanding of \`@decorator\` syntax
+- **Type hints**: Modern Python typing for better code quality
+- **Testing**: Unit testing concepts for workflow validation
+
+#### **Async/Await Quick Primer**
+
+If you're new to async Python, here's all you need to know:
+
+\`\`\`python
+# ✅ This is what you'll write with Puffinflow
+async def my_state(context):
+    # Your business logic here
+    result = await some_async_operation()
+    context.set_variable("result", result)
+    return "next_state"
+
+# ✅ Running async functions
+import asyncio
+asyncio.run(my_async_function())
+\`\`\`
+
+**Key concepts:**
+- **\`async def\`**: Creates an asynchronous function (coroutine)
+- **\`await\`**: Calls another async function and waits for its result
+- **\`asyncio.run()\`**: Runs an async function from synchronous code
+
+That's it! Puffinflow handles all the complex async orchestration for you.
+
+### Development Environment Setup Options
+
+#### **Option 1: Virtual Environment (Recommended)**
+
+Create an isolated Python environment for your Puffinflow projects:
+
+\`\`\`bash
+# Create virtual environment
+python -m venv puffinflow-env
+
+# Activate on Windows
+puffinflow-env\\Scripts\\activate
+
+# Activate on macOS/Linux
+source puffinflow-env/bin/activate
+
+# Verify activation
+which python  # Should show path in puffinflow-env
+\`\`\`
+
+#### **Option 2: Conda Environment**
+
+If you use Anaconda or Miniconda:
+
+\`\`\`bash
+# Create conda environment
+conda create -n puffinflow python=3.11
+
+# Activate environment
+conda activate puffinflow
+
+# Verify setup
+python --version  # Should show Python 3.11.x
+\`\`\`
+
+#### **Option 3: Docker Development**
+
+For containerized development:
+
+\`\`\`dockerfile
+# Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+CMD ["python", "workflow.py"]
+\`\`\`
+
+\`\`\`bash
+# Build and run
+docker build -t my-puffinflow-app .
+docker run my-puffinflow-app
+\`\`\`
+
+### Quick Environment Verification
+
+Verify your setup is ready:
+
+\`\`\`bash
+# Check Python version
+python --version
+
+# Check pip is available
+pip --version
+
+# Verify async support
+python -c "import asyncio; print('Async support: OK')"
+
+# Check available memory (Linux/macOS)
+free -h  # or: vm_stat | head -5
+
+# Time to install Puffinflow!
+echo "Ready for Puffinflow installation! 🚀"
+\`\`\`
+
+**Expected output:**
+\`\`\`
+Python 3.11.x
+pip 23.x.x
+Async support: OK
+Ready for Puffinflow installation! 🚀
+\`\`\`
+
+### Performance Optimization Tips
+
+#### **For Development**
+- **Use SSD storage** for faster package installation and workflow state management
+- **Allocate sufficient RAM** (4GB+ recommended for large workflows)
+- **Enable IDE async support** for better debugging and auto-completion
+
+#### **For Production**
+- **Use Python 3.11+** for optimal performance
+- **Configure proper logging** to monitor workflow execution
+- **Implement resource monitoring** to track CPU and memory usage
+- **Use process managers** like systemd or supervisord for service management
+
+**Time Investment**: **5 minutes to get your first workflow running!** ⏱️
+This guide will have you building production-ready workflows in no time
 
 ## Installation
 
