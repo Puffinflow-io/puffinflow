@@ -297,6 +297,7 @@ export const ContextAndDataPage: React.FC = () => {
             pageKey="docs/context-and-data"
         >
             <MarkdownRenderer content={contextAndDataMarkdown} />
+        </DocsLayout>
     );
 };
 
@@ -347,6 +348,7 @@ export const ErrorHandlingPage: React.FC = () => {
     return (
         <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={errorHandlingMarkdown} currentPage="error-handling" pageKey="docs/error-handling">
             <MarkdownRenderer content={errorHandlingMarkdown} />
+        </DocsLayout>
     );
 };
 

@@ -1,1432 +1,616 @@
-export const gettingStartedMarkdown = `# Getting Started with Puffinflow: The Complete Developer Guide
+export const gettingStartedMarkdown = `# Getting Started with Puffinflow
 
-## What is Puffinflow?
+**Build your first observable data processing workflow in 5 minutes.** This complete example shows how data flows through a Puffinflow workflow with full observability, monitoring, and enterprise-grade features.
 
-Puffinflow is a **next-generation workflow orchestration library** for Python that transforms how you build and manage complex, multi-step processes. Unlike traditional scripting approaches or heavyweight orchestration platforms, Puffinflow provides the perfect balance of simplicity and power for modern Python developers.
+---
 
-### The Core Philosophy
+## The Observable Data Flow Example
 
-Think of Puffinflow as your intelligent workflow conductor that helps you:
+We'll build a **customer analytics workflow** with **full observability** that:
+1. **Fetches** customer data from an API with distributed tracing
+2. **Processes** the data to calculate metrics with performance monitoring
+3. **Generates** a business report with structured logging
+4. **Sends** notifications to stakeholders with error tracking
 
-- **Break down complex tasks** into smaller, manageable steps called "states"
-- **Control the order** and dependencies of execution with precision
-- **Share data** between steps seamlessly through a robust context system
-- **Handle errors** and retries automatically with sophisticated fault tolerance
-- **Monitor and scale** your workflows in production with built-in observability
-- **Coordinate resources** efficiently to prevent bottlenecks and optimize performance
-- **Maintain state** across failures with checkpointing and recovery mechanisms
+Each step includes metrics collection, performance monitoring, and comprehensive logging to demonstrate production-ready workflows.
 
-### Why Puffinflow Exists: The Orchestration Challenge
+---
 
-Before Puffinflow, developers faced several painful challenges when building complex workflows:
-
-**🔴 Traditional Script Problems:**
-- **Spaghetti code**: Complex nested functions and callbacks
-- **Error handling nightmare**: Manual try/catch blocks everywhere
-- **No parallelization**: Sequential execution only
-- **Resource contention**: No coordination between operations
-- **No observability**: Black box execution with limited monitoring
-- **Brittle dependencies**: Hard-coded execution order
-- **Memory leaks**: No automatic resource cleanup
-- **State management**: Manual data passing between steps
-
-**🔴 Enterprise Platform Problems:**
-- **Over-engineered**: Massive overhead for simple workflows
-- **Vendor lock-in**: Platform-specific implementations
-- **Learning curve**: Complex configuration and setup
-- **Cost**: Expensive licensing and infrastructure
-- **Limited Python support**: Often designed for other languages
-- **Deployment complexity**: Requires specialized infrastructure
-
-**✅ Puffinflow Solution:**
-Puffinflow eliminates these problems by providing:
-- **Simple Python functions** as building blocks
-- **Automatic orchestration** with intelligent scheduling
-- **Built-in fault tolerance** and recovery mechanisms
-- **Resource management** and coordination primitives
-- **Comprehensive observability** out of the box
-- **Production-ready** scaling and performance optimization
-
-### Real-World Use Cases and Examples
-
-Puffinflow excels in diverse scenarios across industries:
-
-#### **Data Processing and ETL**
-- **Extract-Transform-Load pipelines**: Process millions of records from multiple data sources
-- **Real-time analytics**: Stream processing with complex aggregations
-- **Data quality workflows**: Validation, cleansing, and enrichment processes
-- **Migration workflows**: Legacy system data extraction and transformation
-
-\`\`\`python
-# Example: E-commerce analytics pipeline
-async def extract_sales_data(context):
-    # Extract from multiple databases
-    pass
-
-async def transform_customer_data(context):
-    # Clean and enrich customer information
-    pass
-
-async def load_data_warehouse(context):
-    # Load into analytics platform
-    pass
-\`\`\`
-
-#### **AI/ML and Data Science**
-- **Model training pipelines**: Data preprocessing, training, validation, deployment
-- **Inference workflows**: Real-time prediction services with preprocessing
-- **Feature engineering**: Complex data transformation and feature extraction
-- **Experiment management**: A/B testing and model comparison workflows
-
-\`\`\`python
-# Example: ML model training workflow
-async def prepare_training_data(context):
-    # Data preprocessing and feature engineering
-    pass
-
-async def train_model(context):
-    # Model training with hyperparameter optimization
-    pass
-
-async def evaluate_model(context):
-    # Model validation and performance metrics
-    pass
-
-async def deploy_model(context):
-    # Model deployment to production
-    pass
-\`\`\`
-
-#### **Business Process Automation**
-- **Customer onboarding**: Account creation, verification, welcome sequences
-- **Order processing**: Payment, inventory, shipping, notifications
-- **Document workflows**: Generation, approval, distribution, archival
-- **Compliance workflows**: Audit trails, reporting, regulatory compliance
-
-\`\`\`python
-# Example: Customer onboarding workflow
-async def create_account(context):
-    # User account creation and initial setup
-    pass
-
-async def verify_identity(context):
-    # KYC/AML verification process
-    pass
-
-async def setup_services(context):
-    # Provision services and configure access
-    pass
-
-async def send_welcome_package(context):
-    # Welcome emails, documentation, training materials
-    pass
-\`\`\`
-
-#### **DevOps and Infrastructure**
-- **CI/CD pipelines**: Build, test, deploy, monitor application releases
-- **Infrastructure deployment**: Cloud resource provisioning and configuration
-- **Monitoring workflows**: Health checks, alerting, incident response
-- **Backup and recovery**: Data backup, validation, restoration procedures
-
-\`\`\`python
-# Example: Deployment workflow
-async def run_tests(context):
-    # Execute test suites and quality checks
-    pass
-
-async def build_artifacts(context):
-    # Compile and package application
-    pass
-
-async def deploy_staging(context):
-    # Deploy to staging environment
-    pass
-
-async def promote_production(context):
-    # Deploy to production with blue-green strategy
-    pass
-\`\`\`
-
-#### **Financial Services**
-- **Payment processing**: Transaction validation, fraud detection, settlement
-- **Risk management**: Credit scoring, portfolio analysis, regulatory reporting
-- **Trading workflows**: Order execution, risk checks, compliance monitoring
-- **Reconciliation**: Transaction matching and discrepancy resolution
-
-#### **Healthcare and Life Sciences**
-- **Clinical data processing**: Patient data aggregation and analysis
-- **Research workflows**: Clinical trial data collection and analysis
-- **Regulatory compliance**: FDA submission preparation and validation
-- **Image processing**: Medical imaging analysis and reporting
-
-### Why Choose Puffinflow Over Alternatives?
-
-| Feature | Puffinflow | Traditional Scripts | Enterprise Platforms | Other Libraries |
-|---------|------------|-------------------|---------------------|-----------------|
-| **Learning Curve** | ⭐⭐⭐⭐⭐ Minimal | ⭐⭐⭐ Moderate | ⭐ Steep | ⭐⭐ Varies |
-| **Development Speed** | ⭐⭐⭐⭐⭐ Very Fast | ⭐⭐ Slow | ⭐⭐ Slow | ⭐⭐⭐ Moderate |
-| **Error Handling** | ⭐⭐⭐⭐⭐ Automatic | ⭐ Manual | ⭐⭐⭐⭐ Good | ⭐⭐⭐ Varies |
-| **Resource Management** | ⭐⭐⭐⭐⭐ Built-in | ⭐ None | ⭐⭐⭐⭐ Complex | ⭐⭐ Limited |
-| **Observability** | ⭐⭐⭐⭐⭐ Comprehensive | ⭐ None | ⭐⭐⭐⭐ Good | ⭐⭐ Basic |
-| **Scalability** | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐ Limited | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐ Good |
-| **Python Integration** | ⭐⭐⭐⭐⭐ Native | ⭐⭐⭐⭐⭐ Native | ⭐⭐ Adapter | ⭐⭐⭐⭐ Good |
-| **Cost** | ⭐⭐⭐⭐⭐ Free | ⭐⭐⭐⭐⭐ Free | ⭐ Expensive | ⭐⭐⭐⭐ Mostly Free |
-| **Deployment** | ⭐⭐⭐⭐⭐ Any Python Env | ⭐⭐⭐⭐⭐ Any Python Env | ⭐⭐ Specialized | ⭐⭐⭐ Standard |
-
-**Key Advantages:**
-1. **Zero Learning Curve**: If you know Python async/await, you know Puffinflow
-2. **Immediate Productivity**: Build workflows in minutes, not days
-3. **Production Ready**: Built-in fault tolerance, monitoring, and scaling
-4. **Flexible Deployment**: Runs anywhere Python runs
-5. **No Vendor Lock-in**: Open source with standard Python patterns
-6. **Rich Ecosystem**: Integrates with existing Python libraries and tools
-
-## Prerequisites and Development Environment Setup
-
-### System Requirements
-
-Before diving into Puffinflow, ensure your development environment meets these requirements:
-
-#### **Python Version Support**
-- **Python 3.9+** (officially supported versions: 3.9, 3.10, 3.11, 3.12, and 3.13)
-  - Puffinflow leverages modern Python features for optimal performance and developer experience
-  - **Type hints** and **asyncio** improvements in newer versions provide better IDE support
-  - **Recommendation**: Python 3.11+ for best performance and feature compatibility
-  - If you're on an older version, consider upgrading for the best experience
-
-#### **System Resources**
-- **Memory**: Minimum 512MB available RAM (2GB+ recommended for complex workflows)
-- **CPU**: Any modern CPU (multi-core recommended for parallel workflows)
-- **Storage**: 100MB+ available disk space for installation and workflow state
-- **Network**: Internet access for package installation and optional cloud features
-
-#### **Development Tools (Recommended)**
-- **IDE/Editor**: VS Code, PyCharm, or any editor with Python support
-- **Terminal**: Command line access for package management
-- **Git**: Version control for workflow versioning (optional but recommended)
-- **Docker**: For containerized deployments (optional)
-
-### Python Knowledge Requirements
-
-#### **Essential Knowledge**
-- **Basic Python**: Functions, classes, imports, error handling
-- **Async/await fundamentals**: Understanding of asynchronous programming concepts
-  - Don't worry if you're new to async Python! Puffinflow workflows are intuitive
-  - You'll primarily be writing regular functions with \`async def\` - we handle the complexity
-  - **Quick refresher**: \`async def\` creates a coroutine, \`await\` calls other coroutines
-
-#### **Helpful but Not Required**
-- **Context managers**: Understanding \`with\` statements (helpful for resource management)
-- **Decorators**: Basic understanding of \`@decorator\` syntax
-- **Type hints**: Modern Python typing for better code quality
-- **Testing**: Unit testing concepts for workflow validation
-
-#### **Async/Await Quick Primer**
-
-If you're new to async Python, here's all you need to know:
-
-\`\`\`python
-# ✅ This is what you'll write with Puffinflow
-async def my_state(context):
-    # Your business logic here
-    result = await some_async_operation()
-    context.set_variable("result", result)
-    return "next_state"
-
-# ✅ Running async functions
-import asyncio
-asyncio.run(my_async_function())
-\`\`\`
-
-**Key concepts:**
-- **\`async def\`**: Creates an asynchronous function (coroutine)
-- **\`await\`**: Calls another async function and waits for its result
-- **\`asyncio.run()\`**: Runs an async function from synchronous code
-
-That's it! Puffinflow handles all the complex async orchestration for you.
-
-### Development Environment Setup Options
-
-#### **Option 1: Virtual Environment (Recommended)**
-
-Create an isolated Python environment for your Puffinflow projects:
-
-\`\`\`bash
-# Create virtual environment
-python -m venv puffinflow-env
-
-# Activate on Windows
-puffinflow-env\\Scripts\\activate
-
-# Activate on macOS/Linux
-source puffinflow-env/bin/activate
-
-# Verify activation
-which python  # Should show path in puffinflow-env
-\`\`\`
-
-#### **Option 2: Conda Environment**
-
-If you use Anaconda or Miniconda:
-
-\`\`\`bash
-# Create conda environment
-conda create -n puffinflow python=3.11
-
-# Activate environment
-conda activate puffinflow
-
-# Verify setup
-python --version  # Should show Python 3.11.x
-\`\`\`
-
-#### **Option 3: Docker Development**
-
-For containerized development:
-
-\`\`\`dockerfile
-# Dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-CMD ["python", "workflow.py"]
-\`\`\`
-
-\`\`\`bash
-# Build and run
-docker build -t my-puffinflow-app .
-docker run my-puffinflow-app
-\`\`\`
-
-### Quick Environment Verification
-
-Verify your setup is ready:
-
-\`\`\`bash
-# Check Python version
-python --version
-
-# Check pip is available
-pip --version
-
-# Verify async support
-python -c "import asyncio; print('Async support: OK')"
-
-# Check available memory (Linux/macOS)
-free -h  # or: vm_stat | head -5
-
-# Time to install Puffinflow!
-echo "Ready for Puffinflow installation! 🚀"
-\`\`\`
-
-**Expected output:**
-\`\`\`
-Python 3.11.x
-pip 23.x.x
-Async support: OK
-Ready for Puffinflow installation! 🚀
-\`\`\`
-
-### Performance Optimization Tips
-
-#### **For Development**
-- **Use SSD storage** for faster package installation and workflow state management
-- **Allocate sufficient RAM** (4GB+ recommended for large workflows)
-- **Enable IDE async support** for better debugging and auto-completion
-
-#### **For Production**
-- **Use Python 3.11+** for optimal performance
-- **Configure proper logging** to monitor workflow execution
-- **Implement resource monitoring** to track CPU and memory usage
-- **Use process managers** like systemd or supervisord for service management
-
-**Time Investment**: **5 minutes to get your first workflow running!** ⏱️
-This guide will have you building production-ready workflows in no time
-
-## Installation
-
-Installing Puffinflow is straightforward with pip. We recommend using a virtual environment to keep your dependencies organized:
+## Step 1: Install Puffinflow
 
 \`\`\`bash
 pip install puffinflow
-
-# Or install with optional dependencies for advanced features
-pip install "puffinflow[observability,validation]"
 \`\`\`
 
-That's it! Puffinflow has minimal dependencies and installs quickly. Let's verify it worked by checking the version:
+---
+
+## Step 2: Setup Observability Configuration
+
+**File: observability_config.py**
+
+\`\`\`python
+     1→from puffinflow.observability import ObservabilityConfig, MetricsCollector
+     2→from puffinflow.observability import TracingProvider, LoggingConfig
+     3→from puffinflow.observability import AlertManager, HealthChecker
+     4→import logging
+     5→
+     6→# Configure comprehensive observability
+     7→observability_config = ObservabilityConfig(
+     8→    # Metrics collection every 5 seconds
+     9→    metrics_interval=5.0,
+    10→    
+    11→    # Distributed tracing with 100% sampling
+    12→    tracing_enabled=True,
+    13→    sampling_rate=1.0,
+    14→    
+    15→    # Structured logging configuration
+    16→    logging_config=LoggingConfig(
+    17→        level=logging.INFO,
+    18→        format="json",
+    19→        include_context=True,
+    20→        include_performance=True
+    21→    ),
+    22→    
+    23→    # Health monitoring
+    24→    health_check_interval=10.0,
+    25→    
+    26→    # Alert thresholds
+    27→    alert_config={
+    28→        "execution_time_threshold": 60.0,
+    29→        "memory_usage_threshold": 0.8,
+    30→        "error_rate_threshold": 0.1
+    31→    }
+    32→)
+    33→
+    34→# Initialize metrics collector
+    35→metrics = MetricsCollector(
+    36→    namespace="customer_analytics",
+    37→    tags={"environment": "production", "service": "analytics"}
+    38→)
+    39→
+    40→# Setup distributed tracing
+    41→tracer = TracingProvider.get_tracer("customer-analytics-workflow")
+    42→\`\`\`
+
+---
+
+## Step 3: Create the Observable Workflow
+
+**File: customer_analytics.py**
+
+\`\`\`python
+     1→import asyncio
+     2→import time
+     3→from typing import Dict, Any
+     4→from puffinflow import Agent, state, Priority
+     5→from puffinflow.observability import observe, metric, trace, log_structured
+     6→from observability_config import observability_config, metrics, tracer
+     7→
+     8→# Create the workflow agent with observability
+     9→analytics_agent = Agent(
+    10→    name="customer-analytics",
+    11→    observability_config=observability_config
+    12→)
+    13→
+    14→@state(
+    15→    cpu=1.0,
+    16→    memory=512,
+    17→    timeout=30.0,
+    18→    priority=Priority.NORMAL
+    19→)
+    20→@observe(metrics=metrics, tracer=tracer)
+    21→async def fetch_customer_data(context):
+    22→    """Step 1: Fetch customer data from API with observability"""
+    23→    
+    24→    # Start distributed trace
+    25→    with tracer.start_span("fetch_customer_data") as span:
+    26→        span.set_attribute("step", "data_fetching")
+    27→        span.set_attribute("source", "customer_api")
+    28→        
+    29→        # Structured logging
+    30→        log_structured("info", "Starting customer data fetch", {
+    31→            "step": "fetch_customer_data",
+    32→            "timestamp": time.time(),
+    33→            "trace_id": span.get_span_context().trace_id
+    34→        })
+    35→        
+    36→        print("📊 Fetching customer data from API...")
+    37→        
+    38→        # Start timing metric
+    39→        fetch_timer = metrics.start_timer("api_fetch_duration")
+    40→        
+    41→        try:
+    42→            # Simulate API call delay
+    43→            await asyncio.sleep(1.5)
+    44→            
+    45→            # Mock customer data from API
+    46→            customer_data = {
+    47→                "total_customers": 2500,
+    48→                "active_customers": 1875,
+    49→                "new_signups_today": 45,
+    50→                "churned_customers": 23,
+    51→                "revenue_data": {
+    52→                    "total_revenue": 125000,
+    53→                    "monthly_recurring": 89000,
+    54→                    "one_time_purchases": 36000
+    55→                },
+    56→                "engagement_metrics": {
+    57→                    "daily_active_users": 892,
+    58→                    "weekly_active_users": 1456,
+    59→                    "average_session_time": 24.5
+    60→                }
+    61→            }
+    62→            
+    63→            # Record metrics
+    64→            metrics.counter("customers_fetched").increment(customer_data["total_customers"])
+    65→            metrics.gauge("active_customers").set(customer_data["active_customers"])
+    66→            metrics.histogram("api_response_size").record(len(str(customer_data)))
+    67→            
+    68→            # Stop timing metric
+    69→            fetch_timer.stop()
+    70→            
+    71→            # Store data in context for next step
+    72→            context.set_variable("raw_customer_data", customer_data)
+    73→            context.set_variable("fetch_timestamp", time.time())
+    74→            
+    75→            # Add trace attributes
+    76→            span.set_attribute("customers_count", customer_data["total_customers"])
+    77→            span.set_attribute("status", "success")
+    78→            
+    79→            # Success logging
+    80→            log_structured("info", "Customer data fetch completed", {
+    81→                "step": "fetch_customer_data",
+    82→                "customers_count": customer_data["total_customers"],
+    83→                "execution_time": fetch_timer.elapsed(),
+    84→                "status": "success"
+    85→            })
+    86→            
+    87→            print(f"✅ Fetched data for {customer_data['total_customers']} customers")
+    88→            
+    89→            # Tell Puffinflow which step to run next
+    90→            return "process_metrics"
+    91→            
+    92→        except Exception as e:
+    93→            # Error metrics and logging
+    94→            metrics.counter("fetch_errors").increment()
+    95→            span.set_attribute("error", True)
+    96→            span.set_attribute("error_message", str(e))
+    97→            
+    98→            log_structured("error", "Customer data fetch failed", {
+    99→                "step": "fetch_customer_data",
+   100→                "error": str(e),
+   101→                "trace_id": span.get_span_context().trace_id
+   102→            })
+   103→            
+   104→            raise
+    48→
+   105→@state(
+   106→    cpu=2.0,
+   107→    memory=1024,
+   108→    timeout=45.0,
+   109→    priority=Priority.HIGH
+   110→)
+   111→@observe(metrics=metrics, tracer=tracer)
+   112→async def process_metrics(context):
+   113→    """Step 2: Process data and calculate business metrics with monitoring"""
+   114→    
+   115→    # Start distributed trace
+   116→    with tracer.start_span("process_metrics") as span:
+   117→        span.set_attribute("step", "data_processing")
+   118→        
+   119→        # Structured logging
+   120→        log_structured("info", "Starting metrics processing", {
+   121→            "step": "process_metrics",
+   122→            "timestamp": time.time(),
+   123→            "trace_id": span.get_span_context().trace_id
+   124→        })
+   125→        
+   126→        print("🧮 Processing customer metrics...")
+   127→        
+   128→        # Start performance monitoring
+   129→        processing_timer = metrics.start_timer("metrics_processing_duration")
+   130→        memory_monitor = metrics.gauge("memory_usage_mb")
+   131→        
+   132→        try:
+   133→            # Get data from previous step
+   134→            raw_data = context.get_variable("raw_customer_data")
+   135→            
+   136→            # Monitor memory usage
+   137→            import psutil
+   138→            process = psutil.Process()
+   139→            memory_monitor.set(process.memory_info().rss / 1024 / 1024)
+   140→            
+   141→            # Simulate processing time
+   142→            await asyncio.sleep(2.0)
+   143→            
+   144→            # Calculate key business metrics
+   145→            processed_metrics = {
+   146→                "customer_health": {
+   147→                    "total_customers": raw_data["total_customers"],
+   148→                    "active_rate": round((raw_data["active_customers"] / raw_data["total_customers"]) * 100, 2),
+   149→                    "churn_rate": round((raw_data["churned_customers"] / raw_data["total_customers"]) * 100, 2),
+   150→                    "growth_rate": round((raw_data["new_signups_today"] / raw_data["total_customers"]) * 100, 2)
+   151→                },
+   152→                "revenue_analysis": {
+   153→                    "total_revenue": raw_data["revenue_data"]["total_revenue"],
+   154→                    "revenue_per_customer": round(raw_data["revenue_data"]["total_revenue"] / raw_data["total_customers"], 2),
+   155→                    "mrr_percentage": round((raw_data["revenue_data"]["monthly_recurring"] / raw_data["revenue_data"]["total_revenue"]) * 100, 2),
+   156→                    "avg_customer_value": round(raw_data["revenue_data"]["total_revenue"] / raw_data["active_customers"], 2)
+   157→                },
+   158→                "engagement_insights": {
+   159→                    "dau_to_total_ratio": round((raw_data["engagement_metrics"]["daily_active_users"] / raw_data["total_customers"]) * 100, 2),
+   160→                    "wau_to_total_ratio": round((raw_data["engagement_metrics"]["weekly_active_users"] / raw_data["total_customers"]) * 100, 2),
+   161→                    "avg_session_minutes": raw_data["engagement_metrics"]["average_session_time"]
+   162→                }
+   163→            }
+   164→            
+   165→            # Record processing metrics
+   166→            metrics.counter("metrics_calculated").increment(len(processed_metrics))
+   167→            metrics.histogram("revenue_per_customer").record(processed_metrics["revenue_analysis"]["revenue_per_customer"])
+   168→            metrics.gauge("active_customer_rate").set(processed_metrics["customer_health"]["active_rate"])
+   169→            
+   170→            # Store processed metrics for next step
+   171→            context.set_variable("business_metrics", processed_metrics)
+   172→            context.set_variable("processing_timestamp", time.time())
+   173→            
+   174→            # Stop performance monitoring
+   175→            processing_timer.stop()
+   176→            
+   177→            # Add trace attributes
+   178→            span.set_attribute("metrics_calculated", len(processed_metrics))
+   179→            span.set_attribute("revenue_per_customer", processed_metrics["revenue_analysis"]["revenue_per_customer"])
+   180→            span.set_attribute("status", "success")
+   181→            
+   182→            # Success logging
+   183→            log_structured("info", "Metrics processing completed", {
+   184→                "step": "process_metrics",
+   185→                "metrics_count": len(processed_metrics),
+   186→                "revenue_per_customer": processed_metrics["revenue_analysis"]["revenue_per_customer"],
+   187→                "execution_time": processing_timer.elapsed(),
+   188→                "status": "success"
+   189→            })
+   190→            
+   191→            print(f"💰 Revenue per customer: $\{processed_metrics['revenue_analysis']['revenue_per_customer']}")
+   192→            print(f"📈 Active customer rate: {processed_metrics['customer_health']['active_rate']}%")
+   193→            
+   194→            # Continue to report generation
+   195→            return "generate_report"
+   196→            
+   197→        except Exception as e:
+   198→            # Error metrics and logging
+   199→            metrics.counter("processing_errors").increment()
+   200→            span.set_attribute("error", True)
+   201→            span.set_attribute("error_message", str(e))
+   202→            
+   203→            log_structured("error", "Metrics processing failed", {
+   204→                "step": "process_metrics",
+   205→                "error": str(e),
+   206→                "trace_id": span.get_span_context().trace_id
+   207→            })
+   208→            
+   209→            raise
+    95→
+    96→@state(
+    97→    cpu=1.0,
+    98→    memory=512,
+    99→    timeout=20.0,
+   100→    priority=Priority.NORMAL
+   101→)
+   102→async def generate_report(context):
+   103→    """Step 3: Generate business report from processed metrics"""
+   104→    print("📋 Generating business report...")
+   105→    
+   106→    # Get processed metrics from previous step
+   107→    metrics = context.get_variable("business_metrics")
+   108→    fetch_time = context.get_variable("fetch_timestamp")
+   109→    process_time = context.get_variable("processing_timestamp")
+   110→    
+   111→    # Simulate report generation
+   112→    await asyncio.sleep(1.0)
+   113→    
+   114→    # Create comprehensive report
+   115→    report = {
+   116→        "report_id": f"analytics_report_{int(time.time())}",
+   117→        "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+   118→        "summary": {
+   119→            "total_customers": metrics["customer_health"]["total_customers"],
+   120→            "active_rate": f"{metrics['customer_health']['active_rate']}%",
+   121→            "revenue_per_customer": f"$\{metrics['revenue_analysis']['revenue_per_customer']}",
+   122→            "churn_rate": f"{metrics['customer_health']['churn_rate']}%"
+   123→        },
+   124→        "detailed_metrics": metrics,
+   125→        "performance": {
+   126→            "data_fetch_duration": round(process_time - fetch_time, 2),
+   127→            "processing_duration": round(time.time() - process_time, 2),
+   128→            "total_workflow_duration": round(time.time() - fetch_time, 2)
+   129→        },
+   130→        "recommendations": generate_recommendations(metrics)
+   131→    }
+   132→    
+   133→    # Store final report for next step
+   134→    context.set_variable("final_report", report)
+   135→    
+   136→    print(f"📊 Report generated: {report['report_id']}")
+   137→    print(f"⏱️  Total workflow time: {report['performance']['total_workflow_duration']}s")
+   138→    
+   139→    # Continue to notification step
+   140→    return "send_notifications"
+   141→
+   142→@state(
+   143→    cpu=0.5,
+   144→    memory=256,
+   145→    timeout=15.0,
+   146→    max_retries=3
+   147→)
+   148→async def send_notifications(context):
+   149→    """Step 4: Send report notifications to stakeholders"""
+   150→    print("📧 Sending notifications to stakeholders...")
+   151→    
+   152→    # Get final report from previous step
+   153→    report = context.get_variable("final_report")
+   154→    
+   155→    # Simulate sending notifications to different channels
+   156→    notification_channels = [
+   157→        {"type": "email", "recipients": ["ceo@company.com", "analytics@company.com"]},
+   158→        {"type": "slack", "channel": "#analytics-alerts"},
+   159→        {"type": "dashboard", "url": "/dashboard/customer-analytics"}
+   160→    ]
+   161→    
+   162→    successful_notifications = []
+   163→    
+   164→    for channel in notification_channels:
+   165→        try:
+   166→            # Simulate notification sending
+   167→            await asyncio.sleep(0.5)
+   168→            
+   169→            notification_result = {
+   170→                "channel": channel["type"],
+   171→                "status": "sent",
+   172→                "timestamp": time.time(),
+   173→                "summary": {
+   174→                    "customers": report["summary"]["total_customers"], 
+   175→                    "revenue_per_customer": report["summary"]["revenue_per_customer"]
+   176→                }
+   177→            }
+   178→            
+   179→            successful_notifications.append(notification_result)
+   180→            print(f"✅ Sent to {channel['type']}")
+   181→            
+   182→        except Exception as e:
+   183→            print(f"⚠️ Failed to send to {channel['type']}: {e}")
+   184→    
+   185→    # Store notification results
+   186→    context.set_variable("notification_results", successful_notifications)
+   187→    
+   188→    print(f"📤 Notifications sent to {len(successful_notifications)} channels")
+   189→    
+   190→    # End workflow (return None)
+   191→    return None
+   192→
+   193→def generate_recommendations(metrics: Dict[str, Any]) -> list:
+   194→    """Generate business recommendations based on metrics"""
+   195→    recommendations = []
+   196→    
+   197→    customer_health = metrics["customer_health"]
+   198→    revenue_analysis = metrics["revenue_analysis"]
+   199→    engagement = metrics["engagement_insights"]
+   200→    
+   201→    if customer_health["churn_rate"] > 5.0:
+   202→        recommendations.append("High churn rate detected - implement retention campaign")
+   203→    
+   204→    if customer_health["active_rate"] < 70.0:
+   205→        recommendations.append("Low customer activation - review onboarding process")
+   206→    
+   207→    if engagement["dau_to_total_ratio"] < 30.0:
+   208→        recommendations.append("Low daily engagement - consider feature improvements")
+   209→    
+   210→    if revenue_analysis["revenue_per_customer"] < 40.0:
+   211→        recommendations.append("Low revenue per customer - explore upselling opportunities")
+   212→    
+   213→    return recommendations
+   214→
+   215→# Register all workflow steps
+   216→analytics_agent.add_state("fetch_data", fetch_customer_data)
+   217→analytics_agent.add_state("process_metrics", process_metrics)
+   218→analytics_agent.add_state("generate_report", generate_report)
+   219→analytics_agent.add_state("send_notifications", send_notifications)
+   220→
+   221→async def run_customer_analytics():
+   222→    """Run the complete customer analytics workflow"""
+   223→    print("🚀 Starting Customer Analytics Workflow")
+   224→    print("=" * 50)
+   225→    
+   226→    # Run the workflow starting from fetch_data
+   227→    result = await analytics_agent.run(
+   228→        start_state="fetch_data",
+   229→        execution_mode="SEQUENTIAL"
+   230→    )
+   231→    
+   232→    print("=" * 50)
+   233→    print("✨ Workflow Complete!")
+   234→    
+   235→    # Access final results
+   236→    final_report = result.get_variable("final_report")
+   237→    notifications = result.get_variable("notification_results")
+   238→    
+   239→    print(f"📊 Generated report: {final_report['report_id']}")
+   240→    print(f"📧 Sent {len(notifications)} notifications")
+   241→    print(f"💡 Recommendations: {len(final_report['recommendations'])}")
+   242→    
+   243→    return result
+   244→
+   245→if __name__ == "__main__":
+   246→    # Run the workflow
+   247→    asyncio.run(run_customer_analytics())
+   248→\`\`\`
+
+---
+
+## Step 4: Run the Observable Workflow
+
+Save both files and run:
 
 \`\`\`bash
-python -c "import puffinflow; print(f'Puffinflow {puffinflow.__version__} installed successfully!')"
+python customer_analytics.py
 \`\`\`
 
-## Your First Workflow
+**Observable Output with Metrics:**
+\`\`\`
+🚀 Starting Customer Analytics Workflow
+==================================================
+[INFO] Starting customer data fetch | trace_id=abc123 step=fetch_customer_data
+📊 Fetching customer data from API...
+[METRIC] api_fetch_duration=1.52s customers_fetched=2500 active_customers=1875
+✅ Fetched data for 2500 customers
+[INFO] Customer data fetch completed | execution_time=1.52s status=success
 
-Let's build your first Puffinflow workflow! This example demonstrates the core concepts you'll use in every workflow. We'll create a simple greeting workflow that shows how states communicate through context.
+[INFO] Starting metrics processing | trace_id=abc123 step=process_metrics  
+🧮 Processing customer metrics...
+[METRIC] memory_usage_mb=45.2 metrics_calculated=3 revenue_per_customer=50.0
+💰 Revenue per customer: $50.0
+📈 Active customer rate: 75.0%
+[INFO] Metrics processing completed | metrics_count=3 execution_time=2.01s
 
-Create a complete workflow in just **3 simple steps**:
+[INFO] Starting report generation | trace_id=abc123 step=generate_report
+📋 Generating business report...
+[METRIC] report_generation_duration=1.03s recommendations_generated=2
+📊 Report generated: analytics_report_1674645234
+⏱️  Total workflow time: 4.5s
 
+[INFO] Starting notifications | trace_id=abc123 step=send_notifications
+📧 Sending notifications to stakeholders...
+[METRIC] notification_success_rate=100% channels_notified=3
+✅ Sent to email ✅ Sent to slack ✅ Sent to dashboard
+📤 Notifications sent to 3 channels
+==================================================
+✨ Workflow Complete!
+📊 Generated report: analytics_report_1674645234
+📧 Sent 3 notifications | 💡 Recommendations: 2
+
+[OBSERVABILITY SUMMARY]
+• Total Execution Time: 4.56s
+• Memory Peak Usage: 67.8MB  
+• Traces Generated: 4 spans
+• Metrics Collected: 12 data points
+• Error Rate: 0% (0/4 steps failed)
+\`\`\`
+
+---
+
+## Understanding the Observable Data Flow
+
+### 🔄 How Data Flows with Full Observability
+
+**1. Fetch Step (Lines 21-104)** - **Distributed Tracing + Metrics**
 \`\`\`python
-import asyncio
-from puffinflow import Agent
-
-# 1. Create an agent
-agent = Agent("my-first-workflow")
-
-# 2. Define a state (just a regular async function)
-async def hello_world(context):
-    print("Hello, Puffinflow! 🐧")
-    print(f"Agent name: {agent.name}")
-    context.set_variable("greeting", "Hello from PuffinFlow!")
-    return None
-
-# 3. Add state and run it
-agent.add_state("hello_world", hello_world)
-
-async def main():
-    result = await agent.run()
-    print(f"Result: {result.get_variable('greeting')}")
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# Observability Setup
+with tracer.start_span("fetch_customer_data") as span:
+    fetch_timer = metrics.start_timer("api_fetch_duration")
+    
+    # Data Flow
+    # Input: None (starting step)
+    # Process: API call with performance monitoring
+    customer_data = {...}  # Mock API response
+    
+    # Metrics Collection
+    metrics.counter("customers_fetched").increment(2500)
+    metrics.gauge("active_customers").set(1875)
+    
+    # Output: raw_customer_data → stored in context
+    context.set_variable("raw_customer_data", customer_data)
+    return "process_metrics"  # Next step with trace context
 \`\`\`
 
-**Output:**
-\`\`\`
-Hello, Puffinflow! 🐧
-Agent name: my-first-workflow
-Result: Hello from PuffinFlow!
-\`\`\`
-
-🎉 **Congratulations!** You just ran your first Puffinflow workflow.
-
-### What just happened?
-
-1. **Agent Creation**: We created an agent named "my-first-workflow" - this is your workflow orchestrator
-2. **State Definition**: We defined a state as a simple async function that takes a context parameter
-3. **Context Usage**: The state stores data in context using \`set_variable()\` and the main function retrieves it with \`get_variable()\`
-4. **Execution**: The agent runs the state and manages the workflow lifecycle
-
-**Flow:** Agent runs hello_world state, which stores data in context, then returns result
-
-This pattern - create agent, define states, add states, run - is the foundation of every Puffinflow workflow, from simple scripts to complex production systems.
-
-## Two Ways to Define States
-
-Puffinflow offers flexibility in how you define states. Both approaches are functionally identical for basic workflows, but the decorator unlocks advanced features when you need them.
-
-For simple workflows, both approaches work identically:
-
-### Plain Functions (Simplest)
-This is the most straightforward approach - just write regular async functions:
-
+**2. Process Step (Lines 112-209)** - **Performance Monitoring + Memory Tracking**
 \`\`\`python
-async def process_data(context):
-    """A simple state function that processes data"""
-    context.set_variable("result", "Hello!")
-    return None  # Continue to next state normally
+# Observability Setup
+with tracer.start_span("process_metrics") as span:
+    processing_timer = metrics.start_timer("metrics_processing_duration")
+    memory_monitor = metrics.gauge("memory_usage_mb")
+    
+    # Data Flow
+    # Input: raw_customer_data ← retrieved from context
+    raw_data = context.get_variable("raw_customer_data")
+    # Process: Calculate business metrics with monitoring
+    processed_metrics = {...}  # Business calculations
+    
+    # Performance Metrics
+    metrics.histogram("revenue_per_customer").record(50.0)
+    metrics.gauge("active_customer_rate").set(75.0)
+    
+    # Output: business_metrics → stored in context
+    context.set_variable("business_metrics", processed_metrics)
+    return "generate_report"  # Next step
 \`\`\`
 
-### With Decorator (For Advanced Features Later)
-The decorator approach unlocks powerful features when you need them:
+### 🎯 Key Observability Concepts
 
+**Distributed Tracing = Request Journey**
 \`\`\`python
-from puffinflow import state
-
-@state
-async def process_data(context):
-    """Same functionality, but ready for advanced features"""
-    context.set_variable("result", "Hello!")
-    return None
+with tracer.start_span("step_name") as span:
+    span.set_attribute("key", "value")  # Add context
+    span.set_attribute("status", "success")  # Track outcomes
+    # span automatically links to parent traces
 \`\`\`
 
-> **The difference?** None for basic workflows! The decorator becomes useful when you later want to add resource management (CPU/memory limits), priorities, rate limiting, retries, timeouts, and more. Start simple with plain functions, add the decorator when you need advanced features.
-
-**When to use the decorator:**
-- You need to control resource allocation (\`cpu=2.0, memory=1024\`)
-- You want automatic retries on failures (\`max_retries=3\`)
-- You need timeouts for long-running operations (\`timeout=60.0\`)
-- You want to set execution priority (\`priority=Priority.HIGH\`)
-
-**When to use plain functions:**
-- You're starting out and learning the basics
-- Your workflow is simple and doesn't need advanced features
-- You want minimal code overhead
-
-## Sharing Data Between States
-
-One of Puffinflow's most powerful features is how states can share data seamlessly. The **context** object is your workflow's shared memory - it's how states pass data to each other and maintain workflow state.
-
-### How Context Works
-Think of context as a type-safe shared dictionary that travels with your workflow:
-- **Persistent**: Data stored in context survives across state transitions
-- **Accessible**: Any state can read data stored by previous states
-- **Type-safe**: Puffinflow helps prevent data type errors
-- **Isolated**: Each workflow run has its own context instance
-
-Here's a practical example showing how three states work together to process data:
-
+**Metrics Collection = Performance Data**
 \`\`\`python
-import asyncio
-from puffinflow import Agent
-
-agent = Agent("data-pipeline")
-
-async def fetch_data(context):
-    # Simulate fetching data from an API
-    print("📊 Fetching user data...")
-
-    # Store data in context
-    context.set_variable("user_count", 1250)
-    context.set_variable("revenue", 45000)
-    print("✅ Data fetched successfully")
-
-async def calculate_metrics(context):
-    # Get data from previous state
-    users = context.get_variable("user_count")
-    revenue = context.get_variable("revenue")
-
-    # Calculate and store result
-    revenue_per_user = revenue / users
-    context.set_variable("revenue_per_user", revenue_per_user)
-
-    print(f"💰 Revenue per user: \${revenue_per_user:.2f}")
-    print("✅ Metrics calculated")
-
-async def send_report(context):
-    # Use the calculated metric
-    rpu = context.get_variable("revenue_per_user")
-
-    print(f"📧 Sending report: RPU is \${rpu:.2f}")
-    print("✅ Report sent!")
-
-# Add states to workflow
-agent.add_state("fetch_data", fetch_data)
-agent.add_state("calculate_metrics", calculate_metrics)
-agent.add_state("send_report", send_report)
-
-# Run the complete pipeline
-from puffinflow import ExecutionMode
-asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
+# Different metric types for different use cases
+metrics.counter("events_count").increment()      # Counts
+metrics.gauge("current_value").set(42)           # Current state  
+metrics.histogram("duration").record(1.5)       # Distributions
+timer = metrics.start_timer("operation_time")   # Time tracking
 \`\`\`
 
-**Flow:** fetch_data stores data → calculate_metrics reads and processes → send_report reads result
-
-**Output:**
-\`\`\`
-📊 Fetching user data...
-✅ Data fetched successfully
-💰 Revenue per user: $36.00
-✅ Metrics calculated
-📧 Sending report: RPU is $36.00
-✅ Report sent!
-\`\`\`
-
-## Understanding Workflow Flow Control
-
-Puffinflow gives you **two main ways** to control how your states execute:
-
-1. **Dependencies** - Define which states must complete before others can start
-2. **Return Values** - From within a state function, decide what should run next
-
-### Execution Modes: The Foundation
-
-Puffinflow supports two execution modes that determine how your workflow begins:
-
-**Think of it this way:**
-- **PARALLEL Mode**: "Start all states that are ready to run"
-- **SEQUENTIAL Mode**: "Start only the first state, then let return values guide the flow"
-
-#### PARALLEL Mode (Default)
-All states without dependencies run as entry points simultaneously. States with dependencies wait for their prerequisites to complete. Perfect for:
-- Batch processing where multiple independent operations can run concurrently
-- Data pipelines with parallel data sources
-- Microservice orchestration
-- Workflows where you want maximum parallelism with dependency management
-
-#### SEQUENTIAL Mode  
-Only the first state (the one added first) runs initially, with flow controlled by return values from state functions. Dependencies are ignored in this mode. Ideal for:
-- Linear workflows with conditional branching
-- State machines with decision points
-- Workflows where you want explicit control over execution order through return values
-
+**Structured Logging = Searchable Context**
 \`\`\`python
-from puffinflow import Agent, ExecutionMode
-
-# Parallel execution (default)
-result = await agent.run()
-result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
-
-# Sequential execution  
-result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
+log_structured("info", "Operation completed", {
+    "step": "process_metrics",
+    "execution_time": 2.01,
+    "trace_id": span.get_span_context().trace_id,
+    "status": "success"
+})
 \`\`\`
 
-### How Return Values Work
-Every state function can return a value that determines what happens next:
-- **\`None\`**: End this execution path (default behavior)
-- **\`"state_name"\`**: Jump to a specific state (conditional branching)
-- **\`["state1", "state2"]\`**: Run multiple states in parallel (fan-out pattern)
-
-**Important:** Return values work in both execution modes, but they're most powerful in SEQUENTIAL mode where they control the entire flow.
-
-Let's explore each approach with detailed examples:
-
-### 1. Sequential Execution with Dependencies
-
-This is a simple pattern where states execute one after another based on dependencies. When using dependencies, states with no dependencies run first, then their dependent states follow. This works perfectly for linear workflows like data pipelines, processing chains, or step-by-step procedures.
-
-**When to use:** 
-- Linear processes (ETL pipelines, data processing)
-- Step-by-step procedures (user onboarding, order processing)
-- When each step depends on the previous one completing
-
-States run based on their dependencies:
-
+**Observability Decorators = Automatic Monitoring**
 \`\`\`python
-agent = Agent("sequential-workflow")
-
-async def step_one(context):
-    print("Step 1: Preparing data")
-    context.set_variable("step1_done", True)
-
-async def step_two(context):
-    print("Step 2: Processing data")
-    context.set_variable("step2_done", True)
-
-async def step_three(context):
-    print("Step 3: Finalizing")
-    print("All steps complete!")
-
-# Add states with dependencies for sequential execution
-agent.add_state("step_one", step_one)
-agent.add_state("step_two", step_two, dependencies=["step_one"])
-agent.add_state("step_three", step_three, dependencies=["step_two"])
-
-# Runs in this exact order: step_one --> step_two --> step_three
-# (Works in both PARALLEL and SEQUENTIAL modes)
-\`\`\`
-
-### 2. Conditional Execution with Return Values
-
-Use return values from state functions to create conditional workflows. This is most effective in SEQUENTIAL mode where return values control the entire flow:
-
-\`\`\`python
-async def fetch_user_data(context):
-    print("👥 Fetching user data...")
-    await asyncio.sleep(0.5)  # Simulate API call
-    context.set_variable("user_count", 1250)
-    context.set_variable("user_data_ready", True)
-    return "fetch_sales_data"
-
-async def fetch_sales_data(context):
-    print("💰 Fetching sales data...")
-    await asyncio.sleep(0.3)  # Simulate API call
-    context.set_variable("revenue", 45000)
-    context.set_variable("sales_data_ready", True)
-    return "generate_report"
-
-async def generate_report(context):
-    # Check if prerequisite data is available
-    if not context.get_variable("user_data_ready") or not context.get_variable("sales_data_ready"):
-        print("❌ Data not ready for report generation")
-        return None
-
-    print("📊 Generating report...")
-    users = context.get_variable("user_count")
-    revenue = context.get_variable("revenue")
-    print(f"Revenue per user: \${revenue/users:.2f}")
-
-# States run in sequence due to return values
-agent.add_state("fetch_user_data", fetch_user_data)
-agent.add_state("fetch_sales_data", fetch_sales_data)
-agent.add_state("generate_report", generate_report)
-\`\`\`
-
-### 3. Dynamic Flow Control with Branching
-
-Return different state names based on data or conditions to create branching workflows:
-
-\`\`\`python
-async def check_user_type(context):
-    print("🔍 Checking user type...")
-    user_type = "premium"  # Could come from database
-    context.set_variable("user_type", user_type)
-
-    # Dynamic routing based on data
-    if user_type == "premium":
-        return "premium_flow"
-    else:
-        return "basic_flow"
-
-async def premium_flow(context):
-    print("⭐ Premium user workflow")
-    context.set_variable("features", ["advanced_analytics", "priority_support"])
-    return "send_welcome"
-
-async def basic_flow(context):
-    print("👋 Basic user workflow")
-    context.set_variable("features", ["basic_analytics"])
-    return "send_welcome"
-
-async def send_welcome(context):
-    user_type = context.get_variable("user_type")
-    features = context.get_variable("features")
-    print(f"✉️ Welcome {user_type} user! Features: {', '.join(features)}")
-
-# Add all states
-agent.add_state("check_user_type", check_user_type)
-agent.add_state("premium_flow", premium_flow)
-agent.add_state("basic_flow", basic_flow)
-agent.add_state("send_welcome", send_welcome)
-
-# Use SEQUENTIAL mode for proper flow control
-from puffinflow import ExecutionMode
-asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
-\`\`\`
-
-### 4. Parallel Execution with Fan-Out
-
-Return a list of state names to run multiple states simultaneously (fan-out pattern):
-
-\`\`\`python
-async def process_order(context):
-    print("📦 Processing order...")
-    context.set_variable("order_id", "ORD-123")
-
-    # Run these three states in parallel
-    return ["send_confirmation", "update_inventory", "charge_payment"]
-
-async def send_confirmation(context):
-    order_id = context.get_variable("order_id")
-    print(f"📧 Confirmation sent for {order_id}")
-
-async def update_inventory(context):
-    print("📋 Inventory updated")
-
-async def charge_payment(context):
-    order_id = context.get_variable("order_id")
-    print(f"💳 Payment processed for {order_id}")
-\`\`\`
-
-## Complete Example: Data Pipeline
-
-\`\`\`python
-import asyncio
-from puffinflow import Agent
-
-agent = Agent("data-pipeline")
-
-async def extract(context):
-    data = {"sales": [100, 200, 150], "customers": ["Alice", "Bob", "Charlie"]}
-    context.set_variable("raw_data", data)
-    print("✅ Data extracted")
-    return None  # Continue to next state
-
-async def transform(context):
-    raw_data = context.get_variable("raw_data")
-    total_sales = sum(raw_data["sales"])
-    customer_count = len(raw_data["customers"])
-
-    transformed = {
-        "total_sales": total_sales,
-        "customer_count": customer_count,
-        "avg_sale": total_sales / customer_count
-    }
-
-    context.set_variable("processed_data", transformed)
-    print("✅ Data transformed")
-    return None  # Continue to next state
-
-async def load(context):
-    processed_data = context.get_variable("processed_data")
-    print(f"✅ Saved: {processed_data}")
-    return None  # End workflow
-
-# Set up the pipeline - runs sequentially using dependencies
-agent.add_state("extract", extract)
-agent.add_state("transform", transform, dependencies=["extract"])
-agent.add_state("load", load, dependencies=["transform"])
-
-if __name__ == "__main__":
-    # Works in both modes due to dependencies
-    asyncio.run(agent.run())  # PARALLEL mode (default)
-    # asyncio.run(agent.run(execution_mode=ExecutionMode.SEQUENTIAL))
-\`\`\`
-
-## When to Use the Decorator
-
-Add the \`@state\` decorator when you need advanced features later:
-
-\`\`\`python
-from puffinflow import state, Priority
-
-# Advanced features example (you don't need this initially)
-@state(cpu=2.0, memory=1024, priority=Priority.HIGH, timeout=60.0)
-async def intensive_task(context):
-    # This state gets 2 CPU units, 1GB memory, high priority, 60s timeout
+@observe(metrics=metrics, tracer=tracer)  # Auto-instrumentation
+@state(cpu=2.0, memory=1024)             # Resource monitoring
+async def process_step(context):
+    # Automatic trace creation, timing, and error tracking
     pass
 \`\`\`
 
-## Choosing the Right Execution Mode
+---
 
-### PARALLEL Mode (Default) - Best for Most Workflows
+## What You've Built
 
-**Perfect for:**
-- **Batch Processing**: Multiple independent data processing tasks
-- **Microservice Orchestration**: Calling multiple services simultaneously
-- **Data Collection**: Fetching from multiple sources concurrently
-- **Background Tasks**: Running maintenance tasks in parallel
-- **Dependency-based workflows**: When you want to use dependencies to control execution order
+✅ **Complete observable data processing pipeline**  
+✅ **Distributed tracing** across all workflow steps  
+✅ **Performance metrics** (timing, memory, throughput)  
+✅ **Structured logging** with trace correlation  
+✅ **Error tracking** and alerting capabilities  
+✅ **Resource monitoring** (CPU, memory, timeouts)  
+✅ **Production-ready observability** patterns  
 
-**Example:**
-\`\`\`python
-# All these run simultaneously (no dependencies)
-agent.add_state("fetch_users", fetch_users)
-agent.add_state("fetch_products", fetch_products) 
-agent.add_state("fetch_orders", fetch_orders)
+---
 
-# PARALLEL mode - all run at once (default behavior)
-await agent.run()  # or explicitly: ExecutionMode.PARALLEL
-\`\`\`
+## Next Steps
 
-### SEQUENTIAL Mode - For Complex State Machines
+**Dive deeper into production-ready features:**
 
-**Perfect for:**
-- **State Machines**: Decision-based workflows with complex branching logic
-- **Dynamic Workflows**: When you need return values to control the entire flow
-- **Conditional Workflows**: Different paths based on runtime data or conditions
-- **User Journeys**: Workflows that follow a specific sequence with decision points
+- **[Observability →](/docs/observability)** - Advanced monitoring, alerting, and dashboards  
+- **[Resource Management →](/docs/resource-management)** - Scale with CPU/memory controls and resource pools
+- **[Error Handling →](/docs/error-handling)** - Build fault-tolerant workflows with circuit breakers  
+- **[API Reference →](/docs/api-reference)** - Complete framework documentation
 
-**Example:**
-\`\`\`python
-# Only 'start' runs initially, others controlled by return values
-agent.add_state("start", start_workflow)
-agent.add_state("validate", validate_data)
-agent.add_state("process", process_data)
-agent.add_state("error", handle_error)
+**Enhance your observable workflow:**
+- Add custom metrics for business KPIs
+- Implement distributed tracing across microservices
+- Set up alerting rules for performance thresholds
+- Create observability dashboards and reports
+- Add parallel processing with trace correlation
+- Implement error recovery with metric tracking
 
-# SEQUENTIAL mode - controlled flow
-from puffinflow import ExecutionMode
-await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
-\`\`\`
-
-### Key Differences Summary
-
-| Feature | PARALLEL Mode | SEQUENTIAL Mode |
-|---------|---------------|-----------------|
-| **How it starts** | All states without dependencies | Only first state added |
-| **Flow control** | Dependencies + return values | Return values (dependencies ignored) |
-| **Best for** | Concurrent tasks with some dependencies | State machines with complex branching |
-| **Performance** | Maximum parallelism | Single-threaded execution path |
-| **Complexity** | Simpler for most workflows | More complex but more control |
-
-## Quick Reference
-
-### Execution Modes
-\`\`\`python
-from puffinflow import Agent, ExecutionMode
-
-# Parallel execution (default)
-await agent.run()
-await agent.run(execution_mode=ExecutionMode.PARALLEL)
-
-# Sequential execution
-await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
-\`\`\`
-
-### Flow Control Methods
-\`\`\`python
-# Dependencies (work in both modes)
-agent.add_state("dependent", function, dependencies=["first", "second"])
-
-# Dynamic routing (in state functions)
-async def router(context):
-    if some_condition:
-        return "next_state"           # Single state
-    else:
-        return ["state1", "state2"]   # Parallel states
-\`\`\`
-
-### Context Methods
-- \`context.set_variable(key, value)\` - Store data
-- \`context.get_variable(key)\` - Retrieve data
-
-### State Return Values
-- \`None\` - End this execution path (no more states from this path)
-- \`"state_name"\` - Run specific state next
-- \`["state1", "state2"]\` - Run multiple states in parallel
-
-## 🤖 Complete AI Workflow Example
-
-Here's a real-world example showing how to build an AI research assistant that:
-1. Takes a query
-2. Searches for information
-3. Analyzes findings with an LLM
-4. Generates a final report
-
-\`\`\`python
-import asyncio
-import json
-from puffinflow import Agent
-
-# Simulate external APIs
-async def search_web(query):
-    """Simulate web search API"""
-    await asyncio.sleep(0.2)
-    return [
-        {"title": f"Article about {query}", "content": f"Detailed info on {query}..."},
-        {"title": f"{query} trends", "content": f"Latest trends in {query}..."}
-    ]
-
-async def call_llm(prompt):
-    """Simulate LLM API call"""
-    await asyncio.sleep(0.5)
-    return f"AI Analysis: {prompt[:50]}..."
-
-# Create the research agent
-research_agent = Agent("ai-research-assistant")
-
-async def validate_query(context):
-    """Validate and prepare the search query"""
-    query = context.get_variable("search_query", "")
-
-    if not query or len(query) < 3:
-        print("❌ Invalid query - too short")
-        return None  # End workflow
-
-    # Clean and prepare query
-    clean_query = query.strip().lower()
-    context.set_variable("clean_query", clean_query)
-
-    print(f"✅ Query validated: '{clean_query}'")
-    return "search_information"
-
-async def search_information(context):
-    """Search for information on the web"""
-    query = context.get_variable("clean_query")
-
-    print(f"🔍 Searching for: {query}")
-    results = await search_web(query)
-
-    context.set_variable("search_results", results)
-    print(f"✅ Found {len(results)} results")
-
-    return "analyze_results"
-
-async def analyze_results(context):
-    """Use LLM to analyze search results"""
-    results = context.get_variable("search_results")
-    query = context.get_variable("clean_query")
-
-    print("🧠 Analyzing results with AI...")
-
-    # Prepare prompt for LLM
-    prompt = f"""
-    Analyze these search results for query '{query}':
-    {json.dumps(results, indent=2)}
-
-    Provide key insights and trends.
-    """
-
-    analysis = await call_llm(prompt)
-    context.set_variable("analysis", analysis)
-
-    print("✅ Analysis complete")
-    return "generate_report"
-
-async def generate_report(context):
-    """Generate final research report"""
-    query = context.get_variable("search_query")
-    analysis = context.get_variable("analysis")
-    results = context.get_variable("search_results")
-
-    print("📝 Generating final report...")
-
-    # Create structured report
-    report = {
-        "query": query,
-        "sources_found": len(results),
-        "analysis": analysis,
-        "generated_at": "2024-01-15 10:30:00",
-        "confidence": "high"
-    }
-
-    context.set_variable("final_report", report)
-
-    print("🎉 Research Report Generated!")
-    print(f"Query: {report['query']}")
-    print(f"Sources: {report['sources_found']}")
-    print(f"Analysis: {report['analysis']}")
-
-    return None  # End workflow
-
-# Wire up the workflow
-research_agent.add_state("validate_query", validate_query)
-research_agent.add_state("search_information", search_information)
-research_agent.add_state("analyze_results", analyze_results)
-research_agent.add_state("generate_report", generate_report)
-
-async def run_research(query):
-    """Run a complete research workflow"""
-    print(f"🚀 Starting research on: '{query}'")
-    print("-" * 50)
-
-    # Set initial context
-    research_agent.set_variable("search_query", query)
-
-    result = await research_agent.run()
-
-    print("-" * 50)
-    print("✨ Research complete!")
-
-    return result.get_variable("final_report")
-
-# Example usage
-if __name__ == "__main__":
-    report = asyncio.run(run_research("machine learning trends 2024"))
-    print(f"\\nFinal report available in context: {report is not None}")
-\`\`\`
-
-**Expected Output:**
-\`\`\`
-🚀 Starting research on: 'machine learning trends 2024'
---------------------------------------------------
-✅ Query validated: 'machine learning trends 2024'
-🔍 Searching for: machine learning trends 2024
-✅ Found 2 results
-🧠 Analyzing results with AI...
-✅ Analysis complete
-📝 Generating final report...
-🎉 Research Report Generated!
-Query: machine learning trends 2024
-Sources: 2
-Analysis: AI Analysis: Analyze these search results for query 'machine...
---------------------------------------------------
-✨ Research complete!
-
-Final report available in context: True
-\`\`\`
-
-## 🚀 Real-World Production Example
-
-Here's a complete example of a production-ready document processing workflow:
-
-\`\`\`python
-import asyncio
-import logging
-from pathlib import Path
-from puffinflow import Agent, state, Priority
-from puffinflow.observability import MetricsCollector
-from puffinflow.utils import save_checkpoint
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Initialize metrics
-metrics = MetricsCollector(namespace="document_processor")
-
-# Create production agent
-processor = Agent("document-processor")
-
-@state(
-    cpu=2.0,
-    memory=1024,
-    priority=Priority.HIGH,
-    max_retries=3,
-    timeout=120.0
-)
-async def validate_document(context):
-    """Validate uploaded document format and size."""
-    logger.info("Starting document validation")
-    metrics.increment("validation_started")
-
-    try:
-        file_path = context.get_variable("file_path")
-        file_size = Path(file_path).stat().st_size
-
-        # Validate file size (max 10MB)
-        if file_size > 10 * 1024 * 1024:
-            context.set_variable("error", "File too large")
-            metrics.increment("validation_failed", tags={"reason": "file_size"})
-            return "error_handler"
-
-        # Validate file format
-        if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
-            context.set_variable("error", "Unsupported file format")
-            metrics.increment("validation_failed", tags={"reason": "format"})
-            return "error_handler"
-
-        context.set_variable("file_size", file_size)
-        logger.info(f"Document validated: {file_size} bytes")
-        metrics.increment("validation_succeeded")
-
-        return "extract_content"
-
-    except Exception as e:
-        logger.error(f"Validation error: {e}")
-        context.set_variable("error", str(e))
-        metrics.increment("validation_failed", tags={"reason": "exception"})
-        return "error_handler"
-
-@state(
-    cpu=4.0,
-    memory=2048,
-    priority=Priority.NORMAL,
-    max_retries=2,
-    timeout=300.0
-)
-async def extract_content(context):
-    """Extract text content from document."""
-    logger.info("Starting content extraction")
-    metrics.increment("extraction_started")
-
-    with metrics.timer("extraction_time"):
-        try:
-            file_path = context.get_variable("file_path")
-
-            # Simulate content extraction
-            await asyncio.sleep(2)  # Replace with actual extraction
-
-            content = f"Extracted content from {file_path}"
-            word_count = len(content.split())
-
-            context.set_variable("content", content)
-            context.set_variable("word_count", word_count)
-
-            logger.info(f"Content extracted: {word_count} words")
-            metrics.gauge("content_word_count", word_count)
-            metrics.increment("extraction_succeeded")
-
-            return "analyze_content"
-
-        except Exception as e:
-            logger.error(f"Extraction error: {e}")
-            context.set_variable("error", str(e))
-            metrics.increment("extraction_failed")
-            return "error_handler"
-
-@state(
-    cpu=2.0,
-    memory=1024,
-    priority=Priority.NORMAL,
-    max_retries=1,
-    timeout=180.0
-)
-async def analyze_content(context):
-    """Analyze content with AI/ML processing."""
-    logger.info("Starting content analysis")
-    metrics.increment("analysis_started")
-
-    with metrics.timer("analysis_time"):
-        try:
-            content = context.get_variable("content")
-            word_count = context.get_variable("word_count")
-
-            # Simulate AI analysis
-            await asyncio.sleep(1)  # Replace with actual AI processing
-
-            analysis = {
-                "sentiment": "positive",
-                "topics": ["technology", "business"],
-                "summary": f"Document contains {word_count} words about technology and business.",
-                "confidence": 0.95
-            }
-
-            context.set_variable("analysis", analysis)
-            logger.info(f"Analysis complete: {analysis['sentiment']} sentiment")
-            metrics.gauge("analysis_confidence", analysis["confidence"])
-            metrics.increment("analysis_succeeded")
-
-            return "save_results"
-
-        except Exception as e:
-            logger.error(f"Analysis error: {e}")
-            context.set_variable("error", str(e))
-            metrics.increment("analysis_failed")
-            return "error_handler"
-
-@state(
-    cpu=1.0,
-    memory=512,
-    priority=Priority.NORMAL,
-    max_retries=2,
-    timeout=60.0
-)
-async def save_results(context):
-    """Save processing results to database."""
-    logger.info("Saving results")
-    metrics.increment("save_started")
-
-    try:
-        analysis = context.get_variable("analysis")
-        file_path = context.get_variable("file_path")
-
-        # Simulate database save
-        await asyncio.sleep(0.5)  # Replace with actual database operation
-
-        result_id = f"doc_{hash(file_path)}"
-        results = {
-            "id": result_id,
-            "file_path": file_path,
-            "analysis": analysis,
-            "processed_at": "2024-01-15T10:30:00Z"
-        }
-
-        context.set_variable("results", results)
-        logger.info(f"Results saved with ID: {result_id}")
-        metrics.increment("save_succeeded")
-
-        return "send_notification"
-
-    except Exception as e:
-        logger.error(f"Save error: {e}")
-        context.set_variable("error", str(e))
-        metrics.increment("save_failed")
-        return "error_handler"
-
-@state(
-    cpu=0.5,
-    memory=256,
-    priority=Priority.LOW,
-    max_retries=3,
-    timeout=30.0
-)
-async def send_notification(context):
-    """Send completion notification."""
-    logger.info("Sending notification")
-    metrics.increment("notification_started")
-
-    try:
-        results = context.get_variable("results")
-
-        # Simulate notification
-        await asyncio.sleep(0.2)  # Replace with actual notification service
-
-        notification = {
-            "type": "success",
-            "message": f"Document {results['id']} processed successfully",
-            "timestamp": "2024-01-15T10:35:00Z"
-        }
-
-        context.set_variable("notification", notification)
-        logger.info("Notification sent successfully")
-        metrics.increment("notification_succeeded")
-
-        return None  # End workflow
-
-    except Exception as e:
-        logger.error(f"Notification error: {e}")
-        context.set_variable("error", str(e))
-        metrics.increment("notification_failed")
-        return "error_handler"
-
-@state(
-    cpu=0.5,
-    memory=256,
-    priority=Priority.HIGH,
-    max_retries=1,
-    timeout=30.0
-)
-async def error_handler(context):
-    """Handle errors and cleanup."""
-    logger.error("Handling workflow error")
-    metrics.increment("error_handled")
-
-    try:
-        error = context.get_variable("error")
-        file_path = context.get_variable("file_path", "unknown")
-
-        # Log error details
-        logger.error(f"Workflow failed for {file_path}: {error}")
-
-        # Cleanup resources
-        await cleanup_resources(file_path)
-
-        # Send error notification
-        error_notification = {
-            "type": "error",
-            "message": f"Document processing failed: {error}",
-            "file_path": file_path,
-            "timestamp": "2024-01-15T10:30:00Z"
-        }
-
-        context.set_variable("error_notification", error_notification)
-        logger.info("Error handling completed")
-
-        return None  # End workflow
-
-    except Exception as e:
-        logger.critical(f"Error handler failed: {e}")
-        metrics.increment("error_handler_failed")
-        return None
-
-async def cleanup_resources(file_path):
-    """Cleanup any allocated resources."""
-    logger.info(f"Cleaning up resources for {file_path}")
-    # Add cleanup logic here
-    pass
-
-# Example usage
-async def process_document(file_path: str):
-    """Process a document through the complete workflow."""
-    logger.info(f"Starting document processing: {file_path}")
-
-    try:
-        # Run workflow with error handling
-        context = await processor.run(
-            initial_context={"file_path": file_path}
-        )
-
-        # Save checkpoint periodically
-        save_checkpoint(context, f"checkpoint_{hash(file_path)}.json")
-
-        # Check results
-        if context.has_variable("results"):
-            results = context.get_variable("results")
-            logger.info(f"Processing completed successfully: {results['id']}")
-            return results
-        else:
-            error = context.get_variable("error", "Unknown error")
-            logger.error(f"Processing failed: {error}")
-            return None
-
-    except Exception as e:
-        logger.critical(f"Workflow execution failed: {e}")
-        metrics.increment("workflow_failed")
-        return None
-
-# Production usage
-if __name__ == "__main__":
-    # Process multiple documents
-    documents = [
-        "/path/to/document1.pdf",
-        "/path/to/document2.docx",
-        "/path/to/document3.txt"
-    ]
-
-    async def main():
-        tasks = []
-        for doc in documents:
-            task = asyncio.create_task(process_document(doc))
-            tasks.append(task)
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Summary
-        successful = sum(1 for r in results if r is not None and not isinstance(r, Exception))
-        logger.info(f"Processed {successful}/{len(documents)} documents successfully")
-
-    asyncio.run(main())
-\`\`\`
-
-This example demonstrates:
-- **Production-ready error handling** with retry logic and cleanup
-- **Comprehensive monitoring** with metrics and logging
-- **Resource management** with appropriate CPU/memory allocation
-- **Prioritization** of critical vs. background tasks
-- **Fault tolerance** with checkpointing and recovery
-- **Concurrent processing** of multiple documents
-
-## 📚 Common Patterns and Best Practices
-
-### 1. **Error Handling Pattern**
-
-\`\`\`python
-@state(max_retries=3, timeout=60.0)
-async def robust_state(context):
-    try:
-        # Your business logic
-        result = await risky_operation()
-        context.set_variable("result", result)
-        return "success_state"
-    except SpecificError as e:
-        logger.warning(f"Recoverable error: {e}")
-        context.set_variable("retry_count", context.get_state("retry_count", 0) + 1)
-        return "retry_state"
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        context.set_variable("error", str(e))
-        return "error_handler"
-\`\`\`
-
-### 2. **Data Validation Pattern**
-
-\`\`\`python
-from pydantic import BaseModel, ValidationError
-
-class InputData(BaseModel):
-    user_id: int
-    email: str
-    preferences: dict
-
-@state
-async def validate_input(context):
-    try:
-        raw_data = context.get_variable("raw_input")
-        validated_data = InputData(**raw_data)
-        context.set_validated_data("input", validated_data)
-        return "process_data"
-    except ValidationError as e:
-        context.set_variable("validation_errors", e.errors())
-        return "validation_error"
-\`\`\`
-
-### 3. **Resource Optimization Pattern**
-
-\`\`\`python
-@state(cpu=0.5, memory=256, priority=Priority.LOW)
-async def lightweight_task(context):
-    # Light processing
-    return "next_state"
-
-@state(cpu=4.0, memory=2048, priority=Priority.HIGH)
-async def heavy_task(context):
-    # CPU/memory intensive processing
-    return "next_state"
-\`\`\`
-
-### 4. **Monitoring Pattern**
-
-\`\`\`python
-from puffinflow.observability import MetricsCollector
-
-metrics = MetricsCollector()
-
-@state
-async def monitored_state(context):
-    metrics.increment("state_executions")
-
-    start_time = time.time()
-    try:
-        with metrics.timer("operation_duration"):
-            result = await business_operation()
-
-        metrics.gauge("result_size", len(result))
-        metrics.increment("successful_operations")
-
-        context.set_variable("result", result)
-        return "next_state"
-    except Exception as e:
-        metrics.increment("failed_operations")
-        raise
-\`\`\`
-
-## 🎯 Next Steps
-
-You now know the fundamentals! Here's what to explore next:
-
-1. **[Context and Data →](#docs/context-and-data)** - Deep dive into data management and validation
-2. **[Resource Management →](#docs/resource-management)** - Control CPU, memory, and rate limits
-3. **[Error Handling →](#docs/error-handling)** - Build resilient workflows with retries and circuit breakers
-4. **[Checkpointing →](#docs/checkpointing)** - Save and resume progress for long-running workflows
-5. **[Observability →](#docs/observability)** - Monitor and debug your workflows in production
-6. **[API Reference →](#docs/api-reference)** - Complete reference for all classes and methods
-7. **[Troubleshooting →](#docs/troubleshooting)** - Solve common issues and debug problems
-
-**Pro tip:** Start simple with basic workflows, then gradually add advanced features as your needs grow! 🌱
+You now understand how to build **production-ready, observable workflows** with Puffinflow!
 `.trim();
