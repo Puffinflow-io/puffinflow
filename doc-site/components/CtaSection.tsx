@@ -1,6 +1,6 @@
 
 import React from 'react';
-import CodeWindow from './CodeWindow';
+import CodeBlock from './CodeBlock';
 
 const CtaSection: React.FC = () => {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
@@ -23,7 +23,7 @@ const CtaSection: React.FC = () => {
             Stop debugging production failures. Start building reliable systems.
           </p>
           <div className="mt-8 max-w-sm mx-auto">
-             <CodeWindow code="pip install puffinflow" language="bash" fileName="Terminal" showLineNumbers={false} />
+             <CodeBlock code="pip install puffinflow" language="bash" />
           </div>
           <div className="mt-8 flex justify-center items-center flex-wrap gap-4">
             <a

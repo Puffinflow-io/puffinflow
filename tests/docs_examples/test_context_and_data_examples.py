@@ -18,6 +18,7 @@ class TestContextAndDataExamples:
             user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
             context.set_variable("user", user_data)
             context.set_variable("count", 1250)
+            return "process_data"
 
         async def process_data(context):
             user = context.get_variable("user")
@@ -46,6 +47,7 @@ class TestContextAndDataExamples:
         async def initialize(context):
             context.set_typed_variable("user_count", 100)  # Locked to int
             context.set_typed_variable("avg_score", 85.5)  # Locked to float
+            return "update"
 
         async def update(context):
             context.set_typed_variable("user_count", 150)  # ✅ Works
@@ -84,6 +86,7 @@ class TestContextAndDataExamples:
         async def create_user(context):
             user = User(id=123, name="Alice", email="alice@example.com", age=28)
             context.set_validated_data("user", user)
+            return "update_user"
 
         async def update_user(context):
             user = context.get_validated_data("user", User)
@@ -109,6 +112,7 @@ class TestContextAndDataExamples:
         async def setup(context):
             context.set_constant("api_url", "https://api.example.com")
             context.set_constant("max_retries", 3)
+            return "use_config"
 
         async def use_config(context):
             url = context.get_constant("api_url")
@@ -142,6 +146,7 @@ class TestContextAndDataExamples:
         async def load_secrets(context):
             context.set_secret("api_key", "sk-1234567890abcdef")
             context.set_secret("db_password", "super_secure_password")
+            return "use_secrets"
 
         async def use_secrets(context):
             api_key = context.get_secret("api_key")
@@ -193,6 +198,7 @@ class TestContextAndDataExamples:
         async def state_a(context):
             context.set_state("temp_data", [1, 2, 3])  # Only visible in state_a
             context.set_variable("shared", "visible to all")
+            return "state_b"
 
         async def state_b(context):
             context.set_state("temp_data", {"key": "value"})  # Different from state_a
@@ -221,6 +227,7 @@ class TestContextAndDataExamples:
 
             context.set_output("total_revenue", total)
             context.set_output("order_count", len(orders))
+            return "summary"
 
         async def summary(context):
             revenue = context.get_output("total_revenue")
@@ -343,11 +350,11 @@ class TestContextAndDataExamples:
             # Store complex data structures
             user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
             context.set_variable("user", user_data)
-            
+
             # Store primitive types
             context.set_variable("count", 1250)
             context.set_variable("is_premium", True)
-            
+
             # Store lists and nested objects
             context.set_variable("tags", ["customer", "active", "premium"])
             context.set_variable("metadata", {
@@ -359,12 +366,12 @@ class TestContextAndDataExamples:
             # Retrieve data
             user = context.get_variable("user")
             is_premium = context.get_variable("is_premium")
-            tags = context.get_variable("tags")
-            metadata = context.get_variable("metadata")
-            
+            _tags = context.get_variable("tags")  # Retrieved but not used in processing
+            _metadata = context.get_variable("metadata")  # Retrieved but not used in processing
+
             # Safe access with defaults
             region = context.get_variable("region", default="US")
-            
+
             # Store processing results
             context.set_variable("processing_result", {
                 "user_id": user["id"],
@@ -384,7 +391,7 @@ class TestContextAndDataExamples:
         assert user["name"] == "Alice"
         assert result.get_variable("is_premium") is True
         assert "premium" in result.get_variable("tags")
-        
+
         processing_result = result.get_variable("processing_result")
         assert processing_result["success"] is True
         assert processing_result["region"] == "US"  # Default value used
@@ -396,7 +403,7 @@ class TestContextAndDataExamples:
         async def initialize_enhanced(context):
             # Test multiple type locks
             context.set_typed_variable("user_count", 100)      # int
-            context.set_typed_variable("avg_score", 85.5)      # float  
+            context.set_typed_variable("avg_score", 85.5)      # float
             context.set_typed_variable("is_enabled", True)     # bool
             context.set_typed_variable("status", "active")     # str
 
@@ -405,11 +412,11 @@ class TestContextAndDataExamples:
             context.set_typed_variable("user_count", 150)
             context.set_typed_variable("avg_score", 92.3)
             context.set_typed_variable("is_enabled", False)
-            
+
             # Test type safety
             enabled = context.get_typed_variable("is_enabled")
             count = context.get_typed_variable("user_count")
-            
+
             # Safe arithmetic operations
             if not enabled:  # it's False now
                 new_count = count + 10

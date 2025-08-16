@@ -72,7 +72,8 @@ class RateLimiter:
                     return True
 
             elif self.strategy == RateLimitStrategy.FIXED_WINDOW:
-                # Clean up old requests outside the relevant window to prevent memory leaks
+                # Clean up old requests outside the relevant window to prevent
+                # memory leaks
                 cleanup_cutoff = now - (self.window_size * 2)
                 self._window_requests = {
                     ts: count
@@ -159,7 +160,8 @@ class RateLimiter:
             current_window_start = math.floor(now / self.window_size) * self.window_size
             next_window_start = current_window_start + self.window_size
             time_to_wait = next_window_start - now
-            # Return a non-negative wait time with a small buffer to ensure we are in the next window
+            # Return a non-negative wait time with a small buffer to ensure we are
+            # in the next window
             return max(0, time_to_wait) + 0.001
 
         elif self.strategy == RateLimitStrategy.SLIDING_WINDOW:
@@ -174,7 +176,8 @@ class RateLimiter:
                 time_to_wait = (oldest_request_ts + self.window_size) - now
                 return max(0, time_to_wait) + 0.001
 
-        # For Leaky Bucket or other cases, a small polling delay is the simplest approach
+        # For Leaky Bucket or other cases, a small polling delay is the
+        # simplest approach
         return 0.1
 
     def get_stats(self) -> dict[str, Any]:
@@ -219,7 +222,8 @@ class TokenBucket(RateLimiter):
     async def consume(self, tokens: int = 1) -> bool:
         """Consume multiple tokens at once"""
         async with self._lock:
-            # Update tokens first, but don't use the property to avoid extra regeneration
+            # Update tokens first, but don't use the property to avoid extra
+            # regeneration
             now = time.time()
             time_passed = now - self._last_update
             self._tokens = min(

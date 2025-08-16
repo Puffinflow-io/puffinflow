@@ -20,10 +20,9 @@ from puffinflow import (
     CircuitBreakerConfig,
     Context,
     ResourceLeakDetector,
-    external_service,
-    fault_tolerant,
     state,
 )
+from puffinflow.core.agent.decorators.flexible import external_service, fault_tolerant
 
 
 class ExternalServiceAgent(Agent):
@@ -35,9 +34,9 @@ class ExternalServiceAgent(Agent):
 
         # Configure circuit breaker
         cb_config = CircuitBreakerConfig(
-            failure_threshold=3, recovery_timeout=5.0, expected_exception=Exception
+            failure_threshold=3, recovery_timeout=5.0
         )
-        self.circuit_breaker = CircuitBreaker(cb_config)
+        self._circuit_breaker = CircuitBreaker(cb_config)
 
         # Register all decorated states
         self.add_state("call_external_api", self.call_external_api)
@@ -67,7 +66,8 @@ class ExternalServiceAgent(Agent):
 
         try:
             # Use circuit breaker to protect the call
-            result = await self.circuit_breaker.call(api_call)
+            async with self._circuit_breaker.protect():
+                result = await api_call()
 
             context.set_output("api_response", result)
             context.set_metric("api_call_success", 1)
@@ -124,7 +124,7 @@ class DatabaseAgent(Agent):
         super().__init__(name)
 
         # Configure bulkhead for database operations
-        bulkhead_config = BulkheadConfig(max_concurrent_calls=5, max_wait_duration=10.0)
+        bulkhead_config = BulkheadConfig('db_bulkhead', max_concurrent=5, timeout=10.0)
         self.db_bulkhead = Bulkhead(bulkhead_config)
 
         # Register all decorated states

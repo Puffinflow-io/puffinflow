@@ -7,10 +7,9 @@ interface CodeWindowProps {
   code: string;
   language: string;
   fileName?: string;
-  showLineNumbers?: boolean;
 }
 
-const CodeWindow: React.FC<CodeWindowProps> = ({ code, language, fileName, showLineNumbers = true }) => {
+const CodeWindow: React.FC<CodeWindowProps> = ({ code, language, fileName }) => {
   const [copyText, setCopyText] = useState('Copy');
   const codeRef = useRef<HTMLElement>(null);
 
@@ -20,7 +19,6 @@ const CodeWindow: React.FC<CodeWindowProps> = ({ code, language, fileName, showL
         Prism.highlightElement(codeRef.current);
     }
   }, [code, language]);
-
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -49,24 +47,11 @@ const CodeWindow: React.FC<CodeWindowProps> = ({ code, language, fileName, showL
              </button>
          </div>
 
-         <div className="code-container relative">
-           <div className="flex">
-             {showLineNumbers && (
-               <div className="line-numbers-container select-none text-gray-500 text-right pr-4 border-r border-gray-700 bg-[#1a1d24] font-mono text-sm leading-6">
-                 {code.split('\n').map((_, index) => (
-                   <div key={index} className="line-number" style={{ minWidth: `${Math.max(2, String(code.split('\n').length).length)}ch` }}>
-                     {index + 1}
-                   </div>
-                 ))}
-               </div>
-             )}
-             <pre className={`language-${language} !m-0 !rounded-none flex-1 !pl-4 !bg-transparent`}>
-               <code ref={codeRef} className={`language-${language}`}>
-                  {/* Populated by useEffect */}
-               </code>
-             </pre>
-           </div>
-         </div>
+         <pre className={`line-numbers language-${language} !m-0 !rounded-none`}>
+             <code ref={codeRef} className={`language-${language}`}>
+                {/* Populated by useEffect */}
+             </code>
+         </pre>
      </div>
   );
 };

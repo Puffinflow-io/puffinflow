@@ -35,39 +35,39 @@ health_monitor = Agent("health-monitor")
 async def database_health_check(context):
     """Monitor database connectivity and performance"""
     print("🔍 Database health check...")
-
+    
     start_time = time.time()
-
+    
     try:
         # Simulate database connection test
         await asyncio.sleep(0.5)  # Connection time
-
+        
         # Test basic query performance
         query_start = time.time()
         await asyncio.sleep(0.1)  # Query execution time
         query_time = time.time() - query_start
-
+        
         total_time = time.time() - start_time
-
+        
         health_status = {
             "status": "healthy",
             "connection_time": total_time,
             "query_time": query_time,
             "timestamp": time.time()
         }
-
+        
         # Set thresholds for performance alerts
         if query_time > 0.5:
             health_status["status"] = "degraded"
             health_status["warning"] = "Slow query performance"
-
+        
         if total_time > 2.0:
             health_status["status"] = "unhealthy"
             health_status["error"] = "Connection timeout"
-
+            
         context.set_variable("database_health", health_status)
         print(f"✅ Database: {health_status['status']} ({total_time:.2f}s)")
-
+        
     except Exception as e:
         context.set_variable("database_health", {
             "status": "unhealthy",
@@ -84,39 +84,39 @@ async def database_health_check(context):
 async def external_api_health_check(context):
     """Monitor external API dependencies"""
     print("🌐 External API health check...")
-
+    
     apis_to_check = [
         {"name": "OpenAI API", "endpoint": "api.openai.com"},
         {"name": "Vector Store", "endpoint": "vectorstore.service"},
         {"name": "Auth Service", "endpoint": "auth.service"}
     ]
-
+    
     api_statuses = {}
-
+    
     for api in apis_to_check:
         try:
             start_time = time.time()
-
+            
             # Simulate API health check
             await asyncio.sleep(0.2)  # Network request
-
+            
             response_time = time.time() - start_time
-
+            
             status = {
                 "status": "healthy",
                 "response_time": response_time,
                 "endpoint": api["endpoint"],
                 "timestamp": time.time()
             }
-
+            
             # Performance thresholds
             if response_time > 1.0:
                 status["status"] = "degraded"
                 status["warning"] = "High latency"
-
+            
             api_statuses[api["name"]] = status
             print(f"✅ {api['name']}: {status['status']} ({response_time:.2f}s)")
-
+            
         except Exception as e:
             api_statuses[api["name"]] = {
                 "status": "unhealthy",
@@ -125,7 +125,7 @@ async def external_api_health_check(context):
                 "timestamp": time.time()
             }
             print(f"❌ {api['name']}: unhealthy - {e}")
-
+    
     context.set_variable("api_health", api_statuses)
 
 @state(
@@ -135,7 +135,7 @@ async def external_api_health_check(context):
 async def system_resource_check(context):
     """Monitor system resource utilization"""
     print("📊 System resource check...")
-
+    
     # Simulate resource monitoring
     resources = {
         "cpu_usage": 45.2,      # CPU percentage
@@ -144,10 +144,10 @@ async def system_resource_check(context):
         "network_latency": 12.3, # Network latency in ms
         "active_connections": 150
     }
-
+    
     resource_health = {}
     overall_status = "healthy"
-
+    
     # Define thresholds
     thresholds = {
         "cpu_usage": {"warning": 70, "critical": 90},
@@ -156,11 +156,11 @@ async def system_resource_check(context):
         "network_latency": {"warning": 100, "critical": 500},
         "active_connections": {"warning": 1000, "critical": 1500}
     }
-
+    
     for metric, value in resources.items():
         if metric in thresholds:
             threshold = thresholds[metric]
-
+            
             if value >= threshold["critical"]:
                 status = "critical"
                 overall_status = "critical"
@@ -170,20 +170,20 @@ async def system_resource_check(context):
                     overall_status = "warning"
             else:
                 status = "healthy"
-
+            
             resource_health[metric] = {
                 "value": value,
                 "status": status,
                 "threshold_warning": threshold["warning"],
                 "threshold_critical": threshold["critical"]
             }
-
+            
             status_emoji = {"healthy": "✅", "warning": "⚠️", "critical": "🔴"}[status]
             print(f"{status_emoji} {metric}: {value}")
-
+    
     resource_health["overall_status"] = overall_status
     resource_health["timestamp"] = time.time()
-
+    
     context.set_variable("resource_health", resource_health)
     print(f"📈 Overall resource status: {overall_status}")
 
@@ -191,16 +191,16 @@ async def system_resource_check(context):
 async def aggregate_health_status(context):
     """Aggregate all health checks into overall system status"""
     print("🎯 Aggregating system health...")
-
+    
     db_health = context.get_variable("database_health", {})
     api_health = context.get_variable("api_health", {})
     resource_health = context.get_variable("resource_health", {})
-
+    
     # Calculate overall system health
     critical_issues = []
     warnings = []
     healthy_components = []
-
+    
     # Check database
     if db_health.get("status") == "unhealthy":
         critical_issues.append("Database unavailable")
@@ -208,22 +208,22 @@ async def aggregate_health_status(context):
         warnings.append("Database performance degraded")
     else:
         healthy_components.append("Database")
-
+    
     # Check APIs
-    unhealthy_apis = [name for name, status in api_health.items()
+    unhealthy_apis = [name for name, status in api_health.items() 
                      if status.get("status") == "unhealthy"]
-    degraded_apis = [name for name, status in api_health.items()
+    degraded_apis = [name for name, status in api_health.items() 
                     if status.get("status") == "degraded"]
-
+    
     if unhealthy_apis:
         critical_issues.extend([f"{api} API unavailable" for api in unhealthy_apis])
     if degraded_apis:
         warnings.extend([f"{api} API degraded" for api in degraded_apis])
-
-    healthy_apis = [name for name, status in api_health.items()
+    
+    healthy_apis = [name for name, status in api_health.items() 
                    if status.get("status") == "healthy"]
     healthy_components.extend([f"{api} API" for api in healthy_apis])
-
+    
     # Check resources
     resource_status = resource_health.get("overall_status", "unknown")
     if resource_status == "critical":
@@ -232,7 +232,7 @@ async def aggregate_health_status(context):
         warnings.append("Resource utilization high")
     else:
         healthy_components.append("System resources")
-
+    
     # Determine overall status
     if critical_issues:
         overall_status = "critical"
@@ -243,7 +243,7 @@ async def aggregate_health_status(context):
     else:
         overall_status = "healthy"
         status_emoji = "✅"
-
+    
     health_summary = {
         "overall_status": overall_status,
         "critical_issues": critical_issues,
@@ -256,21 +256,21 @@ async def aggregate_health_status(context):
             "resources": resource_health
         }
     }
-
+    
     context.set_output("system_health", health_summary)
-
+    
     print(f"{status_emoji} Overall System Status: {overall_status.upper()}")
-
+    
     if critical_issues:
         print("🔴 Critical Issues:")
         for issue in critical_issues:
             print(f"   - {issue}")
-
+    
     if warnings:
         print("⚠️ Warnings:")
         for warning in warnings:
             print(f"   - {warning}")
-
+    
     if healthy_components:
         print("✅ Healthy Components:")
         for component in healthy_components:
@@ -307,30 +307,30 @@ degradation_agent = Agent("degradation-manager")
 async def determine_service_level(context):
     """Determine current service level based on system health"""
     print("🎚️ Determining service level...")
-
+    
     system_health = context.get_variable("system_health", {})
     overall_status = system_health.get("overall_status", "unknown")
-
+    
     critical_issues = system_health.get("critical_issues", [])
     warnings = system_health.get("warnings", [])
-
+    
     # Service level decision logic
     if overall_status == "healthy":
         service_level = ServiceLevel.FULL
         print("✅ Service Level: FULL - All features available")
-
+        
     elif overall_status == "degraded" and len(warnings) <= 2:
         service_level = ServiceLevel.REDUCED
         print("⚠️ Service Level: REDUCED - Some features may be slower")
-
+        
     elif overall_status == "degraded" or (critical_issues and len(critical_issues) <= 1):
         service_level = ServiceLevel.MINIMAL
         print("🟡 Service Level: MINIMAL - Core features only")
-
+        
     else:
         service_level = ServiceLevel.EMERGENCY
         print("🔴 Service Level: EMERGENCY - Emergency operations only")
-
+    
     # Store service level configuration
     service_config = {
         "level": service_level.value,
@@ -339,7 +339,7 @@ async def determine_service_level(context):
         "user_message": get_user_message(service_level),
         "timestamp": time.time()
     }
-
+    
     context.set_variable("service_level", service_config)
     context.set_output("current_service_level", service_level.value)
 
@@ -425,15 +425,15 @@ def get_user_message(service_level: ServiceLevel) -> str:
 async def adaptive_feature_routing(context):
     """Route requests based on current service level"""
     print("🔀 Adaptive feature routing...")
-
+    
     service_config = context.get_variable("service_level", {})
     enabled_features = service_config.get("features_enabled", {})
-
+    
     # Simulate incoming feature requests
     requested_features = ["ai_chat", "document_search", "file_uploads", "advanced_analytics"]
-
+    
     routing_plan = []
-
+    
     for feature in requested_features:
         if enabled_features.get(feature, False):
             routing_plan.append({
@@ -461,7 +461,7 @@ async def adaptive_feature_routing(context):
                     "message": "Feature temporarily unavailable"
                 })
                 print(f"❌ {feature}: Unavailable")
-
+    
     context.set_variable("routing_plan", routing_plan)
 
 def get_feature_fallback(feature: str, service_level: str) -> str:
@@ -488,7 +488,7 @@ def get_feature_fallback(feature: str, service_level: str) -> str:
             "emergency": None
         }
     }
-
+    
     return fallbacks.get(feature, {}).get(service_level)
 \`\`\`
 
@@ -518,7 +518,7 @@ consistency_agent = Agent("data-consistency-manager")
 async def create_data_snapshot(context):
     """Create consistent snapshot of critical data"""
     print("📸 Creating data snapshot...")
-
+    
     # Gather critical data
     critical_data = {
         "user_sessions": context.get_variable("active_sessions", {}),
@@ -530,25 +530,25 @@ async def create_data_snapshot(context):
             "feature_flags": context.get_variable("feature_flags", {})
         }
     }
-
+    
     # Create versioned snapshot
     current_version = context.get_variable("data_version", 0) + 1
-
+    
     # Calculate checksum for integrity
     data_json = json.dumps(critical_data, sort_keys=True)
     checksum = str(hash(data_json))
-
+    
     snapshot = DataSnapshot(
         version=current_version,
         data=critical_data,
         timestamp=time.time(),
         checksum=checksum
     )
-
+    
     # Store snapshot
     context.set_variable("data_snapshot", snapshot.__dict__)
     context.set_variable("data_version", current_version)
-
+    
     # Keep history of recent snapshots
     snapshot_history = context.get_variable("snapshot_history", [])
     snapshot_history.append({
@@ -556,27 +556,27 @@ async def create_data_snapshot(context):
         "timestamp": snapshot.timestamp,
         "checksum": checksum
     })
-
+    
     # Keep only last 10 snapshots
     if len(snapshot_history) > 10:
         snapshot_history = snapshot_history[-10:]
-
+    
     context.set_variable("snapshot_history", snapshot_history)
-
+    
     print(f"✅ Snapshot v{current_version} created (checksum: {checksum[:8]})")
 
 @state(max_retries=3, timeout=15.0)
 async def validate_data_integrity(context):
     """Validate data integrity across system components"""
     print("🔍 Validating data integrity...")
-
+    
     snapshot = context.get_variable("data_snapshot", {})
     if not snapshot:
         print("⚠️ No snapshot available for validation")
         return
-
+    
     validation_results = {}
-
+    
     # Validate each data component
     for component, data in snapshot["data"].items():
         try:
@@ -587,7 +587,7 @@ async def validate_data_integrity(context):
                     "valid": valid,
                     "count": len(data) if isinstance(data, dict) else 0
                 }
-
+                
             elif component == "processing_queue":
                 # Validate queue data
                 valid = validate_queue_data(data)
@@ -595,7 +595,7 @@ async def validate_data_integrity(context):
                     "valid": valid,
                     "count": len(data) if isinstance(data, list) else 0
                 }
-
+                
             elif component == "cache_state":
                 # Validate cache consistency
                 valid = validate_cache_data(data)
@@ -603,33 +603,33 @@ async def validate_data_integrity(context):
                     "valid": valid,
                     "count": len(data) if isinstance(data, dict) else 0
                 }
-
+                
             print(f"✅ {component}: {'Valid' if validation_results[component]['valid'] else 'Invalid'}")
-
+            
         except Exception as e:
             validation_results[component] = {
                 "valid": False,
                 "error": str(e)
             }
             print(f"❌ {component}: Validation error - {e}")
-
+    
     # Calculate overall integrity score
     valid_components = sum(1 for result in validation_results.values() if result.get("valid", False))
     total_components = len(validation_results)
     integrity_score = (valid_components / total_components) * 100 if total_components > 0 else 0
-
+    
     integrity_report = {
         "overall_score": integrity_score,
         "validation_results": validation_results,
         "timestamp": time.time(),
         "snapshot_version": snapshot.get("version", 0)
     }
-
+    
     context.set_variable("integrity_report", integrity_report)
     context.set_output("data_integrity_score", integrity_score)
-
+    
     print(f"📊 Overall integrity score: {integrity_score:.1f}%")
-
+    
     if integrity_score < 80:
         print("🔴 WARNING: Data integrity below acceptable threshold")
         context.set_variable("integrity_alert", True)
@@ -638,78 +638,78 @@ def validate_session_data(sessions: dict) -> bool:
     """Validate user session data structure"""
     if not isinstance(sessions, dict):
         return False
-
+    
     for session_id, session_data in sessions.items():
         if not isinstance(session_data, dict):
             return False
-
+        
         required_fields = ["user_id", "created_at", "last_activity"]
         if not all(field in session_data for field in required_fields):
             return False
-
+    
     return True
 
 def validate_queue_data(queue: list) -> bool:
     """Validate processing queue data structure"""
     if not isinstance(queue, list):
         return False
-
+    
     for item in queue:
         if not isinstance(item, dict):
             return False
-
+        
         required_fields = ["id", "type", "created_at", "status"]
         if not all(field in item for field in required_fields):
             return False
-
+    
     return True
 
 def validate_cache_data(cache: dict) -> bool:
     """Validate cache data structure"""
     if not isinstance(cache, dict):
         return False
-
+    
     for key, value in cache.items():
         if not isinstance(value, dict):
             return False
-
+        
         # Check for required cache metadata
         if "data" not in value or "expires_at" not in value:
             return False
-
+    
     return True
 
 @state(timeout=20.0)
 async def recovery_coordination(context):
     """Coordinate recovery actions when integrity issues are detected"""
     print("🔧 Coordinating recovery actions...")
-
+    
     integrity_alert = context.get_variable("integrity_alert", False)
     integrity_report = context.get_variable("integrity_report", {})
-
+    
     if not integrity_alert:
         print("✅ No recovery actions needed")
         return
-
+    
     recovery_actions = []
     validation_results = integrity_report.get("validation_results", {})
-
+    
     for component, result in validation_results.items():
         if not result.get("valid", True):
             action = get_recovery_action(component, result)
             if action:
                 recovery_actions.append(action)
-
+    
     # Execute recovery actions
     for action in recovery_actions:
         try:
             print(f"🔧 Executing: {action['description']}")
             await execute_recovery_action(action, context)
             print(f"✅ Recovery action completed: {action['description']}")
-
+            
         except Exception as e:
             print(f"❌ Recovery action failed: {action['description']} - {e}")
-
+    
     context.set_output("recovery_actions_executed", len(recovery_actions))
 
 def get_recovery_action(component: str, validation_result: dict) -> dict:
@@ -728,7 +728,7 @@ def get_recovery_action(component: str, validation_result: dict) -> dict:
             "description": "Clear corrupted cache and rebuild"
         }
     }
-
+    
     return recovery_actions.get(component)
 
 async def execute_recovery_action(action: dict, context):
@@ -736,11 +736,11 @@ async def execute_recovery_action(action: dict, context):
     if action["type"] == "rebuild":
         # Rebuild data from authoritative source
         await asyncio.sleep(1)  # Simulate rebuild time
-
+        
     elif action["type"] == "requeue":
         # Revalidate and requeue items
         await asyncio.sleep(0.5)  # Simulate requeue time
-
+        
     elif action["type"] == "clear":
         # Clear and rebuild cache
         await asyncio.sleep(0.3)  # Simulate cache clear time
@@ -762,7 +762,7 @@ disaster_recovery_agent = Agent("disaster-recovery")
 async def create_disaster_recovery_backup(context):
     """Create comprehensive backup for disaster recovery"""
     print("💾 Creating disaster recovery backup...")
-
+    
     backup_components = {
         "workflow_state": context.get_all_variables(),
         "configuration": context.get_all_constants(),
@@ -773,12 +773,12 @@ async def create_disaster_recovery_backup(context):
             "version": "1.0"
         }
     }
-
+    
     # Compress backup data
     backup_json = json.dumps(backup_components, indent=2)
     compressed_backup = gzip.compress(backup_json.encode('utf-8'))
     backup_b64 = base64.b64encode(compressed_backup).decode('utf-8')
-
+    
     backup_info = {
         "backup_id": f"backup_{int(time.time())}",
         "size_original": len(backup_json),
@@ -787,10 +787,10 @@ async def create_disaster_recovery_backup(context):
         "data": backup_b64,
         "created_at": time.time()
     }
-
+    
     # Store backup
     context.set_variable("disaster_backup", backup_info)
-
+    
     print(f"✅ Backup created: {backup_info['backup_id']}")
     print(f"   Original size: {backup_info['size_original']} bytes")
     print(f"   Compressed: {backup_info['size_compressed']} bytes ({backup_info['compression_ratio']:.2f} ratio)")
@@ -799,32 +799,32 @@ async def create_disaster_recovery_backup(context):
 async def test_disaster_recovery(context):
     """Test disaster recovery procedures"""
     print("🧪 Testing disaster recovery...")
-
+    
     backup_info = context.get_variable("disaster_backup")
     if not backup_info:
         print("❌ No backup available for testing")
         return
-
+    
     try:
         # Simulate disaster recovery process
         print("   💥 Simulating disaster scenario...")
-
+        
         # Test backup restoration
         backup_data = backup_info["data"]
         compressed_data = base64.b64decode(backup_data.encode('utf-8'))
         restored_json = gzip.decompress(compressed_data).decode('utf-8')
         restored_data = json.loads(restored_json)
-
+        
         # Validate restored data
         required_components = ["workflow_state", "configuration", "metadata"]
         for component in required_components:
             if component not in restored_data:
                 raise Exception(f"Missing component in backup: {component}")
-
+        
         # Test data integrity
         metadata = restored_data["metadata"]
         backup_age = time.time() - metadata["backup_time"]
-
+        
         recovery_test = {
             "status": "success",
             "backup_age_seconds": backup_age,
@@ -832,24 +832,24 @@ async def test_disaster_recovery(context):
             "data_integrity": "valid",
             "recovery_time": 2.5  # Simulated recovery time
         }
-
+        
         context.set_variable("recovery_test", recovery_test)
         context.set_output("disaster_recovery_viable", True)
-
+        
         print(f"✅ Disaster recovery test passed")
         print(f"   Backup age: {backup_age:.1f} seconds")
         print(f"   Estimated recovery time: {recovery_test['recovery_time']} seconds")
-
+        
     except Exception as e:
         recovery_test = {
             "status": "failed",
             "error": str(e),
             "recovery_time": None
         }
-
+        
         context.set_variable("recovery_test", recovery_test)
         context.set_output("disaster_recovery_viable", False)
-
+        
         print(f"❌ Disaster recovery test failed: {e}")
 \`\`\`
 
@@ -876,7 +876,7 @@ reliability_metrics_agent = Agent("reliability-metrics")
 async def calculate_reliability_metrics(context):
     """Calculate key reliability metrics and SLO compliance"""
     print("📈 Calculating reliability metrics...")
-
+    
     # Define SLOs
     slos = [
         SLO("Availability", 99.9, 24),      # 99.9% uptime in 24 hours
@@ -884,7 +884,7 @@ async def calculate_reliability_metrics(context):
         SLO("Error Rate", 99.0, 1),         # 99% success rate in 1 hour
         SLO("Recovery Time", 90.0, 24)      # 90% incidents resolved within SLA
     ]
-
+    
     # Simulate metric collection
     metrics_data = {
         "uptime_percentage": 99.95,
@@ -893,33 +893,33 @@ async def calculate_reliability_metrics(context):
         "incidents_resolved_in_sla": 8,
         "total_incidents": 9
     }
-
+    
     slo_compliance = {}
-
+    
     for slo in slos:
         if slo.name == "Availability":
             slo.current_performance = metrics_data["uptime_percentage"]
-
+            
         elif slo.name == "Response Time":
             # Calculate percentage of requests meeting response time SLA
             slo.current_performance = 96.2  # Simulated
-
+            
         elif slo.name == "Error Rate":
             # Calculate success rate
             slo.current_performance = 100 - metrics_data["error_rate_percentage"]
-
+            
         elif slo.name == "Recovery Time":
             # Calculate incident resolution SLA compliance
             if metrics_data["total_incidents"] > 0:
-                slo.current_performance = (metrics_data["incidents_resolved_in_sla"] /
+                slo.current_performance = (metrics_data["incidents_resolved_in_sla"] / 
                                          metrics_data["total_incidents"]) * 100
             else:
                 slo.current_performance = 100.0
-
+        
         # Determine compliance status
         compliance_status = "compliant" if slo.current_performance >= slo.target_percentage else "non_compliant"
         compliance_margin = slo.current_performance - slo.target_percentage
-
+        
         slo_compliance[slo.name] = {
             "target": slo.target_percentage,
             "current": slo.current_performance,
@@ -927,38 +927,38 @@ async def calculate_reliability_metrics(context):
             "margin": compliance_margin,
             "window_hours": slo.measurement_window_hours
         }
-
+        
         status_emoji = "✅" if compliance_status == "compliant" else "❌"
         print(f"{status_emoji} {slo.name}: {slo.current_performance:.2f}% (target: {slo.target_percentage}%)")
-
+    
     # Calculate overall reliability score
-    overall_score = sum(min(slo["current"], slo["target"]) / slo["target"] * 100
+    overall_score = sum(min(slo["current"], slo["target"]) / slo["target"] * 100 
                        for slo in slo_compliance.values()) / len(slo_compliance)
-
+    
     reliability_report = {
         "overall_reliability_score": overall_score,
         "slo_compliance": slo_compliance,
         "raw_metrics": metrics_data,
         "timestamp": time.time()
     }
-
+    
     context.set_variable("reliability_report", reliability_report)
     context.set_output("overall_reliability_score", overall_score)
-
+    
     print(f"🎯 Overall Reliability Score: {overall_score:.1f}%")
 
 @state
 async def generate_reliability_dashboard(context):
     """Generate comprehensive reliability dashboard"""
     print("📊 Generating reliability dashboard...")
-
+    
     # Gather all reliability data
     system_health = context.get_variable("system_health", {})
     service_level = context.get_variable("service_level", {})
     integrity_report = context.get_variable("integrity_report", {})
     reliability_report = context.get_variable("reliability_report", {})
     recovery_test = context.get_variable("recovery_test", {})
-
+    
     dashboard = {
         "system_status": {
             "overall_health": system_health.get("overall_status", "unknown"),
@@ -981,9 +981,9 @@ async def generate_reliability_dashboard(context):
         },
         "generated_at": time.time()
     }
-
+    
     context.set_output("reliability_dashboard", dashboard)
-
+    
     print("📋 Reliability Dashboard Summary:")
     print(f"   🏥 System Health: {dashboard['system_status']['overall_health']}")
     print(f"   🎚️ Service Level: {dashboard['system_status']['service_level']}")

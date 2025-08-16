@@ -72,10 +72,10 @@ class TestSettings:
     def test_config_class_attributes(self):
         """Test Config class attributes."""
         settings = Settings()
-        config = settings.Config
+        config = settings.model_config
 
-        assert config.env_file == ".env"
-        assert config.case_sensitive is False
+        assert config.get("env_file") == ".env"
+        assert config.get("case_sensitive") is False
 
 
 class TestFeatures:

@@ -10,7 +10,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -61,7 +61,7 @@ class AllocationRequest:
         default_factory=dict
     )  # Additional request metadata
     timestamp: datetime = field(
-        default_factory=datetime.utcnow
+        default_factory=lambda: datetime.now(timezone.utc)
     )  # When request was created
     deadline: Optional[datetime] = None  # Optional deadline for allocation
 
@@ -88,7 +88,7 @@ class AllocationResult:
     )  # Resources actually allocated
     reason: Optional[str] = None  # Reason for failure (if applicable)
     timestamp: datetime = field(
-        default_factory=datetime.utcnow
+        default_factory=lambda: datetime.now(timezone.utc)
     )  # When allocation was processed
     allocation_time: Optional[float] = None  # Time taken to process allocation
 
@@ -447,7 +447,8 @@ class WorstFitAllocator(ResourceAllocator):
     def get_allocation_order(
         self, requests: list[AllocationRequest]
     ) -> list[AllocationRequest]:
-        """Order requests by remaining space (descending) - most remaining space first."""
+        """Order requests by remaining space (descending) - most remaining
+        space first."""
         # Calculate remaining space for each request and sort by it
         requests_with_remaining = [
             (self._calculate_remaining(req.requirements), req) for req in requests
@@ -504,7 +505,8 @@ class PriorityAllocator(ResourceAllocator):
         """Allocate resources based on priority using a priority queue."""
         start_time = time.time()
 
-        # Add request to priority queue (heapq maintains min-heap, so we negate priority)
+        # Add request to priority queue (heapq maintains min-heap, so we negate
+        # priority)
         heapq.heappush(self._priority_queue, request)
 
         # Process queue starting with highest priority requests

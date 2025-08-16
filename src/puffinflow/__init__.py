@@ -2,7 +2,12 @@
 PuffinFlow - Workflow Orchestration Framework.
 """
 
-__version__ = "0.1.dev12+g0f61537.d20250701"
+# Import version from setuptools-scm generated file
+try:
+    from .version import __version__
+except ImportError:
+    __version__ = "unknown"
+
 __author__ = "Mohamed Ahmed"
 __email__ = "mohamed.ahmed.4894@gmail.com"
 
@@ -130,5 +135,6 @@ def get_info() -> dict[str, str]:
         "version": __version__,
         "author": __author__,
         "email": __email__,
-        "description": "Workflow orchestration framework with advanced resource management and observability",
+        "description": "Workflow orchestration framework with advanced resource "
+        "management and observability",
     }

@@ -408,7 +408,8 @@ class AgentResult:
             if output_value is not None:
                 return output_value
 
-            # Check if it's validated data (we can't know the type, so we'll check if the key exists in shared_state)
+            # Check if it's validated data (we can't know the type, so we'll check
+            # if the key exists in shared_state)
             if (
                 hasattr(self._final_context, "shared_state")
                 and key in self._final_context.shared_state
@@ -749,7 +750,7 @@ class Agent:
                 try:
                     if asyncio.iscoroutinefunction(handler):
                         task = asyncio.create_task(handler(old_value, new_value))
-                        # Store task reference to prevent it from being garbage collected
+                        # Store task reference to prevent garbage collection
                         if not hasattr(self, "_background_tasks"):
                             self._background_tasks = set()
                         self._background_tasks.add(task)
@@ -770,7 +771,7 @@ class Agent:
                 try:
                     if asyncio.iscoroutinefunction(handler):
                         task = asyncio.create_task(handler(old_value, new_value))
-                        # Store task reference to prevent it from being garbage collected
+                        # Store task reference to prevent garbage collection
                         if not hasattr(self, "_background_tasks"):
                             self._background_tasks = set()
                         self._background_tasks.add(task)
@@ -1027,8 +1028,24 @@ class Agent:
         **kwargs: Any,
     ) -> None:
         """Add a state to the agent."""
+        # Validate state name
+        if not name or not isinstance(name, str):
+            raise ValueError("State name must be a non-empty string")
+
+        if name in self.states:
+            raise ValueError(f"State '{name}' already exists in agent '{self.name}'")
+
+        # Validate dependencies exist
+        dependencies = dependencies or []
+        for dep in dependencies:
+            if dep not in self.states:
+                raise ValueError(
+                    f"Dependency '{dep}' for state '{name}' does not exist. "
+                    f"Add dependency states before states that depend on them."
+                )
+
         self.states[name] = func
-        self.dependencies[name] = dependencies or []
+        self.dependencies[name] = dependencies
 
         # Extract decorator requirements if available
         decorator_requirements = self._extract_decorator_requirements(func)
@@ -1064,6 +1081,94 @@ class Agent:
         )
 
         self.state_metadata[name] = metadata
+
+    def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
+        """Validate the overall workflow configuration before execution."""
+        if not self.states:
+            raise ValueError("No states defined. Add at least one state before running.")
+
+        # Check for circular dependencies
+        self._check_circular_dependencies()
+
+        # Validate execution mode configuration
+        if execution_mode == ExecutionMode.SEQUENTIAL:
+            self._validate_sequential_mode()
+        elif execution_mode == ExecutionMode.PARALLEL:
+            self._validate_parallel_mode()
+
+    def _check_circular_dependencies(self) -> None:
+        """Check for circular dependencies in the state graph."""
+        # Build reverse graph: for each state, who depends on it
+        dependents = {state: [] for state in self.states}
+        for state, deps in self.dependencies.items():
+            for dep in deps:
+                if dep in dependents:
+                    dependents[dep].append(state)
+
+        def has_cycle(state: str, visited: set, rec_stack: set) -> bool:
+            visited.add(state)
+            rec_stack.add(state)
+
+            # Check all states that depend on this state
+            for dependent in dependents.get(state, []):
+                if dependent not in visited:
+                    if has_cycle(dependent, visited, rec_stack):
+                        return True
+                elif dependent in rec_stack:
+                    return True
+
+            rec_stack.remove(state)
+            return False
+
+        visited = set()
+        for state in self.states:
+            if state not in visited and has_cycle(state, visited, set()):
+                raise ValueError(
+                    "Circular dependency detected in workflow. "
+                    "State dependencies form a cycle, which would prevent execution."
+                )
+
+    def _validate_sequential_mode(self) -> None:
+        """Validate configuration for sequential execution mode."""
+        entry_states = self._find_entry_states()
+
+        if not entry_states:
+            raise ValueError(
+                "Sequential execution mode requires at least one state without dependencies "
+                "to serve as an entry point. All states have dependencies, creating a deadlock."
+            )
+
+        # Check if all states are reachable
+        reachable = set()
+        to_visit = entry_states.copy()
+
+        while to_visit:
+            current = to_visit.pop(0)
+            if current in reachable:
+                continue
+            reachable.add(current)
+
+            # Find states that depend on current state
+            for state, deps in self.dependencies.items():
+                if current in deps and state not in reachable:
+                    to_visit.append(state)
+
+        unreachable = set(self.states.keys()) - reachable
+        if unreachable:
+            logger.warning(
+                f"States {unreachable} are unreachable in sequential mode. "
+                f"They have dependencies that will never be satisfied or lack proper transitions."
+            )
+
+    def _validate_parallel_mode(self) -> None:
+        """Validate configuration for parallel execution mode."""
+        entry_states = self._find_entry_states()
+
+        if not entry_states:
+            logger.warning(
+                "No entry states found for parallel mode. All states have dependencies. "
+                "This may prevent execution unless states return proper transitions."
+            )
 
     def _extract_decorator_requirements(
         self, func: Callable
@@ -1131,7 +1236,8 @@ class Agent:
 
             await self.restore_from_checkpoint(checkpoint)
             logger.info(
-                f"Agent {self.name} restored from checkpoint {checkpoint_id or 'latest'}"
+                f"Agent {self.name} restored from checkpoint "
+                f"{checkpoint_id or 'latest'}"
             )
             return True
 
@@ -1158,7 +1264,8 @@ class Agent:
             return success
         except Exception as e:
             logger.error(
-                f"Failed to delete checkpoint {checkpoint_id} for agent {self.name}: {e}"
+                f"Failed to delete checkpoint {checkpoint_id} for agent "
+                f"{self.name}: {e}"
             )
             return False
 
@@ -1208,7 +1315,8 @@ class Agent:
             return [state_names[0]] if state_names else []
 
     async def _check_dependent_states(self, completed_state: str) -> None:
-        """Check for states that depend on the completed state and queue them if ready."""
+        """Check for states that depend on the completed state and queue them
+        if ready."""
         for state_name, deps in self.dependencies.items():
             # Skip if this state doesn't depend on the completed state
             if completed_state not in deps:
@@ -1718,7 +1826,7 @@ class Agent:
         self,
         timeout: Optional[float] = None,
         initial_context: Optional[dict[str, Any]] = None,
-        execution_mode: ExecutionMode = ExecutionMode.PARALLEL,
+        execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL,
     ) -> AgentResult:
         """
         Run the agent workflow with enhanced result tracking.
@@ -1738,8 +1846,10 @@ class Agent:
                       "outputs": {"key": value}
                   }
             execution_mode: Controls how entry states are determined:
-                - PARALLEL (default): All states without dependencies run as entry points
-                - SEQUENTIAL: Only the first state runs initially, flow controlled by return values
+                - SEQUENTIAL (default): Only the first state runs initially, flow controlled
+                  by return values
+                - PARALLEL: All states without dependencies run as
+                  entry points
         """
         start_time = time.time()
         self.status = AgentStatus.RUNNING
@@ -1748,17 +1858,8 @@ class Agent:
             self.session_start = start_time
 
         try:
-            # Check if we have any states
-            if not self.states:
-                logger.info("No states defined, nothing to run")
-                self.status = AgentStatus.IDLE
-                return AgentResult(
-                    agent_name=self.name,
-                    status=self.status,
-                    start_time=start_time,
-                    end_time=time.time(),
-                    execution_duration=time.time() - start_time,
-                )
+            # Validate workflow configuration before execution
+            self._validate_workflow_configuration(execution_mode)
 
             # Create context with current shared state
             self._create_context(self.shared_state)
@@ -1802,7 +1903,8 @@ class Agent:
                     # States are in queue but none can run, and nothing is running
                     # This indicates a deadlock or unmeetable dependencies
                     logger.warning(
-                        f"Deadlock in agent {self.name}: States in queue but none can run."
+                        f"Deadlock in agent {self.name}: States in queue but none "
+                        f"can run."
                     )
                     self.status = AgentStatus.FAILED
                     break
@@ -1857,7 +1959,8 @@ class Agent:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # Create cleanup task but don't store reference as object is being destroyed
+                    # Create cleanup task but don't store reference as object is
+                    # being destroyed
                     task = loop.create_task(self.cleanup())
                     task.add_done_callback(lambda t: None)  # Prevent warnings
             except Exception:

@@ -53,7 +53,8 @@ class ResourceRequirements:
             try:
                 test_result = self.resource_types & ResourceType.CPU
                 logger.debug(
-                    f"Bitwise test successful: {self.resource_types} & CPU = {test_result}"
+                    f"Bitwise test successful: {self.resource_types} & CPU = "
+                    f"{test_result}"
                 )
             except Exception as e:
                 logger.warning(f"Bitwise operation failed: {e}")
@@ -149,7 +150,8 @@ def safe_check_resource_type(
             return bool(requirements.resource_types.value & resource_type.value)
         except Exception as e2:
             logger.error(
-                f"Fallback comparison also failed: {e2}. Assuming resource is requested."
+                f"Fallback comparison also failed: {e2}. Assuming resource is "
+                f"requested."
             )
             # If all else fails, check if the individual resource amount is > 0
             # Direct attribute access to avoid circular dependency
@@ -170,7 +172,8 @@ def get_resource_amount(
         resource_type: The ResourceType to get the amount for
 
     Returns:
-        The amount of the specified resource type, or 0.0 if the resource type is not enabled
+        The amount of the specified resource type, or 0.0 if the resource type
+        is not enabled
 
     Raises:
         ValueError: If resource_type is not a single resource type

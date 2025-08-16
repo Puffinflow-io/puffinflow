@@ -217,15 +217,15 @@ async def run_team_coordination():
     """Demonstrate team-based coordination."""
     print("=== Team Coordination Example ===")
 
-    # Create a processing team
-    team = create_team("data-processing-team")
+    # Create team members first
+    collector = DataCollector("team-collector")
+    processor_fast = DataProcessor("team-processor-fast", "fast")
+    processor_accurate = DataProcessor("team-processor-accurate", "accurate")
+    aggregator = DataAggregator("team-aggregator")
+    reporter = ReportGenerator("team-reporter")
 
-    # Add team members
-    team.add_agent(DataCollector("team-collector"))
-    team.add_agent(DataProcessor("team-processor-fast", "fast"))
-    team.add_agent(DataProcessor("team-processor-accurate", "accurate"))
-    team.add_agent(DataAggregator("team-aggregator"))
-    team.add_agent(ReportGenerator("team-reporter"))
+    # Create a processing team with agents
+    team = create_team("data-processing-team", [collector, processor_fast, processor_accurate, aggregator, reporter])
 
     # Run the team
     start_time = time.time()

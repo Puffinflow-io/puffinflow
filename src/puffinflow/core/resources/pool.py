@@ -320,7 +320,8 @@ class ResourcePool:
 
                 if required > total_available:
                     raise ResourceOverflowError(
-                        f"Required {resource_type.name} ({required}) exceeds total available ({total_available})"
+                        f"Required {resource_type.name} ({required}) exceeds total "
+                        f"available ({total_available})"
                     )
 
     def _build_resource_dict(
@@ -361,7 +362,8 @@ class ResourcePool:
                     available = self.available.get(resource_type, 0.0)
 
                     logger.debug(
-                        f"Resource {resource_type.name}: required={required}, available={available}"
+                        f"Resource {resource_type.name}: required={required}, "
+                        f"available={available}"
                     )
 
                     if required > available:

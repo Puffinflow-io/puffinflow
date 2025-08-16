@@ -63,14 +63,14 @@ class TestIntroductionExamples:
     async def test_enhanced_research_assistant_workflow(self):
         """Test the enhanced research assistant workflow from introduction."""
         import asyncio
-        
+
         agent = Agent("research-assistant")
 
         @state(cpu=1.0, memory=512, timeout=30.0, max_retries=2)
         async def gather_info(context):
             """Search for information on the web."""
             query = context.get_variable("search_query")
-            
+
             # Simulate web search API call
             await asyncio.sleep(0.01)  # Reduced for faster tests
             results = [
@@ -78,11 +78,11 @@ class TestIntroductionExamples:
                 {"title": f"{query} - Latest Research", "content": f"Recent findings on {query}..."},
                 {"title": f"Industry Analysis: {query}", "content": f"Market analysis of {query}..."}
             ]
-            
+
             # Store results in context for next state
             context.set_variable("raw_results", results)
             context.set_variable("search_count", len(results))
-            
+
             return "analyze_results"
 
         @state(cpu=2.0, memory=1024, timeout=60.0, rate_limit=5)  # Rate limit LLM calls
@@ -90,10 +90,10 @@ class TestIntroductionExamples:
             """Use LLM to analyze the gathered information."""
             results = context.get_variable("raw_results")
             query = context.get_variable("search_query")
-            
+
             # Simulate LLM API call (GPT-4, Claude, etc.)
             await asyncio.sleep(0.01)  # Reduced for faster tests
-            
+
             # Create comprehensive analysis
             topics = [f"topic_{i+1}" for i in range(len(results))]
             analysis = {
@@ -104,10 +104,10 @@ class TestIntroductionExamples:
                 "word_count": sum(len(r["content"]) for r in results),
                 "sources_analyzed": len(results)
             }
-            
+
             # Store analysis results
             context.set_variable("analysis", analysis)
-            
+
             return "generate_report"
 
         @state(cpu=1.0, memory=512, timeout=45.0, max_retries=1)
@@ -116,7 +116,7 @@ class TestIntroductionExamples:
             query = context.get_variable("search_query")
             analysis = context.get_variable("analysis")
             raw_results = context.get_variable("raw_results")
-            
+
             # Create structured report
             report = {
                 "title": f"Research Report: {query.title()}",
@@ -136,11 +136,11 @@ class TestIntroductionExamples:
                     "word_count": analysis["word_count"]
                 }
             }
-            
+
             # Store final report
             context.set_variable("final_report", report)
             context.set_output("research_report", report)  # Mark as workflow output
-            
+
             return None  # End of workflow
 
         # Wire up the workflow
@@ -154,34 +154,34 @@ class TestIntroductionExamples:
         # Verify the workflow completed successfully
         final_report = result.get_variable("final_report")
         research_report = result.get_output("research_report")
-        
+
         assert final_report is not None
         assert research_report is not None
         assert final_report == research_report  # Should be the same object
-        
+
         # Verify report structure
         assert research_report["title"] == "Research Report: Machine Learning Trends 2024"
         assert research_report["query"] == "machine learning trends 2024"
         assert research_report["confidence_score"] == 0.92
         assert research_report["sentiment_analysis"] == "neutral"
         assert len(research_report["key_findings"]) == 3
-        
+
         # Verify methodology
         methodology = research_report["methodology"]
         assert methodology["sources_searched"] == 3
         assert methodology["sources_analyzed"] == 3
         assert methodology["analysis_method"] == "LLM-powered content analysis"
-        
+
         # Verify metadata
         metadata = research_report["metadata"]
         assert metadata["agent_id"] == "research-assistant"
         assert "word_count" in metadata
-        
+
         # Verify intermediate results
         raw_results = result.get_variable("raw_results")
         assert len(raw_results) == 3
         assert "machine learning trends 2024" in raw_results[0]["title"]
-        
+
         analysis = result.get_variable("analysis")
         assert analysis["confidence"] == 0.92
         assert analysis["sources_analyzed"] == 3
@@ -190,11 +190,11 @@ class TestIntroductionExamples:
     async def test_concurrent_research_workflows(self):
         """Test running multiple research workflows concurrently."""
         import asyncio
-        
+
         async def create_research_agent(agent_name: str):
             """Create a research agent with basic workflow."""
             agent = Agent(agent_name)
-            
+
             @state(cpu=1.0, memory=512)
             async def gather_info(context):
                 query = context.get_variable("search_query")
@@ -202,7 +202,7 @@ class TestIntroductionExamples:
                 results = [{"title": f"Article about {query}", "content": "..."}]
                 context.set_variable("raw_results", results)
                 return "analyze_results"
-            
+
             @state(cpu=2.0, memory=1024)
             async def analyze_results(context):
                 results = context.get_variable("raw_results")
@@ -211,7 +211,7 @@ class TestIntroductionExamples:
                 analysis = f"Analysis of {len(results)} articles about {query}"
                 context.set_variable("analysis", analysis)
                 return "generate_report"
-            
+
             @state(cpu=1.0, memory=512)
             async def generate_report(context):
                 analysis = context.get_variable("analysis")
@@ -219,29 +219,29 @@ class TestIntroductionExamples:
                 context.set_variable("final_report", report)
                 context.set_output("research_report", report)
                 return None
-            
+
             agent.add_state("gather_info", gather_info)
             agent.add_state("analyze_results", analyze_results, dependencies=["gather_info"])
             agent.add_state("generate_report", generate_report, dependencies=["analyze_results"])
-            
+
             return agent
-        
+
         async def run_research(query: str, agent_id: str):
             """Run a research workflow."""
             agent = await create_research_agent(f"research-{agent_id}")
             result = await agent.run(initial_context={"search_query": query})
             return result.get_output("research_report")
-        
+
         # Run multiple research queries concurrently
         queries = [
             "machine learning trends 2024",
-            "sustainable energy solutions", 
+            "sustainable energy solutions",
             "remote work productivity tools"
         ]
-        
+
         tasks = [run_research(query, str(i)) for i, query in enumerate(queries)]
         reports = await asyncio.gather(*tasks)
-        
+
         # Verify all reports completed successfully
         assert len(reports) == 3
         for i, report in enumerate(reports):

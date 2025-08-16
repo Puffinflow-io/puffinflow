@@ -7,6 +7,7 @@
     <title>Puffinflow | Production-Grade Orchestration for AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
     <style>
       @keyframes subtle-glow {
         0% { background-position: 0% 50%; }
@@ -367,7 +368,7 @@
         -moz-hyphens: none;
         -ms-hyphens: none;
         hyphens: none;
-        padding: 1rem 1.5rem;
+        padding: 1rem 1.5rem 1rem 3.8em;
         margin: 0;
         overflow: auto;
         border-radius: 0;
@@ -375,6 +376,14 @@
       :not(pre) > code[class*="language-"],
       .code-window-wrapper pre[class*="language-"] {
           background: transparent !important;
+      }
+      .code-window-wrapper .line-numbers .line-numbers-rows {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .line-numbers-rows > span:before {
+        color: #6a737d;
       }
 
       /* Light Mode Overrides for CodeWindow */
@@ -432,6 +441,8 @@
       .docs-view-light .code-window-wrapper .token.regex,
       .docs-view-light .code-window-wrapper .token.important,
       .docs-view-light .code-window-wrapper .token.variable { color: #e90; }
+      .docs-view-light .code-window-wrapper .line-numbers .line-numbers-rows { border-right-color: #e5e7eb; }
+      .docs-view-light .code-window-wrapper .line-numbers-rows > span:before { color: #9ca3af; }
 
     </style>
      <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -453,6 +464,7 @@
     <div id="root"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

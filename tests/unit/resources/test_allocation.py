@@ -3,7 +3,7 @@ Comprehensive unit tests for src.puffinflow.core.resources.allocation module
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -75,7 +75,7 @@ class TestAllocationRequest:
 
     def test_with_deadline(self):
         """Test request with deadline."""
-        deadline = datetime.utcnow() + timedelta(minutes=30)
+        deadline = datetime.now(timezone.utc) + timedelta(minutes=30)
         request = AllocationRequest(
             "test-1", "agent-1", ResourceRequirements(), deadline=deadline
         )
@@ -388,7 +388,7 @@ class TestFirstFitAllocator:
 
     def test_get_allocation_order(self, allocator):
         """Test FIFO ordering."""
-        time1 = datetime.utcnow()
+        time1 = datetime.now(timezone.utc)
         time2 = time1 + timedelta(seconds=1)
         time3 = time1 + timedelta(seconds=2)
 

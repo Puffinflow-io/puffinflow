@@ -1,8 +1,9 @@
 """Test all examples from the error handling documentation."""
 
 import asyncio
+
 import pytest
-import random
+
 from puffinflow import Agent, state
 from puffinflow.core.agent.state import Priority
 
@@ -70,7 +71,7 @@ class TestErrorHandlingExamples:
                     await asyncio.sleep(3.0)  # This will timeout
                 else:
                     await asyncio.sleep(0.1)  # This will succeed
-                
+
                 context.set_variable("rt_result", "success")
             except asyncio.TimeoutError:
                 if attempt >= 4:  # Final attempt
@@ -174,7 +175,7 @@ class TestErrorHandlingExamples:
                     await degraded_mode_operation(context)
 
             result = context.get_variable("service_result")
-            
+
             # Set appropriate status based on which service worked
             if result == "primary_success":
                 context.set_variable("system_status", "fully_operational")

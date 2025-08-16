@@ -261,6 +261,10 @@ class TestStateManagement:
 
     def test_add_state_with_dependencies(self, agent, simple_state_func):
         """Test adding a state with dependencies."""
+        # First add the dependency states
+        agent.add_state("state1", simple_state_func)
+        agent.add_state("state2", simple_state_func)
+
         dependencies = ["state1", "state2"]
         agent.add_state("test_state", simple_state_func, dependencies=dependencies)
 
@@ -314,8 +318,13 @@ class TestStateManagement:
 
     def test_find_entry_states_all_have_dependencies(self, agent, simple_state_func):
         """Test finding entry states when all states have dependencies."""
-        agent.add_state("state1", simple_state_func, dependencies=["state2"])
-        agent.add_state("state2", simple_state_func, dependencies=["state1"])
+        # Add states first, then create dependencies
+        agent.add_state("state1", simple_state_func)
+        agent.add_state("state2", simple_state_func)
+
+        # Manually create circular dependencies
+        agent.dependencies["state1"] = ["state2"]
+        agent.dependencies["state2"] = ["state1"]
 
         entry_states = agent._find_entry_states()
         assert len(entry_states) == 0
@@ -703,11 +712,11 @@ class TestWorkflowExecution:
     @pytest.mark.asyncio
     async def test_run_empty_workflow(self, agent, caplog):
         """Test running workflow with no states."""
-        with caplog.at_level(logging.INFO):
-            await agent.run()
+        result = await agent.run()
 
-        assert "No states defined, nothing to run" in caplog.text
-        assert agent.status == AgentStatus.IDLE
+        assert result.status == AgentStatus.FAILED
+        assert isinstance(result.error, ValueError)
+        assert "No states defined" in str(result.error)
 
     @pytest.mark.asyncio
     async def test_run_single_state_workflow(self, agent, simple_state_func):
@@ -980,17 +989,17 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_empty_state_name(self, agent):
-        """Test adding state with empty name."""
+        """Test adding state with empty name (should raise error)."""
 
         async def simple_state(context):
             return "completed"
 
-        agent.add_state("", simple_state)
-        assert "" in agent.states
+        with pytest.raises(ValueError, match="State name must be a non-empty string"):
+            agent.add_state("", simple_state)
 
     @pytest.mark.asyncio
     async def test_duplicate_state_name(self, agent):
-        """Test adding duplicate state names (should overwrite)."""
+        """Test adding duplicate state names (should raise error)."""
 
         async def state_v1(context):
             return "v1"
@@ -999,9 +1008,13 @@ class TestEdgeCases:
             return "v2"
 
         agent.add_state("duplicate", state_v1)
-        agent.add_state("duplicate", state_v2)
 
-        assert agent.states["duplicate"] is state_v2
+        # Should raise error when trying to add duplicate
+        with pytest.raises(ValueError, match="State 'duplicate' already exists"):
+            agent.add_state("duplicate", state_v2)
+
+        # Original state should still be there
+        assert agent.states["duplicate"] is state_v1
 
     @pytest.mark.asyncio
     async def test_circular_dependencies(self, agent):
@@ -1010,8 +1023,13 @@ class TestEdgeCases:
         async def simple_state(context):
             return "completed"
 
-        agent.add_state("state1", simple_state, dependencies=["state2"])
-        agent.add_state("state2", simple_state, dependencies=["state1"])
+        # Need to add states first, then create circular dependency
+        agent.add_state("state1", simple_state)
+        agent.add_state("state2", simple_state)
+
+        # Now manually create circular dependencies
+        agent.dependencies["state1"] = ["state2"]
+        agent.dependencies["state2"] = ["state1"]
 
         # Neither state should be able to run due to circular dependencies
         assert not await agent._can_run("state1")

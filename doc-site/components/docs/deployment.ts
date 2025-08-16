@@ -6,7 +6,7 @@ This comprehensive guide covers deploying your Puffinflow-based applications to 
 
 ## Prerequisites
 
-- **Python 3.9+** with your Puffinflow application
+- **Python 3.8+** with your Puffinflow application
 - **Docker** for containerization
 - **Git** for version control
 - Access to a cloud platform (AWS, GCP, Azure, or similar)
@@ -74,7 +74,7 @@ python -m uvicorn app.main:app --reload --port 8000
 
 \`\`\`dockerfile
 # Dockerfile
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -206,25 +206,25 @@ class Settings(BaseSettings):
     app_name: str = "Puffinflow Application"
     environment: str = "production"
     debug: bool = False
-
+    
     # Database
     database_url: str
-
+    
     # Redis
     redis_url: str
-
+    
     # Puffinflow
     puffinflow_log_level: str = "INFO"
     puffinflow_metrics_enabled: bool = True
     puffinflow_checkpoint_dir: str = "/app/checkpoints"
-
+    
     # External APIs
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
-
+    
     # Security
     cors_origins: list = ["*"]
-
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -263,7 +263,7 @@ async def detailed_health_check():
         "environment": settings.environment,
         "dependencies": {}
     }
-
+    
     # Check database
     try:
         async with get_db_session() as session:
@@ -272,7 +272,7 @@ async def detailed_health_check():
     except Exception as e:
         health_status["dependencies"]["database"] = "unhealthy"
         health_status["status"] = "unhealthy"
-
+    
     # Check Redis
     try:
         r = redis.from_url(settings.redis_url)
@@ -281,10 +281,10 @@ async def detailed_health_check():
     except Exception as e:
         health_status["dependencies"]["redis"] = "unhealthy"
         health_status["status"] = "unhealthy"
-
+    
     if health_status["status"] == "unhealthy":
         raise HTTPException(status_code=503, detail=health_status)
-
+    
     return health_status
 \`\`\`
 
@@ -338,14 +338,14 @@ async def process_document(
 ):
     """Process document in background"""
     task_id = f"doc_{hash(file_path)}"
-
+    
     # Add background task
     background_tasks.add_task(
         document_processor.process_document,
         file_path,
         task_id
     )
-
+    
     return {
         "task_id": task_id,
         "status": "processing",
@@ -487,11 +487,11 @@ steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/\$PROJECT_ID/puffinflow-app:latest', '.']
-
+  
   # Push to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/\$PROJECT_ID/puffinflow-app:latest']
-
+  
   # Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
@@ -794,7 +794,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    
     services:
       postgres:
         image: postgres:15
@@ -808,7 +808,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
+      
       redis:
         image: redis:7
         options: >-
@@ -818,28 +818,28 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-
+    
     steps:
     - uses: actions/checkout@v3
-
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-
+    
     - name: Run tests
       run: |
         pytest tests/ -v --cov=app --cov-report=xml
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         REDIS_URL: redis://localhost:6379
-
+    
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
@@ -849,21 +849,21 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-
+    
     steps:
     - uses: actions/checkout@v3
-
+    
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: \${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: \${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
-
+    
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
-
+    
     - name: Build, tag, and push image to Amazon ECR
       env:
         ECR_REGISTRY: \${{ steps.login-ecr.outputs.registry }}
@@ -874,7 +874,7 @@ jobs:
         docker push \$ECR_REGISTRY/\$ECR_REPOSITORY:\$IMAGE_TAG
         docker tag \$ECR_REGISTRY/\$ECR_REPOSITORY:\$IMAGE_TAG \$ECR_REGISTRY/\$ECR_REPOSITORY:latest
         docker push \$ECR_REGISTRY/\$ECR_REPOSITORY:latest
-
+    
     - name: Deploy to ECS
       env:
         ECS_CLUSTER: puffinflow-cluster
@@ -984,11 +984,11 @@ async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
-
+    
     # Track metrics
     track_request(request.method, request.url.path)
     track_duration(process_time)
-
+    
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
@@ -1017,32 +1017,32 @@ class JSONFormatter(logging.Formatter):
             'service': settings.app_name,
             'environment': settings.environment,
         }
-
+        
         if hasattr(record, 'workflow_id'):
             log_entry['workflow_id'] = record.workflow_id
-
+        
         if hasattr(record, 'agent_id'):
             log_entry['agent_id'] = record.agent_id
-
+        
         if record.exc_info:
             log_entry['exception'] = self.formatException(record.exc_info)
-
+        
         return json.dumps(log_entry)
 
 def setup_logging():
     """Setup structured logging"""
     root_logger = logging.getLogger()
     root_logger.setLevel(settings.puffinflow_log_level)
-
+    
     # Remove default handlers
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-
+    
     # Add JSON handler
     handler = logging.StreamHandler()
     handler.setFormatter(JSONFormatter())
     root_logger.addHandler(handler)
-
+    
     # Set specific loggers
     logging.getLogger('puffinflow').setLevel(settings.puffinflow_log_level)
     logging.getLogger('uvicorn').setLevel(logging.INFO)
@@ -1117,7 +1117,7 @@ volumes:
 
 \`\`\`dockerfile
 # Use non-root user
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 # Install security updates
 RUN apt-get update && apt-get upgrade -y && \\
@@ -1194,7 +1194,7 @@ async def monitored_state(context):
     with metrics.timer("state_execution_time"):
         # Your state logic
         pass
-
+    
     metrics.gauge("context_size", len(context.variables))
     metrics.increment("state_executions")
 \`\`\`

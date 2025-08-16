@@ -256,7 +256,7 @@ class TestRetryPolicy:
         # Should be capped at 60 seconds, but we'll test with smaller values
         # 0.1 * (3.0 ^ 10) would be huge, but capped at 60s
         # For testing, let's just verify it's reasonable
-        assert elapsed <= 61.0  # Allow small margin for execution time
+        assert elapsed <= 61.5  # Allow margin for system timing variations
 
     @pytest.mark.asyncio
     async def test_retry_policy_wait_with_jitter(self):

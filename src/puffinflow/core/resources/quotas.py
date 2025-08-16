@@ -4,7 +4,7 @@ import asyncio
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional, Union
 
@@ -66,7 +66,7 @@ class QuotaUsage:
     allocations: int = 0
     violations: int = 0
     last_violation: Optional[datetime] = None
-    last_reset: datetime = field(default_factory=datetime.utcnow)
+    last_reset: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # For rate limiting
     request_times: list[float] = field(default_factory=list)
@@ -75,7 +75,7 @@ class QuotaUsage:
         """Reset usage statistics."""
         self.current = 0.0
         self.allocations = 0
-        self.last_reset = datetime.utcnow()
+        self.last_reset = datetime.now(timezone.utc)
         self.request_times.clear()
 
     def add_allocation(self, amount: float) -> None:
@@ -94,7 +94,7 @@ class QuotaUsage:
     def record_violation(self) -> None:
         """Record a quota violation."""
         self.violations += 1
-        self.last_violation = datetime.utcnow()
+        self.last_violation = datetime.now(timezone.utc)
 
 
 @dataclass
@@ -490,8 +490,7 @@ class QuotaEnforcer:
                     scope, scope_id, resource_type, amount
                 ):
                     violations.append(
-                        f"{scope.value} '{scope_id}' exceeds "
-                        f"{resource_type.name} quota"
+                        f"{scope.value} '{scope_id}' exceeds {resource_type.name} quota"
                     )
             except QuotaExceededError as e:
                 violations.append(str(e))
