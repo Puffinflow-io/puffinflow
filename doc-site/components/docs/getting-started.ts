@@ -88,6 +88,59 @@ agent.add_state("hello", my_function)
 await agent.run(initial_state="hello")
 \`\`\`
 
+## Execution Modes
+
+Puffinflow supports two execution modes to control how your workflow runs:
+
+### Sequential Mode (Default)
+States run one after another in a linear flow:
+
+\`\`\`python
+from puffinflow import Agent, ExecutionMode
+
+agent = Agent("sequential-workflow")
+
+@agent.state
+async def step_one(context):
+    context.set_variable("step", 1)
+    return "step_two"  # Explicitly control next step
+
+@agent.state 
+async def step_two(context):
+    context.set_variable("step", 2)
+    # End workflow
+
+await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
+\`\`\`
+
+### Parallel Mode
+All independent states run concurrently for maximum performance:
+
+\`\`\`python
+agent = Agent("parallel-workflow")
+
+@agent.state
+async def fetch_users(context):
+    # This runs in parallel with fetch_orders
+    context.set_variable("users", ["Alice", "Bob"])
+
+@agent.state
+async def fetch_orders(context):
+    # This runs in parallel with fetch_users
+    context.set_variable("orders", [{"id": 1}, {"id": 2}])
+
+@agent.state
+async def generate_report(context, dependencies=["fetch_users", "fetch_orders"]):
+    # Waits for both parallel states to complete
+    users = context.get_variable("users")
+    orders = context.get_variable("orders")
+    context.set_variable("report", f"Report: {len(users)} users, {len(orders)} orders")
+
+await agent.run(execution_mode=ExecutionMode.PARALLEL)
+\`\`\`
+
+Use **sequential mode** for linear workflows and **parallel mode** when you have independent operations that can run concurrently.
+
 ## Next Steps
 
 Now that you have a working workflow, explore:
