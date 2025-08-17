@@ -26,7 +26,7 @@ Semaphores are like tickets for a concert - only a limited number of people can 
 import asyncio
 import time
 import random
-from puffinflow import Agent
+from puffinflow import Agent, state
 from puffinflow.core.coordination.primitives import Semaphore
 
 agent = Agent("semaphore-demo")
@@ -36,7 +36,7 @@ database_pool = Semaphore("database_connections", max_count=3)
 api_rate_limiter = Semaphore("openai_api_calls", max_count=5)
 gpu_resources = Semaphore("gpu_compute", max_count=2)
 
-@agent.state(timeout=30.0)
+@state(timeout=30.0)
 async def database_operation(context):
     """Database operation using built-in semaphore"""
 
@@ -66,7 +66,7 @@ async def database_operation(context):
     print(f"🔓 Task {task_id}: Released database connection")
     return "process_user_data"
 
-@agent.state(timeout=15.0)
+@state(timeout=15.0)
 async def process_user_data(context):
     """Process user data with API rate limiting"""
 
@@ -98,6 +98,10 @@ async def process_user_data(context):
     context.set_output("result", processed_data)
     return None
 
+# Add states to agent
+agent.add_state("database_operation", database_operation)
+agent.add_state("process_user_data", process_user_data)
+
 # Demo built-in semaphores with multiple concurrent tasks
 async def demo_builtin_semaphores():
     print("🎫 Built-in Semaphores Demo\\n")
@@ -121,6 +125,9 @@ async def demo_builtin_semaphores():
 
 if __name__ == "__main__":
     asyncio.run(demo_builtin_semaphores())
+
+# Add API rate limited task state
+agent.add_state("api_rate_limited_task", api_rate_limited_task)
 
 @state(timeout=25.0, max_retries=3)
 async def api_rate_limited_task(context):

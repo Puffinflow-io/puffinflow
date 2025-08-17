@@ -26,14 +26,14 @@ Agent teams are like project teams - each member has a role, and they work toget
 import asyncio
 import time
 import random
-from puffinflow import Agent, AgentTeam, Priority
+from puffinflow import Agent, state, AgentTeam, Priority
 
 # Create specialized agents for different tasks
 data_agent = Agent("data-processor")
 ai_agent = Agent("ai-analyzer")
 results_agent = Agent("results-collector")
 
-@data_agent.state(priority=Priority.HIGH, timeout=30.0)
+@state(priority=Priority.HIGH, timeout=30.0)
 async def process_data(context):
     """Process raw data for analysis"""
 
@@ -55,7 +55,7 @@ async def process_data(context):
 
     return None
 
-@ai_agent.state(priority=Priority.NORMAL, timeout=45.0)
+@state(priority=Priority.NORMAL, timeout=45.0)
 async def analyze_with_ai(context):
     """Perform AI analysis on processed data"""
 
@@ -79,7 +79,7 @@ async def analyze_with_ai(context):
 
     return None
 
-@results_agent.state(priority=Priority.LOW, timeout=20.0)
+@state(priority=Priority.LOW, timeout=20.0)
 async def collect_results(context):
     """Collect and summarize results from other agents"""
 
@@ -99,6 +99,11 @@ async def collect_results(context):
     print(f"✅ Results Agent: Collected results from {summary['total_agents']} agents")
 
     return None
+
+# Add states to each agent
+data_agent.add_state("process_data", process_data)
+ai_agent.add_state("analyze_with_ai", analyze_with_ai)
+results_agent.add_state("collect_results", collect_results)
 
 # Create built-in agent team
 analysis_team = AgentTeam("analysis-team")
@@ -149,7 +154,7 @@ if __name__ == "__main__":
 
 \`\`\`python
 # Team with specialized roles and dependencies
-from puffinflow import AgentTeam, ExecutionStrategy
+from puffinflow import Agent, stateTeam, ExecutionStrategy
 
 # Create team with execution strategy
 advanced_team = AgentTeam("advanced-processing")
@@ -172,7 +177,7 @@ result = await advanced_team.run_with_dependencies(timeout=120.0)
 Agent pools are like having a group of identical workers ready to handle tasks:
 
 \`\`\`python
-from puffinflow import AgentPool, WorkItem
+from puffinflow import Agent, statePool, WorkItem
 
 # Create a worker agent template
 def create_worker_agent():
@@ -272,7 +277,7 @@ if __name__ == "__main__":
 The orchestrator is like a conductor managing complex multi-stage workflows:
 
 \`\`\`python
-from puffinflow import AgentOrchestrator, ExecutionStrategy, StageConfig
+from puffinflow import Agent, stateOrchestrator, ExecutionStrategy, StageConfig
 
 # Create specialized agents for different stages
 ingestion_agent = Agent("data-ingestion")
@@ -280,7 +285,7 @@ validation_agent = Agent("data-validation")
 analysis_agent = Agent("data-analysis")
 reporting_agent = Agent("report-generation")
 
-@ingestion_agent.state(timeout=20.0)
+@state(timeout=20.0)
 async def ingest_data(context):
     """Ingest data from various sources"""
 
@@ -301,7 +306,7 @@ async def ingest_data(context):
 
     return None
 
-@validation_agent.state(timeout=15.0)
+@state(timeout=15.0)
 async def validate_data(context):
     """Validate the ingested data"""
 
@@ -322,7 +327,7 @@ async def validate_data(context):
 
     return None
 
-@analysis_agent.state(timeout=30.0)
+@state(timeout=30.0)
 async def analyze_data(context):
     """Analyze the validated data"""
 
@@ -344,7 +349,7 @@ async def analyze_data(context):
 
     return None
 
-@reporting_agent.state(timeout=10.0)
+@state(timeout=10.0)
 async def generate_report(context):
     """Generate final report"""
 
@@ -458,7 +463,7 @@ if __name__ == "__main__":
 Puffinflow includes a fluent API for intuitive agent coordination:
 
 \`\`\`python
-from puffinflow import Agents, run_parallel_agents, run_sequential_agents
+from puffinflow import Agent, states, run_parallel_agents, run_sequential_agents
 
 # Create agents for fluent coordination
 data_loader = Agent("data-loader")
@@ -602,7 +607,7 @@ event_bus = EventBus("ml-pipeline-communication")
 coordinator_agent = Agent("coordinator")
 worker_agents = [Agent(f"worker-{i}") for i in range(3)]
 
-@coordinator_agent.state(timeout=30.0)
+@state(timeout=30.0)
 async def coordinate_workers(context):
     """Coordinate multiple worker agents"""
 
@@ -818,7 +823,7 @@ fluent_result.group_by_status()
 
 ### AgentTeam
 \`\`\`python
-from puffinflow import AgentTeam
+from puffinflow import Agent, stateTeam
 
 team = AgentTeam("processing-team")
 team.add_agents([agent1, agent2, agent3])
@@ -836,7 +841,7 @@ result = await team.run_with_dependencies()
 
 ### AgentPool
 \`\`\`python
-from puffinflow import AgentPool
+from puffinflow import Agent, statePool
 
 def create_worker():
     return Agent("worker")
@@ -856,7 +861,7 @@ stats = pool.get_pool_stats()
 
 ### AgentOrchestrator
 \`\`\`python
-from puffinflow import AgentOrchestrator, ExecutionStrategy
+from puffinflow import Agent, stateOrchestrator, ExecutionStrategy
 
 orchestrator = AgentOrchestrator("data-pipeline")
 orchestrator.add_agents([agent1, agent2, agent3])
@@ -881,7 +886,7 @@ result = await orchestrator.run()
 
 ### Fluent API
 \`\`\`python
-from puffinflow import Agents, run_parallel_agents
+from puffinflow import Agent, states, run_parallel_agents
 
 # Simple parallel execution
 result = await run_parallel_agents(agent1, agent2, agent3, timeout=30.0)

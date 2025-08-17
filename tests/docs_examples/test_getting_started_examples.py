@@ -13,34 +13,56 @@ class TestGettingStartedExamples:
     """Test examples from getting-started.ts documentation."""
 
     async def test_first_workflow_example(self):
-        """Test the first workflow example."""
-        # 1. Create an agent
-        agent = Agent("my-first-workflow")
+        """Test the first workflow example from documentation."""
+        # Create an agent
+        agent = Agent("data-processor")
 
-        # 2. Define a state (just a regular async function)
-        async def hello_world(context):
-            print("Hello, Puffinflow! 🐧")
-            print(f"Agent name: {agent.name}")
-            context.set_variable("greeting", "Hello from PuffinFlow!")
+        @state
+        async def fetch_data(context):
+            """Step 1: Get some data"""
+            data = {"users": ["Alice", "Bob", "Charlie"]}
+            context.set_variable("raw_data", data)
+            return "process_data"
+
+        @state
+        async def process_data(context):
+            """Step 2: Transform the data"""
+            raw_data = context.get_variable("raw_data")
+            processed = [f"Hello, {user}!" for user in raw_data["users"]]
+            context.set_variable("greetings", processed)
+            return "save_results"
+
+        @state
+        async def save_results(context):
+            """Step 3: Output results"""
+            greetings = context.get_variable("greetings")
+            # Store results for testing instead of printing
+            context.set_variable("final_results", greetings)
+            # Return None to end the workflow
             return None
 
-        # 3. Add state and run it
-        agent.add_state("hello_world", hello_world)
-
+        # Add states to agent
+        agent.add_state("fetch_data", fetch_data)
+        agent.add_state("process_data", process_data)
+        agent.add_state("save_results", save_results)
+        
+        # Run the workflow
         result = await agent.run()
-        assert result.get_variable("greeting") == "Hello from PuffinFlow!"
+        
+        # Verify the workflow worked correctly
+        assert result.get_variable("final_results") == ["Hello, Alice!", "Hello, Bob!", "Hello, Charlie!"]
 
     async def test_plain_function_state(self):
-        """Test plain function state definition."""
-        agent = Agent("plain-function-test")
-
-        async def process_data(context):
-            context.set_variable("result", "Hello!")
+        """Test alternative without decorators from documentation."""
+        async def my_function(context):
+            context.set_variable("message", "Hello from Puffinflow!")
             return None
 
-        agent.add_state("process_data", process_data)
+        agent = Agent("simple-workflow")
+        agent.add_state("hello", my_function)
+
         result = await agent.run()
-        assert result.get_variable("result") == "Hello!"
+        assert result.get_variable("message") == "Hello from Puffinflow!"
 
     async def test_decorated_state(self):
         """Test decorated state definition."""
@@ -103,36 +125,26 @@ class TestGettingStartedExamples:
         assert result.get_variable("revenue_per_user") == 36.0
 
     async def test_sequential_execution(self):
-        """Test sequential execution example."""
+        """Test sequential execution example from documentation."""
         agent = Agent("sequential-workflow")
-        execution_order = []
 
+        @state
         async def step_one(context):
-            execution_order.append("step_one")
-            print("Step 1: Preparing data")
-            context.set_variable("step1_done", True)
+            context.set_variable("step", 1)
+            return "step_two"  # Explicitly control next step
 
+        @state 
         async def step_two(context):
-            execution_order.append("step_two")
-            print("Step 2: Processing data")
-            context.set_variable("step2_done", True)
+            context.set_variable("step", 2)
+            # End workflow
 
-        async def step_three(context):
-            execution_order.append("step_three")
-            print("Step 3: Finalizing")
-            print("All steps complete!")
-
-        # Runs in this exact order: step_one → step_two → step_three
         agent.add_state("step_one", step_one)
-        agent.add_state("step_two", step_two, dependencies=["step_one"])
-        agent.add_state("step_three", step_three, dependencies=["step_two"])
+        agent.add_state("step_two", step_two)
 
-        result = await agent.run()
+        result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
 
-        # Verify execution order and results
-        assert execution_order == ["step_one", "step_two", "step_three"]
-        assert result.get_variable("step1_done") is True
-        assert result.get_variable("step2_done") is True
+        # Verify the workflow worked correctly
+        assert result.get_variable("step") == 2
 
     async def test_static_dependencies(self):
         """Test static dependencies example."""
@@ -232,43 +244,36 @@ class TestGettingStartedExamples:
         assert "premium" in welcome_message
 
     async def test_parallel_execution(self):
-        """Test parallel execution example."""
-        agent = Agent("parallel-test")
+        """Test parallel execution example from documentation."""
+        agent = Agent("parallel-workflow")
 
-        async def process_order(context):
-            print("📦 Processing order...")
-            context.set_variable("order_id", "ORD-123")
+        @state
+        async def fetch_users(context):
+            # This runs in parallel with fetch_orders
+            context.set_variable("users", ["Alice", "Bob"])
 
-            # Run these three states in parallel
-            return ["send_confirmation", "update_inventory", "charge_payment"]
+        @state
+        async def fetch_orders(context):
+            # This runs in parallel with fetch_users
+            context.set_variable("orders", [{"id": 1}, {"id": 2}])
 
-        async def send_confirmation(context):
-            order_id = context.get_variable("order_id")
-            context.set_variable(
-                "confirmation_sent", f"Confirmation sent for {order_id}"
-            )
+        @state
+        async def generate_report(context):
+            # Waits for both parallel states to complete
+            users = context.get_variable("users")
+            orders = context.get_variable("orders")
+            context.set_variable("report", f"Report: {len(users)} users, {len(orders)} orders")
 
-        async def update_inventory(context):
-            context.set_variable("inventory_updated", "Inventory updated")
+        agent.add_state("fetch_users", fetch_users)
+        agent.add_state("fetch_orders", fetch_orders)
+        agent.add_state("generate_report", generate_report, dependencies=["fetch_users", "fetch_orders"])
 
-        async def charge_payment(context):
-            order_id = context.get_variable("order_id")
-            context.set_variable(
-                "payment_processed", f"Payment processed for {order_id}"
-            )
-
-        agent.add_state("process_order", process_order)
-        agent.add_state("send_confirmation", send_confirmation)
-        agent.add_state("update_inventory", update_inventory)
-        agent.add_state("charge_payment", charge_payment)
-
-        result = await agent.run()
+        result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
 
         # Verify all parallel operations completed
-        assert result.get_variable("order_id") == "ORD-123"
-        assert "ORD-123" in result.get_variable("confirmation_sent")
-        assert result.get_variable("inventory_updated") == "Inventory updated"
-        assert "ORD-123" in result.get_variable("payment_processed")
+        assert result.get_variable("users") == ["Alice", "Bob"]
+        assert result.get_variable("orders") == [{"id": 1}, {"id": 2}]
+        assert result.get_variable("report") == "Report: 2 users, 2 orders"
 
     async def test_complete_data_pipeline(self):
         """Test complete data pipeline example."""

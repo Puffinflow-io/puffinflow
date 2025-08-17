@@ -280,8 +280,7 @@ async def aggregate_health_status(context):
 health_monitor.add_state("database_health_check", database_health_check)
 health_monitor.add_state("external_api_health_check", external_api_health_check)
 health_monitor.add_state("system_resource_check", system_resource_check)
-health_monitor.add_state("aggregate_health_status", aggregate_health_status,
-                        dependencies=["database_health_check", "external_api_health_check", "system_resource_check"])
+health_monitor.add_state("aggregate_health_status", aggregate_health_status)
 \`\`\`
 
 ---
@@ -490,6 +489,10 @@ def get_feature_fallback(feature: str, service_level: str) -> str:
     }
 
     return fallbacks.get(feature, {}).get(service_level)
+
+# Add states to degradation agent
+degradation_agent.add_state("determine_service_level", determine_service_level)
+degradation_agent.add_state("adaptive_feature_routing", adaptive_feature_routing)
 \`\`\`
 
 ---
@@ -744,6 +747,11 @@ async def execute_recovery_action(action: dict, context):
     elif action["type"] == "clear":
         # Clear and rebuild cache
         await asyncio.sleep(0.3)  # Simulate cache clear time
+
+# Add states to consistency agent
+consistency_agent.add_state("create_data_snapshot", create_data_snapshot)
+consistency_agent.add_state("validate_data_integrity", validate_data_integrity)
+consistency_agent.add_state("recovery_coordination", recovery_coordination)
 \`\`\`
 
 ---
@@ -851,6 +859,10 @@ async def test_disaster_recovery(context):
         context.set_output("disaster_recovery_viable", False)
 
         print(f"❌ Disaster recovery test failed: {e}")
+
+# Add states to disaster recovery agent
+disaster_recovery_agent.add_state("create_disaster_recovery_backup", create_disaster_recovery_backup)
+disaster_recovery_agent.add_state("test_disaster_recovery", test_disaster_recovery)
 \`\`\`
 
 ---
@@ -990,6 +1002,10 @@ async def generate_reliability_dashboard(context):
     print(f"   📊 Data Integrity: {dashboard['data_integrity']['score']:.1f}%")
     print(f"   🎯 Reliability Score: {dashboard['reliability_metrics']['overall_score']:.1f}%")
     print(f"   💾 Disaster Recovery: {'✅ Ready' if dashboard['disaster_recovery']['recovery_tested'] else '⚠️ Needs Testing'}")
+
+# Add states to reliability metrics agent
+reliability_metrics_agent.add_state("calculate_reliability_metrics", calculate_reliability_metrics)
+reliability_metrics_agent.add_state("generate_reliability_dashboard", generate_reliability_dashboard)
 \`\`\`
 
 ---

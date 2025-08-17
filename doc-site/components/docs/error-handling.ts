@@ -25,12 +25,12 @@ The most common error handling is just trying again when something fails:
 \`\`\`python
 import asyncio
 import random
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("retry-demo")
 
 # Try up to 3 times if this fails
-@agent.state(max_retries=3)
+@state(max_retries=3)
 async def call_flaky_api(context):
     """This API fails sometimes, but usually works if you try again"""
 
@@ -48,9 +48,12 @@ async def call_flaky_api(context):
     context.set_variable("api_data", {"result": "success"})
     return None
 
+# Add state to agent
+agent.add_state("call_flaky_api", call_flaky_api)
+
 # Run it and see the retries in action
 async def main():
-    await agent.run(initial_state="call_flaky_api")
+    await agent.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -61,7 +64,7 @@ if __name__ == "__main__":
 Sometimes operations get stuck. Use timeouts to prevent this:
 
 \`\`\`python
-@agent.state(timeout=10.0, max_retries=2)
+@state(timeout=10.0, max_retries=2)
 async def might_hang(context):
     """
     This will timeout after 10 seconds if it gets stuck
@@ -75,6 +78,9 @@ async def might_hang(context):
 
     print("✅ Operation completed!")
     return None
+
+# Add state to agent
+agent.add_state("might_hang", might_hang)
 \`\`\`
 
 ### When to Use Basic Retries
@@ -91,7 +97,7 @@ async def might_hang(context):
 Instead of retrying immediately, wait longer between each attempt:
 
 \`\`\`python
-from puffinflow.core.agent.base import RetryPolicy
+from puffinflow.core.agent.state import RetryPolicy
 
 # Smart retry policy that waits longer each time
 smart_retry = RetryPolicy(
@@ -101,7 +107,7 @@ smart_retry = RetryPolicy(
     jitter=True            # Add randomness to prevent thundering herd
 )
 
-@agent.state(retry_policy=smart_retry)
+@state
 async def overloaded_service(context):
     """
     This service gets overwhelmed easily, so we:
@@ -121,6 +127,9 @@ async def overloaded_service(context):
     print(f"✅ Service call succeeded!")
     context.set_variable("service_result", {"status": "completed"})
     return None
+
+# Add state with smart retry policy
+agent.add_state("overloaded_service", overloaded_service, retry_policy=smart_retry)
 \`\`\`
 
 ### Different Retry Strategies for Different Problems
@@ -150,26 +159,31 @@ expensive_retry = RetryPolicy(
     jitter=False          # Predictable for cost control
 )
 
-@agent.state(retry_policy=rate_limit_retry)
+@state
 async def rate_limited_api(context):
     """For APIs with strict rate limits"""
     print("🚦 Calling rate-limited API...")
     # Implementation here
     pass
 
-@agent.state(retry_policy=network_retry)
+@state
 async def network_operation(context):
     """For flaky network connections"""
     print("🌐 Network operation...")
     # Implementation here
     pass
 
-@agent.state(retry_policy=expensive_retry)
+@state
 async def expensive_computation(context):
     """For operations that cost money or resources"""
     print("💰 Expensive operation...")
     # Implementation here
     pass
+
+# Add states with different retry policies
+agent.add_state("rate_limited_api", rate_limited_api, retry_policy=rate_limit_retry)
+agent.add_state("network_operation", network_operation, retry_policy=network_retry)
+agent.add_state("expensive_computation", expensive_computation, retry_policy=expensive_retry)
 \`\`\`
 
 ## Part 3: Advanced Protection
@@ -179,7 +193,7 @@ async def expensive_computation(context):
 When a service is completely down, stop trying for a while to let it recover:
 
 \`\`\`python
-@agent.state(max_retries=3, circuit_breaker=True)
+@state
 async def external_service_call(context):
     """
     Circuit breaker will:
@@ -198,6 +212,13 @@ async def external_service_call(context):
     print("✅ Service call succeeded!")
     context.set_variable("external_data", {"response": "success"})
     return None
+
+# Add state with circuit breaker configuration
+from puffinflow.core.reliability import CircuitBreakerConfig
+circuit_config = CircuitBreakerConfig(failure_threshold=3, recovery_timeout=30.0)
+retry_policy = RetryPolicy(max_retries=3)
+agent.add_state("external_service_call", external_service_call, 
+                retry_policy=retry_policy, circuit_breaker_config=circuit_config)
 \`\`\`
 
 ### Bulkhead: Don't Let One Problem Affect Everything
@@ -205,7 +226,7 @@ async def external_service_call(context):
 Isolate different types of operations so problems in one area don't spread:
 
 \`\`\`python
-@agent.state(max_retries=2, bulkhead=True)
+@state
 async def database_query(context):
     """
     Bulkhead ensures that:
@@ -224,7 +245,7 @@ async def database_query(context):
     context.set_variable("query_result", {"rows": 42})
     return None
 
-@agent.state(max_retries=3, bulkhead=True)
+@state
 async def file_processing(context):
     """
     This runs in a separate bulkhead from database operations
@@ -240,6 +261,16 @@ async def file_processing(context):
     print("✅ File processed!")
     context.set_variable("file_result", {"processed": True})
     return None
+
+# Add states with bulkhead configuration
+from puffinflow.core.reliability import BulkheadConfig
+db_bulkhead = BulkheadConfig(name="database", max_concurrent=2)
+file_bulkhead = BulkheadConfig(name="file_ops", max_concurrent=3)
+
+agent.add_state("database_query", database_query, 
+                retry_policy=RetryPolicy(max_retries=2), bulkhead_config=db_bulkhead)
+agent.add_state("file_processing", file_processing, 
+                retry_policy=RetryPolicy(max_retries=3), bulkhead_config=file_bulkhead)
 \`\`\`
 
 ### Dead Letter Queue: Save Failed Operations for Later

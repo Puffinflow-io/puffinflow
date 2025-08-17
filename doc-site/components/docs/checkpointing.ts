@@ -31,18 +31,18 @@ A checkpoint saves everything about your workflow's current state:
 
 \`\`\`python
 import asyncio
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("my-first-checkpoint")
 
-@agent.state
+@state
 async def step_one(context):
     print("🔄 Step 1: Processing data...")
     # Do some work
     context.set_variable("step1_result", "completed")
     return "step_two"
 
-@agent.state
+@state
 async def step_two(context):
     print("🔄 Step 2: Analyzing results...")
     # Do more work
@@ -50,7 +50,7 @@ async def step_two(context):
     context.set_variable("step2_result", f"analyzed {result}")
     return "step_three"
 
-@agent.state
+@state
 async def step_three(context):
     print("🔄 Step 3: Generating report...")
     # Final work
@@ -69,6 +69,11 @@ async def main():
     # Later, if something goes wrong, you can restore:
     # await agent.restore_from_checkpoint(checkpoint)
 
+# Add states to agent
+agent.add_state("step_one", step_one)
+agent.add_state("step_two", step_two)
+agent.add_state("step_three", step_three)
+
 if __name__ == "__main__":
     asyncio.run(main())
 \`\`\`
@@ -77,11 +82,11 @@ if __name__ == "__main__":
 
 \`\`\`python
 import asyncio
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("save-load-demo")
 
-@agent.state
+@state
 async def long_process(context):
     """Simulate a long process that we want to save progress for"""
 
@@ -108,6 +113,9 @@ async def long_process(context):
     print("✅ All items processed!")
     return None
 
+# Add state to agent
+agent.add_state("long_process", long_process)
+
 async def main():
     # Run workflow
     await agent.run(initial_state="long_process")
@@ -122,7 +130,7 @@ Instead of manually saving checkpoints, you can have Puffinflow automatically sa
 
 \`\`\`python
 # Automatically save every 30 seconds
-@agent.state(checkpoint_interval=30.0)
+@state(checkpoint_interval=30.0)
 async def auto_save_task(context):
     """
     This state will automatically create a checkpoint every 30 seconds
@@ -152,28 +160,36 @@ async def auto_save_task(context):
 
     print("✅ Task completed!")
     return None
+
+# Add state to agent
+agent.add_state("auto_save_task", auto_save_task)
 \`\`\`
 
 ### Different Checkpoint Frequencies
 
 \`\`\`python
 # For quick tasks: checkpoint frequently
-@agent.state(checkpoint_interval=10.0)  # Every 10 seconds
+@state(checkpoint_interval=10.0)  # Every 10 seconds
 async def frequent_saves(context):
     """For tasks where you don't want to lose much progress"""
     pass
 
 # For expensive tasks: checkpoint less often
-@agent.state(checkpoint_interval=300.0)  # Every 5 minutes
+@state(checkpoint_interval=300.0)  # Every 5 minutes
 async def expensive_saves(context):
     """For tasks where checkpointing itself is expensive"""
     pass
 
 # For critical tasks: checkpoint very frequently
-@agent.state(checkpoint_interval=5.0)   # Every 5 seconds
+@state(checkpoint_interval=5.0)   # Every 5 seconds
 async def critical_saves(context):
     """For absolutely critical tasks"""
     pass
+
+# Add states to agent
+agent.add_state("frequent_saves", frequent_saves)
+agent.add_state("expensive_saves", expensive_saves)
+agent.add_state("critical_saves", critical_saves)
 \`\`\`
 
 ## Part 3: Smart Recovery
@@ -182,11 +198,11 @@ async def critical_saves(context):
 
 \`\`\`python
 import asyncio
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("smart-recovery")
 
-@agent.state
+@state
 async def data_processor(context):
     """A processor that knows how to resume intelligently"""
 
@@ -230,6 +246,9 @@ async def data_processor(context):
     context.set_output("total_items_processed", batch_info["total_processed"])
     return None
 
+# Add state to agent
+agent.add_state("data_processor", data_processor)
+
 async def main():
     await agent.run(initial_state="data_processor")
 
@@ -242,7 +261,7 @@ if __name__ == "__main__":
 \`\`\`python
 import asyncio
 import signal
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("interruption-handler")
 
@@ -270,7 +289,7 @@ class GracefulCheckpointer:
 
         exit(0)
 
-@agent.state
+@state
 async def resilient_task(context):
     """A task that handles interruptions gracefully"""
 
@@ -312,6 +331,9 @@ async def resilient_task(context):
 
     print("🎉 All work completed!")
     return None
+
+# Add state to agent
+agent.add_state("resilient_task", resilient_task)
 \`\`\`
 
 ## Part 4: File Storage and Persistence
@@ -322,11 +344,11 @@ async def resilient_task(context):
 import json
 import asyncio
 from pathlib import Path
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("file-checkpoints")
 
-@agent.state
+@state
 async def file_processor(context):
     """Process files and save checkpoints to disk"""
 
@@ -359,6 +381,9 @@ async def file_processor(context):
 
     print("✅ All files processed!")
     return None
+
+# Add state to agent
+agent.add_state("file_processor", file_processor)
 
 def save_checkpoint_to_file(checkpoint, filename):
     """Save checkpoint data to a JSON file"""
@@ -411,7 +436,7 @@ if __name__ == "__main__":
 \`\`\`python
 import asyncio
 import boto3
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("cloud-resilient")
 
@@ -456,7 +481,7 @@ class CloudCheckpointManager:
             print(f"❌ Failed to load from S3: {e}")
             return None
 
-@agent.state
+@state
 async def cloud_safe_processing(context):
     """Processing that survives cloud interruptions"""
 
@@ -504,6 +529,9 @@ async def cloud_safe_processing(context):
 
     print("🎉 Cloud processing completed successfully!")
     return None
+
+# Add state to agent
+agent.add_state("cloud_safe_processing", cloud_safe_processing)
 \`\`\`
 
 ## Part 6: Progress Tracking and Monitoring
@@ -513,11 +541,11 @@ async def cloud_safe_processing(context):
 \`\`\`python
 import time
 import asyncio
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("progress-tracker")
 
-@agent.state
+@state
 async def tracked_workflow(context):
     """Workflow with comprehensive progress tracking"""
 
@@ -599,6 +627,9 @@ async def tracked_workflow(context):
 
     return None
 
+# Add state to agent
+agent.add_state("tracked_workflow", tracked_workflow)
+
 async def main():
     await agent.run(initial_state="tracked_workflow")
 
@@ -639,7 +670,7 @@ if __name__ == "__main__":
 
 ### Pattern 1: Simple Progress Saving
 \`\`\`python
-@agent.state
+@state
 async def simple_task(context):
     progress = context.get_variable("progress", 0)
 
@@ -649,11 +680,14 @@ async def simple_task(context):
 
         if (i + 1) % 10 == 0:
             agent.create_checkpoint()
+
+# Add state to agent
+agent.add_state("simple_task", simple_task)
 \`\`\`
 
 ### Pattern 2: Batch Processing
 \`\`\`python
-@agent.state
+@state
 async def batch_processor(context):
     batch_state = context.get_variable("batch_state", {"current": 0, "total": 50})
 
@@ -662,21 +696,27 @@ async def batch_processor(context):
         batch_state["current"] = batch + 1
         context.set_variable("batch_state", batch_state)
         agent.create_checkpoint()  # Checkpoint after each batch
+
+# Add state to agent
+agent.add_state("batch_processor", batch_processor)
 \`\`\`
 
 ### Pattern 3: Automatic Checkpointing
 \`\`\`python
-@agent.state(checkpoint_interval=60.0)  # Every minute
+@state(checkpoint_interval=60.0)  # Every minute
 async def auto_checkpoint_task(context):
     # Long-running work with automatic checkpoints
     for i in range(1000):
         do_work()
         await asyncio.sleep(1)  # Checkpoints happen automatically
+
+# Add state to agent
+agent.add_state("auto_checkpoint_task", auto_checkpoint_task)
 \`\`\`
 
 ### Pattern 4: Phase-Based Checkpointing
 \`\`\`python
-@agent.state
+@state
 async def phase_processor(context):
     phases = ["load", "process", "validate", "save"]
     current_phase = context.get_variable("current_phase", 0)
@@ -685,6 +725,9 @@ async def phase_processor(context):
         execute_phase(phases[phase_idx])
         context.set_variable("current_phase", phase_idx + 1)
         agent.create_checkpoint()  # Checkpoint after each phase
+
+# Add state to agent
+agent.add_state("phase_processor", phase_processor)
 \`\`\`
 
 ## Tips for Beginners

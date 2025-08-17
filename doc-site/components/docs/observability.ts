@@ -25,7 +25,7 @@ Puffinflow automatically collects metrics for all your workflows - just enable i
 \`\`\`python
 import asyncio
 import time
-from puffinflow import Agent
+from puffinflow import Agent, state
 from puffinflow.core.observability.metrics import PrometheusMetricsProvider
 from puffinflow.core.observability.config import MetricsConfig
 
@@ -40,7 +40,7 @@ metrics_provider = PrometheusMetricsProvider(metrics_config)
 agent = Agent("metrics-demo")
 
 # Enable automatic metrics collection
-@agent.state(
+@state(
     metrics_enabled=True,  # This enables Puffinflow's built-in metrics
     custom_metrics=["execution_time", "memory_usage", "api_calls"]
 )
@@ -83,7 +83,7 @@ async def process_user_request(context):
 
     return "generate_metrics_summary"
 
-@agent.state(metrics_enabled=True)
+@state(metrics_enabled=True)
 async def generate_metrics_summary(context):
     """Generate metrics summary using built-in capabilities"""
     print("📊 Built-in metrics are automatically collected!")
@@ -99,6 +99,10 @@ async def generate_metrics_summary(context):
 
     context.set_output("metrics_collected", True)
     return None
+
+# Add states to agent
+agent.add_state("process_user_request", process_user_request)
+agent.add_state("generate_metrics_summary", generate_metrics_summary)
 
 # Run with built-in metrics
 async def demo_builtin_metrics():
@@ -122,7 +126,7 @@ if __name__ == "__main__":
 ## Advanced Metrics Configuration
 
 \`\`\`python
-from puffinflow import Agent, Priority
+from puffinflow import Agent, state, Priority
 
 # Configure agent with comprehensive metrics
 agent = Agent(
@@ -138,7 +142,7 @@ agent = Agent(
     )
 )
 
-@agent.state(
+@state(
     metrics_enabled=True,
     custom_metrics=[
         "execution_time",      # Built-in: time spent in this state
@@ -183,6 +187,9 @@ async def comprehensive_processing(context):
     print(f"✅ Processed {processed} items, made {api_calls} API calls")
     return None
 
+# Add state to agent
+agent.add_state("comprehensive_processing", comprehensive_processing)
+
 # The metrics are automatically exported to Prometheus format
 # Access via agent.get_metrics() or metrics_provider.export_metrics()
 \`\`\`
@@ -207,7 +214,7 @@ tracing_config = TracingConfig(
 tracer = OpenTelemetryTracingProvider(tracing_config)
 agent = Agent("tracing-demo")
 
-@agent.state(
+@state(
     # Enable automatic tracing for this state
     enable_tracing=True,
     trace_sampling_rate=1.0
@@ -243,7 +250,7 @@ async def start_traced_workflow(context):
 
     return "load_user_data"
 
-@agent.state(enable_tracing=True)
+@state(enable_tracing=True)
 async def load_user_data(context):
     """Load user data with automatic tracing"""
 
@@ -279,7 +286,7 @@ async def load_user_data(context):
 
     return "personalize_experience"
 
-@agent.state(enable_tracing=True)
+@state(enable_tracing=True)
 async def personalize_experience(context):
     """Personalize with built-in tracing"""
 
@@ -303,7 +310,7 @@ async def personalize_experience(context):
     print(f"✅ Generated {len(recommendations)} recommendations")
     return None
 
-@agent.state(enable_tracing=True)
+@state(enable_tracing=True)
 async def handle_auth_failure(context):
     """Handle authentication failure with tracing"""
 
@@ -317,6 +324,12 @@ async def handle_auth_failure(context):
         context.set_output("auth_status", "failed")
 
     return None
+
+# Add states to agent
+agent.add_state("start_traced_workflow", start_traced_workflow)
+agent.add_state("load_user_data", load_user_data)
+agent.add_state("personalize_experience", personalize_experience)
+agent.add_state("handle_auth_failure", handle_auth_failure)
 
 # Demo built-in tracing
 async def demo_builtin_tracing():
@@ -370,7 +383,7 @@ logger = StructuredLogger("workflow", config=logging_config)
 
 agent = Agent("logging-demo")
 
-@agent.state(
+@state(
     # Enable automatic logging for this state
     enable_logging=True,
     log_level="INFO"
@@ -429,7 +442,7 @@ async def api_request_with_logging(context):
         )
         raise
 
-@agent.state(enable_logging=True)
+@state(enable_logging=True)
 async def database_operation(context):
     """Database operation with built-in logging"""
 
@@ -482,7 +495,7 @@ async def database_operation(context):
         )
         raise
 
-@agent.state(enable_logging=True, log_level="DEBUG")
+@state(enable_logging=True, log_level="DEBUG")
 async def complete_request(context):
     """Complete request with debug logging"""
 
@@ -505,6 +518,11 @@ async def complete_request(context):
 
     context.set_output("status", "completed")
     return None
+
+# Add states to agent
+agent.add_state("api_request_with_logging", api_request_with_logging)
+agent.add_state("database_operation", database_operation)
+agent.add_state("complete_request", complete_request)
 
 # Demo built-in structured logging
 async def demo_builtin_logging():
@@ -545,7 +563,7 @@ health_config = HealthConfig(
 health_monitor = HealthMonitor(health_config)
 agent = Agent("health-demo")
 
-@agent.state(
+@state(
     # Enable automatic health reporting
     health_check=True,
     health_check_interval=60.0
@@ -578,6 +596,9 @@ async def monitored_operation(context):
 
     context.set_output("health_status", health_status)
     return None
+
+# Add state to agent
+agent.add_state("monitored_operation", monitored_operation)
 
 # Built-in health monitoring runs automatically
 # Access via agent.get_health_status() or health_monitor.get_status()
@@ -633,7 +654,7 @@ dashboard.export("my-workflow-dashboard.json")
 ### Production Observability Setup
 
 \`\`\`python
-from puffinflow import Agent
+from puffinflow import Agent, state
 from puffinflow.core.observability import ObservabilityConfig
 
 # Complete production observability configuration
@@ -676,7 +697,7 @@ agent = Agent(
     observability_config=observability_config
 )
 
-@agent.state(
+@state(
     metrics_enabled=True,
     enable_tracing=True,
     enable_logging=True,
@@ -699,6 +720,9 @@ async def production_ready_state(context):
     context.set_variable("user_satisfaction", 4.8)
 
     return None
+
+# Add state to agent
+agent.add_state("production_ready_state", production_ready_state)
 \`\`\`
 
 ## Quick Reference
@@ -707,19 +731,19 @@ async def production_ready_state(context):
 
 \`\`\`python
 # Metrics
-@agent.state(metrics_enabled=True, custom_metrics=["execution_time"])
+@state(metrics_enabled=True, custom_metrics=["execution_time"])
 
 # Tracing
-@agent.state(enable_tracing=True, trace_sampling_rate=1.0)
+@state(enable_tracing=True, trace_sampling_rate=1.0)
 
 # Logging
-@agent.state(enable_logging=True, log_level="INFO")
+@state(enable_logging=True, log_level="INFO")
 
 # Health monitoring
-@agent.state(health_check=True, health_check_interval=60.0)
+@state(health_check=True, health_check_interval=60.0)
 
 # All features together
-@agent.state(
+@state(
     metrics_enabled=True,
     enable_tracing=True,
     enable_logging=True,

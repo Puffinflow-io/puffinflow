@@ -16,14 +16,14 @@ The Context system is how states share data in Puffinflow. It's a secure, typed 
 Use \`set_variable()\` and \`get_variable()\` for most data sharing:
 
 \`\`\`python
-@agent.state
+@state
 async def fetch_user(context):
     user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
     context.set_variable("user", user_data)
     context.set_variable("timestamp", "2025-01-15T10:30:00Z")
     return "process_user"
 
-@agent.state
+@state
 async def process_user(context):
     user = context.get_variable("user")
     timestamp = context.get_variable("timestamp")
@@ -33,6 +33,10 @@ async def process_user(context):
 
     print(f"Processing {user['name']} at {timestamp}")
     return "send_welcome"
+
+# Add states to agent
+agent.add_state("fetch_user", fetch_user)
+agent.add_state("process_user", process_user)
 \`\`\`
 
 ## Data Types Available
@@ -52,19 +56,23 @@ async def process_user(context):
 Use \`set_typed_variable()\` to enforce consistent data types:
 
 \`\`\`python
-@agent.state
+@state
 async def initialize(context):
     context.set_typed_variable("user_count", 100)      # Locked to int
     context.set_typed_variable("avg_score", 85.5)      # Locked to float
     return "process"
 
-@agent.state
+@state
 async def process(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
 
     count = context.get_typed_variable("user_count")
     print(f"Processing {count} users")
+
+# Add states to agent
+agent.add_state("initialize", initialize)
+agent.add_state("process", process)
 \`\`\`
 
 ## Validated Data with Pydantic
@@ -80,17 +88,21 @@ class User(BaseModel):
     email: EmailStr
     age: int
 
-@agent.state
+@state
 async def create_user(context):
     user = User(id=123, name="Alice", email="alice@example.com", age=28)
     context.set_validated_data("user", user)
     return "update_user"
 
-@agent.state
+@state
 async def update_user(context):
     user = context.get_validated_data("user", User)
     user.age = 29
     context.set_validated_data("user", user)  # Re-validates automatically
+
+# Add states to agent
+agent.add_state("create_user", create_user)
+agent.add_state("update_user", update_user)
 \`\`\`
 
 ## Configuration and Secrets
@@ -98,7 +110,7 @@ async def update_user(context):
 Use \`set_constant()\` for immutable configuration and \`set_secret()\` for sensitive data:
 
 \`\`\`python
-@agent.state
+@state
 async def setup(context):
     # Configuration that won't change
     context.set_constant("api_url", "https://api.example.com")
@@ -109,7 +121,7 @@ async def setup(context):
     context.set_secret("db_password", "super_secure_password")
     return "make_request"
 
-@agent.state
+@state
 async def make_request(context):
     url = context.get_constant("api_url")
     api_key = context.get_secret("api_key")
@@ -118,6 +130,10 @@ async def make_request(context):
     print(f"Making request to {url} with key {api_key[:8]}...")
 
     # context.set_constant("api_url", "different")  # ❌ ValueError: Constants are immutable
+
+# Add states to agent
+agent.add_state("setup", setup)
+agent.add_state("make_request", make_request)
 \`\`\`
 
 ## Cached Data with TTL
@@ -125,19 +141,23 @@ async def make_request(context):
 Use \`set_cached()\` for temporary data that expires:
 
 \`\`\`python
-@agent.state
+@state
 async def cache_session(context):
     context.set_cached("user_session", {"user_id": 123}, ttl=300)  # 5 minutes
     context.set_cached("temp_token", "abc123", ttl=60)            # 1 minute
     return "use_cache"
 
-@agent.state
+@state
 async def use_cache(context):
     session = context.get_cached("user_session", default="EXPIRED")
     if session != "EXPIRED":
         print(f"Active session: {session}")
     else:
         print("Session expired, need to re-authenticate")
+
+# Add states to agent
+agent.add_state("cache_session", cache_session)
+agent.add_state("use_cache", use_cache)
 \`\`\`
 
 ## Workflow Outputs
@@ -145,7 +165,7 @@ async def use_cache(context):
 Use \`set_output()\` to mark final workflow results:
 
 \`\`\`python
-@agent.state
+@state
 async def calculate_metrics(context):
     orders = [{"amount": 100}, {"amount": 200}, {"amount": 150}]
     total = sum(order["amount"] for order in orders)
@@ -156,13 +176,17 @@ async def calculate_metrics(context):
     context.set_output("avg_order_value", total / len(orders))
     return "send_report"
 
-@agent.state
+@state
 async def send_report(context):
     revenue = context.get_output("total_revenue")
     count = context.get_output("order_count")
     avg = context.get_output("avg_order_value")
 
     print(f"Report: \${revenue} revenue from {count} orders (avg: \${avg:.2f})")
+
+# Add states to agent
+agent.add_state("calculate_metrics", calculate_metrics)
+agent.add_state("send_report", send_report)
 \`\`\`
 
 ## Complete Example
@@ -170,7 +194,7 @@ async def send_report(context):
 \`\`\`python
 import asyncio
 from pydantic import BaseModel
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 class Order(BaseModel):
     id: int
@@ -179,13 +203,13 @@ class Order(BaseModel):
 
 agent = Agent("order-processor")
 
-@agent.state
+@state
 async def setup(context):
     context.set_constant("tax_rate", 0.08)
     context.set_secret("payment_key", "pk_123456")
     return "process_order"
 
-@agent.state
+@state
 async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
@@ -198,7 +222,7 @@ async def process_order(context):
     context.set_typed_variable("amount_charged", order.total)
     return "finalize"
 
-@agent.state
+@state
 async def finalize(context):
     order = context.get_validated_data("order", Order)
     amount = context.get_typed_variable("amount_charged")
@@ -209,9 +233,14 @@ async def finalize(context):
 
     print(f"✅ Order {order.id} completed: \${amount}")
 
+# Add states to agent
+agent.add_state("setup", setup)
+agent.add_state("process_order", process_order)
+agent.add_state("finalize", finalize)
+
 # Run the workflow
 async def main():
-    await agent.run(initial_state="setup")
+    await agent.run()
 
 if __name__ == "__main__":
     asyncio.run(main())

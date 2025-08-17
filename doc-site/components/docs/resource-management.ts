@@ -23,18 +23,18 @@ Resource management in Puffinflow is like organizing a busy workspace. You tell 
 The two most important resources are CPU (processing power) and Memory (storage space):
 
 \`\`\`python
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("resource-demo")
 
 # Light task - like reading email
-@agent.state(cpu=0.5, memory=256)
+@state(cpu=0.5, memory=256)
 async def light_task(context):
     print("✅ Quick check completed")
     return "medium_task"
 
 # Medium task - like processing a document
-@agent.state(cpu=2.0, memory=1024)
+@state(cpu=2.0, memory=1024)
 async def medium_task(context):
     # Simulate some data processing
     data = list(range(10000))
@@ -43,12 +43,17 @@ async def medium_task(context):
     return "heavy_task"
 
 # Heavy task - like machine learning
-@agent.state(cpu=4.0, memory=4096)
+@state(cpu=4.0, memory=4096)
 async def heavy_task(context):
     import time
     time.sleep(2)  # Simulate heavy work
     print("💪 Heavy computation finished")
     return None
+
+# Add states to agent
+agent.add_state("light_task", light_task)
+agent.add_state("medium_task", medium_task)
+agent.add_state("heavy_task", heavy_task)
 \`\`\`
 
 ### Understanding the Numbers
@@ -70,16 +75,20 @@ async def heavy_task(context):
 Sometimes tasks might hang forever. Use timeouts to prevent this:
 
 \`\`\`python
-@agent.state(cpu=1.0, memory=512, timeout=30.0)
+@state(cpu=1.0, memory=512, timeout=30.0)
 async def might_get_stuck(context):
     """
     This task has a 30-second timeout
     If it takes longer, Puffinflow will stop it and move on
     """
+    import asyncio
     print("⏱️ Starting task that might take a while...")
     await asyncio.sleep(5)  # This is fine (under 30 seconds)
     print("✅ Task completed in time!")
     return None
+
+# Add state to agent
+agent.add_state("might_get_stuck", might_get_stuck)
 \`\`\`
 
 ### Retries: Making Tasks More Reliable
@@ -87,7 +96,7 @@ async def might_get_stuck(context):
 If a task fails, you can make it try again automatically:
 
 \`\`\`python
-@agent.state(cpu=1.0, memory=512, max_retries=3, timeout=10.0)
+@state(cpu=1.0, memory=512, max_retries=3, timeout=10.0)
 async def might_fail(context):
     """
     This task will retry up to 3 times if it fails
@@ -105,6 +114,9 @@ async def might_fail(context):
     print("✅ Task succeeded!")
     context.set_variable("success", True)
     return None
+
+# Add state to agent
+agent.add_state("might_fail", might_fail)
 \`\`\`
 
 ### Rate Limiting: Being Nice to External Services
@@ -112,18 +124,22 @@ async def might_fail(context):
 When calling APIs or external services, don't overwhelm them:
 
 \`\`\`python
-@agent.state(cpu=0.5, memory=256, rate_limit=2.0)
+@state(cpu=0.5, memory=256, rate_limit=2.0)
 async def call_api(context):
     """
     rate_limit=2.0 means max 2 calls per second
     This prevents you from hitting API rate limits
     """
+    import asyncio
     print("🌐 Calling external API...")
     await asyncio.sleep(0.1)  # Simulate network delay
 
     result = {"data": "API response", "status": "success"}
     context.set_variable("api_result", result)
     return "process_response"
+
+# Add state to agent
+agent.add_state("call_api", call_api)
 \`\`\`
 
 ## Part 2: Specialized Resources

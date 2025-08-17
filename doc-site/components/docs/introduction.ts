@@ -53,30 +53,35 @@ Whether you're orchestrating OpenAI calls, vector-store pipelines, or long-runni
 Here's what a simple AI workflow looks like:
 
 \`\`\`python
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 agent = Agent("research-assistant")
 
-@agent.state
+@state
 async def gather_info(context):
     query = context.get_variable("search_query")
     results = await search_web(query)
     context.set_variable("raw_results", results)
     return "analyze_results"
 
-@agent.state
+@state
 async def analyze_results(context):
     results = context.get_variable("raw_results")
     analysis = await llm.analyze(results)
     context.set_variable("analysis", analysis)
     return "generate_report"
 
-@agent.state
+@state
 async def generate_report(context):
     analysis = context.get_variable("analysis")
     report = await llm.generate_report(analysis)
     context.set_variable("final_report", report)
     return None  # End of workflow
+
+# Add states to agent
+agent.add_state("gather_info", gather_info)
+agent.add_state("analyze_results", analyze_results)
+agent.add_state("generate_report", generate_report)
 
 # Run it
 await agent.run(initial_context={"search_query": "latest AI trends"})

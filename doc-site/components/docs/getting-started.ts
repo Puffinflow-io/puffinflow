@@ -20,19 +20,19 @@ Create a simple 3-step data processing workflow:
 
 \`\`\`python
 import asyncio
-from puffinflow import Agent
+from puffinflow import Agent, state
 
 # Create an agent
 agent = Agent("data-processor")
 
-@agent.state
+@state
 async def fetch_data(context):
     """Step 1: Get some data"""
     data = {"users": ["Alice", "Bob", "Charlie"]}
     context.set_variable("raw_data", data)
     return "process_data"
 
-@agent.state
+@state
 async def process_data(context):
     """Step 2: Transform the data"""
     raw_data = context.get_variable("raw_data")
@@ -40,7 +40,7 @@ async def process_data(context):
     context.set_variable("greetings", processed)
     return "save_results"
 
-@agent.state
+@state
 async def save_results(context):
     """Step 3: Output results"""
     greetings = context.get_variable("greetings")
@@ -50,9 +50,14 @@ async def save_results(context):
     # Return None to end the workflow
     return None
 
+# Add states to agent
+agent.add_state("fetch_data", fetch_data)
+agent.add_state("process_data", process_data)
+agent.add_state("save_results", save_results)
+
 # Run it
 async def main():
-    await agent.run(initial_state="fetch_data")
+    await agent.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -85,7 +90,7 @@ async def my_function(context):
 agent = Agent("simple-workflow")
 agent.add_state("hello", my_function)
 
-await agent.run(initial_state="hello")
+await agent.run()
 \`\`\`
 
 ## Execution Modes
@@ -96,19 +101,22 @@ Puffinflow supports two execution modes to control how your workflow runs:
 States run one after another in a linear flow:
 
 \`\`\`python
-from puffinflow import Agent, ExecutionMode
+from puffinflow import Agent, ExecutionMode, state
 
 agent = Agent("sequential-workflow")
 
-@agent.state
+@state
 async def step_one(context):
     context.set_variable("step", 1)
     return "step_two"  # Explicitly control next step
 
-@agent.state 
+@state 
 async def step_two(context):
     context.set_variable("step", 2)
     # End workflow
+
+agent.add_state("step_one", step_one)
+agent.add_state("step_two", step_two)
 
 await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
 \`\`\`
@@ -119,22 +127,26 @@ All independent states run concurrently for maximum performance:
 \`\`\`python
 agent = Agent("parallel-workflow")
 
-@agent.state
+@state
 async def fetch_users(context):
     # This runs in parallel with fetch_orders
     context.set_variable("users", ["Alice", "Bob"])
 
-@agent.state
+@state
 async def fetch_orders(context):
     # This runs in parallel with fetch_users
     context.set_variable("orders", [{"id": 1}, {"id": 2}])
 
-@agent.state
-async def generate_report(context, dependencies=["fetch_users", "fetch_orders"]):
+@state
+async def generate_report(context):
     # Waits for both parallel states to complete
     users = context.get_variable("users")
     orders = context.get_variable("orders")
     context.set_variable("report", f"Report: {len(users)} users, {len(orders)} orders")
+
+agent.add_state("fetch_users", fetch_users)
+agent.add_state("fetch_orders", fetch_orders)
+agent.add_state("generate_report", generate_report, dependencies=["fetch_users", "fetch_orders"])
 
 await agent.run(execution_mode=ExecutionMode.PARALLEL)
 \`\`\`
