@@ -14,7 +14,7 @@ from pathlib import Path
 import psutil
 
 from puffinflow.core.agent.base import Agent
-from puffinflow.core.observability.alerting import AlertManager
+from puffinflow.core.observability.alerting import WebhookAlerting
 from puffinflow.core.observability.core import ObservabilityCore
 from puffinflow.core.observability.events import EventManager
 from puffinflow.core.observability.metrics import PrometheusMetricsProvider
@@ -137,10 +137,15 @@ class ObservabilityBenchmarks:
     """Observability benchmarks."""
 
     def __init__(self):
-        self.metrics_provider = PrometheusMetricsProvider()
-        self.tracing_provider = OpenTelemetryTracingProvider()
+        from puffinflow.core.observability.config import MetricsConfig, TracingConfig, AlertingConfig
+        metrics_config = MetricsConfig()
+        tracing_config = TracingConfig()
+        alerting_config = AlertingConfig()
+        
+        self.metrics_provider = PrometheusMetricsProvider(metrics_config)
+        self.tracing_provider = OpenTelemetryTracingProvider(tracing_config)
         self.event_manager = EventManager()
-        self.alert_manager = AlertManager()
+        self.alert_manager = WebhookAlerting(alerting_config)
         self.observability_core = ObservabilityCore()
         self.counters = {}
         self.histograms = {}

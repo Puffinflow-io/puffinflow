@@ -10,6 +10,7 @@ The benchmark suite covers the following areas:
 - **Resource Management**: Resource allocation, quotas, and pool management
 - **Coordination & Synchronization**: Primitive operations, barriers, and agent coordination
 - **Observability**: Metrics collection, tracing, and event handling
+- **Framework Comparison**: Performance comparison against other orchestration frameworks (Dagster, Prefect, LangGraph)
 
 ## Quick Start
 
@@ -40,6 +41,9 @@ python benchmarks/benchmark_coordination.py
 
 # Observability benchmarks
 python benchmarks/benchmark_observability.py
+
+# Framework comparison benchmarks
+python benchmarks/benchmark_framework_comparison.py
 ```
 
 ## Benchmark Categories
@@ -98,6 +102,47 @@ Tests monitoring and observability performance:
 - **Integration Tests**: End-to-end observability
 - **Memory Usage**: Observability memory overhead
 
+### Framework Comparison Benchmarks (`benchmark_framework_comparison.py`)
+
+Tests PuffinFlow performance against other popular orchestration frameworks:
+
+- **Simple Task Execution**: Basic task/agent execution across frameworks
+- **Multi-Task Workflows**: Complex workflows with multiple dependent tasks
+- **Coordination Primitives**: Framework coordination and synchronization overhead
+- **Setup/Teardown Performance**: Framework initialization and cleanup costs
+- **Memory Efficiency**: Comparative memory usage across frameworks
+- **Throughput Analysis**: Operations per second comparison
+
+#### Compared Frameworks:
+
+1. **Dagster**: Asset-centric data orchestration platform
+   - Focuses on data asset management and lineage
+   - Strong observability and data validation features
+   - Typically higher setup overhead but robust execution
+
+2. **Prefect**: Modern workflow orchestration with dynamic task generation
+   - Client-side orchestration for better performance
+   - Strong fault tolerance and retry mechanisms
+   - Efficient task scheduling and execution
+
+3. **LangGraph**: Agent workflow orchestration framework
+   - Graph-based agent coordination
+   - Optimized for AI/ML agent workflows
+   - Low-latency state management and coordination
+
+4. **PuffinFlow**: Multi-agent orchestration with reliability patterns
+   - Built-in reliability patterns (circuit breakers, bulkheads)
+   - Resource management and quota enforcement
+   - Comprehensive observability and metrics
+
+#### Benchmark Scenarios:
+
+- **Cold Start Performance**: Framework initialization time
+- **Task Execution Latency**: Time to execute simple computational tasks
+- **Workflow Orchestration**: Multi-step workflow coordination
+- **Resource Utilization**: CPU and memory efficiency
+- **Concurrent Execution**: Performance under parallel workloads
+
 ## Understanding Results
 
 ### Metrics Explained
@@ -122,6 +167,9 @@ Expected performance ranges on modern hardware:
 | Simple Agent Execution | >100 ops/s | <10ms |
 | Complex Agent Execution | >50 ops/s | <20ms |
 | Tracing Operations | >1,000 ops/s | <1ms |
+| Framework Task Execution | >500 ops/s | <2ms |
+| Multi-Task Workflows | >50 ops/s | <20ms |
+| Framework Coordination | >1,000 ops/s | <1ms |
 
 ## Performance Optimization
 
@@ -206,6 +254,46 @@ python benchmarks/compare_results.py \
   --current benchmark_results/current.json \
   --threshold 10  # 10% regression threshold
 ```
+
+## Framework Comparison Setup
+
+The framework comparison benchmarks include mock implementations by default for initial testing. For accurate comparisons, install the actual frameworks:
+
+### Installing Comparison Frameworks
+
+```bash
+# Install Dagster
+pip install dagster dagster-webserver
+
+# Install Prefect
+pip install prefect
+
+# Install LangGraph
+pip install langgraph
+
+# Install all for complete comparison
+pip install dagster dagster-webserver prefect langgraph
+```
+
+### Enabling Real Framework Benchmarks
+
+To enable real framework implementations instead of mocks:
+
+1. Set the environment variable `ENABLE_REAL_FRAMEWORKS=true`
+2. Ensure all frameworks are installed
+3. Run the framework comparison benchmarks
+
+```bash
+export ENABLE_REAL_FRAMEWORKS=true
+python benchmarks/benchmark_framework_comparison.py
+```
+
+### Framework-Specific Considerations
+
+- **Dagster**: Requires asset definitions and may need a temporary database
+- **Prefect**: May require flow registration depending on the test
+- **LangGraph**: Requires proper graph state management setup
+- **Performance Variance**: Real framework performance will vary significantly from mocks
 
 ## Custom Benchmarks
 

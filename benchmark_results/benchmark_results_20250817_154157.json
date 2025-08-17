@@ -1,0 +1,199 @@
+{
+  "system_info": {
+    "platform": "linux",
+    "python_version": "3.12.3 (main, Jun 18 2025, 17:59:45) [GCC 13.3.0]",
+    "cpu_count": 16,
+    "memory_total_gb": 3.68,
+    "cpu_freq_mhz": 2303.998,
+    "timestamp": "2025-08-17T15:41:56.217813"
+  },
+  "benchmark_run": {
+    "timestamp": "2025-08-17T15:41:56.217813",
+    "total_modules": 5,
+    "successful_modules": 1,
+    "failed_modules": 4,
+    "skipped_modules": 0,
+    "total_execution_time_seconds": 0.84
+  },
+  "benchmarks": [
+    {
+      "module": "Core Agent Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.51,
+      "error": "AgentCoordinator.__init__() missing 1 required positional argument: 'agent'",
+      "results": []
+    },
+    {
+      "module": "Resource Management Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.01,
+      "error": "cannot import name 'ResourceQuotas' from 'puffinflow.core.resources.quotas' (/home/administrator/puffinflow-main/src/puffinflow/core/resources/quotas.py)",
+      "results": []
+    },
+    {
+      "module": "Coordination Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.01,
+      "error": "AgentCoordinator.__init__() missing 1 required positional argument: 'agent'",
+      "results": []
+    },
+    {
+      "module": "Observability Benchmarks",
+      "status": "failed",
+      "execution_time_seconds": 0.01,
+      "error": "cannot import name 'AlertManager' from 'puffinflow.core.observability.alerting' (/home/administrator/puffinflow-main/src/puffinflow/core/observability/alerting.py)",
+      "results": []
+    },
+    {
+      "module": "Framework Comparison Benchmarks",
+      "status": "success",
+      "execution_time_seconds": 0.3,
+      "results": [
+        {
+          "name": "Simple Task Execution",
+          "duration_ms": 0.11764458000470768,
+          "memory_mb": 0.0,
+          "cpu_percent": 166.41,
+          "iterations": 50,
+          "min_time": 0.07155899993449566,
+          "max_time": 0.6673569999975371,
+          "median_time": 0.08971450000672121,
+          "std_dev": 0.0894120076429177,
+          "throughput_ops_per_sec": 8500.179098433468
+        },
+        {
+          "name": "Simple Task Execution",
+          "duration_ms": 0.0011840199931612005,
+          "memory_mb": 0.0,
+          "cpu_percent": 0.0,
+          "iterations": 50,
+          "min_time": 0.0009660000159783522,
+          "max_time": 0.0021170000081838225,
+          "median_time": 0.0011454999935267551,
+          "std_dev": 0.00019088402948808396,
+          "throughput_ops_per_sec": 844580.332913224
+        },
+        {
+          "name": "Simple Task Execution",
+          "duration_ms": 0.0011154400044688373,
+          "memory_mb": 0.0,
+          "cpu_percent": 0.0,
+          "iterations": 50,
+          "min_time": 0.000985000042419415,
+          "max_time": 0.0020820000372623326,
+          "median_time": 0.001067500022600143,
+          "std_dev": 0.00017098110150637571,
+          "throughput_ops_per_sec": 896507.2043262346
+        },
+        {
+          "name": "Simple Task Execution",
+          "duration_ms": 0.0011343999926793913,
+          "memory_mb": 0.0,
+          "cpu_percent": -138.726,
+          "iterations": 50,
+          "min_time": 0.0009959999260900076,
+          "max_time": 0.0017430000980311888,
+          "median_time": 0.0010854999459297687,
+          "std_dev": 0.00015215273099857172,
+          "throughput_ops_per_sec": 881523.2779031091
+        },
+        {
+          "name": "Multi-Task Workflow",
+          "duration_ms": 0.14021068001056847,
+          "memory_mb": 0.0,
+          "cpu_percent": -64.652,
+          "iterations": 50,
+          "min_time": 0.09281500001634413,
+          "max_time": 1.2486349999107915,
+          "median_time": 0.10883049998255956,
+          "std_dev": 0.163093576964565,
+          "throughput_ops_per_sec": 7132.124314100925
+        },
+        {
+          "name": "Multi-Task Workflow",
+          "duration_ms": 0.0021910200030106353,
+          "memory_mb": 0.0,
+          "cpu_percent": 0.0,
+          "iterations": 50,
+          "min_time": 0.001042999997480365,
+          "max_time": 0.0476850000268314,
+          "median_time": 0.0011825000569842814,
+          "std_dev": 0.006568492746367893,
+          "throughput_ops_per_sec": 456408.43014939193
+        },
+        {
+          "name": "Multi-Task Workflow",
+          "duration_ms": 0.0011835600002996216,
+          "memory_mb": 0.0,
+          "cpu_percent": 0.0,
+          "iterations": 50,
+          "min_time": 0.0010029999657490407,
+          "max_time": 0.002580999989731936,
+          "median_time": 0.0011184999948454788,
+          "std_dev": 0.0002452783684493435,
+          "throughput_ops_per_sec": 844908.5806776565
+        },
+        {
+          "name": "Multi-Task Workflow",
+          "duration_ms": 0.0014236399988476478,
+          "memory_mb": 0.0,
+          "cpu_percent": -694.204,
+          "iterations": 50,
+          "min_time": 0.0009130000080403988,
+          "max_time": 0.005081000040263461,
+          "median_time": 0.0012819999710700358,
+          "std_dev": 0.0006211560938332272,
+          "throughput_ops_per_sec": 702424.7708756713
+        },
+        {
+          "name": "Coordination Primitives",
+          "duration_ms": 1.2230326200005948,
+          "memory_mb": 0.0,
+          "cpu_percent": 15.376,
+          "iterations": 50,
+          "min_time": 1.1529939999945782,
+          "max_time": 1.3650939999934053,
+          "median_time": 1.2246629999594916,
+          "std_dev": 0.04763112083515261,
+          "throughput_ops_per_sec": 817.6396799616953
+        },
+        {
+          "name": "Coordination Primitives",
+          "duration_ms": 1.0593071400126064,
+          "memory_mb": 0.0,
+          "cpu_percent": 18.018,
+          "iterations": 50,
+          "min_time": 1.034702999959336,
+          "max_time": 1.0953780000590996,
+          "median_time": 1.0558750000200234,
+          "std_dev": 0.01450575115973322,
+          "throughput_ops_per_sec": 944.0132726643374
+        },
+        {
+          "name": "Coordination Primitives",
+          "duration_ms": 1.0627168600035475,
+          "memory_mb": 0.0,
+          "cpu_percent": 0.0,
+          "iterations": 50,
+          "min_time": 1.0301890000619096,
+          "max_time": 1.1468919999515492,
+          "median_time": 1.0587380000401936,
+          "std_dev": 0.024161183490410465,
+          "throughput_ops_per_sec": 940.9844123454124
+        },
+        {
+          "name": "Coordination Primitives",
+          "duration_ms": 0.5727428799968948,
+          "memory_mb": 0.0,
+          "cpu_percent": 60.678,
+          "iterations": 50,
+          "min_time": 0.5453549999856477,
+          "max_time": 0.6429060000527898,
+          "median_time": 0.5684650000148395,
+          "std_dev": 0.01879641071047797,
+          "throughput_ops_per_sec": 1745.9841665869712
+        }
+      ]
+    }
+  ]
+}

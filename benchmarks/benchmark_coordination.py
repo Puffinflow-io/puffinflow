@@ -136,7 +136,10 @@ class CoordinationBenchmarks:
     """Coordination and synchronization benchmarks."""
 
     def __init__(self):
-        self.coordinator = AgentCoordinator()
+        # Create a simple agent for coordination
+        from puffinflow.core.agent.base import Agent
+        simple_agent = Agent(name="coordination_agent")
+        self.coordinator = AgentCoordinator(simple_agent)
         self.primitives: dict[str, CoordinationPrimitive] = {}
         self.barriers: dict[str, Barrier] = {}
         self.agent_pools: dict[str, AgentPool] = {}

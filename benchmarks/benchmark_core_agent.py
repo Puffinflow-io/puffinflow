@@ -129,8 +129,12 @@ class AgentBenchmarks:
 
     def __init__(self):
         self.resource_pool = ResourcePool()
-        self.coordinator = AgentCoordinator()
-        self.metrics_provider = PrometheusMetricsProvider()
+        # Create a simple agent for coordination
+        simple_agent = Agent(name="coordinator_agent")
+        self.coordinator = AgentCoordinator(simple_agent)
+        from puffinflow.core.observability.config import MetricsConfig
+        metrics_config = MetricsConfig()
+        self.metrics_provider = PrometheusMetricsProvider(metrics_config)
 
     def create_simple_agent(self) -> Agent:
         """Create a simple agent for benchmarking."""

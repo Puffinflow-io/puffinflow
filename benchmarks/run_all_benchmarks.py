@@ -111,6 +111,7 @@ class BenchmarkSuite:
             ("Resource Management Benchmarks", "benchmark_resource_management.py"),
             ("Coordination Benchmarks", "benchmark_coordination.py"),
             ("Observability Benchmarks", "benchmark_observability.py"),
+            ("Framework Comparison Benchmarks", "benchmark_framework_comparison.py"),
         ]
 
         print("🚀 Starting PuffinFlow Comprehensive Benchmark Suite")
