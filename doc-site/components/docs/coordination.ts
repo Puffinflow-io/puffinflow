@@ -1,91 +1,126 @@
-export const coordinationMarkdown = `# Coordination & Synchronization
+export const coordinationMarkdown = `# Coordination
 
-Puffinflow provides powerful coordination primitives and patterns for managing complex interactions between workflow components. This guide covers synchronization mechanisms, distributed coordination, dependency management, and communication patterns for building scalable, coordinated AI workflows.
+Coordination is like conducting an orchestra - you need to make sure all the different parts work together at the right time. Puffinflow comes with powerful built-in coordination primitives that make it easy to synchronize multiple workflows, share resources safely, and orchestrate complex operations.
 
-## Coordination Philosophy
+## Why Coordination Matters
 
-**Coordination isn't just about ordering** - it's about:
-- **Synchronizing** parallel operations at key points
-- **Sharing** resources fairly across competing operations
-- **Coordinating** dependencies between distributed components
-- **Communicating** state and results between workflow parts
-- **Orchestrating** complex multi-step processes reliably
+**Without coordination:**
+- Multiple workflows compete for the same resources and crash
+- Operations run in the wrong order and produce incorrect results
+- No way to synchronize parallel operations
+- Resource exhaustion from too many concurrent operations
+- Race conditions and data corruption
 
-## Core Coordination Primitives
+**With Puffinflow's built-in coordination:**
+- Resources are shared safely between workflows
+- Operations happen in the correct order automatically
+- Parallel tasks can synchronize at specific points
+- Resource usage is controlled and optimized
+- Race conditions are eliminated
 
-| Primitive | Purpose | Use Cases |
-|-----------|---------|-----------|
-| **Semaphore** | Limit concurrent access | Connection pools, API rate limits |
-| **Mutex** | Exclusive access | Shared resource protection, critical sections |
-| **Barrier** | Synchronize parallel tasks | Batch processing, coordinated starts |
-| **Lock** | Protect shared state | Data consistency, atomic operations |
-| **Event** | Signal between components | Notifications, triggers |
-| **Queue** | Ordered communication | Task distribution, message passing |
+## Part 1: Built-in Semaphores (Controlling Access)
 
----
-
-## Semaphores: Controlling Concurrent Access
-
-### Resource Pool Management
-
-Use semaphores to control access to limited resources like database connections, API quotas, or processing slots:
+Semaphores are like tickets for a concert - only a limited number of people can get in at once. Puffinflow's built-in semaphores make resource limiting automatic and safe:
 
 \`\`\`python
 import asyncio
 import time
-from typing import Dict, List, Any, Optional
+import random
 from puffinflow import Agent
-from puffinflow import state
 from puffinflow.core.coordination.primitives import Semaphore
 
-# Resource management with semaphores
-database_connections = Semaphore("db_pool", max_count=5)
-api_rate_limiter = Semaphore("openai_api", max_count=10, window_seconds=60)
+agent = Agent("semaphore-demo")
+
+# Create built-in semaphores for different resources
+database_pool = Semaphore("database_connections", max_count=3)
+api_rate_limiter = Semaphore("openai_api_calls", max_count=5) 
 gpu_resources = Semaphore("gpu_compute", max_count=2)
 
-coordination_agent = Agent("semaphore-coordination")
-
-@state(timeout=30.0, max_retries=2)
-async def database_intensive_task(context):
-    """Task requiring database connection from limited pool"""
+@agent.state(timeout=30.0)
+async def database_operation(context):
+    """Database operation using built-in semaphore"""
+    
     task_id = context.get_variable("task_id", "task_001")
     
     print(f"🗄️ Task {task_id}: Requesting database connection...")
     
-    # Acquire database connection from pool
-    try:
-        connection_acquired = await database_connections.acquire(
-            requester_id=task_id,
-            timeout=10.0
-        )
-        
-        if not connection_acquired:
-            print(f"❌ Task {task_id}: Database connection timeout")
-            return
-        
-        print(f"✅ Task {task_id}: Database connection acquired")
+    # Use built-in semaphore to limit database connections
+    async with database_pool:
+        print(f"✅ Task {task_id}: Got database connection!")
+        print(f"   Available connections: {database_pool.available_permits}")
         
         # Simulate database work
         await asyncio.sleep(2.0)
         
-        # Simulate database operations
-        operations = ["SELECT users", "UPDATE profiles", "INSERT logs"]
-        for operation in operations:
-            print(f"   📊 Task {task_id}: {operation}")
-            await asyncio.sleep(0.5)
+        # Simulate database query
+        user_data = {
+            "user_id": task_id,
+            "name": f"User {task_id}",
+            "created_at": time.time()
+        }
         
-        context.set_variable(f"db_result_{task_id}", {
-            "operations_completed": len(operations),
-            "connection_time": 2.0,
-            "status": "success"
-        })
+        context.set_variable("user_data", user_data)
+        print(f"   Task {task_id}: Database operation completed")
+    
+    # Semaphore automatically released here
+    print(f"🔓 Task {task_id}: Released database connection")
+    return "process_user_data"
+
+@agent.state(timeout=15.0)
+async def process_user_data(context):
+    """Process user data with API rate limiting"""
+    
+    task_id = context.get_variable("task_id")
+    user_data = context.get_variable("user_data")
+    
+    print(f"🤖 Task {task_id}: Making AI API call...")
+    
+    # Use built-in semaphore for API rate limiting
+    async with api_rate_limiter:
+        print(f"✅ Task {task_id}: Got API rate limit slot!")
+        print(f"   Available API slots: {api_rate_limiter.available_permits}")
         
-        print(f"✅ Task {task_id}: Database operations completed")
+        # Simulate AI API call
+        await asyncio.sleep(1.5)
         
-    finally:
-        # Always release the connection
-        await database_connections.release(task_id)
-        print(f"🔓 Task {task_id}: Database connection released")
+        # Process the user data
+        processed_data = {
+            "original": user_data,
+            "ai_analysis": f"Analysis for {user_data['name']}",
+            "confidence": random.uniform(0.8, 0.95),
+            "processed_at": time.time()
+        }
+        
+        context.set_variable("processed_data", processed_data)
+        print(f"   Task {task_id}: AI processing completed")
+    
+    print(f"🔓 Task {task_id}: Released API rate limit slot")
+    context.set_output("result", processed_data)
+    return None
+
+# Demo built-in semaphores with multiple concurrent tasks
+async def demo_builtin_semaphores():
+    print("🎫 Built-in Semaphores Demo\\n")
+    
+    # Create many tasks to show semaphore limiting
+    tasks = []
+    for i in range(8):  # 8 tasks, but only 3 can use DB and 5 can use API
+        task = asyncio.create_task(
+            agent.run(
+                initial_state="database_operation",
+                initial_context={"task_id": f"task_{i+1:02d}"}
+            )
+        )
+        tasks.append(task)
+    
+    # Run all tasks concurrently
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    print(f"\\n📊 Results: {len([r for r in results if not isinstance(r, Exception)])} successful")
+    print("Notice how tasks waited for semaphore permits!")
+
+if __name__ == "__main__":
+    asyncio.run(demo_builtin_semaphores())
 
 @state(timeout=25.0, max_retries=3)
 async def api_rate_limited_task(context):

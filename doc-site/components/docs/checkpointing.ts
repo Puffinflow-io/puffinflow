@@ -1,483 +1,709 @@
 
-export const checkpointingMarkdown = `# Checkpoints & State Persistence
+export const checkpointingMarkdown = `# Checkpointing
 
-One of Puffinflow's most powerful features is the ability to save workflow progress and resume execution exactly where you left off. This is essential for long-running workflows, handling system failures, and managing workflows in cloud environments.
+Checkpointing is like creating save points in a video game - you can save your progress and continue from exactly where you left off if something goes wrong. This is incredibly useful for long-running workflows, handling system crashes, and working with cloud services that might restart your machine.
 
 ## Why Use Checkpoints?
 
-Checkpoints solve critical problems in workflow orchestration:
+**Without checkpointing:**
+- If your workflow crashes after 2 hours, you start over from the beginning
+- Cloud interruptions (like spot instances shutting down) waste all your work
+- Long-running tasks are fragile and unreliable
+- You can't afford to use cheaper, interruptible cloud resources
 
-- Failure Recovery: Resume workflows after crashes or interruptions
-- Cloud Resilience: Handle preemptible instances and spot interruptions
-- Long-Running Tasks: Save progress in workflows that take hours or days
-- Cost Optimization: Use cheaper, interruptible cloud resources safely
-- Development: Test and debug workflows without losing progress
+**With Puffinflow's checkpointing:**
+- Resume from exactly where you left off after any interruption
+- Use cheaper cloud resources safely (spot instances, preemptible VMs)
+- Long-running workflows become robust and reliable
+- Save money by recovering gracefully from interruptions
 
-## Overview
+## Part 1: The Basics (Start Here)
 
-| Feature | Use Case | Benefit |
-|---------|----------|---------|
-| **Automatic Checkpoints** | System crashes, interruptions | Zero-loss recovery |
-| **Manual Checkpoints** | Strategic save points | Controlled persistence |
-| **State Restoration** | Resume after failure | Continue from exact point |
-| **Progress Tracking** | Long-running workflows | Monitor completion |
-| **Cloud Resilience** | Preemptible instances | Cost-effective execution |
+### What Gets Saved in a Checkpoint?
 
----
+A checkpoint saves everything about your workflow's current state:
+- Which states have completed
+- All data stored in context variables
+- Current progress and position in the workflow
+- Timestamp of when the checkpoint was created
 
-## Quick Start
-
-### Creating Your First Checkpoint
+### Your First Checkpoint
 
 \`\`\`python
 import asyncio
 from puffinflow import Agent
-from puffinflow import state
 
-agent = Agent("my-workflow")
+agent = Agent("my-first-checkpoint")
 
-@state
-async def process_data(context):
+@agent.state
+async def step_one(context):
+    print("🔄 Step 1: Processing data...")
     # Do some work
-    context.set_variable("processed_items", 100)
-    print("Data processing complete")
+    context.set_variable("step1_result", "completed")
+    return "step_two"
 
-# Add state to agent
-agent.add_state("process_data", process_data)
+@agent.state  
+async def step_two(context):
+    print("🔄 Step 2: Analyzing results...")
+    # Do more work
+    result = context.get_variable("step1_result")
+    context.set_variable("step2_result", f"analyzed {result}")
+    return "step_three"
+
+@agent.state
+async def step_three(context):
+    print("🔄 Step 3: Generating report...")
+    # Final work
+    context.set_variable("final_report", "Report completed!")
+    return None
+
+async def main():
+    # Run the workflow
+    await agent.run(initial_state="step_one")
+    
+    # Create a checkpoint (save point)
+    checkpoint = agent.create_checkpoint()
+    print("✅ Checkpoint created!")
+    print(f"Saved {len(checkpoint.completed_states)} completed states")
+    
+    # Later, if something goes wrong, you can restore:
+    # await agent.restore_from_checkpoint(checkpoint)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+\`\`\`
+
+### Saving and Loading Progress
+
+\`\`\`python
+import asyncio
+from puffinflow import Agent
+
+agent = Agent("save-load-demo")
+
+@agent.state
+async def long_process(context):
+    """Simulate a long process that we want to save progress for"""
+    
+    # Check if we're resuming from a saved state
+    progress = context.get_variable("progress", {"completed": 0, "total": 10})
+    
+    print(f"Starting from item {progress['completed']}")
+    
+    for i in range(progress["completed"], progress["total"]):
+        print(f"📊 Processing item {i + 1}/{progress['total']}")
+        
+        # Simulate work
+        await asyncio.sleep(1)
+        
+        # Update progress
+        progress["completed"] = i + 1
+        context.set_variable("progress", progress)
+        
+        # Save checkpoint every 3 items
+        if (i + 1) % 3 == 0:
+            checkpoint = agent.create_checkpoint()
+            print(f"💾 Checkpoint saved at item {i + 1}")
+    
+    print("✅ All items processed!")
+    return None
 
 async def main():
     # Run workflow
-    await agent.run()
-
-    # Create checkpoint
-    checkpoint = agent.create_checkpoint()
-    print(f"Checkpoint created with {len(checkpoint.completed_states)} completed states")
-
-    # Later: restore from checkpoint
-    agent.reset()  # Reset agent state
-    await agent.restore_from_checkpoint(checkpoint)
-    print("Workflow restored from checkpoint!")
+    await agent.run(initial_state="long_process")
 
 if __name__ == "__main__":
     asyncio.run(main())
 \`\`\`
 
----
+## Part 2: Automatic Checkpointing
 
-## Basic Checkpoint Usage
+Instead of manually saving checkpoints, you can have Puffinflow automatically save progress at regular intervals:
 
-### Manual Checkpointing
+\`\`\`python
+# Automatically save every 30 seconds
+@agent.state(checkpoint_interval=30.0)
+async def auto_save_task(context):
+    """
+    This state will automatically create a checkpoint every 30 seconds
+    You don't have to do anything - Puffinflow handles it!
+    """
+    print("⏰ Starting task with automatic checkpointing...")
+    
+    # Simulate a long-running task
+    for minute in range(5):  # 5 minutes of work
+        print(f"🔄 Working... minute {minute + 1}/5")
+        
+        # Track our progress
+        progress = {
+            "current_minute": minute + 1,
+            "total_minutes": 5,
+            "completion": ((minute + 1) / 5) * 100
+        }
+        context.set_variable("work_progress", progress)
+        
+        # Do 60 seconds of work (simulated)
+        for second in range(60):
+            await asyncio.sleep(1)  # 1 second of "work"
+            
+            # Every 30 seconds, Puffinflow automatically saves a checkpoint!
+            if second % 30 == 0 and second > 0:
+                print("💾 Auto-checkpoint saved!")
+    
+    print("✅ Task completed!")
+    return None
+\`\`\`
+
+### Different Checkpoint Frequencies
+
+\`\`\`python
+# For quick tasks: checkpoint frequently
+@agent.state(checkpoint_interval=10.0)  # Every 10 seconds
+async def frequent_saves(context):
+    """For tasks where you don't want to lose much progress"""
+    pass
+
+# For expensive tasks: checkpoint less often  
+@agent.state(checkpoint_interval=300.0)  # Every 5 minutes
+async def expensive_saves(context):
+    """For tasks where checkpointing itself is expensive"""
+    pass
+
+# For critical tasks: checkpoint very frequently
+@agent.state(checkpoint_interval=5.0)   # Every 5 seconds
+async def critical_saves(context):
+    """For absolutely critical tasks"""
+    pass
+\`\`\`
+
+## Part 3: Smart Recovery
+
+### Resuming Exactly Where You Left Off
 
 \`\`\`python
 import asyncio
 from puffinflow import Agent
-from puffinflow import state
 
-agent = Agent("data-pipeline")
+agent = Agent("smart-recovery")
 
-@state
-async def extract_data(context):
-    print("Extracting data...")
-    # Simulate data extraction
-    data = {"records": 1000, "source": "database"}
-    context.set_variable("extracted_data", data)
-    return "transform_data"
-
-@state
-async def transform_data(context):
-    print("Transforming data...")
-    data = context.get_variable("extracted_data")
-    # Transform the data
-    transformed = {"processed_records": data["records"], "status": "cleaned"}
-    context.set_variable("transformed_data", transformed)
-    return "load_data"
-
-@state
-async def load_data(context):
-    print("Loading data...")
-    data = context.get_variable("transformed_data")
-    # Load to destination
-    context.set_variable("load_complete", True)
-    print(f"Loaded {data['processed_records']} records")
-
-# Build workflow
-agent.add_state("extract_data", extract_data)
-agent.add_state("transform_data", transform_data, dependencies=["extract_data"])
-agent.add_state("load_data", load_data, dependencies=["transform_data"])
+@agent.state
+async def data_processor(context):
+    """A processor that knows how to resume intelligently"""
+    
+    # Check if we're resuming from a checkpoint
+    batch_info = context.get_variable("batch_processing", {
+        "current_batch": 0,
+        "total_batches": 20,
+        "items_per_batch": 50,
+        "total_processed": 0
+    })
+    
+    if batch_info["current_batch"] > 0:
+        print(f"🔄 Resuming from batch {batch_info['current_batch']}")
+        print(f"📊 Already processed {batch_info['total_processed']} items")
+    else:
+        print("🚀 Starting fresh data processing")
+    
+    # Continue from where we left off
+    for batch_num in range(batch_info["current_batch"], batch_info["total_batches"]):
+        print(f"📦 Processing batch {batch_num + 1}/{batch_info['total_batches']}")
+        
+        # Process items in this batch
+        for item_num in range(batch_info["items_per_batch"]):
+            # Simulate processing an item
+            await asyncio.sleep(0.1)
+            batch_info["total_processed"] += 1
+        
+        # Update progress
+        batch_info["current_batch"] = batch_num + 1
+        context.set_variable("batch_processing", batch_info)
+        
+        # Save checkpoint after each batch
+        checkpoint = agent.create_checkpoint()
+        print(f"💾 Batch {batch_num + 1} complete, checkpoint saved")
+        
+        # Show progress
+        completion_percent = (batch_info["current_batch"] / batch_info["total_batches"]) * 100
+        print(f"📈 Overall progress: {completion_percent:.1f}%")
+    
+    print("🎉 All batches processed successfully!")
+    context.set_output("total_items_processed", batch_info["total_processed"])
+    return None
 
 async def main():
-    # Run with checkpointing
-    await agent.run()
-
-    # Save progress
-    checkpoint = agent.create_checkpoint()
-
-    # Simulate failure and recovery
-    new_agent = Agent("data-pipeline")
-    new_agent.add_state("extract_data", extract_data)
-    new_agent.add_state("transform_data", transform_data, dependencies=["extract_data"])
-    new_agent.add_state("load_data", load_data, dependencies=["transform_data"])
-
-    # Restore and continue
-    await new_agent.restore_from_checkpoint(checkpoint)
-    print("Pipeline restored successfully!")
+    await agent.run(initial_state="data_processor")
 
 if __name__ == "__main__":
     asyncio.run(main())
 \`\`\`
 
----
-
-## Automatic Checkpointing
-
-For long-running operations, use automatic checkpointing to save progress at regular intervals:
+### Handling Different Types of Interruptions
 
 \`\`\`python
-@state(checkpoint_interval=30.0)  # Checkpoint every 30 seconds
-async def long_running_task(context):
-    print("Starting long-running analysis...")
+import asyncio
+import signal
+from puffinflow import Agent
 
-    total_steps = 10
-    for step in range(total_steps):
-        print(f"   Processing step {step + 1}/{total_steps}")
+agent = Agent("interruption-handler")
 
+class GracefulCheckpointer:
+    def __init__(self, agent):
+        self.agent = agent
+        self.checkpoint_file = "emergency_checkpoint.json"
+        
+        # Set up signal handlers for graceful shutdown
+        signal.signal(signal.SIGTERM, self.handle_shutdown)  # Cloud shutdown
+        signal.signal(signal.SIGINT, self.handle_shutdown)   # Ctrl+C
+    
+    def handle_shutdown(self, signum, frame):
+        """Save checkpoint when system is shutting down"""
+        print(f"🛑 Shutdown signal received: {signum}")
+        print("💾 Creating emergency checkpoint...")
+        
+        try:
+            checkpoint = self.agent.create_checkpoint()
+            # In real usage, save to persistent storage (S3, database, etc.)
+            print("✅ Emergency checkpoint saved!")
+            print("🔄 Workflow can be resumed later")
+        except Exception as e:
+            print(f"❌ Failed to save checkpoint: {e}")
+        
+        exit(0)
+
+@agent.state
+async def resilient_task(context):
+    """A task that handles interruptions gracefully"""
+    
+    # Set up graceful checkpointing
+    checkpointer = GracefulCheckpointer(agent)
+    
+    work_state = context.get_variable("work_state", {
+        "phase": "initialization",
+        "completed_work_units": 0,
+        "total_work_units": 1000
+    })
+    
+    print(f"🔄 Resuming {work_state['phase']} phase")
+    print(f"📊 {work_state['completed_work_units']}/{work_state['total_work_units']} work units done")
+    
+    # Do the work with regular checkpoints
+    for work_unit in range(work_state["completed_work_units"], work_state["total_work_units"]):
         # Simulate work
-        await asyncio.sleep(5)
-
-        # Track progress
-        progress = {
-            "current_step": step + 1,
-            "total_steps": total_steps,
-            "completion_percentage": ((step + 1) / total_steps) * 100
-        }
-        context.set_variable("analysis_progress", progress)
-
-        # Automatic checkpoint happens every 30 seconds
-        print(f"   Step {step + 1} complete ({progress['completion_percentage']:.1f}%)")
-
-    context.set_variable("analysis_complete", True)
-    print("Analysis complete!")
+        await asyncio.sleep(0.01)
+        
+        # Update state
+        work_state["completed_work_units"] = work_unit + 1
+        
+        # Update phase based on progress
+        progress = work_unit / work_state["total_work_units"]
+        if progress < 0.3:
+            work_state["phase"] = "initialization"
+        elif progress < 0.7:
+            work_state["phase"] = "processing" 
+        else:
+            work_state["phase"] = "finalization"
+        
+        context.set_variable("work_state", work_state)
+        
+        # Checkpoint every 50 work units
+        if (work_unit + 1) % 50 == 0:
+            checkpoint = agent.create_checkpoint()
+            print(f"💾 Checkpoint: {work_unit + 1}/1000 units ({progress*100:.1f}%)")
+    
+    print("🎉 All work completed!")
+    return None
 \`\`\`
 
----
+## Part 4: File Storage and Persistence
 
-## Smart Resumption
-
-Design workflows that intelligently resume from where they left off:
+### Saving Checkpoints to Files
 
 \`\`\`python
-@state
-async def smart_processor(context):
-    """Processor that knows how to resume from any point"""
+import json
+import asyncio
+from pathlib import Path
+from puffinflow import Agent
 
-    # Check if we're resuming
-    progress = context.get_variable("processing_progress")
+agent = Agent("file-checkpoints")
 
-    if progress:
-        print(f"Resuming from item {progress['last_processed']}")
-        start_from = progress["last_processed"] + 1
-    else:
-        print("Starting fresh processing")
-        start_from = 0
-        progress = {"last_processed": -1, "total_items": 100}
-
-    # Process items
-    for i in range(start_from, progress["total_items"]):
-        print(f"   Processing item {i + 1}")
-
-        # Simulate work
-        await asyncio.sleep(0.1)
-
-        # Update progress
-        progress["last_processed"] = i
-        context.set_variable("processing_progress", progress)
-
-        # Manual checkpoint every 10 items
+@agent.state
+async def file_processor(context):
+    """Process files and save checkpoints to disk"""
+    
+    file_state = context.get_variable("file_state", {
+        "processed_files": [],
+        "current_index": 0,
+        "total_files": 100
+    })
+    
+    print(f"📁 Processing files {file_state['current_index']}/{file_state['total_files']}")
+    
+    # Process remaining files
+    for i in range(file_state["current_index"], file_state["total_files"]):
+        filename = f"file_{i+1:03d}.txt"
+        print(f"🔄 Processing {filename}")
+        
+        # Simulate file processing
+        await asyncio.sleep(0.5)
+        
+        # Update state
+        file_state["processed_files"].append(filename)
+        file_state["current_index"] = i + 1
+        context.set_variable("file_state", file_state)
+        
+        # Save to file every 10 files
         if (i + 1) % 10 == 0:
             checkpoint = agent.create_checkpoint()
-            print(f"   Checkpoint saved at item {i + 1}")
+            save_checkpoint_to_file(checkpoint, f"checkpoint_{i+1:03d}.json")
+            print(f"💾 Checkpoint saved: {i+1} files processed")
+    
+    print("✅ All files processed!")
+    return None
 
-    print("Processing complete!")
+def save_checkpoint_to_file(checkpoint, filename):
+    """Save checkpoint data to a JSON file"""
+    checkpoint_data = {
+        "timestamp": checkpoint.timestamp,
+        "agent_name": checkpoint.agent_name, 
+        "completed_states": list(checkpoint.completed_states),
+        "shared_state": checkpoint.shared_state
+    }
+    
+    # Create checkpoints directory
+    Path("checkpoints").mkdir(exist_ok=True)
+    
+    # Save to file
+    with open(f"checkpoints/{filename}", 'w') as f:
+        json.dump(checkpoint_data, f, indent=2)
+    
+    print(f"📄 Checkpoint saved to checkpoints/{filename}")
+
+def load_checkpoint_from_file(filename):
+    """Load checkpoint data from a JSON file"""
+    try:
+        with open(f"checkpoints/{filename}", 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"❌ Checkpoint file not found: {filename}")
+        return None
+
+async def main():
+    # Check for existing checkpoint
+    checkpoint_data = load_checkpoint_from_file("latest_checkpoint.json")
+    
+    if checkpoint_data:
+        print("🔄 Found existing checkpoint, resuming...")
+        # In real usage, you'd recreate the checkpoint object and restore
+        # await agent.restore_from_checkpoint(checkpoint)
+    else:
+        print("🚀 No checkpoint found, starting fresh")
+    
+    await agent.run(initial_state="file_processor")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 \`\`\`
 
----
+## Part 5: Cloud Resilience
 
-## Cloud-Resilient Workflows
-
-Handle cloud interruptions gracefully with persistent checkpointing:
+### Handling Cloud Interruptions
 
 \`\`\`python
-import signal
-import json
-from pathlib import Path
+import asyncio
+import boto3
+from puffinflow import Agent
 
-class CloudResilienceManager:
-    def __init__(self, agent, checkpoint_file="workflow.checkpoint"):
+agent = Agent("cloud-resilient")
+
+class CloudCheckpointManager:
+    def __init__(self, agent, bucket_name):
         self.agent = agent
-        self.checkpoint_file = Path(checkpoint_file)
-
-        # Handle cloud interruption signals
-        signal.signal(signal.SIGTERM, self.handle_interruption)
-
-    def handle_interruption(self, signum, frame):
-        """Save checkpoint before cloud instance terminates"""
-        print(f"Cloud interruption detected (signal {signum})")
-        print("Saving checkpoint...")
-
-        checkpoint = self.agent.create_checkpoint()
-        self.save_to_file(checkpoint)
-        print("Checkpoint saved, ready for restart")
-
-    def save_to_file(self, checkpoint):
-        """Save checkpoint to persistent storage"""
-        data = {
+        self.bucket_name = bucket_name
+        self.s3 = boto3.client('s3')
+    
+    def save_to_cloud(self, checkpoint):
+        """Save checkpoint to cloud storage (S3)"""
+        checkpoint_key = f"checkpoints/{checkpoint.agent_name}_{int(checkpoint.timestamp)}.json"
+        
+        checkpoint_data = {
             "timestamp": checkpoint.timestamp,
             "agent_name": checkpoint.agent_name,
             "completed_states": list(checkpoint.completed_states),
             "shared_state": checkpoint.shared_state
         }
-        with open(self.checkpoint_file, 'w') as f:
-            json.dump(data, f, indent=2)
-
-    def load_from_file(self):
-        """Load checkpoint from persistent storage"""
-        if not self.checkpoint_file.exists():
+        
+        try:
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Key=checkpoint_key,
+                Body=json.dumps(checkpoint_data),
+                ContentType='application/json'
+            )
+            print(f"☁️ Checkpoint saved to S3: {checkpoint_key}")
+            return checkpoint_key
+        except Exception as e:
+            print(f"❌ Failed to save to S3: {e}")
+            return None
+    
+    def load_from_cloud(self, checkpoint_key):
+        """Load checkpoint from cloud storage"""
+        try:
+            response = self.s3.get_object(Bucket=self.bucket_name, Key=checkpoint_key)
+            checkpoint_data = json.loads(response['Body'].read())
+            print(f"☁️ Checkpoint loaded from S3: {checkpoint_key}")
+            return checkpoint_data
+        except Exception as e:
+            print(f"❌ Failed to load from S3: {e}")
             return None
 
-        with open(self.checkpoint_file, 'r') as f:
-            return json.load(f)
+@agent.state
+async def cloud_safe_processing(context):
+    """Processing that survives cloud interruptions"""
+    
+    # Set up cloud checkpoint manager
+    cloud_manager = CloudCheckpointManager(agent, "my-workflow-checkpoints")
+    
+    work_progress = context.get_variable("cloud_work", {
+        "stage": "data_collection",
+        "items_processed": 0,
+        "total_items": 500,
+        "start_time": time.time()
+    })
+    
+    print(f"☁️ Cloud processing stage: {work_progress['stage']}")
+    print(f"📊 Progress: {work_progress['items_processed']}/{work_progress['total_items']}")
+    
+    # Process items with cloud-safe checkpointing
+    for item_id in range(work_progress["items_processed"], work_progress["total_items"]):
+        # Simulate processing
+        await asyncio.sleep(0.1)
+        
+        # Update progress
+        work_progress["items_processed"] = item_id + 1
+        
+        # Update stage based on progress
+        progress_percent = (item_id + 1) / work_progress["total_items"]
+        if progress_percent < 0.33:
+            work_progress["stage"] = "data_collection"
+        elif progress_percent < 0.66:
+            work_progress["stage"] = "data_processing"
+        else:
+            work_progress["stage"] = "data_output"
+        
+        context.set_variable("cloud_work", work_progress)
+        
+        # Save to cloud every 25 items (checkpoint frequently for spot instances)
+        if (item_id + 1) % 25 == 0:
+            checkpoint = agent.create_checkpoint()
+            cloud_key = cloud_manager.save_to_cloud(checkpoint)
+            
+            if cloud_key:
+                # Store the cloud key so we can resume later
+                context.set_variable("latest_cloud_checkpoint", cloud_key)
+                print(f"☁️ Cloud checkpoint: {progress_percent*100:.1f}% complete")
+    
+    print("🎉 Cloud processing completed successfully!")
+    return None
+\`\`\`
 
-# Usage
-async def main():
-    agent = Agent("cloud-workflow")
-    manager = CloudResilienceManager(agent)
+## Part 6: Progress Tracking and Monitoring
 
-    # Try to resume from previous checkpoint
-    saved_state = manager.load_from_file()
-    if saved_state:
-        print("Resuming from previous run...")
-        # Restore logic here
-    else:
-        print("Starting new workflow...")
+### Advanced Progress Tracking
 
-    # Add your workflow states
-    # ...
+\`\`\`python
+import time
+import asyncio
+from puffinflow import Agent
 
-    try:
-        await agent.run()
-        # Clean up checkpoint on success
-        if manager.checkpoint_file.exists():
-            manager.checkpoint_file.unlink()
-    except KeyboardInterrupt:
-        print("Saving checkpoint before exit...")
+agent = Agent("progress-tracker")
+
+@agent.state
+async def tracked_workflow(context):
+    """Workflow with comprehensive progress tracking"""
+    
+    # Initialize or resume progress tracking
+    progress = context.get_variable("detailed_progress", {
+        "workflow_id": f"wf_{int(time.time())}",
+        "start_time": time.time(),
+        "phases": {
+            "initialization": {"status": "pending", "duration": 0},
+            "data_loading": {"status": "pending", "duration": 0},
+            "processing": {"status": "pending", "duration": 0}, 
+            "validation": {"status": "pending", "duration": 0},
+            "output": {"status": "pending", "duration": 0}
+        },
+        "current_phase": "initialization",
+        "overall_progress": 0,
+        "estimated_completion": None
+    })
+    
+    phases = ["initialization", "data_loading", "processing", "validation", "output"]
+    phase_work = [10, 25, 100, 15, 20]  # Work units per phase
+    
+    for phase_idx, phase_name in enumerate(phases):
+        phase_start = time.time()
+        progress["current_phase"] = phase_name
+        progress["phases"][phase_name]["status"] = "running"
+        
+        print(f"🔄 Phase: {phase_name}")
+        
+        # Simulate phase work
+        work_units = phase_work[phase_idx]
+        for work_unit in range(work_units):
+            await asyncio.sleep(0.1)
+            
+            # Calculate progress
+            phase_progress = (work_unit + 1) / work_units
+            overall_progress = (phase_idx + phase_progress) / len(phases)
+            progress["overall_progress"] = overall_progress
+            
+            # Estimate completion time
+            elapsed = time.time() - progress["start_time"]
+            if overall_progress > 0:
+                estimated_total = elapsed / overall_progress
+                estimated_remaining = estimated_total - elapsed
+                progress["estimated_completion"] = time.time() + estimated_remaining
+            
+            # Update context
+            context.set_variable("detailed_progress", progress)
+            
+            # Print progress every 10 work units
+            if (work_unit + 1) % 10 == 0:
+                print(f"   📊 {phase_name}: {phase_progress*100:.1f}% | Overall: {overall_progress*100:.1f}%")
+                if progress["estimated_completion"]:
+                    remaining_mins = (progress["estimated_completion"] - time.time()) / 60
+                    print(f"   ⏱️ Estimated {remaining_mins:.1f} minutes remaining")
+        
+        # Complete phase
+        phase_duration = time.time() - phase_start
+        progress["phases"][phase_name]["status"] = "completed"
+        progress["phases"][phase_name]["duration"] = phase_duration
+        print(f"✅ {phase_name} completed in {phase_duration:.1f}s")
+        
+        # Checkpoint after each phase
         checkpoint = agent.create_checkpoint()
-        manager.save_to_file(checkpoint)
+        print(f"💾 Checkpoint saved after {phase_name}")
+    
+    # Final summary
+    total_duration = time.time() - progress["start_time"]
+    print(f"\\n🎉 Workflow completed in {total_duration:.1f} seconds!")
+    print("📊 Phase Summary:")
+    for phase, info in progress["phases"].items():
+        print(f"   {phase}: {info['duration']:.1f}s")
+    
+    context.set_output("workflow_summary", {
+        "total_duration": total_duration,
+        "phases_completed": len(phases),
+        "final_status": "success"
+    })
+    
+    return None
+
+async def main():
+    await agent.run(initial_state="tracked_workflow")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 \`\`\`
 
----
+## Quick Decision Guide
 
-## Best Practices
+### When to Use Checkpoints?
 
-### DO
+- **Long-running workflows** (> 10 minutes): Always use checkpoints
+- **Cloud workflows**: Essential for spot instances and preemptible VMs
+- **Expensive computations**: Protect against losing costly work
+- **Multi-step pipelines**: Save progress between major steps
+- **Batch processing**: Checkpoint after each batch
+- **Critical workflows**: When you can't afford to restart
 
-\`\`\`python
-# Store incremental progress
-@state
-async def good_processor(context):
-    progress = context.get_variable("progress", {"completed": 0, "total": 1000})
+### Checkpoint Frequency Guidelines
 
-    for i in range(progress["completed"], progress["total"]):
-        # Do work
-        await process_item(i)
+| Workflow Duration | Checkpoint Interval | Reasoning |
+|-------------------|-------------------|-----------|
+| **< 5 minutes** | Manual only | Short enough to restart |
+| **5-30 minutes** | Every 2-5 minutes | Balance overhead vs. lost work |
+| **30-120 minutes** | Every 5-10 minutes | Frequent enough to minimize loss |
+| **> 2 hours** | Every 10-30 minutes | Essential for recovery |
 
-        # Update progress frequently
-        progress["completed"] = i + 1
-        context.set_variable("progress", progress)
+### Storage Recommendations
 
-        # Checkpoint at logical intervals
-        if i % 100 == 0:
-            checkpoint = agent.create_checkpoint()
-
-# Use descriptive checkpoint state
-@state
-async def descriptive_state(context):
-    state_info = {
-        "phase": "data_processing",
-        "batch_number": 5,
-        "processed_records": 1500,
-        "next_action": "validate_results",
-        "estimated_completion": "2024-01-15T10:30:00Z"
-    }
-    context.set_variable("processing_state", state_info)
-\`\`\`
-
-### AVOID
-
-\`\`\`python
-# All-or-nothing processing
-@state
-async def bad_processor(context):
-    results = []
-    for i in range(1000):  # No intermediate checkpoints
-        results.append(await process_item(i))
-    context.set_variable("results", results)  # Only saves at the end
-
-# Ambiguous state
-@state
-async def unclear_state(context):
-    context.set_variable("status", "running")  # Not helpful for resumption
-    context.set_variable("count", 42)         # What does this count?
-\`\`\`
-
----
-
-## Configuration Options
-
-### Checkpoint Intervals
-
-\`\`\`python
-# Different checkpoint strategies
-@state(checkpoint_interval=10.0)   # Every 10 seconds
-async def frequent_checkpoints(context): pass
-
-@state(checkpoint_interval=300.0)  # Every 5 minutes
-async def moderate_checkpoints(context): pass
-
-# Manual checkpointing at logical points
-@state
-async def manual_checkpoints(context):
-    for batch in get_batches():
-        process_batch(batch)
-        if batch.is_milestone():
-            checkpoint = agent.create_checkpoint()
-\`\`\`
-
-### Checkpoint Conditions
-
-\`\`\`python
-@state
-async def conditional_checkpoints(context):
-    items_processed = 0
-
-    for item in get_items():
-        process_item(item)
-        items_processed += 1
-
-        # Checkpoint based on conditions
-        if items_processed % 100 == 0:  # Every 100 items
-            checkpoint = agent.create_checkpoint()
-
-        if time.time() % 300 == 0:  # Every 5 minutes
-            checkpoint = agent.create_checkpoint()
-\`\`\`
-
----
-
-## Quick Reference
-
-### Core Methods
-
-\`\`\`python
-# Create checkpoint
-checkpoint = agent.create_checkpoint()
-
-# Restore from checkpoint
-await agent.restore_from_checkpoint(checkpoint)
-
-# Automatic checkpointing
-@state(checkpoint_interval=30.0)
-async def auto_checkpoint_state(context): pass
-\`\`\`
-
-### Progress Tracking
-
-\`\`\`python
-# Store progress
-context.set_variable("progress", {
-    "phase": "processing",
-    "completed": 150,
-    "total": 1000,
-    "start_time": time.time()
-})
-
-# Resume from progress
-progress = context.get_variable("progress")
-if progress:
-    start_from = progress["completed"]
-\`\`\`
-
-### File Persistence
-
-\`\`\`python
-# Save to file
-import json
-checkpoint_data = {
-    "timestamp": checkpoint.timestamp,
-    "completed_states": list(checkpoint.completed_states),
-    "shared_state": checkpoint.shared_state
-}
-with open("checkpoint.json", "w") as f:
-    json.dump(checkpoint_data, f)
-
-# Load from file
-with open("checkpoint.json", "r") as f:
-    data = json.load(f)
-\`\`\`
-
----
+| Environment | Storage Method | Best For |
+|-------------|---------------|----------|
+| **Local Development** | Memory checkpoints | Testing and debugging |
+| **Single Machine** | File checkpoints | Local production |
+| **Cloud (Single Instance)** | File + periodic S3 | Basic cloud resilience |
+| **Cloud (Distributed)** | S3/Database | Full cloud resilience |
 
 ## Common Patterns
 
-### Batch Processing
-
+### Pattern 1: Simple Progress Saving
 \`\`\`python
-@state
-async def batch_processor(context):
-    batch_state = context.get_variable("batch_state", {
-        "current_batch": 0,
-        "total_batches": 10,
-        "processed_items": 0
-    })
-
-    for batch_id in range(batch_state["current_batch"], batch_state["total_batches"]):
-        items = get_batch(batch_id)
-        for item in items:
-            process_item(item)
-            batch_state["processed_items"] += 1
-
-        batch_state["current_batch"] = batch_id + 1
-        context.set_variable("batch_state", batch_state)
-
-        # Checkpoint after each batch
-        checkpoint = agent.create_checkpoint()
-        print(f"Batch {batch_id + 1} complete, checkpoint saved")
-\`\`\`
-
-### Time-Based Processing
-
-\`\`\`python
-@state
-async def time_based_processor(context):
-    start_time = context.get_variable("start_time", time.time())
-    duration = 3600  # 1 hour
-
-    while time.time() - start_time < duration:
+@agent.state
+async def simple_task(context):
+    progress = context.get_variable("progress", 0)
+    
+    for i in range(progress, 100):
         # Do work
-        await process_chunk()
-
-        # Update progress
-        elapsed = time.time() - start_time
-        progress = (elapsed / duration) * 100
-        context.set_variable("time_progress", {
-            "elapsed": elapsed,
-            "progress_percent": progress,
-            "estimated_remaining": duration - elapsed
-        })
-
-        await asyncio.sleep(10)  # Process every 10 seconds
+        context.set_variable("progress", i + 1)
+        
+        if (i + 1) % 10 == 0:
+            agent.create_checkpoint()
 \`\`\`
 
----
+### Pattern 2: Batch Processing
+\`\`\`python
+@agent.state
+async def batch_processor(context):
+    batch_state = context.get_variable("batch_state", {"current": 0, "total": 50})
+    
+    for batch in range(batch_state["current"], batch_state["total"]):
+        process_batch(batch)
+        batch_state["current"] = batch + 1
+        context.set_variable("batch_state", batch_state)
+        agent.create_checkpoint()  # Checkpoint after each batch
+\`\`\`
 
-With Puffinflow's checkpoint system, your workflows become resilient, cost-effective, and production-ready!
+### Pattern 3: Automatic Checkpointing
+\`\`\`python
+@agent.state(checkpoint_interval=60.0)  # Every minute
+async def auto_checkpoint_task(context):
+    # Long-running work with automatic checkpoints
+    for i in range(1000):
+        do_work()
+        await asyncio.sleep(1)  # Checkpoints happen automatically
+\`\`\`
+
+### Pattern 4: Phase-Based Checkpointing
+\`\`\`python
+@agent.state
+async def phase_processor(context):
+    phases = ["load", "process", "validate", "save"]
+    current_phase = context.get_variable("current_phase", 0)
+    
+    for phase_idx in range(current_phase, len(phases)):
+        execute_phase(phases[phase_idx])
+        context.set_variable("current_phase", phase_idx + 1)
+        agent.create_checkpoint()  # Checkpoint after each phase
+\`\`\`
+
+## Tips for Beginners
+
+1. **Start with manual checkpoints** - Create them at logical points in your workflow
+2. **Use automatic checkpoints for long tasks** - Set checkpoint_interval for tasks > 30 minutes  
+3. **Test your recovery** - Practice restoring from checkpoints during development
+4. **Track meaningful progress** - Store enough information to resume intelligently
+5. **Don't over-checkpoint** - Too frequent checkpointing can slow down your workflow
+6. **Use cloud storage for production** - Local files don't survive instance restarts
+
+## What Checkpointing Protects Against
+
+- **System crashes**: Hardware failures, out-of-memory errors
+- **Cloud interruptions**: Spot instance termination, planned maintenance
+- **Network failures**: Lost connections, temporary outages  
+- **Power failures**: Data center issues, local power problems
+- **Human errors**: Accidental termination, deployment issues
+- **Resource exhaustion**: Running out of disk space, memory leaks
+
+Checkpointing transforms fragile workflows into robust, production-ready systems that can handle any interruption gracefully!
 `.trim();

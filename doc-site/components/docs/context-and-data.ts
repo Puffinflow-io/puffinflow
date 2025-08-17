@@ -1,64 +1,71 @@
 export const contextAndDataMarkdown = `# Context and Data
 
-The **Context system** is Puffinflow's powerful data sharing mechanism that goes far beyond simple variables. It provides type safety, validation, caching, secrets management, and more - all designed to make your workflows robust and maintainable.
+The Context system is how states share data in Puffinflow. It's a secure, typed data store that every state can read from and write to, making your workflows robust and maintainable.
 
 ## Why Context Matters
 
 **The Problem:** In async workflows, sharing data between functions usually means:
 - Global variables (dangerous with concurrency)
-- Passing parameters everywhere (verbose and brittle)
+- Passing parameters everywhere (verbose and brittle)  
 - Manual serialization (error-prone)
 
-**The Solution:** Puffinflow's Context acts as a secure, typed, shared memory space that every state can safely read from and write to.
+**The Solution:** Puffinflow's Context acts as a secure, shared memory space that every state can safely access.
 
-## Quick Overview
-
-The Context object provides several data storage mechanisms:
-
-| Method | Use Case | Features |
-|--------|----------|----------|
-| \`set_variable()\` | General data sharing | Simple, flexible |
-| \`set_typed_variable()\` | Type-safe data | Locks Python types |
-| \`set_validated_data()\` | Structured data | Pydantic validation |
-| \`set_constant()\` | Configuration | Immutable values |
-| \`set_secret()\` | Sensitive data | Secure storage |
-| \`set_cached()\` | Temporary data | TTL expiration |
-| \`set_state()\` | Per-state scratch | State-local data |
-
-## General Variables (Most Common)
+## Basic Data Sharing
 
 Use \`set_variable()\` and \`get_variable()\` for most data sharing:
 
 \`\`\`python
-async def fetch_data(context):
+@agent.state
+async def fetch_user(context):
     user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
     context.set_variable("user", user_data)
-    context.set_variable("count", 1250)
+    context.set_variable("timestamp", "2025-01-15T10:30:00Z")
+    return "process_user"
 
-async def process_data(context):
+@agent.state
+async def process_user(context):
     user = context.get_variable("user")
-    count = context.get_variable("count")
-    print(f"Processing {user['name']}, user {user['id']} of {count}")
+    timestamp = context.get_variable("timestamp")
+    
+    # Use default values for optional data
+    settings = context.get_variable("settings", {"theme": "default"})
+    
+    print(f"Processing {user['name']} at {timestamp}")
+    return "send_welcome"
 \`\`\`
+
+## Data Types Available
+
+| Method | Use Case | Example |
+|--------|----------|---------|
+| \`set_variable()\` | General data sharing | User data, lists, dicts |
+| \`set_typed_variable()\` | Type-safe data | Counts, scores (enforces type) |
+| \`set_validated_data()\` | Structured data | Pydantic models |
+| \`set_constant()\` | Configuration | API URLs, settings |
+| \`set_secret()\` | Sensitive data | API keys, passwords |
+| \`set_cached()\` | Temporary data | TTL expiration |
+| \`set_output()\` | Final results | Workflow outputs |
 
 ## Type-Safe Variables
 
 Use \`set_typed_variable()\` to enforce consistent data types:
 
 \`\`\`python
+@agent.state
 async def initialize(context):
     context.set_typed_variable("user_count", 100)      # Locked to int
     context.set_typed_variable("avg_score", 85.5)      # Locked to float
+    return "process"
 
-async def update(context):
+@agent.state  
+async def process(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
-
-    count = context.get_typed_variable("user_count")   # Type param optional
-    print(f"Count: {count}")
+    
+    count = context.get_typed_variable("user_count")
+    print(f"Processing {count} users")
 \`\`\`
-
-> **Note:** The type parameter in \`get_typed_variable("key", int)\` is optional. You can just use \`get_typed_variable("key")\` for cleaner code. The type parameter is mainly for static type checkers.
 
 ## Validated Data with Pydantic
 
@@ -73,44 +80,44 @@ class User(BaseModel):
     email: EmailStr
     age: int
 
+@agent.state
 async def create_user(context):
     user = User(id=123, name="Alice", email="alice@example.com", age=28)
     context.set_validated_data("user", user)
+    return "update_user"
 
+@agent.state
 async def update_user(context):
     user = context.get_validated_data("user", User)
     user.age = 29
-    context.set_validated_data("user", user)  # Re-validates
+    context.set_validated_data("user", user)  # Re-validates automatically
 \`\`\`
 
-## Constants and Configuration
+## Configuration and Secrets
 
-Use \`set_constant()\` for immutable configuration:
+Use \`set_constant()\` for immutable configuration and \`set_secret()\` for sensitive data:
 
 \`\`\`python
+@agent.state
 async def setup(context):
+    # Configuration that won't change
     context.set_constant("api_url", "https://api.example.com")
     context.set_constant("max_retries", 3)
-
-async def use_config(context):
-    url = context.get_constant("api_url")
-    retries = context.get_constant("max_retries")
-    # context.set_constant("api_url", "different")  # ❌ ValueError
-\`\`\`
-
-## Secrets Management
-
-Use \`set_secret()\` for sensitive data:
-
-\`\`\`python
-async def load_secrets(context):
+    
+    # Sensitive data stored securely
     context.set_secret("api_key", "sk-1234567890abcdef")
     context.set_secret("db_password", "super_secure_password")
+    return "make_request"
 
-async def use_secrets(context):
+@agent.state
+async def make_request(context):
+    url = context.get_constant("api_url")
     api_key = context.get_secret("api_key")
-    # Use for API calls (don't print real secrets!)
-    print(f"API key loaded: {api_key[:8]}...")
+    
+    # Don't log real secrets!
+    print(f"Making request to {url} with key {api_key[:8]}...")
+    
+    # context.set_constant("api_url", "different")  # ❌ ValueError: Constants are immutable
 \`\`\`
 
 ## Cached Data with TTL
@@ -118,56 +125,47 @@ async def use_secrets(context):
 Use \`set_cached()\` for temporary data that expires:
 
 \`\`\`python
-async def cache_data(context):
-    context.set_cached("session", {"user_id": 123}, ttl=300)  # 5 minutes
-    context.set_cached("temp_result", {"data": "value"}, ttl=60)   # 1 minute
+@agent.state
+async def cache_session(context):
+    context.set_cached("user_session", {"user_id": 123}, ttl=300)  # 5 minutes
+    context.set_cached("temp_token", "abc123", ttl=60)            # 1 minute
+    return "use_cache"
 
+@agent.state
 async def use_cache(context):
-    session = context.get_cached("session", default="EXPIRED")
-    print(f"Session: {session}")
+    session = context.get_cached("user_session", default="EXPIRED")
+    if session != "EXPIRED":
+        print(f"Active session: {session}")
+    else:
+        print("Session expired, need to re-authenticate")
 \`\`\`
 
-## Per-State Scratch Data
+## Workflow Outputs
 
-Use \`set_state()\` for data local to individual states:
-
-\`\`\`python
-async def state_a(context):
-    context.set_state("temp_data", [1, 2, 3])  # Only visible in state_a
-    context.set_variable("shared", "visible to all")
-
-async def state_b(context):
-    context.set_state("temp_data", {"key": "value"})  # Different from state_a
-    shared = context.get_variable("shared")  # Can access shared data
-    my_temp = context.get_state("temp_data")  # Gets state_b's data
-\`\`\`
-
-> **Note:** For most use cases, regular local variables are simpler and better than \`set_state()\`:
-> \`\`\`python
-> # Instead of context.set_state("temp", data)
-> # Just use: temp_data = [1, 2, 3]
-> \`\`\`
-> Only use \`set_state()\` if you need to inspect a state's internal data from outside for debugging/monitoring purposes.
-
-## Output Data Management
-
-Use \`set_output()\` for final workflow results:
+Use \`set_output()\` to mark final workflow results:
 
 \`\`\`python
-async def calculate(context):
-    orders = [{"amount": 100}, {"amount": 200}]
+@agent.state
+async def calculate_metrics(context):
+    orders = [{"amount": 100}, {"amount": 200}, {"amount": 150}]
     total = sum(order["amount"] for order in orders)
-
+    
+    # Mark as final outputs
     context.set_output("total_revenue", total)
     context.set_output("order_count", len(orders))
+    context.set_output("avg_order_value", total / len(orders))
+    return "send_report"
 
-async def summary(context):
+@agent.state
+async def send_report(context):
     revenue = context.get_output("total_revenue")
     count = context.get_output("order_count")
-    print(f"Revenue: \${revenue}, Orders: {count}")
+    avg = context.get_output("avg_order_value")
+    
+    print(f"Report: \${revenue} revenue from {count} orders (avg: \${avg:.2f})")
 \`\`\`
 
-## Complete Example: Order Processing
+## Complete Example
 
 \`\`\`python
 import asyncio
@@ -179,61 +177,63 @@ class Order(BaseModel):
     total: float
     customer_email: str
 
-agent = Agent("order-processing")
+agent = Agent("order-processor")
 
+@agent.state
 async def setup(context):
     context.set_constant("tax_rate", 0.08)
     context.set_secret("payment_key", "pk_123456")
+    return "process_order"
 
+@agent.state
 async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
     context.set_validated_data("order", order)
-
-    # Cache session
+    
+    # Cache session temporarily
     context.set_cached("session", {"order_id": order.id}, ttl=3600)
-
+    
     # Type-safe tracking
     context.set_typed_variable("amount_charged", order.total)
+    return "finalize"
 
-async def send_confirmation(context):
+@agent.state
+async def finalize(context):
     order = context.get_validated_data("order", Order)
-    amount = context.get_typed_variable("amount_charged")  # Type param optional
-    payment_key = context.get_secret("payment_key")
-
+    amount = context.get_typed_variable("amount_charged")
+    
     # Final outputs
     context.set_output("order_id", order.id)
     context.set_output("amount_processed", amount)
+    
     print(f"✅ Order {order.id} completed: \${amount}")
 
-agent.add_state("setup", setup)
-agent.add_state("process_order", process_order, dependencies=["setup"])
-agent.add_state("send_confirmation", send_confirmation, dependencies=["process_order"])
+# Run the workflow
+async def main():
+    await agent.run(initial_state="setup")
 
 if __name__ == "__main__":
-    asyncio.run(agent.run())
+    asyncio.run(main())
 \`\`\`
 
 ## Best Practices
 
-### Choose the Right Method
+**Choose the right method:**
+- **\`set_variable()\`** - Default choice for most data (90% of use cases)
+- **\`set_constant()\`** - Configuration that never changes
+- **\`set_secret()\`** - API keys and sensitive data only
+- **\`set_output()\`** - Final workflow results
+- **\`set_typed_variable()\`** - When you need strict type consistency
+- **\`set_validated_data()\`** - Complex structured data from external sources
+- **\`set_cached()\`** - Data that expires (don't overuse)
 
-- **\`set_variable()\`** - Default choice for most data (use 90% of the time)
-- **\`set_constant()\`** - For configuration that shouldn't change
-- **\`set_secret()\`** - For API keys and passwords
-- **\`set_output()\`** - For final workflow results
-- **\`set_typed_variable()\`** - Only when you need strict type consistency
-- **\`set_validated_data()\`** - Only for complex structured data
-- **\`set_cached()\`** - Only when you need TTL expiration
-- **\`set_state()\`** - Almost never (use local variables instead)
-
-### Quick Tips
-
+**Quick tips:**
 1. **Start simple** - Use \`set_variable()\` for most data sharing
-2. **Validate early** - Use Pydantic models for external data
-3. **Never log secrets** - Only retrieve when needed
-4. **Set appropriate TTL** - Don't cache sensitive data too long
-5. **Use local variables** - Instead of \`set_state()\` for temporary data
+2. **Validate external data** - Use Pydantic models for data from APIs
+3. **Never log secrets** - Only retrieve when absolutely needed
+4. **Use appropriate TTL** - Don't cache sensitive data too long
+5. **Prefer local variables** - For temporary data within a single state
 
-The Context system gives you flexibility to handle any data scenario while maintaining type safety and security.
+The Context system gives you the flexibility to handle any data scenario while maintaining type safety and security.
 `.trim();

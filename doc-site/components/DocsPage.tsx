@@ -451,19 +451,18 @@ export const DocsPage: React.FC = () => {
 export const GettingStartedPage: React.FC = () => {
     const sidebarLinks = [
         { id: 'installation', label: 'Installation' },
-        { id: 'first-workflow', label: 'Your First Workflow' },
-        { id: 'defining-states', label: 'Two Ways to Define States' },
-        { id: 'sharing-data', label: 'Sharing Data' },
-        { id: 'flow-control', label: 'Three Ways to Control Flow' },
-        { id: 'complete-example', label: 'Complete Example' },
-        { id: 'when-to-use-decorator', label: 'When to Use the Decorator' },
-        { id: 'quick-reference', label: 'Quick Reference' },
+        { id: 'core-concept', label: 'Core Concept' },
+        { id: 'your-first-workflow', label: 'Your First Workflow' },
+        { id: 'how-it-works', label: 'How It Works' },
+        { id: 'alternative-without-decorators', label: 'Alternative: Without Decorators' },
+        { id: 'next-steps', label: 'Next Steps' },
     ];
 
     return (
         <DocsLayout sidebarLinks={sidebarLinks} pageMarkdown={gettingStartedMarkdown} currentPage="getting-started" pageKey="docs/getting-started">
             <section id="getting-started">
                 <h1>Getting Started with Puffinflow</h1>
+                <p>Puffinflow turns your Python functions into robust, fault-tolerant workflows. Perfect for AI pipelines, data processing, and any multi-step async work that needs reliability.</p>
             </section>
 
             <section id="installation">
@@ -471,249 +470,93 @@ export const GettingStartedPage: React.FC = () => {
                 <CodeWindow language="bash" code={`pip install puffinflow`} fileName="Terminal" />
             </section>
 
-            <section id="first-workflow">
+            <section id="core-concept">
+                <h2>Core Concept</h2>
+                <p><strong>Agent</strong>: Your workflow orchestrator</p>
+                <p><strong>States</strong>: Individual steps (just async Python functions)</p>
+                <p><strong>Context</strong>: Shared data between states</p>
+            </section>
+
+            <section id="your-first-workflow">
                 <h2>Your First Workflow</h2>
-                <p>Create a workflow in 3 steps:</p>
+                <p>Create a simple 3-step data processing workflow:</p>
                 <CodeWindow language="python" code={`import asyncio
 from puffinflow import Agent
 
-# 1. Create an agent
-agent = Agent("my-workflow")
+# Create an agent
+agent = Agent("data-processor")
 
-# 2. Define a state (just a regular async function)
-async def hello_world(context):
-    print("Hello, Puffinflow! 🐧")
+@agent.state
+async def fetch_data(context):
+    """Step 1: Get some data"""
+    data = {"users": ["Alice", "Bob", "Charlie"]}
+    context.set_variable("raw_data", data)
+    return "process_data"
+
+@agent.state  
+async def process_data(context):
+    """Step 2: Transform the data"""
+    raw_data = context.get_variable("raw_data")
+    processed = [f"Hello, {user}!" for user in raw_data["users"]]
+    context.set_variable("greetings", processed)
+    return "save_results"
+
+@agent.state
+async def save_results(context):
+    """Step 3: Output results"""
+    greetings = context.get_variable("greetings")
+    print("Results:")
+    for greeting in greetings:
+        print(f"  {greeting}")
+    # Return None to end the workflow
     return None
 
-# 3. Run it
-agent.add_state("hello_world", hello_world)
+# Run it
+async def main():
+    await agent.run(initial_state="fetch_data")
 
 if __name__ == "__main__":
-    asyncio.run(agent.run())`} fileName="my_workflow.py" />
+    asyncio.run(main())`} fileName="my_workflow.py" />
+                
+                <p><strong>Output:</strong></p>
+                <CodeWindow language="bash" code={`Results:
+  Hello, Alice!
+  Hello, Bob!
+  Hello, Charlie!`} fileName="Output" />
             </section>
 
-            <section id="defining-states">
-                <h2>Two Ways to Define States</h2>
-                <p>For simple workflows, both approaches work identically:</p>
-                <h3>Plain Functions (Simplest)</h3>
-                <CodeWindow language="python" code={`async def process_data(context):
-    context.set_variable("result", "Hello!")
-    return None`} fileName="plain_function.py" />
-                <h3>With Decorator (For Advanced Features Later)</h3>
-                 <CodeWindow language="python" code={`from puffinflow.decorators import state
-
-@state
-async def process_data(context):
-    context.set_variable("result", "Hello!")
-    return None`} fileName="decorator_state.py" />
-                <div className="not-prose my-6 p-4 rounded-lg bg-sky-900/40 border border-sky-500/30">
-                    <p className="!text-sky-200 !m-0"><strong>The difference?</strong> None for basic workflows! The decorator becomes useful when you later want to add resource management, priorities, rate limiting, etc. Start simple, add the decorator when you need advanced features.</p>
-                </div>
+            <section id="how-it-works">
+                <h2>How It Works</h2>
+                <ol>
+                    <li><strong>Define states</strong> with <code>@agent.state</code> - each state does one thing</li>
+                    <li><strong>Share data</strong> using <code>context.set_variable()</code> and <code>context.get_variable()</code></li>
+                    <li><strong>Control flow</strong> by returning the name of the next state (or <code>None</code> to end)</li>
+                    <li><strong>Run the workflow</strong> with <code>agent.run(initial_state="start_state")</code></li>
+                </ol>
             </section>
 
-            <section id="sharing-data">
-                <h2>Sharing Data Between States</h2>
-                 <CodeWindow language="python" code={`async def fetch_data(context):
-    # Store data in context
-    context.set_variable("user_count", 1250)
-    context.set_variable("revenue", 45000)
+            <section id="alternative-without-decorators">
+                <h2>Alternative: Without Decorators</h2>
+                <p>If you prefer not using decorators:</p>
+                <CodeWindow language="python" code={`async def my_function(context):
+    print("Hello from Puffinflow!")
+    return None
 
-async def calculate_metrics(context):
-    # Get data from context
-    users = context.get_variable("user_count")
-    revenue = context.get_variable("revenue")
+agent = Agent("simple-workflow")
+agent.add_state("hello", my_function)
 
-    # Calculate and store result
-    revenue_per_user = revenue / users
-    context.set_variable("revenue_per_user", revenue_per_user)
-    print(f"Revenue per user: \${revenue_per_user:.2f}")
-
-# Add states to workflow
-agent.add_state("fetch_data", fetch_data)
-agent.add_state("calculate_metrics", calculate_metrics)`} fileName="sharing_data.py" />
+await agent.run(initial_state="hello")`} fileName="simple_example.py" />
             </section>
 
-            <section id="flow-control">
-                <h2>Three Ways to Control Workflow Flow</h2>
-                <p>Puffinflow gives you three powerful ways to control how your workflow executes:</p>
-
-                <h3>1. Sequential Execution (Default)</h3>
-                <p>States run in the order you add them:</p>
-                <CodeWindow language="python" code={`agent = Agent("sequential-workflow")
-
-async def step_one(context):
-    print("Step 1: Preparing data")
-    context.set_variable("step1_done", True)
-
-async def step_two(context):
-    print("Step 2: Processing data")
-    context.set_variable("step2_done", True)
-
-async def step_three(context):
-    print("Step 3: Finalizing")
-    print("All steps complete!")
-
-# Runs in this exact order: step_one → step_two → step_three
-agent.add_state("step_one", step_one)
-agent.add_state("step_two", step_two)
-agent.add_state("step_three", step_three)`} fileName="sequential_flow.py" />
-
-                <h3>2. Static Dependencies</h3>
-                <p>Explicitly declare what must complete before each state runs:</p>
-                <CodeWindow language="python" code={`async def fetch_user_data(context):
-    print("👥 Fetching user data...")
-    await asyncio.sleep(0.5)  # Simulate API call
-    context.set_variable("user_count", 1250)
-
-async def fetch_sales_data(context):
-    print("💰 Fetching sales data...")
-    await asyncio.sleep(0.3)  # Simulate API call
-    context.set_variable("revenue", 45000)
-
-async def generate_report(context):
-    print("📊 Generating report...")
-    users = context.get_variable("user_count")
-    revenue = context.get_variable("revenue")
-    print(f"Revenue per user: \${revenue/users:.2f}")
-
-# fetch_user_data and fetch_sales_data run in parallel
-# generate_report waits for BOTH to complete
-agent.add_state("fetch_user_data", fetch_user_data)
-agent.add_state("fetch_sales_data", fetch_sales_data)
-agent.add_state("generate_report", generate_report,
-                dependencies=["fetch_user_data", "fetch_sales_data"])`} fileName="dependencies_flow.py" />
-
-                <h3>3. Dynamic Flow Control</h3>
-                <p>Return state names from functions to decide what runs next:</p>
-                <CodeWindow language="python" code={`async def check_user_type(context):
-    print("🔍 Checking user type...")
-    user_type = "premium"  # Could come from database
-    context.set_variable("user_type", user_type)
-
-    # Dynamic routing based on data
-    if user_type == "premium":
-        return "premium_flow"
-    else:
-        return "basic_flow"
-
-async def premium_flow(context):
-    print("⭐ Premium user workflow")
-    context.set_variable("features", ["advanced_analytics", "priority_support"])
-    return "send_welcome"
-
-async def basic_flow(context):
-    print("👋 Basic user workflow")
-    context.set_variable("features", ["basic_analytics"])
-    return "send_welcome"
-
-async def send_welcome(context):
-    user_type = context.get_variable("user_type")
-    features = context.get_variable("features")
-    print(f"✉️ Welcome {user_type} user! Features: {', '.join(features)}")
-
-# Add all states
-agent.add_state("check_user_type", check_user_type)
-agent.add_state("premium_flow", premium_flow)
-agent.add_state("basic_flow", basic_flow)
-agent.add_state("send_welcome", send_welcome)`} fileName="dynamic_flow.py" />
-
-                <h4>Parallel Execution</h4>
-                <p>Return a list of state names to run multiple states at once:</p>
-                 <CodeWindow language="python" code={`async def process_order(context):
-    print("📦 Processing order...")
-    context.set_variable("order_id", "ORD-123")
-
-    # Run these three states in parallel
-    return ["send_confirmation", "update_inventory", "charge_payment"]
-
-async def send_confirmation(context):
-    order_id = context.get_variable("order_id")
-    print(f"📧 Confirmation sent for {order_id}")
-
-async def update_inventory(context):
-    print("📋 Inventory updated")
-
-async def charge_payment(context):
-    order_id = context.get_variable("order_id")
-    print(f"💳 Payment processed for {order_id}")`} fileName="parallel_flow.py" />
-            </section>
-
-            <section id="complete-example">
-                <h2>Complete Example: Data Pipeline</h2>
-                <CodeWindow language="python" code={`import asyncio
-from puffinflow import Agent
-
-agent = Agent("data-pipeline")
-
-async def extract(context):
-    data = {"sales": [100, 200, 150], "customers": ["Alice", "Bob", "Charlie"]}
-    context.set_variable("raw_data", data)
-    print("✅ Data extracted")
-
-async def transform(context):
-    raw_data = context.get_variable("raw_data")
-    total_sales = sum(raw_data["sales"])
-    customer_count = len(raw_data["customers"])
-
-    transformed = {
-        "total_sales": total_sales,
-        "customer_count": customer_count,
-        "avg_sale": total_sales / customer_count
-    }
-
-    context.set_variable("processed_data", transformed)
-    print("✅ Data transformed")
-
-async def load(context):
-    processed_data = context.get_variable("processed_data")
-    print(f"✅ Saved: {processed_data}")
-
-# Set up the pipeline - runs sequentially
-agent.add_state("extract", extract)
-agent.add_state("transform", transform, dependencies=["extract"])
-agent.add_state("load", load, dependencies=["transform"])
-
-if __name__ == "__main__":
-    asyncio.run(agent.run())`} fileName="data_pipeline_example.py" />
-            </section>
-
-            <section id="when-to-use-decorator">
-                <h2>When to Use the Decorator</h2>
-                <p>Add the <InlineCode>@state</InlineCode> decorator when you need advanced features later:</p>
-                <CodeWindow language="python" code={`from puffinflow.decorators import state
-
-# Advanced features example (you don't need this initially)
-@state(cpu=2.0, memory=1024, priority="high", timeout=60.0)
-async def intensive_task(context):
-    # This state gets 2 CPU units, 1GB memory, high priority, 60s timeout
-    pass`} fileName="advanced_decorator.py" />
-            </section>
-
-            <section id="quick-reference">
-                <h2>Quick Reference</h2>
-                <h3>Flow Control Methods</h3>
-                <CodeWindow language="python" code={`# Sequential (default)
-agent.add_state("first", first_function)
-agent.add_state("second", second_function)
-
-# Dependencies
-agent.add_state("dependent", function, dependencies=["first", "second"])
-
-# Dynamic routing
-async def router(context):
-    return "next_state"           # Single state
-    return ["state1", "state2"]   # Parallel states`} fileName="flow_control_ref.py" />
-                <h3>Context Methods</h3>
+            <section id="next-steps">
+                <h2>Next Steps</h2>
+                <p>Now that you have a working workflow, explore:</p>
                 <ul>
-                    <li><InlineCode>context.set_variable(key, value)</InlineCode> - Store data</li>
-                    <li><InlineCode>context.get_variable(key)</InlineCode> - Retrieve data</li>
+                    <li><strong><a href="#docs/error-handling">Error Handling</a></strong> - Add retries and fault tolerance</li>
+                    <li><strong><a href="#docs/context-and-data">Context & Data</a></strong> - Advanced data sharing patterns</li>
+                    <li><strong><a href="https://github.com/puffinflow/examples" target="_blank" rel="noopener noreferrer">Examples</a></strong> - Real-world workflow examples</li>
                 </ul>
-                <h3>State Return Values</h3>
-                 <ul>
-                    <li><InlineCode>None</InlineCode> - Continue normally</li>
-                    <li><InlineCode>"state_name"</InlineCode> - Run specific state next</li>
-                    <li><InlineCode>["state1", "state2"]</InlineCode> - Run multiple states in parallel</li>
-                </ul>
+                <p>Ready to build something robust? 🐧</p>
             </section>
         </DocsLayout>
     );
@@ -721,15 +564,14 @@ async def router(context):
 
 export const ContextAndDataPage: React.FC = () => {
     const sidebarLinks = [
-        { id: 'quick-overview', label: 'Quick Overview' },
-        { id: 'general-variables', label: 'General Variables' },
+        { id: 'why-context-matters', label: 'Why Context Matters' },
+        { id: 'basic-data-sharing', label: 'Basic Data Sharing' },
+        { id: 'data-types-available', label: 'Data Types Available' },
         { id: 'type-safe-variables', label: 'Type-Safe Variables' },
-        { id: 'validated-data', label: 'Validated Data (Pydantic)' },
-        { id: 'constants', label: 'Constants' },
-        { id: 'secrets', label: 'Secrets Management' },
-        { id: 'cached-data', label: 'Cached Data (TTL)' },
-        { id: 'per-state-data', label: 'Per-State Data' },
-        { id: 'output-data', label: 'Output Data' },
+        { id: 'validated-data', label: 'Validated Data with Pydantic' },
+        { id: 'configuration-and-secrets', label: 'Configuration and Secrets' },
+        { id: 'cached-data', label: 'Cached Data with TTL' },
+        { id: 'workflow-outputs', label: 'Workflow Outputs' },
         { id: 'complete-example', label: 'Complete Example' },
         { id: 'best-practices', label: 'Best Practices' },
     ];
@@ -753,64 +595,110 @@ export const ContextAndDataPage: React.FC = () => {
         >
             <section id="context-and-data">
                 <h1>Context and Data</h1>
-                <p>The Context system is Puffinflow's powerful data sharing mechanism that goes far beyond simple variables. It provides type safety, validation, caching, secrets management, and more - all designed to make your workflows robust and maintainable.</p>
+                <p>The Context system is how states share data in Puffinflow. It's a secure, typed data store that every state can read from and write to, making your workflows robust and maintainable.</p>
             </section>
 
-            <section id="quick-overview">
-                <h2>Quick Overview</h2>
-                <p>The Context object provides several data storage mechanisms:</p>
+            <section id="why-context-matters">
+                <h2>Why Context Matters</h2>
+                <p><strong>The Problem:</strong> In async workflows, sharing data between functions usually means:</p>
+                <ul>
+                    <li>Global variables (dangerous with concurrency)</li>
+                    <li>Passing parameters everywhere (verbose and brittle)</li>
+                    <li>Manual serialization (error-prone)</li>
+                </ul>
+                <p><strong>The Solution:</strong> Puffinflow's Context acts as a secure, shared memory space that every state can safely access.</p>
+            </section>
+
+            <section id="basic-data-sharing">
+                <h2>Basic Data Sharing</h2>
+                <p>Use <InlineCode>set_variable()</InlineCode> and <InlineCode>get_variable()</InlineCode> for most data sharing:</p>
+                <CodeWindow language="python" code={`@agent.state
+async def fetch_user(context):
+    user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
+    context.set_variable("user", user_data)
+    context.set_variable("timestamp", "2025-01-15T10:30:00Z")
+    return "process_user"
+
+@agent.state
+async def process_user(context):
+    user = context.get_variable("user")
+    timestamp = context.get_variable("timestamp")
+    
+    # Use default values for optional data
+    settings = context.get_variable("settings", {"theme": "default"})
+    
+    print(f"Processing {user['name']} at {timestamp}")
+    return "send_welcome"`} fileName="basic_sharing.py" />
+            </section>
+
+            <section id="data-types-available">
+                <h2>Data Types Available</h2>
                 <div className="not-prose my-8 docs-table-wrapper">
                     <table>
                         <thead>
                             <tr>
                                 <th>Method</th>
                                 <th>Use Case</th>
-                                <th>Features</th>
+                                <th>Example</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {quickOverviewData.map((row, i) => (
-                                <tr key={i}>
-                                    <td><InlineCode>{row.method}</InlineCode></td>
-                                    <td>{row.useCase}</td>
-                                    <td>{row.features}</td>
-                                </tr>
-                            ))}
+                            <tr>
+                                <td><InlineCode>set_variable()</InlineCode></td>
+                                <td>General data sharing</td>
+                                <td>User data, lists, dicts</td>
+                            </tr>
+                            <tr>
+                                <td><InlineCode>set_typed_variable()</InlineCode></td>
+                                <td>Type-safe data</td>
+                                <td>Counts, scores (enforces type)</td>
+                            </tr>
+                            <tr>
+                                <td><InlineCode>set_validated_data()</InlineCode></td>
+                                <td>Structured data</td>
+                                <td>Pydantic models</td>
+                            </tr>
+                            <tr>
+                                <td><InlineCode>set_constant()</InlineCode></td>
+                                <td>Configuration</td>
+                                <td>API URLs, settings</td>
+                            </tr>
+                            <tr>
+                                <td><InlineCode>set_secret()</InlineCode></td>
+                                <td>Sensitive data</td>
+                                <td>API keys, passwords</td>
+                            </tr>
+                            <tr>
+                                <td><InlineCode>set_cached()</InlineCode></td>
+                                <td>Temporary data</td>
+                                <td>TTL expiration</td>
+                            </tr>
+                            <tr>
+                                <td><InlineCode>set_output()</InlineCode></td>
+                                <td>Final results</td>
+                                <td>Workflow outputs</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <section id="general-variables">
-                <h2>General Variables (Most Common)</h2>
-                <p>Use <InlineCode>set_variable()</InlineCode> and <InlineCode>get_variable()</InlineCode> for most data sharing:</p>
-                <CodeWindow language="python" code={`async def fetch_data(context):
-    user_data = {"id": 123, "name": "Alice", "email": "alice@example.com"}
-    context.set_variable("user", user_data)
-    context.set_variable("count", 1250)
-
-async def process_data(context):
-    user = context.get_variable("user")
-    count = context.get_variable("count")
-    print(f"Processing {user['name']}, user {user['id']} of {count}")`} fileName="general_variables.py" />
-            </section>
-
             <section id="type-safe-variables">
                 <h2>Type-Safe Variables</h2>
                 <p>Use <InlineCode>set_typed_variable()</InlineCode> to enforce consistent data types:</p>
-                <CodeWindow language="python" code={`async def initialize(context):
+                <CodeWindow language="python" code={`@agent.state
+async def initialize(context):
     context.set_typed_variable("user_count", 100)      # Locked to int
     context.set_typed_variable("avg_score", 85.5)      # Locked to float
+    return "process"
 
-async def update(context):
+@agent.state  
+async def process(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
-
-    count = context.get_typed_variable("user_count")   # Type param optional
-    print(f"Count: {count}")`} fileName="typed_variables.py" />
-                <div className="not-prose my-6 p-4 rounded-lg bg-sky-900/40 border border-sky-500/30">
-                    <p className="!text-sky-200 !m-0"><strong>Note:</strong> The type parameter in <InlineCode>get_typed_variable("key", int)</InlineCode> is optional. You can just use <InlineCode>get_typed_variable("key")</InlineCode> for cleaner code. The type parameter is mainly for static type checkers.</p>
-                </div>
+    
+    count = context.get_typed_variable("user_count")
+    print(f"Processing {count} users")`} fileName="type_safe.py" />
             </section>
 
             <section id="validated-data">
@@ -824,91 +712,87 @@ class User(BaseModel):
     email: EmailStr
     age: int
 
+@agent.state
 async def create_user(context):
     user = User(id=123, name="Alice", email="alice@example.com", age=28)
     context.set_validated_data("user", user)
+    return "update_user"
 
+@agent.state
 async def update_user(context):
     user = context.get_validated_data("user", User)
     user.age = 29
-    context.set_validated_data("user", user)  # Re-validates`} fileName="validated_data.py" />
+    context.set_validated_data("user", user)  # Re-validates automatically`} fileName="validated_data.py" />
             </section>
 
-            <section id="constants">
-                <h2>Constants and Configuration</h2>
-                <p>Use <InlineCode>set_constant()</InlineCode> for immutable configuration:</p>
-                <CodeWindow language="python" code={`async def setup(context):
+            <section id="configuration-and-secrets">
+                <h2>Configuration and Secrets</h2>
+                <p>Use <InlineCode>set_constant()</InlineCode> for immutable configuration and <InlineCode>set_secret()</InlineCode> for sensitive data:</p>
+                <CodeWindow language="python" code={`@agent.state
+async def setup(context):
+    # Configuration that won't change
     context.set_constant("api_url", "https://api.example.com")
     context.set_constant("max_retries", 3)
-
-async def use_config(context):
-    url = context.get_constant("api_url")
-    retries = context.get_constant("max_retries")
-    # context.set_constant("api_url", "different")  # ❌ ValueError`} fileName="constants.py" />
-            </section>
-
-            <section id="secrets">
-                <h2>Secrets Management</h2>
-                <p>Use <InlineCode>set_secret()</InlineCode> for sensitive data:</p>
-                <CodeWindow language="python" code={`async def load_secrets(context):
+    
+    # Sensitive data stored securely
     context.set_secret("api_key", "sk-1234567890abcdef")
     context.set_secret("db_password", "super_secure_password")
+    return "make_request"
 
-async def use_secrets(context):
+@agent.state
+async def make_request(context):
+    url = context.get_constant("api_url")
     api_key = context.get_secret("api_key")
-    # Use for API calls (don't print real secrets!)
-    print(f"API key loaded: {api_key[:8]}...")`} fileName="secrets.py" />
+    
+    # Don't log real secrets!
+    print(f"Making request to {url} with key {api_key[:8]}...")
+    
+    # context.set_constant("api_url", "different")  # ❌ ValueError: Constants are immutable`} fileName="config_secrets.py" />
             </section>
 
             <section id="cached-data">
                 <h2>Cached Data with TTL</h2>
                 <p>Use <InlineCode>set_cached()</InlineCode> for temporary data that expires:</p>
-                <CodeWindow language="python" code={`async def cache_data(context):
-    context.set_cached("session", {"user_id": 123}, ttl=300)  # 5 minutes
-    context.set_cached("temp_result", {"data": "value"}, ttl=60)   # 1 minute
+                <CodeWindow language="python" code={`@agent.state
+async def cache_session(context):
+    context.set_cached("user_session", {"user_id": 123}, ttl=300)  # 5 minutes
+    context.set_cached("temp_token", "abc123", ttl=60)            # 1 minute
+    return "use_cache"
 
+@agent.state
 async def use_cache(context):
-    session = context.get_cached("session", default="EXPIRED")
-    print(f"Session: {session}")`} fileName="cached_data.py" />
+    session = context.get_cached("user_session", default="EXPIRED")
+    if session != "EXPIRED":
+        print(f"Active session: {session}")
+    else:
+        print("Session expired, need to re-authenticate")`} fileName="cached_data.py" />
             </section>
 
-            <section id="per-state-data">
-                <h2>Per-State Scratch Data</h2>
-                <p>Use <InlineCode>set_state()</InlineCode> for data local to individual states:</p>
-                <CodeWindow language="python" code={`async def state_a(context):
-    context.set_state("temp_data", [1, 2, 3])  # Only visible in state_a
-    context.set_variable("shared", "visible to all")
-
-async def state_b(context):
-    context.set_state("temp_data", {"key": "value"})  # Different from state_a
-    shared = context.get_variable("shared")  # Can access shared data
-    my_temp = context.get_state("temp_data")  # Gets state_b's data`} fileName="per_state_data.py" />
-                <div className="not-prose my-6 p-4 rounded-lg bg-sky-900/40 border border-sky-500/30">
-                    <p className="!text-sky-200 !m-0"><strong>Note:</strong> For most use cases, regular local variables are simpler and better than <InlineCode>set_state()</InlineCode>:</p>
-                    <CodeWindow language="python" code={`# Instead of context.set_state("temp", data)
-# Just use: temp_data = [1, 2, 3]`} fileName="" />
-                    <p className="!text-sky-200 !m-0">Only use <InlineCode>set_state()</InlineCode> if you need to inspect a state's internal data from outside for debugging/monitoring purposes.</p>
-                </div>
-            </section>
-
-            <section id="output-data">
-                <h2>Output Data Management</h2>
-                <p>Use <InlineCode>set_output()</InlineCode> for final workflow results:</p>
-                <CodeWindow language="python" code={`async def calculate(context):
-    orders = [{"amount": 100}, {"amount": 200}]
+            <section id="workflow-outputs">
+                <h2>Workflow Outputs</h2>
+                <p>Use <InlineCode>set_output()</InlineCode> to mark final workflow results:</p>
+                <CodeWindow language="python" code={`@agent.state
+async def calculate_metrics(context):
+    orders = [{"amount": 100}, {"amount": 200}, {"amount": 150}]
     total = sum(order["amount"] for order in orders)
-
+    
+    # Mark as final outputs
     context.set_output("total_revenue", total)
     context.set_output("order_count", len(orders))
+    context.set_output("avg_order_value", total / len(orders))
+    return "send_report"
 
-async def summary(context):
+@agent.state
+async def send_report(context):
     revenue = context.get_output("total_revenue")
     count = context.get_output("order_count")
-    print(f"Revenue: \${revenue}, Orders: {count}")`} fileName="output_data.py" />
+    avg = context.get_output("avg_order_value")
+    
+    print(f"Report: \${revenue} revenue from {count} orders (avg: \${avg:.2f})")`} fileName="workflow_outputs.py" />
             </section>
 
             <section id="complete-example">
-                <h2>Complete Example: Order Processing</h2>
+                <h2>Complete Example</h2>
                 <CodeWindow language="python" code={`import asyncio
 from pydantic import BaseModel
 from puffinflow import Agent
@@ -918,63 +802,67 @@ class Order(BaseModel):
     total: float
     customer_email: str
 
-agent = Agent("order-processing")
+agent = Agent("order-processor")
 
+@agent.state
 async def setup(context):
     context.set_constant("tax_rate", 0.08)
     context.set_secret("payment_key", "pk_123456")
+    return "process_order"
 
+@agent.state
 async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
     context.set_validated_data("order", order)
-
-    # Cache session
+    
+    # Cache session temporarily
     context.set_cached("session", {"order_id": order.id}, ttl=3600)
-
+    
     # Type-safe tracking
     context.set_typed_variable("amount_charged", order.total)
+    return "finalize"
 
-async def send_confirmation(context):
+@agent.state
+async def finalize(context):
     order = context.get_validated_data("order", Order)
-    amount = context.get_typed_variable("amount_charged")  # Type param optional
-    payment_key = context.get_secret("payment_key")
-
+    amount = context.get_typed_variable("amount_charged")
+    
     # Final outputs
     context.set_output("order_id", order.id)
     context.set_output("amount_processed", amount)
+    
     print(f"✅ Order {order.id} completed: \${amount}")
 
-agent.add_state("setup", setup)
-agent.add_state("process_order", process_order, dependencies=["setup"])
-agent.add_state("send_confirmation", send_confirmation, dependencies=["process_order"])
+# Run the workflow
+async def main():
+    await agent.run(initial_state="setup")
 
 if __name__ == "__main__":
-    asyncio.run(agent.run())`} fileName="complete_example.py" />
+    asyncio.run(main())`} fileName="complete_example.py" />
             </section>
 
             <section id="best-practices">
                 <h2>Best Practices</h2>
-                <h3>Choose the Right Method</h3>
-                <ul className="list-none p-0 space-y-2">
-                    <li><strong><InlineCode>set_variable()</InlineCode></strong> - Default choice for most data (use 90% of the time)</li>
-                    <li><strong><InlineCode>set_constant()</InlineCode></strong> - For configuration that shouldn't change</li>
-                    <li><strong><InlineCode>set_secret()</InlineCode></strong> - For API keys and passwords</li>
-                    <li><strong><InlineCode>set_output()</InlineCode></strong> - For final workflow results</li>
-                    <li><strong><InlineCode>set_typed_variable()</InlineCode></strong> - Only when you need strict type consistency</li>
-                    <li><strong><InlineCode>set_validated_data()</InlineCode></strong> - Only for complex structured data</li>
-                    <li><strong><InlineCode>set_cached()</InlineCode></strong> - Only when you need TTL expiration</li>
-                    <li><strong><InlineCode>set_state()</InlineCode></strong> - Almost never (use local variables instead)</li>
+                <p><strong>Choose the right method:</strong></p>
+                <ul>
+                    <li><strong><InlineCode>set_variable()</InlineCode></strong> - Default choice for most data (90% of use cases)</li>
+                    <li><strong><InlineCode>set_constant()</InlineCode></strong> - Configuration that never changes</li>
+                    <li><strong><InlineCode>set_secret()</InlineCode></strong> - API keys and sensitive data only</li>
+                    <li><strong><InlineCode>set_output()</InlineCode></strong> - Final workflow results</li>
+                    <li><strong><InlineCode>set_typed_variable()</InlineCode></strong> - When you need strict type consistency</li>
+                    <li><strong><InlineCode>set_validated_data()</InlineCode></strong> - Complex structured data from external sources</li>
+                    <li><strong><InlineCode>set_cached()</InlineCode></strong> - Data that expires (don't overuse)</li>
                 </ul>
-                <h3 className="!mt-8">Quick Tips</h3>
+                <p><strong>Quick tips:</strong></p>
                 <ol>
                     <li><strong>Start simple</strong> - Use <InlineCode>set_variable()</InlineCode> for most data sharing</li>
-                    <li><strong>Validate early</strong> - Use Pydantic models for external data</li>
-                    <li><strong>Never log secrets</strong> - Only retrieve when needed</li>
-                    <li><strong>Set appropriate TTL</strong> - Don't cache sensitive data too long</li>
-                    <li><strong>Use local variables</strong> - Instead of <InlineCode>set_state()</InlineCode> for temporary data</li>
+                    <li><strong>Validate external data</strong> - Use Pydantic models for data from APIs</li>
+                    <li><strong>Never log secrets</strong> - Only retrieve when absolutely needed</li>
+                    <li><strong>Use appropriate TTL</strong> - Don't cache sensitive data too long</li>
+                    <li><strong>Prefer local variables</strong> - For temporary data within a single state</li>
                 </ol>
-                <p>The Context system gives you flexibility to handle any data scenario while maintaining type safety and security.</p>
+                <p>The Context system gives you the flexibility to handle any data scenario while maintaining type safety and security.</p>
             </section>
         </DocsLayout>
     );
@@ -982,15 +870,31 @@ if __name__ == "__main__":
 
 export const ResourceManagementPage: React.FC = () => {
     const sidebarLinks = [
-        { id: 'understanding', label: 'Understanding' },
-        { id: 'thinking-about-needs', label: 'Thinking About Needs' },
-        { id: 'config-guide', label: 'Configuration Guide' },
+        { id: 'why-resource-management-matters', label: 'Why Resource Management Matters' },
+        { id: 'part-1-essentials', label: 'Part 1: The Essentials' },
+        { id: 'basic-cpu-memory', label: 'Basic CPU and Memory' },
+        { id: 'understanding-numbers', label: 'Understanding the Numbers' },
+        { id: 'timeouts', label: 'Timeouts' },
+        { id: 'retries', label: 'Retries' },
+        { id: 'rate-limiting', label: 'Rate Limiting' },
+        { id: 'part-2-specialized', label: 'Part 2: Specialized Resources' },
+        { id: 'gpu', label: 'GPU for Machine Learning' },
+        { id: 'io', label: 'I/O for File Operations' },
+        { id: 'network', label: 'Network for Data Transfer' },
+        { id: 'part-3-coordination', label: 'Part 3: Coordination' },
+        { id: 'mutex', label: 'Mutex: One at a Time' },
+        { id: 'semaphore', label: 'Semaphore: Limited Access' },
+        { id: 'barrier', label: 'Barrier: Wait for Everyone' },
+        { id: 'lease', label: 'Lease: Time-Limited Access' },
+        { id: 'part-4-priority', label: 'Part 4: Priority and Performance' },
+        { id: 'task-priority', label: 'Task Priority' },
+        { id: 'burst-limits', label: 'Burst Limits' },
+        { id: 'complete-example', label: 'Complete Real-World Example' },
+        { id: 'quick-reference', label: 'Quick Reference Guide' },
         { id: 'common-patterns', label: 'Common Patterns' },
-        { id: 'advanced-coordination', label: 'Advanced Coordination' },
-        { id: 'quota-management', label: 'Quota Management' },
-        { id: 'best-practices', label: 'Best Practices' },
-        { id: 'when-to-use', label: 'When to Use' },
-        { id: 'quick-reference', label: 'Quick Reference' },
+        { id: 'advanced-features', label: 'Advanced Features' },
+        { id: 'tips-for-beginners', label: 'Tips for Beginners' },
+        { id: 'what-each-feature-good-for', label: 'What Each Feature Is Good For' },
     ];
 
     return (
@@ -999,588 +903,7 @@ export const ResourceManagementPage: React.FC = () => {
             pageMarkdown={resourceManagementMarkdown}
             currentPage="resource-management"
             pageKey="docs/resource-management"
-        >
-            <section id="resource-management">
-                <h1>Resource Management</h1>
-                <p>Puffinflow provides sophisticated resource management to ensure optimal system utilization, prevent resource exhaustion, and maintain fair allocation across workflows. Understanding how to configure resource constraints is crucial for building scalable, reliable workflows that perform well under load.</p>
-            </section>
-            <section id="understanding">
-                <h2>Understanding Resource Management</h2>
-                <p>Resource management in Puffinflow involves several key concepts:</p>
-                <ul>
-                    <li><strong>Resource Allocation</strong>: Reserving CPU, memory, GPU, and I/O capacity for operations</li>
-                    <li><strong>Rate Limiting</strong>: Controlling the frequency of operations to respect API quotas and service limits</li>
-                    <li><strong>Coordination</strong>: Managing access to shared resources using synchronization primitives</li>
-                    <li><strong>Quotas</strong>: Enforcing per-user, per-tenant, or per-application resource limits</li>
-                    <li><strong>Priority Management</strong>: Ensuring critical operations get precedence during resource contention</li>
-                </ul>
-            </section>
-            <section id="thinking-about-needs">
-                <h2>How to Think About Your Resource Needs</h2>
-                <p>Before configuring resource constraints, ask yourself these questions:</p>
-                <h3>1. What Type of Work Are You Doing?</h3>
-                <CodeWindow language="python" code={`# CPU-intensive work (data processing, calculations)
-@state(cpu=4.0, memory=1024)
-async def heavy_computation(context):
-    # Mathematical modeling, data analysis, cryptography
-    pass
-
-# Memory-intensive work (large datasets, caching)
-@state(cpu=2.0, memory=8192)
-async def large_dataset_processing(context):
-    # Data science, machine learning training, large file processing
-    pass
-
-# I/O-intensive work (file operations, database queries)
-@state(cpu=1.0, memory=512, io=10.0)
-async def file_processing(context):
-    # File uploads, database operations, log processing
-    pass
-
-# GPU-accelerated work (machine learning, graphics)
-@state(cpu=2.0, memory=4096, gpu=1.0)
-async def ml_inference(context):
-    # Deep learning, computer vision, scientific computing
-    pass`} fileName="work_types.py" />
-
-                <h3>2. What Are Your Performance Requirements?</h3>
-                 <CodeWindow language="python" code={`# Real-time operations (low latency required)
-@state(cpu=2.0, memory=1024, priority=Priority.HIGH, timeout=5.0)
-async def real_time_api(context):
-    # User-facing APIs, real-time analytics
-    pass
-
-# Batch operations (high throughput, can be slower)
-@state(cpu=1.0, memory=512, priority=Priority.NORMAL, timeout=300.0)
-async def batch_processing(context):
-    # Data pipelines, report generation, cleanup tasks
-    pass
-
-# Background operations (can be interrupted)
-@state(cpu=0.5, memory=256, priority=Priority.LOW, preemptible=True)
-async def background_maintenance(context):
-    # Garbage collection, statistics gathering, archiving
-    pass`} fileName="performance_reqs.py" />
-
-                <h3>3. What External Dependencies Do You Have?</h3>
-                <CodeWindow language="python" code={`# External API calls (need rate limiting)
-@state(rate_limit=10.0, burst_limit=20, timeout=15.0)
-async def external_api_call(context):
-    # Third-party APIs, web services, external databases
-    pass
-
-# Shared resources (need coordination)
-@state(semaphore=3, timeout=30.0)
-async def shared_database_access(context):
-    # Connection pools, shared files, exclusive resources
-    pass
-
-# Critical system operations (need exclusive access)
-@state(mutex=True, priority=Priority.CRITICAL, timeout=60.0)
-async def system_maintenance(context):
-    # Schema migrations, system updates, configuration changes
-    pass`} fileName="dependencies.py" />
-            </section>
-
-            <section id="config-guide">
-                <h2>Step-by-Step Resource Configuration Guide</h2>
-                <h3>Step 1: Analyze Your Workload Characteristics</h3>
-                <p>Start by understanding what your operation actually does:</p>
-                <CodeWindow language="python" code={`import asyncio
-import time
-from puffinflow import Agent
-from puffinflow.decorators import state
-from puffinflow.core.agent.state import Priority
-
-agent = Agent("resource-analysis-agent")
-
-# Profile your operations first
-@state  # Start with no constraints to understand baseline behavior
-async def analyze_workload(context):
-    """
-    Profile this operation to understand its resource characteristics:
-    1. How much CPU does it use?
-    2. How much memory does it need?
-    3. Does it do I/O operations?
-    4. How long does it typically take?
-    5. Does it call external services?
-    """
-    start_time = time.time()
-
-    # Your actual workload here
-    # Example: data processing
-    data_size = 1000000
-    processed_items = []
-
-    for i in range(data_size):
-        # CPU-intensive calculation
-        result = i ** 2 + i ** 0.5
-        processed_items.append(result)
-
-        # Simulate periodic I/O
-        if i % 100000 == 0:
-            await asyncio.sleep(0.01)  # I/O operation
-
-    execution_time = time.time() - start_time
-    memory_estimate = len(processed_items) * 8  # Rough memory usage
-
-    print(f"📊 Workload Analysis:")
-    print(f"   ⏱️ Execution time: {execution_time:.2f} seconds")
-    print(f"   💾 Memory usage: ~{memory_estimate / 1024 / 1024:.1f} MB")
-    print(f"   🔢 Items processed: {data_size:,}")
-    print(f"   ⚡ Processing rate: {data_size / execution_time:.0f} items/sec")
-
-    context.set_variable("workload_profile", {
-        "execution_time": execution_time,
-        "memory_mb": memory_estimate / 1024 / 1024,
-        "processing_rate": data_size / execution_time,
-        "io_operations": data_size // 100000
-    })`} fileName="analyze_workload.py" />
-
-                <h3>Step 2: Set Appropriate Resource Limits</h3>
-                <p>Based on your analysis, configure resource constraints:</p>
-                <CodeWindow language="python" code={`# Based on profiling, this operation needs:
-# - High CPU (mathematical calculations)
-# - Moderate memory (storing results)
-# - Some I/O (periodic writes)
-@state(
-    cpu=3.0,        # 3 CPU cores (observed high CPU usage)
-    memory=2048,    # 2GB memory (observed ~500MB + safety margin)
-    io=5.0,         # Medium I/O priority (periodic I/O operations)
-    timeout=120.0   # 2-minute timeout (observed 60s + safety margin)
-)
-async def optimized_data_processing(context):
-    """Now properly configured based on profiling"""
-    # ... (workload code) ...
-`} fileName="set_limits.py" />
-
-                <h3>Step 3: Add Coordination for Shared Resources</h3>
-                <p>If your operation accesses shared resources, add coordination:</p>
-                <CodeWindow language="python" code={`# Shared database connection pool (max 5 connections)
-@state(
-    semaphore=5,    # Max 5 concurrent database operations
-    timeout=30.0
-)
-async def database_operation(context):
-    # ...
-
-# Exclusive system resource (only one at a time)
-@state(
-    mutex=True,     # Exclusive access required
-    priority=Priority.HIGH
-)
-async def exclusive_system_operation(context):
-    # ...
-
-# Synchronized batch processing (wait for all participants)
-@state(
-    barrier=3,      # Wait for 3 instances to start together
-)
-async def synchronized_batch_job(context):
-    # ...
-`} fileName="add_coordination.py" />
-
-                <h3>Step 4: Configure Rate Limiting for External Services</h3>
-                <p>For operations that call external APIs or services:</p>
-                 <CodeWindow language="python" code={`# High-volume API with burst capacity
-@state(
-    rate_limit=10.0,    # 10 requests per second
-    burst_limit=25,     # Can burst up to 25 requests
-    timeout=15.0
-)
-async def high_volume_api_call(context):
-    # ...
-
-# Rate-limited premium service
-@state(
-    rate_limit=2.0,     # 2 requests per second (expensive service)
-)
-async def premium_service_call(context):
-    # ...
-`} fileName="rate_limiting.py" />
-            </section>
-
-            <section id="common-patterns">
-                <h2>Common Resource Management Patterns</h2>
-                <h3>Pattern 1: CPU-Intensive Scientific Computing</h3>
-                <CodeWindow language="python" code={`@state(
-    cpu=8.0,
-    memory=4096,
-    timeout=1800.0,
-    priority=Priority.NORMAL
-)
-async def scientific_simulation(context):
-    # ...`} fileName="cpu_intensive.py" />
-                <h3>Pattern 2: Memory-Intensive Data Processing</h3>
-                <CodeWindow language="python" code={`@state(
-    cpu=2.0,
-    memory=16384,
-    io=8.0,
-    timeout=3600.0
-)
-async def large_dataset_analysis(context):
-    # ...`} fileName="memory_intensive.py" />
-                <h3>Pattern 3: GPU-Accelerated Machine Learning</h3>
-                <CodeWindow language="python" code={`@state(
-    cpu=4.0,
-    memory=8192,
-    gpu=2.0,
-    timeout=7200.0,
-    priority=Priority.HIGH
-)
-async def ml_model_training(context):
-    # ...`} fileName="gpu_accelerated.py" />
-                <h3>Pattern 4: I/O-Intensive File Processing</h3>
-                 <CodeWindow language="python" code={`@state(
-    cpu=1.0,
-    memory=1024,
-    io=15.0,
-    network=10.0,
-    timeout=1800.0
-)
-async def bulk_file_processing(context):
-    # ...`} fileName="io_intensive.py" />
-            </section>
-
-            <section id="advanced-coordination">
-                <h2>Advanced Coordination Patterns</h2>
-                <h3>Pattern 1: Producer-Consumer with Semaphore</h3>
-                <CodeWindow language="python" code={`# Producer: Creates work items (limited by rate)
-@state(rate_limit=5.0)
-async def work_producer(context):
-    # ...
-
-# Consumer: Processes work items (limited by resource pool)
-@state(semaphore=3)
-async def work_consumer(context):
-    # ...`} fileName="producer_consumer.py" />
-                <h3>Pattern 2: Barrier Synchronization for Batch Jobs</h3>
-                <CodeWindow language="python" code={`# Phase 1: Data collection (all must complete before phase 2)
-@state(barrier=3)
-async def data_collection_phase(context):
-    # ...
-
-# Phase 2: Data processing (starts only after all collection is done)
-@state(priority=Priority.HIGH)
-async def data_processing_phase(context):
-    # ...`} fileName="barrier_sync.py" />
-                <h3>Pattern 3: Lease-Based Resource Management</h3>
-                <CodeWindow language="python" code={`# Short-term exclusive access to shared resource
-@state(lease=10.0)
-async def short_term_exclusive_access(context):
-    # ...
-
-# Long-term resource reservation
-@state(lease=300.0)
-async def long_term_resource_reservation(context):
-    # ...`} fileName="lease_based.py" />
-            </section>
-
-             <section id="quota-management">
-                <h2>Quota Management Strategies</h2>
-                <h3>Multi-Tenant Resource Quotas</h3>
-                <CodeWindow language="python" code={`import asyncio
-from puffinflow import Agent
-from puffinflow.decorators import state
-
-class AdvancedQuotaManager:
-    # ... (full class definition) ...
-
-# ... (rest of the quota management example) ...
-`} fileName="quota_management.py" />
-            </section>
-
-             <section id="best-practices">
-                <h2>Best Practices for Resource Configuration</h2>
-                <h3>1. Start Conservative, Then Optimize</h3>
-                <CodeWindow language="python" code={`# ✅ Good approach - Start with conservative estimates
-@state(cpu=1.0, memory=512, timeout=30.0)
-async def new_operation(context):
-    # Monitor and profile this operation
-    pass
-
-# ❌ Avoid - Over-allocating without data
-@state(cpu=16.0, memory=32768)
-async def over_allocated_operation(context):
-    pass`} fileName="optimize.py" />
-                <h3>2. Match Resources to Workload Characteristics</h3>
-                <CodeWindow language="python" code={`# ✅ Good - Different patterns for different workloads
-@state(cpu=6.0, memory=2048)
-async def mathematical_modeling(context): pass
-
-@state(cpu=2.0, memory=16384)
-async def large_dataset_processing(context): pass
-
-# ❌ Avoid - Same configuration for different workloads
-@state(cpu=4.0, memory=4096)  # One size fits all
-`} fileName="match_workload.py" />
-                <h3>3. Use Coordination Appropriately</h3>
-                <CodeWindow language="python" code={`# ✅ Good - Choose the right coordination primitive
-@state(mutex=True)
-async def database_schema_update(context): pass
-
-@state(semaphore=5)
-async def database_query(context): pass
-
-# ❌ Avoid - Wrong coordination for the use case
-@state(mutex=True)  # Unnecessarily exclusive for read operations
-async def read_only_query(context): pass
-`} fileName="coordination_best_practice.py" />
-                 <h3>4. Implement Sensible Rate Limiting</h3>
-                <CodeWindow language="python" code={`# ✅ Good - Rate limits based on service characteristics
-@state(rate_limit=50.0, burst_limit=100)
-async def internal_microservice_call(context): pass
-
-@state(rate_limit=10.0)
-async def external_api_call(context): pass
-
-# ❌ Avoid - Rate limits that don't match reality
-@state(rate_limit=1000.0)
-async def realistic_api_call(context): pass`} fileName="rate_limit_best_practice.py" />
-                 <h3>5. Monitor and Adjust Based on Data</h3>
-                 <CodeWindow language="python" code={`@state
-async def resource_monitoring_and_optimization(context):
-    """
-    Implement monitoring to continuously optimize resource allocation
-    """
-    print("📊 Resource utilization analysis...")
-
-    # Collect performance metrics
-    operations_data = {
-        "data_processing": {
-            "avg_cpu_usage": 85,  # 85% of allocated CPU
-            "avg_memory_usage": 60,  # 60% of allocated memory
-            "avg_duration": 45,  # 45 seconds average
-            "success_rate": 98  # 98% success rate
-        },
-        "api_calls": {
-            "avg_cpu_usage": 15,  # Only 15% CPU usage
-            "avg_memory_usage": 25,  # 25% memory usage
-            "avg_duration": 2,  # 2 seconds average
-            "success_rate": 99.5  # 99.5% success rate
-        }
-    }
-
-    recommendations = []
-
-    for operation, metrics in operations_data.items():
-        print(f"\n🔍 Analyzing {operation}:")
-        print(f"   CPU: {metrics['avg_cpu_usage']}% utilization")
-        print(f"   Memory: {metrics['avg_memory_usage']}% utilization")
-        print(f"   Duration: {metrics['avg_duration']}s average")
-        print(f"   Success: {metrics['success_rate']}%")
-
-        # Generate optimization recommendations
-        if metrics['avg_cpu_usage'] > 90:
-            recommendations.append(f"🔴 {operation}: Increase CPU allocation")
-        elif metrics['avg_cpu_usage'] < 30:
-            recommendations.append(f"🟡 {operation}: Consider reducing CPU allocation")
-
-        if metrics['avg_memory_usage'] > 90:
-            recommendations.append(f"🔴 {operation}: Increase memory allocation")
-        elif metrics['avg_memory_usage'] < 30:
-            recommendations.append(f"🟡 {operation}: Consider reducing memory allocation")
-
-        if metrics['success_rate'] < 95:
-            recommendations.append(f"🔴 {operation}: Investigate failure causes")
-
-    print(f"\n📋 Optimization Recommendations:")
-    for rec in recommendations:
-        print(f"   {rec}")
-
-    if not recommendations:
-        print("   ✅ All operations are well-optimized")
-
-    context.set_variable("optimization_recommendations", recommendations)
-`} fileName="monitoring.py" />
-            </section>
-
-            <section id="when-to-use">
-                <h2>When to Use Different Features</h2>
-                <h3>Resource Allocation Decision Tree</h3>
-                <CodeWindow language="python" code={`"""
-Resource Allocation Decision Framework:
-
-1. CPU Allocation:
-   - cpu=0.5-1.0: Light coordination, simple logic
-   - cpu=2.0-4.0: Data processing, API orchestration
-   - cpu=4.0-8.0: Scientific computing, complex analysis
-   - cpu=8.0+: Parallel processing, mathematical modeling
-
-2. Memory Allocation:
-   - memory=256-512: Simple operations, coordination tasks
-   - memory=1024-4096: Data processing, caching
-   - memory=4096-16384: Large datasets, ML training
-   - memory=16384+: Big data, in-memory databases
-
-3. GPU Allocation:
-   - gpu=0.0: No GPU needed
-   - gpu=0.5-1.0: Light ML inference, image processing
-   - gpu=1.0-4.0: ML training, scientific computing
-   - gpu=4.0+: Distributed ML, high-performance computing
-
-4. I/O Priority:
-   - io=1.0: Minimal file operations
-   - io=5.0-10.0: Regular file processing
-   - io=10.0+: Bulk file operations, data pipelines
-
-5. Network Priority:
-   - network=1.0: Occasional API calls
-   - network=5.0-10.0: Regular external service calls
-   - network=10.0+: High-volume data transfer
-"""
-
-# Example decision process
-def recommend_resources(operation_type, data_size, external_calls, duration):
-    """Recommend resource configuration based on operation characteristics"""
-
-    recommendations = {
-        "cpu": 1.0,
-        "memory": 512,
-        "gpu": 0.0,
-        "io": 1.0,
-        "network": 1.0,
-        "timeout": 30.0,
-        "rate_limit": None,
-        "coordination": None
-    }
-
-    # Adjust based on operation type
-    if operation_type == "data_processing":
-        recommendations.update({
-            "cpu": 4.0,
-            "memory": 2048,
-            "timeout": 300.0
-        })
-    elif operation_type == "ml_training":
-        recommendations.update({
-            "cpu": 4.0,
-            "memory": 8192,
-            "gpu": 2.0,
-            "timeout": 3600.0
-        })
-    elif operation_type == "file_processing":
-        recommendations.update({
-            "cpu": 1.0,
-            "memory": 1024,
-            "io": 10.0,
-            "timeout": 600.0
-        })
-    elif operation_type == "api_orchestration":
-        recommendations.update({
-            "cpu": 1.0,
-            "memory": 512,
-            "network": 8.0,
-            "timeout": 60.0,
-            "rate_limit": 10.0
-        })
-
-    # Adjust based on data size
-    if data_size > 10000000:  # 10M+ records
-        recommendations["memory"] *= 4
-        recommendations["timeout"] *= 2
-    elif data_size > 1000000:  # 1M+ records
-        recommendations["memory"] *= 2
-
-    # Adjust based on external calls
-    if external_calls > 100:
-        recommendations["rate_limit"] = 20.0
-        recommendations["network"] = 10.0
-    elif external_calls > 10:
-        recommendations["rate_limit"] = 5.0
-        recommendations["network"] = 5.0
-
-    # Adjust based on duration
-    if duration > 3600:  # > 1 hour
-        recommendations["timeout"] = duration * 1.5
-        recommendations["coordination"] = "lease"
-    elif duration > 300:  # > 5 minutes
-        recommendations["timeout"] = duration * 1.2
-
-    return recommendations
-
-# Usage example
-def generate_decorator_config(operation_type, data_size=0, external_calls=0, duration=30):
-    """Generate @state decorator configuration"""
-    config = recommend_resources(operation_type, data_size, external_calls, duration)
-
-    decorator_parts = []
-
-    # Required resources
-    if config["cpu"] != 1.0:
-        decorator_parts.append(f"cpu={config['cpu']}")
-    if config["memory"] != 512:
-        decorator_parts.append(f"memory={config['memory']}")
-    if config["gpu"] > 0:
-        decorator_parts.append(f"gpu={config['gpu']}")
-    if config["io"] != 1.0:
-        decorator_parts.append(f"io={config['io']}")
-    if config["network"] != 1.0:
-        decorator_parts.append(f"network={config['network']}")
-
-    # Performance settings
-    if config["timeout"] != 30.0:
-        decorator_parts.append(f"timeout={config['timeout']}")
-    if config["rate_limit"]:
-        decorator_parts.append(f"rate_limit={config['rate_limit']}")
-
-    # Coordination
-    if config["coordination"] == "lease":
-        decorator_parts.append("lease=300.0")
-
-    decorator_config = ", ".join(decorator_parts)
-
-    print(f"Recommended configuration for {operation_type}:")
-    print(f"@state({decorator_config})")
-
-    return config
-
-# Examples
-print("🔍 Resource Configuration Recommendations:\n")
-
-generate_decorator_config("data_processing", data_size=5000000, duration=180)
-print()
-
-generate_decorator_config("ml_training", data_size=1000000, duration=1800)
-print()
-
-generate_decorator_config("file_processing", data_size=100000, duration=300)
-print()
-
-generate_decorator_config("api_orchestration", external_calls=50, duration=45)`} fileName="decision_tree.py" />
-            </section>
-
-            <section id="quick-reference">
-                <h2>Quick Reference</h2>
-                <h3>Basic Resource Allocation</h3>
-                <CodeWindow language="python" code={`@state(cpu=4.0, memory=2048)
-@state(gpu=1.0, memory=8192)
-@state(io=10.0, network=5.0)`} fileName="ref_basic.py" />
-                <h3>Rate Limiting</h3>
-                <CodeWindow language="python" code={`@state(rate_limit=10.0)
-@state(rate_limit=5.0, burst_limit=15)`} fileName="ref_rate_limit.py" />
-                <h3>Coordination Primitives</h3>
-                <CodeWindow language="python" code={`@state(mutex=True)
-@state(semaphore=5)
-@state(barrier=3)
-@state(lease=30.0)`} fileName="ref_coordination.py" />
-                 <h3>Combined Configuration</h3>
-                 <CodeWindow language="python" code={`# These are convenience decorators with predefined resource allocations:
-# @cpu_intensive     # Roughly equivalent to @state(cpu=4.0, memory=1024)
-# @memory_intensive  # Roughly equivalent to @state(cpu=2.0, memory=4096)
-# @gpu_accelerated   # Roughly equivalent to @state(cpu=2.0, memory=2048, gpu=1.0)
-
-# ⚠️ Important: Always profile your workloads and adjust these as needed!
-# The predefined decorators are starting points, not optimized configurations.
-
-# ✅ Better approach - Start with manual configuration based on your analysis:
-@state(cpu=3.0, memory=1536, timeout=180.0)  # Tuned for your specific workload
-async def your_cpu_intensive_task(context):
-    pass
-`} fileName="ref_profiles.py" />
-                <p>Resource management is about understanding your workload characteristics and configuring appropriate constraints to ensure optimal performance, reliability, and fair resource sharing across your workflows!</p>
-            </section>
-        </DocsLayout>
+        />
     );
 };
 

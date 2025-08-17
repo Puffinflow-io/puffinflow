@@ -1,1125 +1,980 @@
-export const multiagentMarkdown = `# Multi-Agent Systems & Collaboration
+export const multiagentMarkdown = `# Multi-Agent Systems
 
-Puffinflow enables sophisticated multi-agent systems where multiple AI agents collaborate, coordinate, and communicate to solve complex problems. This guide covers agent communication patterns, team structures, hierarchical organizations, and collaborative workflows for building scalable AI systems.
+Multi-agent systems are like having a team of specialists working together - each agent has their own expertise, but they collaborate to solve complex problems that would be difficult for any single agent. Puffinflow comes with powerful built-in multi-agent coordination that makes it easy to orchestrate teams of agents.
 
-## Multi-Agent Philosophy
+## Why Multi-Agent Systems Matter
 
-**Multi-agent systems go beyond parallel processing** - they enable:
-- **Specialization**: Agents focus on specific domains or tasks
-- **Collaboration**: Agents share knowledge and coordinate actions  
-- **Scalability**: Distribute workload across multiple specialized components
-- **Resilience**: System continues operating if individual agents fail
-- **Emergence**: Complex behaviors arising from simple agent interactions
+**Without multi-agent coordination:**
+- Single agents get overwhelmed by complex tasks
+- No way to leverage specialized capabilities
+- Poor scalability and resource utilization
+- Bottlenecks when one agent handles everything
+- No fault tolerance if the single agent fails
 
-## Multi-Agent Architecture Patterns
+**With Puffinflow's built-in multi-agent systems:**
+- Specialized agents handle what they do best
+- Parallel processing dramatically improves performance
+- Automatic load balancing and resource optimization
+- Built-in fault tolerance and resilience
+- Rich coordination patterns for complex workflows
 
-| Pattern | Use Cases | Benefits | Complexity |
-|---------|-----------|----------|------------|
-| **Agent Pool** | Load balancing, horizontal scaling | High throughput, fault tolerance | Low |
-| **Agent Pipeline** | Sequential processing, data transformation | Clear data flow, easy debugging | Medium |
-| **Agent Hierarchy** | Command & control, delegation | Clear authority, structured coordination | High |
-| **Agent Swarm** | Distributed problem solving, emergent behavior | Adaptive, self-organizing | Very High |
-| **Agent Market** | Resource allocation, competitive optimization | Efficient resource use, dynamic adaptation | High |
+## Part 1: Built-in Agent Teams
 
----
-
-## Agent Communication & Messaging
-
-### Inter-Agent Communication Framework
-
-Establish robust communication channels between agents:
+Agent teams are like project teams - each member has a role, and they work together toward a common goal:
 
 \`\`\`python
 import asyncio
-import json
 import time
-from typing import Dict, List, Any, Optional, Callable
-from enum import Enum
-from dataclasses import dataclass, field
-from puffinflow import Agent
-from puffinflow import state
+import random
+from puffinflow import Agent, AgentTeam, Priority
 
-class MessageType(Enum):
-    REQUEST = "request"
-    RESPONSE = "response"
-    NOTIFICATION = "notification"
-    BROADCAST = "broadcast"
-    COMMAND = "command"
+# Create specialized agents for different tasks
+data_agent = Agent("data-processor")
+ai_agent = Agent("ai-analyzer")
+results_agent = Agent("results-collector")
 
-class MessagePriority(Enum):
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    URGENT = "urgent"
-
-@dataclass
-class Message:
-    message_id: str
-    sender_id: str
-    recipient_id: str
-    message_type: MessageType
-    priority: MessagePriority
-    content: Dict[str, Any]
-    timestamp: float = field(default_factory=time.time)
-    correlation_id: Optional[str] = None
-    expires_at: Optional[float] = None
-
-class MessageBus:
-    def __init__(self):
-        self.message_queues = {}
-        self.subscribers = {}
-        self.message_handlers = {}
-        self.delivered_messages = []
-        self.failed_messages = []
+@data_agent.state(priority=Priority.HIGH, timeout=30.0)
+async def process_data(context):
+    """Process raw data for analysis"""
     
-    def register_agent(self, agent_id: str):
-        """Register an agent with the message bus"""
-        if agent_id not in self.message_queues:
-            self.message_queues[agent_id] = asyncio.Queue()
-            self.subscribers[agent_id] = set()
-            self.message_handlers[agent_id] = {}
+    dataset_id = context.get_variable("dataset_id", "dataset_001")
+    print(f"📊 Data Agent: Processing dataset {dataset_id}")
     
-    async def send_message(self, message: Message) -> bool:
-        """Send a message to a specific agent"""
-        try:
-            if message.recipient_id in self.message_queues:
-                await self.message_queues[message.recipient_id].put(message)
-                self.delivered_messages.append(message)
-                
-                print(f"📤 MessageBus: Delivered {message.message_type.value} from {message.sender_id} to {message.recipient_id}")
-                return True
-            else:
-                print(f"❌ MessageBus: Recipient {message.recipient_id} not found")
-                self.failed_messages.append(message)
-                return False
-                
-        except Exception as e:
-            print(f"❌ MessageBus: Failed to send message: {e}")
-            self.failed_messages.append(message)
-            return False
+    # Simulate data processing
+    await asyncio.sleep(2.0)
     
-    async def broadcast_message(self, sender_id: str, content: Dict[str, Any], message_type: MessageType = MessageType.BROADCAST):
-        """Broadcast a message to all registered agents"""
-        broadcast_tasks = []
-        
-        for agent_id in self.message_queues.keys():
-            if agent_id != sender_id:  # Don't send to sender
-                message = Message(
-                    message_id=f"broadcast_{int(time.time())}_{agent_id}",
-                    sender_id=sender_id,
-                    recipient_id=agent_id,
-                    message_type=message_type,
-                    priority=MessagePriority.NORMAL,
-                    content=content
-                )
-                broadcast_tasks.append(self.send_message(message))
-        
-        results = await asyncio.gather(*broadcast_tasks, return_exceptions=True)
-        successful_sends = sum(1 for result in results if result is True)
-        
-        print(f"📡 MessageBus: Broadcast from {sender_id} delivered to {successful_sends}/{len(broadcast_tasks)} agents")
-        return successful_sends
-    
-    async def receive_message(self, agent_id: str, timeout: float = 5.0) -> Optional[Message]:
-        """Receive a message for a specific agent"""
-        try:
-            if agent_id in self.message_queues:
-                message = await asyncio.wait_for(
-                    self.message_queues[agent_id].get(),
-                    timeout=timeout
-                )
-                
-                # Check if message has expired
-                if message.expires_at and time.time() > message.expires_at:
-                    print(f"⏰ MessageBus: Message {message.message_id} expired")
-                    return None
-                
-                return message
-            return None
-            
-        except asyncio.TimeoutError:
-            return None
-    
-    def subscribe_to_topic(self, agent_id: str, topic: str, handler: Callable):
-        """Subscribe an agent to a specific topic"""
-        if agent_id not in self.message_handlers:
-            self.message_handlers[agent_id] = {}
-        
-        self.message_handlers[agent_id][topic] = handler
-        self.subscribers[agent_id].add(topic)
-        
-        print(f"📝 MessageBus: Agent {agent_id} subscribed to topic '{topic}'")
-
-# Global message bus
-message_bus = MessageBus()
-
-# Multi-agent communication demonstration
-communication_agent = Agent("agent-communication-demo")
-
-@state(timeout=45.0)
-async def coordinator_agent_task(context):
-    """Coordinator agent that orchestrates multi-agent collaboration"""
-    agent_id = "coordinator"
-    
-    print(f"🎭 {agent_id}: Starting coordination...")
-    
-    # Register with message bus
-    message_bus.register_agent(agent_id)
-    
-    # Define work distribution
-    work_assignments = [
-        {
-            "agent_id": "data_processor_1",
-            "task_type": "data_ingestion",
-            "parameters": {"source": "database", "batch_size": 1000}
-        },
-        {
-            "agent_id": "data_processor_2", 
-            "task_type": "data_validation",
-            "parameters": {"validation_rules": ["schema", "quality", "completeness"]}
-        },
-        {
-            "agent_id": "ai_analyzer",
-            "task_type": "ai_analysis",
-            "parameters": {"model": "gpt-4", "analysis_type": "sentiment"}
-        }
-    ]
-    
-    # Send work assignments
-    for assignment in work_assignments:
-        message = Message(
-            message_id=f"work_assignment_{assignment['agent_id']}",
-            sender_id=agent_id,
-            recipient_id=assignment["agent_id"],
-            message_type=MessageType.COMMAND,
-            priority=MessagePriority.HIGH,
-            content={
-                "command": "start_task",
-                "assignment": assignment
-            },
-            expires_at=time.time() + 300  # 5 minute expiry
-        )
-        
-        await message_bus.send_message(message)
-        print(f"📋 {agent_id}: Assigned {assignment['task_type']} to {assignment['agent_id']}")
-    
-    # Monitor progress and collect results
-    completed_tasks = []
-    failed_tasks = []
-    
-    # Wait for responses from all agents
-    for assignment in work_assignments:
-        print(f"⏳ {agent_id}: Waiting for response from {assignment['agent_id']}...")
-        
-        response = await message_bus.receive_message(agent_id, timeout=30.0)
-        
-        if response and response.message_type == MessageType.RESPONSE:
-            if response.content.get("status") == "completed":
-                completed_tasks.append(response.content)
-                print(f"✅ {agent_id}: Received completion from {response.sender_id}")
-            else:
-                failed_tasks.append(response.content)
-                print(f"❌ {agent_id}: Received failure from {response.sender_id}")
-        else:
-            failed_tasks.append({"agent_id": assignment["agent_id"], "error": "timeout"})
-            print(f"⏰ {agent_id}: Timeout waiting for {assignment['agent_id']}")
-    
-    # Generate coordination summary
-    coordination_results = {
-        "coordinator_id": agent_id,
-        "total_assignments": len(work_assignments),
-        "completed_tasks": len(completed_tasks),
-        "failed_tasks": len(failed_tasks),
-        "success_rate": len(completed_tasks) / len(work_assignments) if work_assignments else 0,
-        "task_results": completed_tasks
+    processed_data = {
+        "dataset_id": dataset_id,
+        "records": [f"record_{i}" for i in range(1000)],
+        "quality_score": 0.95,
+        "processed_at": time.time()
     }
     
-    context.set_variable("coordination_results", coordination_results)
+    context.set_variable("processed_data", processed_data)
+    print(f"✅ Data Agent: Processed {len(processed_data['records'])} records")
     
-    # Broadcast completion to all agents
-    await message_bus.broadcast_message(agent_id, {
-        "notification": "coordination_complete",
-        "summary": coordination_results
-    })
-    
-    print(f"🎉 {agent_id}: Coordination complete - {len(completed_tasks)}/{len(work_assignments)} tasks successful")
+    return None
 
-@state(timeout=30.0)
-async def worker_agent_task(context):
-    """Worker agent that receives and processes tasks"""
-    agent_id = context.get_variable("agent_id", "worker_001")
+@ai_agent.state(priority=Priority.NORMAL, timeout=45.0)
+async def analyze_with_ai(context):
+    """Perform AI analysis on processed data"""
     
-    print(f"👷 {agent_id}: Starting as worker agent...")
+    model_name = context.get_variable("model", "gpt-4")
+    print(f"🤖 AI Agent: Running analysis with {model_name}")
     
-    # Register with message bus
-    message_bus.register_agent(agent_id)
+    # Simulate AI analysis
+    await asyncio.sleep(3.0)
     
-    # Wait for work assignment
-    print(f"📬 {agent_id}: Waiting for work assignment...")
+    # Generate analysis results
+    analysis_results = {
+        "model_used": model_name,
+        "predictions": [f"prediction_{i}" for i in range(1000)],
+        "confidence_scores": [0.8 + random.random() * 0.2 for _ in range(1000)],
+        "analysis_time": 3.0,
+        "analyzed_at": time.time()
+    }
     
-    assignment_message = await message_bus.receive_message(agent_id, timeout=20.0)
+    context.set_variable("analysis_results", analysis_results)
+    print(f"✅ AI Agent: Generated {len(analysis_results['predictions'])} predictions")
     
-    if not assignment_message:
-        print(f"⏰ {agent_id}: No assignment received, timing out")
-        return
-    
-    if assignment_message.message_type != MessageType.COMMAND:
-        print(f"❌ {agent_id}: Unexpected message type: {assignment_message.message_type}")
-        return
-    
-    # Process the assignment
-    assignment = assignment_message.content.get("assignment", {})
-    task_type = assignment.get("task_type", "unknown")
-    parameters = assignment.get("parameters", {})
-    
-    print(f"📋 {agent_id}: Received assignment: {task_type}")
-    
-    try:
-        # Simulate task processing based on type
-        if task_type == "data_ingestion":
-            await simulate_data_ingestion(agent_id, parameters)
-        elif task_type == "data_validation":
-            await simulate_data_validation(agent_id, parameters)
-        elif task_type == "ai_analysis":
-            await simulate_ai_analysis(agent_id, parameters)
-        else:
-            raise Exception(f"Unknown task type: {task_type}")
-        
-        # Send success response
-        response = Message(
-            message_id=f"response_{agent_id}_{int(time.time())}",
-            sender_id=agent_id,
-            recipient_id=assignment_message.sender_id,
-            message_type=MessageType.RESPONSE,
-            priority=MessagePriority.NORMAL,
-            content={
-                "status": "completed",
-                "task_type": task_type,
-                "agent_id": agent_id,
-                "completion_time": time.time(),
-                "results": {
-                    "processed_items": 1500,
-                    "processing_time": 5.0,
-                    "quality_score": 0.95
-                }
-            },
-            correlation_id=assignment_message.message_id
-        )
-        
-        await message_bus.send_message(response)
-        print(f"✅ {agent_id}: Task {task_type} completed successfully")
-        
-    except Exception as e:
-        # Send failure response
-        error_response = Message(
-            message_id=f"error_response_{agent_id}_{int(time.time())}",
-            sender_id=agent_id,
-            recipient_id=assignment_message.sender_id,
-            message_type=MessageType.RESPONSE,
-            priority=MessagePriority.HIGH,
-            content={
-                "status": "failed",
-                "task_type": task_type,
-                "agent_id": agent_id,
-                "error": str(e),
-                "failure_time": time.time()
-            },
-            correlation_id=assignment_message.message_id
-        )
-        
-        await message_bus.send_message(error_response)
-        print(f"❌ {agent_id}: Task {task_type} failed: {e}")
+    return None
 
-# Simulation functions for different task types
-async def simulate_data_ingestion(agent_id: str, parameters: Dict):
-    """Simulate data ingestion task"""
-    source = parameters.get("source", "unknown")
-    batch_size = parameters.get("batch_size", 100)
+@results_agent.state(priority=Priority.LOW, timeout=20.0)
+async def collect_results(context):
+    """Collect and summarize results from other agents"""
     
-    print(f"   📥 {agent_id}: Ingesting data from {source} (batch size: {batch_size})")
-    await asyncio.sleep(3.0)  # Simulate processing time
+    print("📈 Results Agent: Collecting team results...")
     
-    if source == "database":
-        # Simulate potential database issues
-        if time.time() % 10 < 1:  # 10% chance of failure
-            raise Exception("Database connection timeout")
+    # Access team-wide results using built-in team context
+    team_results = context.get_team_results()
+    
+    summary = {
+        "total_agents": len(team_results),
+        "successful_agents": len([r for r in team_results.values() if r.is_success]),
+        "total_processing_time": sum(r.execution_time for r in team_results.values()),
+        "collected_at": time.time()
+    }
+    
+    context.set_output("team_summary", summary)
+    print(f"✅ Results Agent: Collected results from {summary['total_agents']} agents")
+    
+    return None
 
-async def simulate_data_validation(agent_id: str, parameters: Dict):
-    """Simulate data validation task"""
-    rules = parameters.get("validation_rules", [])
-    
-    print(f"   🔍 {agent_id}: Validating data with rules: {', '.join(rules)}")
-    await asyncio.sleep(2.0)  # Simulate processing time
-    
-    # Simulate validation failures
-    if len(rules) > 2 and time.time() % 15 < 1:  # Rare failure
-        raise Exception("Data quality check failed")
+# Create built-in agent team
+analysis_team = AgentTeam("analysis-team")
+analysis_team.add_agents([data_agent, ai_agent, results_agent])
 
-async def simulate_ai_analysis(agent_id: str, parameters: Dict):
-    """Simulate AI analysis task"""
-    model = parameters.get("model", "unknown")
-    analysis_type = parameters.get("analysis_type", "unknown")
-    
-    print(f"   🧠 {agent_id}: Running {analysis_type} analysis with {model}")
-    await asyncio.sleep(4.0)  # Simulate AI processing time
-    
-    # Simulate AI model issues
-    if model == "gpt-4" and time.time() % 20 < 1:  # Rare API failure
-        raise Exception("AI model API rate limit exceeded")
+# Set shared context for the entire team
+analysis_team.with_shared_context({
+    "project_id": "ml_analysis_2024",
+    "quality_threshold": 0.9,
+    "max_retries": 3
+})
 
-# Create the coordination workflow
-communication_agent.add_state("coordinator", coordinator_agent_task)
+# Demo built-in agent team
+async def demo_builtin_agent_team():
+    print("👥 Built-in Agent Team Demo\\n")
+    
+    # Run agents in parallel using built-in team coordination
+    team_result = await analysis_team.run_parallel(
+        timeout=60.0,
+        initial_context={
+            "dataset_id": "customer_data_2024",
+            "model": "gpt-4-turbo"
+        }
+    )
+    
+    print(f"\\n📊 Team Results:")
+    print(f"   Team name: {team_result.team_name}")
+    print(f"   Execution time: {team_result.total_execution_time:.2f}s")
+    print(f"   Successful agents: {len(team_result.successful_agents)}")
+    print(f"   Failed agents: {len(team_result.failed_agents)}")
+    
+    # Access individual agent results
+    for agent_name, result in team_result.agent_results.items():
+        status_emoji = "✅" if result.is_success else "❌"
+        print(f"   {status_emoji} {agent_name}: {result.execution_time:.2f}s")
+    
+    # Get team summary from results agent
+    if "results-collector" in team_result.agent_results:
+        summary = team_result.agent_results["results-collector"].outputs.get("team_summary")
+        if summary:
+            print(f"\\n📈 Team Summary: {summary}")
 
-# Create worker agents
-worker_agents = ["data_processor_1", "data_processor_2", "ai_analyzer"]
-for worker_id in worker_agents:
-    communication_agent.add_state(f"worker_{worker_id}", 
-        lambda ctx, w_id=worker_id: worker_agent_task({**ctx.shared_state, "agent_id": w_id}))
+if __name__ == "__main__":
+    asyncio.run(demo_builtin_agent_team())
 \`\`\`
 
----
-
-## Agent Teams & Hierarchical Organizations
-
-### Team-Based Agent Structures
-
-Organize agents into teams with specific roles and responsibilities:
+### Advanced Team Coordination
 
 \`\`\`python
-from typing import Set, Dict, List
-from enum import Enum
+# Team with specialized roles and dependencies
+from puffinflow import AgentTeam, ExecutionStrategy
 
-class AgentRole(Enum):
-    LEADER = "leader"
-    SPECIALIST = "specialist"
-    COORDINATOR = "coordinator"
-    WORKER = "worker"
-    OBSERVER = "observer"
+# Create team with execution strategy
+advanced_team = AgentTeam("advanced-processing")
 
-class TeamStructure(Enum):
-    FLAT = "flat"
-    HIERARCHICAL = "hierarchical"
-    MATRIX = "matrix"
-    NETWORK = "network"
+# Add agents with dependencies
+advanced_team.add_agent(data_agent)
+advanced_team.add_agent(ai_agent).depends_on("data-processor")
+advanced_team.add_agent(results_agent).depends_on(["data-processor", "ai-analyzer"])
 
-@dataclass
-class AgentProfile:
-    agent_id: str
-    role: AgentRole
-    specializations: List[str]
-    capabilities: Dict[str, float]  # capability -> skill level (0-1)
-    team_memberships: Set[str]
-    reporting_to: Optional[str] = None
-    direct_reports: Set[str] = field(default_factory=set)
+# Set team-wide variables
+advanced_team.set_variable_for_all("environment", "production")
+advanced_team.set_variable_for_all("debug_mode", False)
 
-class AgentTeam:
-    def __init__(self, team_id: str, team_structure: TeamStructure):
-        self.team_id = team_id
-        self.structure = team_structure
-        self.members: Dict[str, AgentProfile] = {}
-        self.team_leader: Optional[str] = None
-        self.communication_patterns = {}
-        self.task_assignments = {}
+# Run with dependency-aware execution
+result = await advanced_team.run_with_dependencies(timeout=120.0)
+\`\`\`
+
+## Part 2: Built-in Agent Pools
+
+Agent pools are like having a group of identical workers ready to handle tasks:
+
+\`\`\`python
+from puffinflow import AgentPool, WorkItem
+
+# Create a worker agent template
+def create_worker_agent():
+    """Factory function to create identical worker agents"""
+    agent = Agent("worker")
     
-    def add_member(self, agent_profile: AgentProfile):
-        """Add an agent to the team"""
-        self.members[agent_profile.agent_id] = agent_profile
-        agent_profile.team_memberships.add(self.team_id)
+    @agent.state(timeout=15.0, max_retries=2)
+    async def process_work_item(context):
+        """Process a work item"""
         
-        # Set team leader if this is the first leader role
-        if agent_profile.role == AgentRole.LEADER and not self.team_leader:
-            self.team_leader = agent_profile.agent_id
-    
-    def assign_task(self, task_id: str, task_requirements: Dict[str, float], deadline: float):
-        """Assign a task to the best-suited team member"""
-        best_agent = None
-        best_score = 0.0
+        worker_id = context.get_variable("worker_id", "unknown")
+        item_data = context.get_variable("item_data", {})
         
-        for agent_id, profile in self.members.items():
-            # Calculate suitability score
-            score = 0.0
-            for requirement, weight in task_requirements.items():
-                if requirement in profile.capabilities:
-                    score += profile.capabilities[requirement] * weight
-            
-            # Normalize by number of requirements
-            score = score / len(task_requirements) if task_requirements else 0
-            
-            if score > best_score:
-                best_score = score
-                best_agent = agent_id
+        print(f"⚙️ Worker {worker_id}: Processing item {item_data.get('id', 'unknown')}")
         
-        if best_agent:
-            self.task_assignments[task_id] = {
-                "assigned_to": best_agent,
-                "requirements": task_requirements,
-                "deadline": deadline,
-                "score": best_score,
-                "assigned_at": time.time()
-            }
-            
-            return best_agent
+        # Simulate variable processing time
+        processing_time = 1.0 + random.random() * 3.0
+        await asyncio.sleep(processing_time)
+        
+        # Simulate occasional failures
+        if random.random() < 0.1:  # 10% failure rate
+            print(f"❌ Worker {worker_id}: Processing failed")
+            raise Exception("Processing failed due to data corruption")
+        
+        # Process the item
+        result = {
+            "item_id": item_data.get("id"),
+            "worker_id": worker_id,
+            "processing_time": processing_time,
+            "result_data": f"processed_{item_data.get('value', 'unknown')}",
+            "processed_at": time.time()
+        }
+        
+        context.set_output("processing_result", result)
+        print(f"✅ Worker {worker_id}: Completed in {processing_time:.2f}s")
         
         return None
+    
+    return agent
 
-# Create specialized agent teams
-data_team = AgentTeam("data_processing_team", TeamStructure.HIERARCHICAL)
-ai_team = AgentTeam("ai_analysis_team", TeamStructure.FLAT)
-coordination_team = AgentTeam("coordination_team", TeamStructure.NETWORK)
-
-# Define agent profiles
-agent_profiles = [
-    # Data Processing Team
-    AgentProfile(
-        agent_id="data_team_leader",
-        role=AgentRole.LEADER,
-        specializations=["data_architecture", "team_management"],
-        capabilities={"data_processing": 0.9, "leadership": 0.95, "coordination": 0.8},
-        team_memberships=set()
-    ),
-    AgentProfile(
-        agent_id="data_ingestion_specialist",
-        role=AgentRole.SPECIALIST,
-        specializations=["data_ingestion", "etl_pipelines"],
-        capabilities={"data_processing": 0.95, "database_management": 0.9, "api_integration": 0.85},
-        team_memberships=set(),
-        reporting_to="data_team_leader"
-    ),
-    AgentProfile(
-        agent_id="data_quality_specialist", 
-        role=AgentRole.SPECIALIST,
-        specializations=["data_validation", "quality_assurance"],
-        capabilities={"data_processing": 0.9, "quality_control": 0.95, "statistics": 0.8},
-        team_memberships=set(),
-        reporting_to="data_team_leader"
-    ),
-    
-    # AI Analysis Team
-    AgentProfile(
-        agent_id="ml_specialist",
-        role=AgentRole.SPECIALIST,
-        specializations=["machine_learning", "model_training"],
-        capabilities={"ai_analysis": 0.95, "model_optimization": 0.9, "data_science": 0.85},
-        team_memberships=set()
-    ),
-    AgentProfile(
-        agent_id="nlp_specialist",
-        role=AgentRole.SPECIALIST,
-        specializations=["natural_language_processing", "text_analysis"],
-        capabilities={"ai_analysis": 0.9, "nlp": 0.95, "linguistics": 0.8},
-        team_memberships=set()
-    ),
-    
-    # Coordination Team
-    AgentProfile(
-        agent_id="master_coordinator",
-        role=AgentRole.COORDINATOR,
-        specializations=["workflow_orchestration", "resource_management"],
-        capabilities={"coordination": 0.95, "resource_management": 0.9, "planning": 0.85},
-        team_memberships=set()
-    )
-]
-
-# Add agents to teams
-for profile in agent_profiles:
-    if "data" in profile.agent_id:
-        data_team.add_member(profile)
-    elif profile.specializations and any("ml" in spec or "nlp" in spec for spec in profile.specializations):
-        ai_team.add_member(profile)
-    elif profile.role == AgentRole.COORDINATOR:
-        coordination_team.add_member(profile)
-
-# Multi-agent team collaboration
-team_agent = Agent("multi-agent-teams")
-
-@state(timeout=60.0)
-async def execute_team_based_workflow(context):
-    """Execute a complex workflow using specialized agent teams"""
-    print("🏢 Starting team-based multi-agent workflow...")
-    
-    # Define complex project requirements
-    project_tasks = [
-        {
-            "task_id": "data_pipeline_setup",
-            "requirements": {"data_processing": 0.8, "database_management": 0.7},
-            "deadline": time.time() + 3600,
-            "estimated_duration": 120
-        },
-        {
-            "task_id": "data_quality_validation",
-            "requirements": {"data_processing": 0.7, "quality_control": 0.9},
-            "deadline": time.time() + 1800,
-            "estimated_duration": 90
-        },
-        {
-            "task_id": "machine_learning_analysis",
-            "requirements": {"ai_analysis": 0.9, "model_optimization": 0.8},
-            "deadline": time.time() + 2400,
-            "estimated_duration": 180
-        },
-        {
-            "task_id": "text_processing_analysis",
-            "requirements": {"ai_analysis": 0.8, "nlp": 0.9},
-            "deadline": time.time() + 2000,
-            "estimated_duration": 150
-        }
-    ]
-    
-    # Assign tasks to appropriate teams and agents
-    task_assignments = {}
-    
-    for task in project_tasks:
-        task_id = task["task_id"]
-        
-        # Determine which team should handle the task
-        if "data" in task_id:
-            assigned_agent = data_team.assign_task(task_id, task["requirements"], task["deadline"])
-            team_id = data_team.team_id
-        elif "machine_learning" in task_id:
-            assigned_agent = ai_team.assign_task(task_id, task["requirements"], task["deadline"])
-            team_id = ai_team.team_id
-        elif "text_processing" in task_id:
-            assigned_agent = ai_team.assign_task(task_id, task["requirements"], task["deadline"])
-            team_id = ai_team.team_id
-        else:
-            assigned_agent = coordination_team.assign_task(task_id, task["requirements"], task["deadline"])
-            team_id = coordination_team.team_id
-        
-        if assigned_agent:
-            task_assignments[task_id] = {
-                "team_id": team_id,
-                "agent_id": assigned_agent,
-                "task": task
-            }
-            
-            print(f"📋 Assigned {task_id} to {assigned_agent} in {team_id}")
-        else:
-            print(f"❌ Could not assign {task_id} - no suitable agent found")
-    
-    # Simulate task execution with team coordination
-    completed_tasks = []
-    
-    for task_id, assignment in task_assignments.items():
-        agent_id = assignment["agent_id"]
-        team_id = assignment["team_id"]
-        task = assignment["task"]
-        
-        print(f"🚀 Starting {task_id} with {agent_id}...")
-        
-        # Simulate task execution
-        execution_start = time.time()
-        
-        # Simulate work (compressed time for demo)
-        simulated_duration = task["estimated_duration"] / 30.0  # Compress 30x
-        await asyncio.sleep(simulated_duration)
-        
-        execution_duration = time.time() - execution_start
-        
-        # Simulate task completion
-        task_result = {
-            "task_id": task_id,
-            "agent_id": agent_id,
-            "team_id": team_id,
-            "status": "completed",
-            "execution_duration": execution_duration,
-            "quality_score": 0.85 + (hash(agent_id) % 100) / 1000,  # Simulated quality
-            "completion_time": time.time()
-        }
-        
-        completed_tasks.append(task_result)
-        print(f"✅ Completed {task_id} in {execution_duration:.2f}s (quality: {task_result['quality_score']:.3f})")
-    
-    # Generate team performance analysis
-    team_performance = analyze_team_performance(completed_tasks, task_assignments)
-    
-    context.set_variable("team_workflow_results", {
-        "total_tasks": len(project_tasks),
-        "completed_tasks": len(completed_tasks),
-        "task_assignments": task_assignments,
-        "completed_task_results": completed_tasks,
-        "team_performance": team_performance
-    })
-    
-    print(f"🎉 Team workflow completed: {len(completed_tasks)}/{len(project_tasks)} tasks finished")
-
-def analyze_team_performance(completed_tasks: List[Dict], assignments: Dict) -> Dict:
-    """Analyze performance of each team"""
-    team_stats = {}
-    
-    for task in completed_tasks:
-        team_id = task["team_id"]
-        
-        if team_id not in team_stats:
-            team_stats[team_id] = {
-                "tasks_completed": 0,
-                "total_duration": 0,
-                "avg_quality": 0,
-                "agents_used": set()
-            }
-        
-        team_stats[team_id]["tasks_completed"] += 1
-        team_stats[team_id]["total_duration"] += task["execution_duration"]
-        team_stats[team_id]["avg_quality"] += task["quality_score"]
-        team_stats[team_id]["agents_used"].add(task["agent_id"])
-    
-    # Calculate averages
-    for team_id, stats in team_stats.items():
-        if stats["tasks_completed"] > 0:
-            stats["avg_duration"] = stats["total_duration"] / stats["tasks_completed"]
-            stats["avg_quality"] = stats["avg_quality"] / stats["tasks_completed"]
-            stats["agents_used"] = list(stats["agents_used"])
-    
-    return team_stats
-
-team_agent.add_state("execute_team_workflow", execute_team_based_workflow)
-\`\`\`
-
----
-
-## Agent Swarms & Emergent Behavior
-
-### Self-Organizing Agent Collectives
-
-Create agent swarms that exhibit emergent behavior and self-organization:
-
-\`\`\`python
-import random
-import math
-from typing import Tuple, List
-
-@dataclass
-class SwarmAgent:
-    agent_id: str
-    position: Tuple[float, float]  # x, y coordinates
-    velocity: Tuple[float, float]  # vx, vy
-    energy: float
-    role: str
-    local_memory: Dict[str, Any] = field(default_factory=dict)
-    communication_range: float = 10.0
-    
-    def distance_to(self, other: 'SwarmAgent') -> float:
-        """Calculate distance to another agent"""
-        dx = self.position[0] - other.position[0]
-        dy = self.position[1] - other.position[1]
-        return math.sqrt(dx * dx + dy * dy)
-    
-    def can_communicate_with(self, other: 'SwarmAgent') -> bool:
-        """Check if this agent can communicate with another"""
-        return self.distance_to(other) <= self.communication_range
-
-class SwarmIntelligence:
-    def __init__(self, environment_size: Tuple[float, float] = (100.0, 100.0)):
-        self.environment_size = environment_size
-        self.agents: List[SwarmAgent] = []
-        self.global_state = {}
-        self.communication_network = {}
-        self.collective_memory = {}
-        
-    def add_agent(self, agent: SwarmAgent):
-        """Add an agent to the swarm"""
-        self.agents.append(agent)
-        self.communication_network[agent.agent_id] = set()
-    
-    def update_communication_network(self):
-        """Update which agents can communicate with each other"""
-        for agent in self.agents:
-            self.communication_network[agent.agent_id] = set()
-            
-            for other_agent in self.agents:
-                if agent.agent_id != other_agent.agent_id and agent.can_communicate_with(other_agent):
-                    self.communication_network[agent.agent_id].add(other_agent.agent_id)
-    
-    def get_local_neighbors(self, agent_id: str) -> List[SwarmAgent]:
-        """Get neighboring agents within communication range"""
-        target_agent = next((a for a in self.agents if a.agent_id == agent_id), None)
-        if not target_agent:
-            return []
-        
-        neighbors = []
-        for other_agent in self.agents:
-            if other_agent.agent_id != agent_id and target_agent.can_communicate_with(other_agent):
-                neighbors.append(other_agent)
-        
-        return neighbors
-    
-    async def execute_swarm_behavior(self, iterations: int = 10):
-        """Execute swarm behavior for specified iterations"""
-        for iteration in range(iterations):
-            print(f"🐝 Swarm iteration {iteration + 1}/{iterations}")
-            
-            # Update communication network
-            self.update_communication_network()
-            
-            # Execute behavior for each agent
-            for agent in self.agents:
-                await self.execute_agent_behavior(agent, iteration)
-            
-            # Update global swarm state
-            self.update_global_state(iteration)
-            
-            await asyncio.sleep(0.5)  # Pause between iterations
-    
-    async def execute_agent_behavior(self, agent: SwarmAgent, iteration: int):
-        """Execute behavior for a specific agent"""
-        neighbors = self.get_local_neighbors(agent.agent_id)
-        
-        if agent.role == "explorer":
-            await self.explorer_behavior(agent, neighbors, iteration)
-        elif agent.role == "forager":
-            await self.forager_behavior(agent, neighbors, iteration)
-        elif agent.role == "coordinator":
-            await self.coordinator_behavior(agent, neighbors, iteration)
-        elif agent.role == "analyzer":
-            await self.analyzer_behavior(agent, neighbors, iteration)
-    
-    async def explorer_behavior(self, agent: SwarmAgent, neighbors: List[SwarmAgent], iteration: int):
-        """Explorer agents seek new areas and opportunities"""
-        # Move towards unexplored areas
-        target_x = random.uniform(0, self.environment_size[0])
-        target_y = random.uniform(0, self.environment_size[1])
-        
-        # Adjust target based on neighbor positions (avoid crowding)
-        if neighbors:
-            neighbor_avg_x = sum(n.position[0] for n in neighbors) / len(neighbors)
-            neighbor_avg_y = sum(n.position[1] for n in neighbors) / len(neighbors)
-            
-            # Move away from crowd
-            repulsion_strength = 5.0
-            target_x = agent.position[0] + (agent.position[0] - neighbor_avg_x) * repulsion_strength / 100
-            target_y = agent.position[1] + (agent.position[1] - neighbor_avg_y) * repulsion_strength / 100
-        
-        # Update position
-        dx = (target_x - agent.position[0]) * 0.1  # 10% movement per iteration
-        dy = (target_y - agent.position[1]) * 0.1
-        
-        new_x = max(0, min(self.environment_size[0], agent.position[0] + dx))
-        new_y = max(0, min(self.environment_size[1], agent.position[1] + dy))
-        
-        agent.position = (new_x, new_y)
-        agent.velocity = (dx, dy)
-        
-        # Record exploration
-        exploration_key = f"explored_{int(new_x//10)}_{int(new_y//10)}"
-        agent.local_memory[exploration_key] = iteration
-        
-        # Share findings with neighbors
-        for neighbor in neighbors:
-            if neighbor.role in ["forager", "coordinator"]:
-                # Simplified communication - share position info
-                neighbor.local_memory[f"explorer_report_{agent.agent_id}"] = {
-                    "position": agent.position,
-                    "iteration": iteration,
-                    "energy": agent.energy
-                }
-        
-        print(f"   🔍 Explorer {agent.agent_id}: Moved to ({new_x:.1f}, {new_y:.1f}), {len(neighbors)} neighbors")
-    
-    async def forager_behavior(self, agent: SwarmAgent, neighbors: List[SwarmAgent], iteration: int):
-        """Forager agents collect resources and optimize paths"""
-        # Look for resource locations from explorer reports
-        resource_locations = []
-        
-        for key, value in agent.local_memory.items():
-            if key.startswith("explorer_report_") and isinstance(value, dict):
-                resource_locations.append(value["position"])
-        
-        # Move towards promising locations
-        if resource_locations:
-            # Choose closest resource location
-            current_pos = agent.position
-            closest_resource = min(resource_locations, 
-                                 key=lambda pos: math.sqrt((pos[0] - current_pos[0])**2 + (pos[1] - current_pos[1])**2))
-            
-            # Move towards resource
-            dx = (closest_resource[0] - current_pos[0]) * 0.2
-            dy = (closest_resource[1] - current_pos[1]) * 0.2
-            
-            new_x = max(0, min(self.environment_size[0], current_pos[0] + dx))
-            new_y = max(0, min(self.environment_size[1], current_pos[1] + dy))
-            
-            agent.position = (new_x, new_y)
-            agent.velocity = (dx, dy)
-            
-            # Simulate resource collection
-            if abs(new_x - closest_resource[0]) < 5 and abs(new_y - closest_resource[1]) < 5:
-                agent.energy += 10  # Gained energy from resource
-                agent.local_memory[f"resource_collected_{iteration}"] = {
-                    "location": closest_resource,
-                    "energy_gained": 10,
-                    "iteration": iteration
-                }
-        
-        # Share resource information with coordinators
-        for neighbor in neighbors:
-            if neighbor.role == "coordinator":
-                neighbor.local_memory[f"forager_report_{agent.agent_id}"] = {
-                    "position": agent.position,
-                    "energy": agent.energy,
-                    "resources_found": len([k for k in agent.local_memory.keys() if "resource_collected" in k]),
-                    "iteration": iteration
-                }
-        
-        print(f"   🍯 Forager {agent.agent_id}: Energy {agent.energy:.1f}, position ({agent.position[0]:.1f}, {agent.position[1]:.1f})")
-    
-    async def coordinator_behavior(self, agent: SwarmAgent, neighbors: List[SwarmAgent], iteration: int):
-        """Coordinator agents optimize swarm organization"""
-        # Collect information from all agent types
-        explorer_reports = {}
-        forager_reports = {}
-        
-        for key, value in agent.local_memory.items():
-            if key.startswith("explorer_report_"):
-                explorer_reports[key] = value
-            elif key.startswith("forager_report_"):
-                forager_reports[key] = value
-        
-        # Calculate swarm metrics
-        swarm_metrics = {
-            "active_explorers": len(explorer_reports),
-            "active_foragers": len(forager_reports),
-            "total_energy": sum(report.get("energy", 0) for report in forager_reports.values()),
-            "exploration_coverage": len(set(
-                f"{int(report['position'][0]//10)}_{int(report['position'][1]//10)}"
-                for report in explorer_reports.values()
-            )),
-            "iteration": iteration
-        }
-        
-        # Store in collective memory
-        self.collective_memory[f"swarm_metrics_{iteration}"] = swarm_metrics
-        
-        # Coordinate swarm behavior adjustments
-        if swarm_metrics["exploration_coverage"] < 5:  # Need more exploration
-            agent.local_memory["swarm_directive"] = "increase_exploration"
-        elif swarm_metrics["total_energy"] < 50:  # Need more foraging
-            agent.local_memory["swarm_directive"] = "increase_foraging"
-        else:
-            agent.local_memory["swarm_directive"] = "maintain_balance"
-        
-        # Move to central location for better coordination
-        center_x = self.environment_size[0] / 2
-        center_y = self.environment_size[1] / 2
-        
-        dx = (center_x - agent.position[0]) * 0.05  # Slow movement to center
-        dy = (center_y - agent.position[1]) * 0.05
-        
-        new_x = agent.position[0] + dx
-        new_y = agent.position[1] + dy
-        
-        agent.position = (new_x, new_y)
-        
-        print(f"   🎯 Coordinator {agent.agent_id}: Directive '{swarm_metrics}', {len(neighbors)} neighbors")
-    
-    async def analyzer_behavior(self, agent: SwarmAgent, neighbors: List[SwarmAgent], iteration: int):
-        """Analyzer agents process collective intelligence"""
-        # Analyze patterns in collective memory
-        recent_metrics = []
-        for key, value in self.collective_memory.items():
-            if key.startswith("swarm_metrics_") and value["iteration"] >= iteration - 3:
-                recent_metrics.append(value)
-        
-        if recent_metrics:
-            # Calculate trends
-            avg_exploration = sum(m["exploration_coverage"] for m in recent_metrics) / len(recent_metrics)
-            avg_energy = sum(m["total_energy"] for m in recent_metrics) / len(recent_metrics)
-            
-            # Generate insights
-            insights = {
-                "exploration_trend": "increasing" if len(recent_metrics) > 1 and recent_metrics[-1]["exploration_coverage"] > avg_exploration else "stable",
-                "energy_trend": "increasing" if len(recent_metrics) > 1 and recent_metrics[-1]["total_energy"] > avg_energy else "stable",
-                "swarm_efficiency": (avg_exploration * avg_energy) / 100,
-                "iteration": iteration
-            }
-            
-            agent.local_memory["swarm_analysis"] = insights
-            
-            # Share insights with coordinators
-            for neighbor in neighbors:
-                if neighbor.role == "coordinator":
-                    neighbor.local_memory[f"analysis_report_{agent.agent_id}"] = insights
-        
-        print(f"   📊 Analyzer {agent.agent_id}: Analyzing swarm patterns, {len(recent_metrics)} data points")
-    
-    def update_global_state(self, iteration: int):
-        """Update global swarm state"""
-        total_energy = sum(agent.energy for agent in self.agents)
-        avg_position_x = sum(agent.position[0] for agent in self.agents) / len(self.agents)
-        avg_position_y = sum(agent.position[1] for agent in self.agents) / len(self.agents)
-        
-        self.global_state[f"iteration_{iteration}"] = {
-            "total_agents": len(self.agents),
-            "total_energy": total_energy,
-            "center_of_mass": (avg_position_x, avg_position_y),
-            "communication_connections": sum(len(connections) for connections in self.communication_network.values()),
-            "timestamp": time.time()
-        }
-
-# Create swarm intelligence system
-swarm_system = SwarmIntelligence(environment_size=(50.0, 50.0))
-
-# Create diverse swarm agents
-swarm_agents = [
-    SwarmAgent("explorer_1", position=(10, 10), velocity=(0, 0), energy=100, role="explorer"),
-    SwarmAgent("explorer_2", position=(40, 40), velocity=(0, 0), energy=100, role="explorer"),
-    SwarmAgent("forager_1", position=(25, 25), velocity=(0, 0), energy=80, role="forager"),
-    SwarmAgent("forager_2", position=(15, 35), velocity=(0, 0), energy=80, role="forager"),
-    SwarmAgent("coordinator_1", position=(25, 25), velocity=(0, 0), energy=120, role="coordinator"),
-    SwarmAgent("analyzer_1", position=(30, 20), velocity=(0, 0), energy=90, role="analyzer")
-]
-
-for agent in swarm_agents:
-    swarm_system.add_agent(agent)
-
-# Swarm behavior demonstration
-swarm_agent = Agent("swarm-intelligence")
-
-@state(timeout=120.0)
-async def execute_swarm_intelligence(context):
-    """Execute swarm intelligence demonstration"""
-    print("🐝 Starting swarm intelligence simulation...")
-    
-    initial_state = {
-        "agents": len(swarm_system.agents),
-        "environment_size": swarm_system.environment_size,
-        "agent_roles": {agent.role: len([a for a in swarm_system.agents if a.role == agent.role]) 
-                       for agent in swarm_system.agents}
-    }
-    
-    print(f"🎯 Initial swarm configuration: {initial_state}")
-    
-    # Execute swarm behavior
-    await swarm_system.execute_swarm_behavior(iterations=8)
-    
-    # Analyze emergent behavior
-    final_analysis = analyze_swarm_emergence(swarm_system)
-    
-    context.set_variable("swarm_results", {
-        "initial_state": initial_state,
-        "final_analysis": final_analysis,
-        "global_state_history": swarm_system.global_state,
-        "collective_memory": swarm_system.collective_memory
-    })
-    
-    print("🎉 Swarm intelligence simulation completed")
-
-def analyze_swarm_emergence(swarm: SwarmIntelligence) -> Dict:
-    """Analyze emergent behaviors in the swarm"""
-    analysis = {
-        "energy_distribution": {agent.agent_id: agent.energy for agent in swarm.agents},
-        "spatial_distribution": {agent.agent_id: agent.position for agent in swarm.agents},
-        "communication_efficiency": len([conn for connections in swarm.communication_network.values() 
-                                       for conn in connections]) / (len(swarm.agents) * (len(swarm.agents) - 1)),
-        "role_specialization": {},
-        "collective_intelligence_indicators": {}
-    }
-    
-    # Analyze role specialization
-    for role in ["explorer", "forager", "coordinator", "analyzer"]:
-        role_agents = [a for a in swarm.agents if a.role == role]
-        if role_agents:
-            analysis["role_specialization"][role] = {
-                "count": len(role_agents),
-                "avg_energy": sum(a.energy for a in role_agents) / len(role_agents),
-                "memory_complexity": sum(len(a.local_memory) for a in role_agents) / len(role_agents)
-            }
-    
-    # Collective intelligence indicators
-    total_memory_entries = sum(len(agent.local_memory) for agent in swarm.agents)
-    shared_knowledge = len(swarm.collective_memory)
-    
-    analysis["collective_intelligence_indicators"] = {
-        "total_individual_memory": total_memory_entries,
-        "shared_collective_memory": shared_knowledge,
-        "knowledge_sharing_ratio": shared_knowledge / max(total_memory_entries, 1),
-        "swarm_cohesion": calculate_swarm_cohesion(swarm.agents)
-    }
-    
-    return analysis
-
-def calculate_swarm_cohesion(agents: List[SwarmAgent]) -> float:
-    """Calculate how cohesive the swarm is based on spatial clustering"""
-    if len(agents) < 2:
-        return 1.0
-    
-    # Calculate average distance between all agent pairs
-    total_distance = 0
-    pair_count = 0
-    
-    for i, agent1 in enumerate(agents):
-        for j, agent2 in enumerate(agents[i+1:], i+1):
-            distance = agent1.distance_to(agent2)
-            total_distance += distance
-            pair_count += 1
-    
-    avg_distance = total_distance / pair_count if pair_count > 0 else 0
-    
-    # Normalize cohesion (lower distance = higher cohesion)
-    max_possible_distance = math.sqrt(50**2 + 50**2)  # Diagonal of environment
-    cohesion = 1.0 - (avg_distance / max_possible_distance)
-    
-    return max(0.0, min(1.0, cohesion))
-
-swarm_agent.add_state("execute_swarm", execute_swarm_intelligence)
-\`\`\`
-
----
-
-## Best Practices Summary
-
-### Multi-Agent System Design Principles
-
-1. **Define Clear Agent Roles**
-   - Specialized capabilities and responsibilities
-   - Clear boundaries and interfaces
-   - Complementary skill sets
-
-2. **Establish Communication Protocols**
-   - Standardized message formats
-   - Reliable delivery mechanisms
-   - Timeout and retry handling
-
-3. **Design for Scalability**
-   - Loose coupling between agents
-   - Horizontal scaling capabilities
-   - Load distribution strategies
-
-4. **Implement Coordination Mechanisms**
-   - Shared coordination primitives
-   - Conflict resolution strategies
-   - Synchronization points
-
-5. **Monitor Emergent Behavior**
-   - Track system-level metrics
-   - Identify unexpected patterns
-   - Adapt coordination strategies
-
-### Multi-Agent Architecture Patterns
-
-\`\`\`python
-# Agent Pool Pattern
-@state(max_concurrent=5)
-async def pooled_worker(context): pass
-
-# Agent Pipeline Pattern  
-@state(dependencies=["previous_stage"])
-async def pipeline_stage(context): pass
-
-# Agent Hierarchy Pattern
-@state(priority=Priority.HIGH)  # Leader
-async def coordinator(context): pass
-
-@state(priority=Priority.NORMAL)  # Worker
-async def subordinate(context): pass
-
-# Agent Communication
-message = Message(
-    sender_id="agent_1",
-    recipient_id="agent_2", 
-    message_type=MessageType.REQUEST,
-    content={"task": "process_data"}
+# Create built-in agent pool
+worker_pool = AgentPool(
+    agent_factory=create_worker_agent,
+    size=5,  # 5 worker agents in the pool
+    name="processing-pool"
 )
-await message_bus.send_message(message)
+
+# Demo built-in agent pool
+async def demo_builtin_agent_pool():
+    print("🏊 Built-in Agent Pool Demo\\n")
+    
+    # Create work items to process
+    work_items = []
+    for i in range(15):  # 15 items, 5 workers
+        work_item = WorkItem(
+            item_id=f"item_{i+1:03d}",
+            data={
+                "id": f"item_{i+1:03d}",
+                "value": f"data_value_{i+1}",
+                "priority": random.choice(["high", "normal", "low"])
+            }
+        )
+        work_items.append(work_item)
+    
+    print(f"📦 Submitting {len(work_items)} work items to pool of {worker_pool.size} workers")
+    
+    # Submit all work items to the pool
+    tasks = []
+    for item in work_items:
+        task = worker_pool.submit_task(item.data)
+        tasks.append(task)
+    
+    # Wait for all tasks to complete
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Analyze results
+    successful = [r for r in results if not isinstance(r, Exception)]
+    failed = [r for r in results if isinstance(r, Exception)]
+    
+    print(f"\\n📊 Pool Processing Results:")
+    print(f"   Total items: {len(work_items)}")
+    print(f"   Successful: {len(successful)}")
+    print(f"   Failed: {len(failed)}")
+    
+    # Show pool statistics
+    pool_stats = worker_pool.get_pool_stats()
+    print(f"   Pool utilization: {pool_stats['utilization']:.1%}")
+    print(f"   Average task time: {pool_stats['average_task_time']:.2f}s")
+    print(f"   Total tasks processed: {pool_stats['total_tasks']}")
+
+if __name__ == "__main__":
+    asyncio.run(demo_builtin_agent_pool())
 \`\`\`
 
-Multi-agent systems in Puffinflow enable you to build sophisticated AI applications that leverage the power of collaboration, specialization, and emergent intelligence to solve complex problems that would be difficult for single agents to handle.
+## Part 3: Built-in Agent Orchestrator
+
+The orchestrator is like a conductor managing complex multi-stage workflows:
+
+\`\`\`python
+from puffinflow import AgentOrchestrator, ExecutionStrategy, StageConfig
+
+# Create specialized agents for different stages
+ingestion_agent = Agent("data-ingestion")
+validation_agent = Agent("data-validation")
+analysis_agent = Agent("data-analysis")
+reporting_agent = Agent("report-generation")
+
+@ingestion_agent.state(timeout=20.0)
+async def ingest_data(context):
+    """Ingest data from various sources"""
+    
+    source = context.get_variable("data_source", "database")
+    print(f"📥 Ingestion: Loading data from {source}")
+    
+    await asyncio.sleep(2.0)
+    
+    ingested_data = {
+        "source": source,
+        "record_count": 5000,
+        "ingestion_time": 2.0,
+        "data_quality": "good"
+    }
+    
+    context.set_variable("ingested_data", ingested_data)
+    print(f"✅ Ingestion: Loaded {ingested_data['record_count']} records")
+    
+    return None
+
+@validation_agent.state(timeout=15.0)
+async def validate_data(context):
+    """Validate the ingested data"""
+    
+    ingested_data = context.get_variable("ingested_data", {})
+    print(f"🔍 Validation: Checking {ingested_data.get('record_count', 0)} records")
+    
+    await asyncio.sleep(1.5)
+    
+    validation_results = {
+        "records_validated": ingested_data.get("record_count", 0),
+        "error_rate": 0.02,
+        "validation_time": 1.5,
+        "status": "passed"
+    }
+    
+    context.set_variable("validation_results", validation_results)
+    print(f"✅ Validation: {validation_results['status']} with {validation_results['error_rate']*100:.1f}% error rate")
+    
+    return None
+
+@analysis_agent.state(timeout=30.0)
+async def analyze_data(context):
+    """Analyze the validated data"""
+    
+    validation_results = context.get_variable("validation_results", {})
+    print(f"🧠 Analysis: Processing {validation_results.get('records_validated', 0)} validated records")
+    
+    await asyncio.sleep(4.0)
+    
+    analysis_results = {
+        "insights_generated": 25,
+        "patterns_found": 8,
+        "anomalies_detected": 3,
+        "analysis_time": 4.0,
+        "confidence_score": 0.92
+    }
+    
+    context.set_variable("analysis_results", analysis_results)
+    print(f"✅ Analysis: Found {analysis_results['patterns_found']} patterns, {analysis_results['anomalies_detected']} anomalies")
+    
+    return None
+
+@reporting_agent.state(timeout=10.0)
+async def generate_report(context):
+    """Generate final report"""
+    
+    ingested_data = context.get_variable("ingested_data", {})
+    validation_results = context.get_variable("validation_results", {})
+    analysis_results = context.get_variable("analysis_results", {})
+    
+    print("📊 Reporting: Generating comprehensive report")
+    
+    await asyncio.sleep(1.0)
+    
+    final_report = {
+        "pipeline_summary": {
+            "total_records": ingested_data.get("record_count", 0),
+            "data_quality": validation_results.get("status", "unknown"),
+            "insights_count": analysis_results.get("insights_generated", 0),
+            "overall_confidence": analysis_results.get("confidence_score", 0)
+        },
+        "processing_times": {
+            "ingestion": ingested_data.get("ingestion_time", 0),
+            "validation": validation_results.get("validation_time", 0),
+            "analysis": analysis_results.get("analysis_time", 0),
+            "reporting": 1.0
+        },
+        "generated_at": time.time()
+    }
+    
+    context.set_output("final_report", final_report)
+    print(f"✅ Reporting: Report generated with {final_report['pipeline_summary']['insights_count']} insights")
+    
+    return None
+
+# Create built-in agent orchestrator
+data_pipeline = AgentOrchestrator("data-processing-pipeline")
+
+# Add agents to orchestrator
+data_pipeline.add_agents([ingestion_agent, validation_agent, analysis_agent, reporting_agent])
+
+# Define execution stages with dependencies
+data_pipeline.add_stage(
+    name="data_ingestion",
+    agents=[ingestion_agent],
+    strategy=ExecutionStrategy.SEQUENTIAL
+)
+
+data_pipeline.add_stage(
+    name="data_validation", 
+    agents=[validation_agent],
+    strategy=ExecutionStrategy.SEQUENTIAL,
+    depends_on=["data_ingestion"]
+)
+
+data_pipeline.add_stage(
+    name="data_analysis",
+    agents=[analysis_agent],
+    strategy=ExecutionStrategy.SEQUENTIAL,
+    depends_on=["data_validation"]
+)
+
+data_pipeline.add_stage(
+    name="report_generation",
+    agents=[reporting_agent],
+    strategy=ExecutionStrategy.SEQUENTIAL,
+    depends_on=["data_analysis"]
+)
+
+# Set global variables for the entire pipeline
+data_pipeline.set_global_variable("environment", "production")
+data_pipeline.set_global_variable("max_retries", 3)
+
+# Demo built-in agent orchestrator
+async def demo_builtin_orchestrator():
+    print("🎭 Built-in Agent Orchestrator Demo\\n")
+    
+    # Run the complete orchestrated pipeline
+    orchestration_result = await data_pipeline.run(
+        initial_context={
+            "data_source": "customer_database",
+            "processing_date": "2024-03-15"
+        }
+    )
+    
+    print(f"\\n📊 Orchestration Results:")
+    print(f"   Pipeline: {orchestration_result.orchestrator_name}")
+    print(f"   Total execution time: {orchestration_result.total_execution_time:.2f}s")
+    print(f"   Stages completed: {orchestration_result.stages_completed}")
+    print(f"   Overall status: {orchestration_result.overall_status}")
+    
+    # Show stage-by-stage results
+    print(f"\\n📋 Stage Results:")
+    for stage_name, stage_result in orchestration_result.stage_results.items():
+        status_emoji = "✅" if stage_result.is_success else "❌"
+        print(f"   {status_emoji} {stage_name}: {stage_result.execution_time:.2f}s")
+    
+    # Get final report
+    if orchestration_result.final_outputs.get("final_report"):
+        report = orchestration_result.final_outputs["final_report"]
+        print(f"\\n📈 Pipeline Summary:")
+        summary = report["pipeline_summary"]
+        print(f"   Records processed: {summary['total_records']}")
+        print(f"   Data quality: {summary['data_quality']}")
+        print(f"   Insights generated: {summary['insights_count']}")
+        print(f"   Overall confidence: {summary['overall_confidence']:.1%}")
+
+if __name__ == "__main__":
+    asyncio.run(demo_builtin_orchestrator())
+\`\`\`
+
+## Part 4: Fluent Agent Coordination API
+
+Puffinflow includes a fluent API for intuitive agent coordination:
+
+\`\`\`python
+from puffinflow import Agents, run_parallel_agents, run_sequential_agents
+
+# Create agents for fluent coordination
+data_loader = Agent("data-loader")
+feature_extractor = Agent("feature-extractor")
+model_trainer = Agent("model-trainer")
+model_evaluator = Agent("model-evaluator")
+
+@data_loader.state(timeout=10.0)
+async def load_training_data(context):
+    """Load training data"""
+    dataset_name = context.get_variable("dataset", "training_data")
+    print(f"📂 Data Loader: Loading {dataset_name}")
+    
+    await asyncio.sleep(1.0)
+    
+    context.set_variable("training_data", {
+        "samples": 10000,
+        "features": 50,
+        "loaded_at": time.time()
+    })
+    
+    return None
+
+@feature_extractor.state(timeout=15.0)
+async def extract_features(context):
+    """Extract features from training data"""
+    training_data = context.get_variable("training_data", {})
+    print(f"🔧 Feature Extractor: Processing {training_data.get('samples', 0)} samples")
+    
+    await asyncio.sleep(2.0)
+    
+    context.set_variable("extracted_features", {
+        "feature_count": 25,
+        "extraction_time": 2.0,
+        "quality_score": 0.88
+    })
+    
+    return None
+
+@model_trainer.state(timeout=30.0)
+async def train_model(context):
+    """Train ML model"""
+    features = context.get_variable("extracted_features", {})
+    print(f"🧠 Model Trainer: Training with {features.get('feature_count', 0)} features")
+    
+    await asyncio.sleep(5.0)
+    
+    context.set_variable("trained_model", {
+        "model_type": "neural_network",
+        "training_time": 5.0,
+        "accuracy": 0.94,
+        "trained_at": time.time()
+    })
+    
+    return None
+
+@model_evaluator.state(timeout=10.0)
+async def evaluate_model(context):
+    """Evaluate trained model"""
+    model = context.get_variable("trained_model", {})
+    print(f"📊 Model Evaluator: Evaluating {model.get('model_type', 'unknown')} model")
+    
+    await asyncio.sleep(1.5)
+    
+    evaluation_results = {
+        "test_accuracy": 0.92,
+        "precision": 0.91,
+        "recall": 0.93,
+        "f1_score": 0.92,
+        "evaluation_time": 1.5
+    }
+    
+    context.set_output("model_evaluation", evaluation_results)
+    print(f"✅ Model Evaluator: F1 Score = {evaluation_results['f1_score']:.2f}")
+    
+    return None
+
+# Demo fluent API coordination patterns
+async def demo_fluent_coordination():
+    print("🌊 Fluent Agent Coordination Demo\\n")
+    
+    # Pattern 1: Simple parallel execution
+    print("=== Parallel Execution ===")
+    parallel_result = await run_parallel_agents(
+        data_loader, feature_extractor,
+        timeout=20.0
+    )
+    
+    print(f"Parallel execution: {len(parallel_result.successful_agents)} agents completed")
+    
+    # Pattern 2: Sequential pipeline
+    print("\\n=== Sequential Pipeline ===")
+    sequential_result = await run_sequential_agents(
+        data_loader, feature_extractor, model_trainer, model_evaluator
+    )
+    
+    print(f"Sequential pipeline: {sequential_result.total_execution_time:.2f}s total")
+    
+    # Pattern 3: Complex coordination with fluent API
+    print("\\n=== Complex Coordination ===")
+    complex_result = await (
+        Agents()
+        .add(data_loader)
+        .then_add(feature_extractor)  # Sequential after data_loader
+        .add_parallel([model_trainer, model_evaluator])  # These run in parallel
+        .set_variable_for_all("experiment_id", "exp_001")
+        .run_coordinated(timeout=60.0)
+    )
+    
+    print(f"Complex coordination: {complex_result.overall_status}")
+    
+    # Pattern 4: Get best performing agent
+    print("\\n=== Best Agent Selection ===")
+    agents_to_compare = [model_trainer, model_evaluator]
+    
+    # Run agents and find best by execution time
+    comparison_result = await (
+        Agents()
+        .add_many(agents_to_compare)
+        .run_parallel()
+    )
+    
+    fastest_agent = comparison_result.get_best_by("execution_time", maximize=False)
+    print(f"Fastest agent: {fastest_agent.agent_name} ({fastest_agent.execution_time:.2f}s)")
+
+if __name__ == "__main__":
+    asyncio.run(demo_fluent_coordination())
+\`\`\`
+
+## Part 5: Built-in Inter-Agent Communication
+
+Agents can communicate using Puffinflow's built-in message system:
+
+\`\`\`python
+from puffinflow import EventBus, Message, MessageType
+
+# Create built-in event bus for agent communication
+event_bus = EventBus("ml-pipeline-communication")
+
+# Create communicating agents
+coordinator_agent = Agent("coordinator")
+worker_agents = [Agent(f"worker-{i}") for i in range(3)]
+
+@coordinator_agent.state(timeout=30.0)
+async def coordinate_workers(context):
+    """Coordinate multiple worker agents"""
+    
+    task_count = context.get_variable("total_tasks", 10)
+    print(f"📡 Coordinator: Distributing {task_count} tasks to workers")
+    
+    # Send tasks to workers using built-in messaging
+    tasks_per_worker = task_count // len(worker_agents)
+    
+    for i, worker in enumerate(worker_agents):
+        task_message = Message(
+            sender_id="coordinator",
+            recipient_id=worker.name,
+            message_type=MessageType.COMMAND,
+            content={
+                "task_type": "data_processing",
+                "task_count": tasks_per_worker,
+                "worker_id": i,
+                "deadline": time.time() + 25
+            }
+        )
+        
+        await event_bus.send_message(task_message)
+        print(f"   📤 Sent {tasks_per_worker} tasks to {worker.name}")
+    
+    # Wait for completion messages from all workers
+    completed_workers = 0
+    total_processed = 0
+    
+    while completed_workers < len(worker_agents):
+        completion_message = await event_bus.wait_for_message(
+            recipient_id="coordinator",
+            message_type=MessageType.RESPONSE,
+            timeout=20.0
+        )
+        
+        if completion_message:
+            worker_result = completion_message.content
+            total_processed += worker_result.get("tasks_completed", 0)
+            completed_workers += 1
+            
+            print(f"   📥 {completion_message.sender_id}: {worker_result['tasks_completed']} tasks completed")
+    
+    context.set_output("coordination_result", {
+        "total_tasks_assigned": task_count,
+        "total_tasks_completed": total_processed,
+        "workers_coordinated": completed_workers,
+        "coordination_time": time.time() - context.get_variable("start_time", time.time())
+    })
+    
+    print(f"✅ Coordinator: All workers completed! {total_processed} total tasks processed")
+    
+    return None
+
+# Worker agent template
+def create_worker_state(worker_name):
+    async def process_assigned_tasks(context):
+        """Process tasks assigned by coordinator"""
+        
+        print(f"👷 {worker_name}: Waiting for task assignment...")
+        
+        # Wait for task message from coordinator
+        task_message = await event_bus.wait_for_message(
+            recipient_id=worker_name,
+            message_type=MessageType.COMMAND,
+            timeout=15.0
+        )
+        
+        if not task_message:
+            print(f"❌ {worker_name}: No task received")
+            return None
+        
+        task_info = task_message.content
+        task_count = task_info.get("task_count", 0)
+        
+        print(f"🔄 {worker_name}: Processing {task_count} tasks...")
+        
+        # Simulate task processing
+        processing_time = 1.0 + random.random() * 2.0
+        await asyncio.sleep(processing_time)
+        
+        # Send completion message back to coordinator
+        completion_message = Message(
+            sender_id=worker_name,
+            recipient_id="coordinator",
+            message_type=MessageType.RESPONSE,
+            content={
+                "tasks_completed": task_count,
+                "processing_time": processing_time,
+                "worker_status": "completed"
+            }
+        )
+        
+        await event_bus.send_message(completion_message)
+        print(f"✅ {worker_name}: Completed {task_count} tasks in {processing_time:.2f}s")
+        
+        return None
+    
+    return process_assigned_tasks
+
+# Add worker states to agents
+for i, worker in enumerate(worker_agents):
+    worker.add_state("process_tasks", create_worker_state(worker.name))
+
+# Demo inter-agent communication
+async def demo_agent_communication():
+    print("📡 Inter-Agent Communication Demo\\n")
+    
+    # Start coordinator and workers
+    tasks = []
+    
+    # Start coordinator
+    coordinator_task = asyncio.create_task(
+        coordinator_agent.run(
+            initial_state="coordinate_workers",
+            initial_context={
+                "total_tasks": 15,
+                "start_time": time.time()
+            }
+        )
+    )
+    tasks.append(("coordinator", coordinator_task))
+    
+    # Start workers
+    for worker in worker_agents:
+        worker_task = asyncio.create_task(
+            worker.run(initial_state="process_tasks")
+        )
+        tasks.append((worker.name, worker_task))
+    
+    # Wait for all to complete
+    results = await asyncio.gather(*[task for _, task in tasks], return_exceptions=True)
+    
+    print(f"\\n📊 Communication Results:")
+    for (agent_name, _), result in zip(tasks, results):
+        if isinstance(result, Exception):
+            print(f"   ❌ {agent_name}: Failed")
+        else:
+            print(f"   ✅ {agent_name}: Completed")
+    
+    # Show message statistics
+    message_stats = event_bus.get_message_statistics()
+    print(f"\\n📈 Message Statistics:")
+    print(f"   Total messages sent: {message_stats['total_sent']}")
+    print(f"   Total messages delivered: {message_stats['total_delivered']}")
+    print(f"   Average delivery time: {message_stats['avg_delivery_time']:.3f}s")
+
+if __name__ == "__main__":
+    asyncio.run(demo_agent_communication())
+\`\`\`
+
+## Quick Reference
+
+### Enable Built-in Multi-Agent Features
+
+\`\`\`python
+# Import built-in multi-agent classes
+from puffinflow import (
+    AgentTeam, AgentPool, AgentOrchestrator, Agents,
+    EventBus, Message, MessageType, ExecutionStrategy
+)
+
+# Agent Team
+team = AgentTeam("my-team")
+team.add_agents([agent1, agent2, agent3])
+result = await team.run_parallel(timeout=60.0)
+
+# Agent Pool
+pool = AgentPool(agent_factory=create_worker, size=5)
+result = await pool.submit_task({"data": "work_item"})
+
+# Agent Orchestrator
+orchestrator = AgentOrchestrator("pipeline")
+orchestrator.add_stage("stage1", [agent1], ExecutionStrategy.PARALLEL)
+result = await orchestrator.run()
+
+# Fluent API
+result = await Agents().add_many([agent1, agent2]).run_parallel()
+
+# Inter-agent communication
+event_bus = EventBus("communication")
+message = Message(sender_id="agent1", recipient_id="agent2", 
+                 message_type=MessageType.REQUEST, content={"task": "process"})
+await event_bus.send_message(message)
+\`\`\`
+
+### Access Built-in Multi-Agent Results
+
+\`\`\`python
+# Team results
+team_result.agent_results       # Individual agent results
+team_result.successful_agents   # List of successful agents
+team_result.failed_agents      # List of failed agents
+team_result.total_execution_time # Total time
+
+# Pool statistics
+pool_stats = pool.get_pool_stats()
+pool_stats['utilization']      # Pool utilization percentage
+pool_stats['total_tasks']      # Total tasks processed
+
+# Orchestration results
+orch_result.stage_results      # Results by stage
+orch_result.overall_status     # Overall pipeline status
+orch_result.stages_completed   # Number of completed stages
+
+# Fluent API results
+fluent_result.get_best_by("execution_time", maximize=False)
+fluent_result.filter_successful()
+fluent_result.group_by_status()
+\`\`\`
+
+## Built-in Multi-Agent Features
+
+### AgentTeam
+\`\`\`python
+from puffinflow import AgentTeam
+
+team = AgentTeam("processing-team")
+team.add_agents([agent1, agent2, agent3])
+team.with_shared_context({"project": "ml_pipeline"})
+
+# Parallel execution
+result = await team.run_parallel(timeout=60.0)
+
+# Sequential execution  
+result = await team.run_sequential()
+
+# Dependency-aware execution
+result = await team.run_with_dependencies()
+\`\`\`
+
+### AgentPool
+\`\`\`python
+from puffinflow import AgentPool
+
+def create_worker():
+    return Agent("worker")
+
+pool = AgentPool(
+    agent_factory=create_worker,
+    size=10,                    # Number of workers
+    name="worker-pool"
+)
+
+# Submit tasks to pool
+task_result = await pool.submit_task({"data": "work_item"})
+
+# Get pool statistics
+stats = pool.get_pool_stats()
+\`\`\`
+
+### AgentOrchestrator
+\`\`\`python
+from puffinflow import AgentOrchestrator, ExecutionStrategy
+
+orchestrator = AgentOrchestrator("data-pipeline")
+orchestrator.add_agents([agent1, agent2, agent3])
+
+# Add execution stages
+orchestrator.add_stage(
+    name="preprocessing",
+    agents=[agent1],
+    strategy=ExecutionStrategy.SEQUENTIAL
+)
+
+orchestrator.add_stage(
+    name="processing", 
+    agents=[agent2, agent3],
+    strategy=ExecutionStrategy.PARALLEL,
+    depends_on=["preprocessing"]
+)
+
+# Run orchestrated pipeline
+result = await orchestrator.run()
+\`\`\`
+
+### Fluent API
+\`\`\`python
+from puffinflow import Agents, run_parallel_agents
+
+# Simple parallel execution
+result = await run_parallel_agents(agent1, agent2, agent3, timeout=30.0)
+
+# Complex coordination
+result = await (
+    Agents()
+    .add(agent1)
+    .then_add(agent2)           # Sequential after agent1
+    .add_parallel([agent3, agent4])  # Parallel execution
+    .set_variable_for_all("env", "prod")
+    .run_coordinated()
+)
+
+# Get best performing agent
+best = result.get_best_by("execution_time", maximize=False)
+\`\`\`
+
+### EventBus Communication
+\`\`\`python
+from puffinflow import EventBus, Message, MessageType
+
+event_bus = EventBus("agent-communication")
+
+# Send message
+message = Message(
+    sender_id="agent1",
+    recipient_id="agent2",
+    message_type=MessageType.REQUEST,
+    content={"task": "process_data", "priority": "high"}
+)
+await event_bus.send_message(message)
+
+# Wait for message
+response = await event_bus.wait_for_message(
+    recipient_id="agent1",
+    message_type=MessageType.RESPONSE,
+    timeout=30.0
+)
+\`\`\`
+
+## Tips for Beginners
+
+1. **Start with AgentTeam** - Use \`AgentTeam\` for simple parallel agent coordination
+2. **Use AgentPool for identical workers** - Great for load balancing and horizontal scaling
+3. **Try the fluent API** - Use \`Agents()\` for intuitive, readable coordination code
+4. **Add dependencies gradually** - Start simple, then add stage dependencies as needed
+5. **Enable communication when needed** - Use \`EventBus\` for agents that need to communicate
+6. **Monitor team performance** - Check \`team_result.total_execution_time\` and success rates
+
+## Common Multi-Agent Patterns
+
+### Pattern 1: Parallel Processing Team
+\`\`\`python
+team = AgentTeam("parallel-processors")
+team.add_agents([worker1, worker2, worker3])
+result = await team.run_parallel(timeout=60.0)
+\`\`\`
+
+### Pattern 2: Worker Pool for Load Balancing
+\`\`\`python
+pool = AgentPool(create_worker, size=5)
+tasks = [pool.submit_task(item) for item in work_items]
+results = await asyncio.gather(*tasks)
+\`\`\`
+
+### Pattern 3: Sequential Pipeline
+\`\`\`python
+result = await run_sequential_agents(
+    data_loader, processor, analyzer, reporter
+)
+\`\`\`
+
+### Pattern 4: Complex Orchestration
+\`\`\`python
+orchestrator = AgentOrchestrator("complex-pipeline")
+orchestrator.add_stage("ingestion", [ingest_agent])
+orchestrator.add_stage("processing", [proc1, proc2], depends_on=["ingestion"])
+result = await orchestrator.run()
+\`\`\`
+
+## What's Built Into Puffinflow
+
+✅ **AgentTeam**: Team-based coordination with parallel/sequential execution
+✅ **AgentPool**: Load balancing with identical worker agents  
+✅ **AgentOrchestrator**: Complex multi-stage pipeline orchestration
+✅ **Fluent API (Agents)**: Intuitive, chainable coordination methods
+✅ **EventBus**: Inter-agent messaging and communication
+✅ **Message System**: Structured communication with types and priorities
+✅ **Execution Strategies**: PARALLEL, SEQUENTIAL, PIPELINE, FAN_OUT, etc.
+✅ **Dependency Management**: Stage dependencies and execution ordering
+✅ **Result Aggregation**: Built-in result collection and analysis
+✅ **Performance Monitoring**: Execution time tracking and statistics
+
+Puffinflow's built-in multi-agent systems give you powerful coordination capabilities without any custom implementation required!
 `.trim();
