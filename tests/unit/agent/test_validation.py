@@ -38,7 +38,10 @@ class TestAgentValidation:
         async def state_with_deps(ctx):
             pass
 
-        with pytest.raises(ValueError, match="Dependency 'nonexistent' for state 'dependent' does not exist"):
+        with pytest.raises(
+            ValueError,
+            match="Dependency 'nonexistent' for state 'dependent' does not exist",
+        ):
             agent.add_state("dependent", state_with_deps, dependencies=["nonexistent"])
 
     def test_valid_dependency_order_works(self):
@@ -146,7 +149,10 @@ class TestAgentValidation:
         result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
         assert result.status.value == "failed"
         assert isinstance(result.error, ValueError)
-        assert "Sequential execution mode requires at least one state without dependencies" in str(result.error)
+        assert (
+            "Sequential execution mode requires at least one state without dependencies"
+            in str(result.error)
+        )
 
     @pytest.mark.asyncio
     async def test_sequential_mode_with_valid_entry_state(self):
@@ -161,7 +167,9 @@ class TestAgentValidation:
             ctx.set_variable("dependent_executed", True)
 
         agent.add_state("entry_state", entry_state)
-        agent.add_state("dependent_state", dependent_state, dependencies=["entry_state"])
+        agent.add_state(
+            "dependent_state", dependent_state, dependencies=["entry_state"]
+        )
 
         # Should execute successfully
         result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
@@ -220,7 +228,9 @@ class TestAgentValidation:
         agent.add_state("init_state", init_state)
         agent.add_state("fetch_data", fetch_data, dependencies=["init_state"])
         agent.add_state("setup_config", setup_config, dependencies=["init_state"])
-        agent.add_state("process_data", process_data, dependencies=["fetch_data", "setup_config"])
+        agent.add_state(
+            "process_data", process_data, dependencies=["fetch_data", "setup_config"]
+        )
         agent.add_state("finalize", finalize, dependencies=["process_data"])
 
         # Should execute successfully

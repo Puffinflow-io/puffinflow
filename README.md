@@ -50,7 +50,7 @@ agent = DataProcessor("data-processor")
 result = await agent.run()
 ```
 
-For more information, see the [Quickstart](https://puffinflow.readthedocs.io/en/latest/guides/quickstart.html). Or, to learn how to build complex multi-agent workflows with coordination and observability, see the [Advanced Examples](./examples/).
+For more information, see the [Documentation](https://puffinflow.readthedocs.io/) and [Examples](./examples/). To learn how to build complex multi-agent workflows with coordination and observability, see the [Advanced Examples](./examples/).
 
 ## Core benefits
 
@@ -66,7 +66,7 @@ PuffinFlow bridges the gap between quick prototyping and production deployment. 
 
 **Agent coordination**: Scale from single agents to complex multi-agent workflows with teams, pools, and orchestrators using the same simple API.
 
-**Production performance**: Achieve 567,000+ operations/second with sub-millisecond latency, designed for real-world production workloads.
+**Production performance**: Achieve high throughput with sub-millisecond latency for basic operations, designed for real-world production workloads.
 
 ## PuffinFlow's ecosystem
 
@@ -169,29 +169,41 @@ result = await email_team.execute_parallel()
 
 PuffinFlow is built for production workloads with excellent performance characteristics:
 
-### Core Performance Metrics
-- **567,000+ operations/second** for basic agent operations
-- **27,000+ operations/second** for complex data processing
-- **1,100+ operations/second** for CPU-intensive tasks
-- **Sub-millisecond** state transition latency (0.00-1.97ms range)
+### Latest Benchmark Results
 
-### Benchmark Results (Latest)
+PuffinFlow delivers excellent performance across different operation types. Here are the latest benchmark results:
+
+#### Core Performance Metrics
 | Operation Type | Avg Latency | Throughput | Use Case |
 |---|---|---|---|
-| Agent State Transitions | 0.00ms | 567,526 ops/s | Basic workflow steps |
-| Data Processing | 0.04ms | 27,974 ops/s | ETL operations |
-| Resource Management | 0.01ms | 104,719 ops/s | Memory/CPU allocation |
-| Async Coordination | 1.23ms | 811 ops/s | Multi-agent workflows |
-| CPU-Intensive Tasks | 0.91ms | 1,100 ops/s | ML training steps |
+| Simple Task Execution | 0.39ms | 2,574 ops/s | Basic agent operations |
+| Multi-Task Workflows | 0.44ms | 2,276 ops/s | Complex workflow coordination |
+| Coordination Primitives | 1.19ms | 842 ops/s | Agent synchronization |
+| Framework Comparison¹ | 0.50ms | 1,983 ops/s | vs. other frameworks |
 
-*Benchmarks run on: Linux WSL2, 16 cores, 3.68GB RAM, Python 3.12*
+#### Performance Distribution
+- **Min Latency**: 0.06ms (fastest operations)
+- **Max Latency**: 17.1ms (complex workflows under load)
+- **Median Latency**: 0.06-1.15ms (typical operations)
+- **Standard Deviation**: 0.04-2.4ms (consistency measure)
+
+*¹ Benchmarked against Dagster, Prefect, and LangGraph*
+
+**System Specifications**: Linux WSL2, 16 cores, 3.68GB RAM, Python 3.12
+
+#### Detailed Benchmark Categories
+- **Simple Task Execution**: Basic agent lifecycle and state execution
+- **Multi-Task Workflows**: Complex multi-step agent coordination
+- **Coordination Primitives**: Synchronization and coordination overhead
+- **Resource Management**: CPU and memory allocation performance
+- **Framework Comparison**: Performance vs. popular orchestration frameworks
 
 [View detailed benchmarks →](./benchmarks/)
 
 ## 🤝 Community & Support
 
-- **[🐛 Issues](https://github.com/m-ahmed-elbeskeri/puffinflow/issues)** — Bug reports and feature requests
-- **[💬 Discussions](https://github.com/m-ahmed-elbeskeri/puffinflow/discussions)** — Community Q&A
+- **[🐛 Issues](https://github.com/m-ahmed-elbeskeri/puffinflow-main/issues)** — Bug reports and feature requests
+- **[💬 Discussions](https://github.com/m-ahmed-elbeskeri/puffinflow-main/discussions)** — Community Q&A
 - **[📧 Email](mailto:mohamed.ahmed.4894@gmail.com)** — Direct contact for support
 
 ## Acknowledgements
@@ -208,6 +220,6 @@ PuffinFlow is released under the [MIT License](LICENSE). Free for commercial and
 
 **Ready to build production-ready workflows?**
 
-[Get Started →](https://puffinflow.readthedocs.io/en/latest/guides/quickstart.html) | [View Examples →](./examples/) | [Join Community →](https://github.com/m-ahmed-elbeskeri/puffinflow/discussions)
+[Get Started →](https://puffinflow.readthedocs.io/) | [View Examples →](./examples/) | [Join Community →](https://github.com/m-ahmed-elbeskeri/puffinflow-main/discussions)
 
 </div>

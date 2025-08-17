@@ -20,16 +20,16 @@ async def main():
     async def update(context):
         execution_order.append("update_start")
         print("Update state running")
-        
+
         # This is where the issue might occur - accessing a variable
         # that might not be set yet if update runs before initialize
         initialized = context.get_variable("initialized", False)
         print(f"Update sees initialized: {initialized}")
-        
+
         if not initialized:
             print("ERROR: Update state ran before initialize!")
             raise ValueError("Update state ran before initialize completed")
-        
+
         context.set_variable("updated", True)
         execution_order.append("update_end")
         return None
@@ -40,7 +40,7 @@ async def main():
 
     print("Starting agent run...")
     print(f"States in order: {list(agent.states.keys())}")
-    
+
     try:
         result = await agent.run()
         print(f"Agent status: {result.status}")

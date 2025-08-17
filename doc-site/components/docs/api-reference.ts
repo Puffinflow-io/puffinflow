@@ -323,14 +323,14 @@ Submits a task to the next available agent.
 \`\`\`python
 def create_worker():
     agent = Agent("worker")
-    
+
     @agent.state
     async def process_task(context):
         data = context.get_variable("task_data")
         result = await process_data(data)
         context.set_variable("result", result)
         return None
-    
+
     return agent
 
 pool = AgentPool(create_worker, size=10)
@@ -350,8 +350,8 @@ from puffinflow.core.observability.metrics import PrometheusMetricsProvider
 from puffinflow.core.observability.config import MetricsConfig
 
 provider = PrometheusMetricsProvider(MetricsConfig(namespace="puffinflow"))
-reqs = provider.counter("requests_total", "Total requests", labels=["route"]) 
-latency = provider.histogram("request_duration_seconds", labels=["route"]) 
+reqs = provider.counter("requests_total", "Total requests", labels=["route"])
+latency = provider.histogram("request_duration_seconds", labels=["route"])
 inflight = provider.gauge("inflight_requests")
 
 reqs.record(1, route="/predict")

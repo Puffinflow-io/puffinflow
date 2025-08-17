@@ -81,7 +81,8 @@ class StateStatus(str, Enum):
 class StateFunction(Protocol):
     """Protocol for state functions."""
 
-    async def __call__(self, context: "Context") -> StateResult: ...
+    async def __call__(self, context: "Context") -> StateResult:
+        ...
 
 
 @dataclass

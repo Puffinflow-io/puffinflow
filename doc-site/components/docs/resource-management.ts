@@ -6,7 +6,7 @@ Resource management in Puffinflow is like organizing a busy workspace. You tell 
 
 **Without resource management:**
 - Your computer might run out of memory and crash
-- Heavy tasks might slow down everything else  
+- Heavy tasks might slow down everything else
 - API calls might hit rate limits and fail
 - Multiple workflows might fight for the same resources
 
@@ -43,7 +43,7 @@ async def medium_task(context):
     return "heavy_task"
 
 # Heavy task - like machine learning
-@agent.state(cpu=4.0, memory=4096) 
+@agent.state(cpu=4.0, memory=4096)
 async def heavy_task(context):
     import time
     time.sleep(2)  # Simulate heavy work
@@ -55,7 +55,7 @@ async def heavy_task(context):
 
 **CPU (Processing Power):**
 - \`cpu=0.5\` - Half a processor core (light work)
-- \`cpu=1.0\` - One full processor core (normal work)  
+- \`cpu=1.0\` - One full processor core (normal work)
 - \`cpu=2.0\` - Two processor cores (heavy work)
 - \`cpu=4.0+\` - Multiple cores (very heavy work)
 
@@ -94,14 +94,14 @@ async def might_fail(context):
     Perfect for network calls or external services
     """
     import random
-    
+
     print("🎲 Attempting task that might fail...")
-    
+
     # Simulate a task that fails sometimes
     if random.random() < 0.7:  # 70% chance of failure
         print("❌ Task failed, will retry...")
         raise Exception("Random failure for demo")
-    
+
     print("✅ Task succeeded!")
     context.set_variable("success", True)
     return None
@@ -120,7 +120,7 @@ async def call_api(context):
     """
     print("🌐 Calling external API...")
     await asyncio.sleep(0.1)  # Simulate network delay
-    
+
     result = {"data": "API response", "status": "success"}
     context.set_variable("api_result", result)
     return "process_response"
@@ -141,11 +141,11 @@ async def ml_inference(context):
     """
     model_input = context.get_variable("input_data")
     print("🤖 Running AI model on GPU...")
-    
+
     # Simulate GPU computation
     await asyncio.sleep(1)
     result = f"AI processed: {model_input}"
-    
+
     context.set_variable("ai_result", result)
     return None
 \`\`\`
@@ -162,10 +162,10 @@ async def process_large_file(context):
     Good for file processing, database operations
     """
     print("📁 Processing large file...")
-    
+
     # Simulate heavy file I/O
     await asyncio.sleep(2)
-    
+
     context.set_variable("file_processed", True)
     return None
 \`\`\`
@@ -182,10 +182,10 @@ async def download_data(context):
     Combined with rate_limit for responsible usage
     """
     print("📥 Downloading large dataset...")
-    
+
     # Simulate network download
     await asyncio.sleep(3)
-    
+
     context.set_variable("data_downloaded", True)
     return None
 \`\`\`
@@ -204,11 +204,11 @@ async def update_shared_file(context):
     Perfect for updating files or databases that don't support concurrent writes
     """
     print("📝 Updating shared configuration file...")
-    
+
     # Only one task can do this at a time
     current_config = {"version": 1, "updated": True}
     context.set_variable("config", current_config)
-    
+
     await asyncio.sleep(1)  # Simulate file update
     print("✅ Configuration updated safely")
     return None
@@ -227,10 +227,10 @@ async def database_query(context):
     """
     query_id = context.get_variable("query_id", "unknown")
     print(f"🗄️ Running database query {query_id}")
-    
+
     # Simulate database work
     await asyncio.sleep(2)
-    
+
     context.set_variable("query_result", f"Data for query {query_id}")
     print(f"✅ Query {query_id} completed")
     return None
@@ -249,11 +249,11 @@ async def parallel_data_prep(context):
     """
     task_id = context.get_variable("task_id", "unknown")
     print(f"📊 Task {task_id} preparing data...")
-    
+
     # Do individual work first
     await asyncio.sleep(1)
     print(f"Task {task_id} ready, waiting for others...")
-    
+
     # This point waits for all 3 tasks
     print(f"🚀 All tasks ready! Task {task_id} proceeding...")
     return None
@@ -271,12 +271,12 @@ async def batch_processing(context):
     Good for batch jobs that need guaranteed time
     """
     print("⏰ Starting batch job with 60-second lease...")
-    
+
     # You have guaranteed access to resources for 60 seconds
     for i in range(10):
         print(f"Processing batch {i+1}/10")
         await asyncio.sleep(5)  # 50 seconds total
-    
+
     print("✅ Batch processing completed within lease time")
     return None
 \`\`\`
@@ -348,10 +348,10 @@ async def validate_image(context):
     """Validate image format - might fail, so retry"""
     image_path = context.get_variable("image_path")
     print(f"🔍 Validating: {image_path}")
-    
+
     # Simulate validation that might fail
     await asyncio.sleep(1)
-    
+
     context.set_variable("valid", True)
     return "resize_image"
 
@@ -360,23 +360,23 @@ async def resize_image(context):
     """Resize image - CPU and I/O intensive"""
     image_path = context.get_variable("image_path")
     print(f"🖼️ Resizing: {image_path}")
-    
+
     # Simulate image processing
     await asyncio.sleep(2)
-    
+
     context.set_variable("resized_path", "/tmp/photo_resized.jpg")
     return "apply_ai_filters"
 
-@agent.state(cpu=3.0, memory=2048, gpu=1.0, timeout=120.0, 
+@agent.state(cpu=3.0, memory=2048, gpu=1.0, timeout=120.0,
              priority=Priority.HIGH, semaphore=2)
 async def apply_ai_filters(context):
     """AI processing - high priority, GPU, limited concurrency"""
     resized_path = context.get_variable("resized_path")
     print(f"🤖 Applying AI filters: {resized_path}")
-    
+
     # Simulate AI processing on GPU
     await asyncio.sleep(3)
-    
+
     context.set_variable("filtered_path", "/tmp/photo_ai.jpg")
     return "save_to_gallery"
 
@@ -385,10 +385,10 @@ async def save_to_gallery(context):
     """Save final image - rate-limited, exclusive access to gallery"""
     filtered_path = context.get_variable("filtered_path")
     print(f"💾 Saving to gallery: {filtered_path}")
-    
+
     # Update gallery database (needs exclusive access)
     await asyncio.sleep(1)
-    
+
     context.set_output("final_image", filtered_path)
     context.set_output("processing_complete", True)
     return None
@@ -407,7 +407,7 @@ if __name__ == "__main__":
 
 **For CPU:**
 - **Light tasks** (API calls, simple logic): \`cpu=0.5-1.0\`
-- **Normal tasks** (data processing): \`cpu=1.0-2.0\`  
+- **Normal tasks** (data processing): \`cpu=1.0-2.0\`
 - **Heavy tasks** (ML, complex math): \`cpu=3.0-8.0\`
 
 **For Memory:**
@@ -417,7 +417,7 @@ if __name__ == "__main__":
 
 **For Timeouts:**
 - **Quick tasks**: \`timeout=10-30\` seconds
-- **Normal tasks**: \`timeout=60-300\` seconds  
+- **Normal tasks**: \`timeout=60-300\` seconds
 - **Long tasks**: \`timeout=600+\` seconds
 
 **For Rate Limits:**

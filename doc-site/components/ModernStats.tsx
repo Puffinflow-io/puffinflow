@@ -46,7 +46,7 @@ const ModernStats: React.FC = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
           {stats.map((stat, index) => (
-            <div 
+            <div
               key={index}
               className="text-center group"
             >
@@ -73,7 +73,7 @@ const ModernStats: React.FC = () => {
           <p className="text-gray-400 mb-8 text-lg">
             Trusted by innovative companies worldwide
           </p>
-          
+
           <div className="flex flex-wrap justify-center items-center gap-8 lg:gap-12">
             {companies.map((company, index) => (
               <div
@@ -94,7 +94,7 @@ const ModernStats: React.FC = () => {
             <div className="text-center">
               <div className="text-6xl mb-6">💬</div>
               <blockquote className="text-xl lg:text-2xl text-gray-300 mb-8 leading-relaxed">
-                "Puffinflow transformed our AI operations from prototype to production in weeks, not months. 
+                "Puffinflow transformed our AI operations from prototype to production in weeks, not months.
                 The reliability and observability features are exactly what we needed for enterprise scale."
               </blockquote>
               <div className="flex items-center justify-center gap-4">

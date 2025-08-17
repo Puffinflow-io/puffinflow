@@ -18,39 +18,39 @@ html, body {
   --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  
+
   --color-primary: #667eea;
   --color-secondary: #764ba2;
   --color-accent: #4facfe;
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  
+
   --text-primary: #ffffff;
   --text-secondary: #e2e8f0;
   --text-muted: #94a3b8;
   --text-inverse: #1e293b;
-  
+
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-tertiary: #334155;
   --bg-glass: rgba(255, 255, 255, 0.1);
   --bg-glass-strong: rgba(255, 255, 255, 0.15);
-  
+
   --border-primary: rgba(255, 255, 255, 0.1);
   --border-secondary: rgba(255, 255, 255, 0.05);
-  
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
   --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.4);
-  
+
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
-  
+
   --blur-sm: blur(4px);
   --blur-md: blur(8px);
   --blur-lg: blur(16px);
@@ -171,7 +171,7 @@ section {
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
+  background:
     radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.1) 0%, transparent 40%),
     radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 40%),
     radial-gradient(circle at 40% 60%, rgba(79, 172, 254, 0.05) 0%, transparent 40%);
@@ -922,7 +922,7 @@ section {
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 30% 30%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 70% 70%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
   z-index: 0;
@@ -1291,14 +1291,14 @@ section {
     text-align: center;
     gap: 2rem;
   }
-  
+
   .hero-actions {
     flex-direction: column;
     align-items: center;
     gap: 1rem;
     width: 100%;
   }
-  
+
   .btn-cta,
   .btn-secondary,
   .cta-primary,
@@ -1308,52 +1308,52 @@ section {
     max-width: 320px;
     padding: 1rem 1.5rem;
   }
-  
+
   /* Grid Layouts Mobile */
   .grid.lg\:grid-cols-2 {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-  
+
   .grid.lg\:grid-cols-3 {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .grid.md\:grid-cols-2 {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .grid.md\:grid-cols-3 {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .grid.sm\:grid-cols-3 {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   /* Code Comparison Mobile */
   .code-comparison {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .code-arrow {
     transform: rotate(90deg);
   }
-  
+
   /* State Flow Mobile */
   .state-flow {
     flex-direction: column;
   }
-  
+
   .state-arrow {
     transform: rotate(90deg);
   }
-  
+
   /* CTA Actions Mobile */
   .cta-actions {
     flex-direction: column;
@@ -1361,50 +1361,50 @@ section {
     gap: 1rem;
     width: 100%;
   }
-  
+
   /* Statistics Mobile */
   .hero-stats {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .metrics-display {
     gap: 0.5rem;
   }
-  
+
   .quick-stats {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   /* Spacing Mobile */
   .py-24 { padding-top: 3rem; padding-bottom: 3rem; }
   .py-20 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
   .mb-16 { margin-bottom: 2rem; }
   .mb-12 { margin-bottom: 1.5rem; }
   .mb-20 { margin-bottom: 2rem; }
-  
+
   /* Container Mobile */
   .container {
     padding-left: 1rem;
     padding-right: 1rem;
   }
-  
+
   /* Text Sizes Mobile */
   .text-xl { font-size: 1rem; }
   .text-2xl { font-size: 1.25rem; }
   .text-3xl { font-size: 1.5rem; }
-  
+
   /* Code Window Mobile */
   .code-window-wrapper {
     margin: 1rem 0;
   }
-  
+
   /* Feature Cards Mobile */
   .feature-card, .stat-card {
     padding: 1.5rem;
   }
-  
+
   /* Badge Mobile */
   .inline-flex.items-center.gap-2 {
     font-size: 0.75rem;
@@ -1418,15 +1418,15 @@ section {
     grid-template-columns: 1fr;
     gap: 3rem;
   }
-  
+
   .grid.lg\:grid-cols-3 {
     grid-template-columns: repeat(2, 1fr);
     gap: 2rem;
   }
-  
+
   .text-5xl { font-size: 2.75rem; }
   .text-7xl { font-size: 3.5rem; }
-  
+
   .container {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
@@ -1437,7 +1437,7 @@ section {
 @media (min-width: 1440px) {
   .text-5xl { font-size: 3.5rem; }
   .text-7xl { font-size: 5rem; }
-  
+
   .container {
     max-width: 1600px;
   }
@@ -1580,7 +1580,7 @@ section {
 
 /* Modern Utility Classes */
 .backdrop-blur-sm { backdrop-filter: blur(4px); }
-.bg-clip-text { 
+.bg-clip-text {
   background-clip: text;
   -webkit-background-clip: text;
 }

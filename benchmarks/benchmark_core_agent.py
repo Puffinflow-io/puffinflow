@@ -133,6 +133,7 @@ class AgentBenchmarks:
         simple_agent = Agent(name="coordinator_agent")
         self.coordinator = AgentCoordinator(simple_agent)
         from puffinflow.core.observability.config import MetricsConfig
+
         metrics_config = MetricsConfig()
         self.metrics_provider = PrometheusMetricsProvider(metrics_config)
 

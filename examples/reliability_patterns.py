@@ -33,9 +33,7 @@ class ExternalServiceAgent(Agent):
         self.set_variable("service_reliability", service_reliability)
 
         # Configure circuit breaker
-        cb_config = CircuitBreakerConfig(
-            failure_threshold=3, recovery_timeout=5.0
-        )
+        cb_config = CircuitBreakerConfig(failure_threshold=3, recovery_timeout=5.0)
         self._circuit_breaker = CircuitBreaker(cb_config)
 
         # Register all decorated states
@@ -124,7 +122,7 @@ class DatabaseAgent(Agent):
         super().__init__(name)
 
         # Configure bulkhead for database operations
-        bulkhead_config = BulkheadConfig('db_bulkhead', max_concurrent=5, timeout=10.0)
+        bulkhead_config = BulkheadConfig("db_bulkhead", max_concurrent=5, timeout=10.0)
         self.db_bulkhead = Bulkhead(bulkhead_config)
 
         # Register all decorated states

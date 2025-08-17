@@ -100,16 +100,16 @@ if __name__ == "__main__":
 async def state_one(context):
     # ✅ Correct - data persists
     context.set_variable("data", {"key": "value"})
-    
+
     # ❌ Incorrect - local variable, doesn't persist
     local_data = {"key": "value"}
-    
+
     return "state_two"
 
 async def state_two(context):
     # ✅ This works
     data = context.get_variable("data")
-    
+
     # ❌ This fails - local_data doesn't exist
     # print(local_data)
 \`\`\`
@@ -129,7 +129,7 @@ async def state_two(context):
    async def router_state(context):
        # ✅ Correct - returns next state name
        return "next_state"
-       
+
        # ❌ Incorrect - returns None, workflow ends
        # return None
    \`\`\`
@@ -148,7 +148,7 @@ async def state_two(context):
    \`\`\`python
    from puffinflow import Agent
    from puffinflow.observability import enable_monitoring
-   
+
    enable_monitoring()
    agent = Agent("performance-test")
    \`\`\`
@@ -165,13 +165,13 @@ async def state_two(context):
    \`\`\`python
    import asyncio
    import time
-   
+
    async def slow_state(context):
        start = time.time()
-       
+
        # Your async operation
        await asyncio.sleep(0.1)  # Replace with actual work
-       
+
        elapsed = time.time() - start
        print(f"Operation took {elapsed:.2f} seconds")
    \`\`\`
@@ -187,7 +187,7 @@ async def state_two(context):
    async def cleanup_state(context):
        # Clear large data when no longer needed
        context.clear_variable("large_dataset")
-       
+
        # Use cached data with TTL
        context.set_cached("temp_data", data, ttl=300)  # 5 minutes
    \`\`\`
@@ -217,7 +217,7 @@ agent.add_state("target_state", target_function)
 async def source_state(context):
     # ✅ Return registered state name
     return "target_state"
-    
+
     # ❌ Don't return unregistered state names
     # return "nonexistent_state"
 \`\`\`
@@ -231,11 +231,11 @@ async def source_state(context):
 async def safe_access(context):
     # ✅ Use get_variable with default
     value = context.get_variable("key", "default_value")
-    
+
     # ✅ Check if variable exists
     if context.has_variable("key"):
         value = context.get_variable("key")
-    
+
     # ❌ Direct access without checking
     # value = context.get_variable("key")  # May raise KeyError
 \`\`\`
@@ -256,7 +256,7 @@ async def safe_access(context):
 2. **Use priority scheduling:**
    \`\`\`python
    from puffinflow import Priority
-   
+
    @agent.state(priority=Priority.HIGH)
    async def important_task(context):
        pass
@@ -285,17 +285,17 @@ from puffinflow import Agent
 @pytest.mark.asyncio
 async def test_agent_workflow():
     agent = Agent("test-agent")
-    
+
     @agent.state
     async def test_state(context):
         context.set_variable("test_result", "success")
         return None
-    
+
     # Run agent with test data
     result = await agent.run(
         initial_context={"input": "test_data"}
     )
-    
+
     # Assert expected outcomes
     assert result.get_variable("test_result") == "success"
 \`\`\`
@@ -318,10 +318,10 @@ agent = Agent("debug-agent")
 @agent.state
 async def debug_state(context):
     logger.debug(f"Executing state with context: {context.get_all_variables()}")
-    
+
     # Your state logic
     result = await some_operation()
-    
+
     logger.debug(f"State result: {result}")
     return "next_state"
 \`\`\`
@@ -340,14 +340,14 @@ async def debug_state(context):
    \`\`\`python
    from puffinflow import Agent
    from puffinflow.observability import configure_monitoring
-   
+
    # Configure for production
    configure_monitoring(
        enable_metrics=True,
        enable_tracing=True,
        sample_rate=0.1  # 10% sampling to reduce overhead
    )
-   
+
    agent = Agent("production-agent")
    \`\`\`
 
@@ -368,11 +368,11 @@ async def debug_state(context):
    \`\`\`python
    async def health_check():
        agent = Agent("health-check")
-       
+
        @agent.state
        async def ping(context):
            return None
-       
+
        try:
            await asyncio.wait_for(agent.run(), timeout=5.0)
            return True
@@ -474,12 +474,12 @@ async def debug_async_issue():
     except Exception as e:
         # Print full stack trace
         traceback.print_exc()
-        
+
         # Get event loop info
         loop = asyncio.get_event_loop()
         print(f"Event loop: {loop}")
         print(f"Running: {loop.is_running()}")
-        
+
         # Check for pending tasks
         tasks = asyncio.all_tasks(loop)
         print(f"Pending tasks: {len(tasks)}")
@@ -500,12 +500,12 @@ import asyncio
 def profile_agent():
     profiler = cProfile.Profile()
     profiler.enable()
-    
+
     # Run your agent
     asyncio.run(agent.run())
-    
+
     profiler.disable()
-    
+
     # Analyze results
     stats = pstats.Stats(profiler)
     stats.sort_stats('cumulative')

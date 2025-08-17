@@ -57,7 +57,7 @@ agent.add_state("data_processing", data_processing)
 
 # State with dependencies and resources
 agent.add_state(
-    "analysis_state", 
+    "analysis_state",
     analysis_function,
     dependencies=["data_processing"],
     cpu=2.0,
@@ -121,8 +121,8 @@ Decorator to register state functions directly with the agent, including resourc
 from puffinflow import Priority
 
 @agent.state(
-    cpu=2.0, 
-    memory=1024, 
+    cpu=2.0,
+    memory=1024,
     timeout=30.0,
     max_retries=3,
     priority=Priority.HIGH,

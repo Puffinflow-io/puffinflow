@@ -57,12 +57,12 @@ const ModernFeatures: React.FC = () => {
             <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
             Enterprise Features
           </div>
-          
+
           <h2 className="text-4xl lg:text-6xl font-black text-white mb-6 leading-tight">
             Everything You Need for
             <span className="bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent"> Production AI</span>
           </h2>
-          
+
           <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
             Stop cobbling together solutions. Get enterprise-grade AI infrastructure that scales with your business.
           </p>
@@ -77,23 +77,23 @@ const ModernFeatures: React.FC = () => {
             >
               {/* Gradient background on hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              
+
               <div className="relative z-10">
                 {/* Icon */}
                 <div className="text-5xl mb-6 group-hover:scale-110 transition-transform duration-300">
                   {feature.icon}
                 </div>
-                
+
                 {/* Title */}
                 <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-orange-400 group-hover:to-pink-500 group-hover:bg-clip-text transition-all duration-300">
                   {feature.title}
                 </h3>
-                
+
                 {/* Description */}
                 <p className="text-gray-300 mb-6 leading-relaxed">
                   {feature.description}
                 </p>
-                
+
                 {/* Benefits */}
                 <div className="space-y-2">
                   {feature.benefits.map((benefit, benefitIndex) => (

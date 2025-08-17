@@ -225,7 +225,10 @@ async def run_team_coordination():
     reporter = ReportGenerator("team-reporter")
 
     # Create a processing team with agents
-    team = create_team("data-processing-team", [collector, processor_fast, processor_accurate, aggregator, reporter])
+    team = create_team(
+        "data-processing-team",
+        [collector, processor_fast, processor_accurate, aggregator, reporter],
+    )
 
     # Run the team
     start_time = time.time()

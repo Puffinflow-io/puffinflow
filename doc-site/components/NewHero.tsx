@@ -11,17 +11,17 @@ agent = Agent("customer-support-ai")
 async def classify_request(context: Context):
     """AI-powered request classification with fallback"""
     user_msg = context.get_variable("user_message")
-    
+
     # Multi-model ensemble for better accuracy
     classification = await llm.classify(
         user_msg,
         models=["gpt-4", "claude-3"],
         confidence_threshold=0.85
     )
-    
+
     context.set_variable("intent", classification.category)
     context.set_variable("confidence", classification.score)
-    
+
     return f"handle_{classification.category}"
 
 @agent.state(
@@ -34,11 +34,11 @@ async def handle_technical(context: Context):
     """Handle technical support with enterprise features"""
     issue = context.get_variable("user_message")
     confidence = context.get_variable("confidence")
-    
+
     # Route to human if AI confidence is low
     if confidence < 0.7:
         return "escalate_to_human"
-    
+
     # Generate response with knowledge base
     response = await llm.technical_support(
         issue=issue,
@@ -46,7 +46,7 @@ async def handle_technical(context: Context):
         max_tokens=500,
         temperature=0.1
     )
-    
+
     context.set_variable("response", response)
     return "send_response"
 
@@ -54,17 +54,17 @@ async def handle_technical(context: Context):
 async def send_response(context: Context):
     """Send response with analytics tracking"""
     response = context.get_variable("response")
-    
+
     # Send to user
     await send_to_user(response)
-    
+
     # Track metrics
     await analytics.track_interaction(
         intent=context.get_variable("intent"),
         response_time=context.execution_time,
         satisfaction_score=await get_satisfaction()
     )
-    
+
     return None  # Workflow complete
 
 # Production deployment
@@ -75,14 +75,14 @@ async def main():
         "user_id": "user_12345",
         "session_id": "sess_67890"
     })
-    
+
     # Execute with full observability
     result = await agent.run(
         context,
         trace_id="req_abcdef",
         monitoring=True
     )
-    
+
     print(f"Workflow completed: {result}")
 
 if __name__ == "__main__":
@@ -92,17 +92,17 @@ const NewHero: React.FC = () => {
   const [typedText, setTypedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showCursor, setShowCursor] = useState(true);
-  
+
   const texts = [
     'Production-Grade AI Workflows',
-    'Scalable Agent Orchestration', 
+    'Scalable Agent Orchestration',
     'Enterprise-Ready Solutions',
     'Bulletproof AI Operations'
   ];
 
   useEffect(() => {
     const currentText = texts[currentIndex];
-    
+
     if (typedText.length < currentText.length) {
       const timeout = setTimeout(() => {
         setTypedText(currentText.slice(0, typedText.length + 1));
@@ -137,12 +137,12 @@ const NewHero: React.FC = () => {
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-orange-600/20 animate-gradient-xy"></div>
         </div>
-        
+
         {/* Floating Orbs */}
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-full blur-3xl animate-float"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-float-delay"></div>
         <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-gradient-to-r from-orange-500/25 to-red-500/25 rounded-full blur-2xl animate-float-slow"></div>
-        
+
         {/* Grid Pattern */}
         <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
@@ -151,10 +151,10 @@ const NewHero: React.FC = () => {
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          
+
           {/* Left Column - Hero Content */}
           <div className="space-y-8 text-center lg:text-left">
-            
+
             {/* Status Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-full text-green-300 text-sm font-medium backdrop-blur-sm">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -170,9 +170,9 @@ const NewHero: React.FC = () => {
                   {showCursor && <span className="text-orange-400 animate-pulse">|</span>}
                 </span>
               </h1>
-              
+
               <p className="text-xl lg:text-2xl text-gray-300 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                The only framework that gives you <span className="text-orange-400 font-semibold">enterprise-grade reliability</span> patterns 
+                The only framework that gives you <span className="text-orange-400 font-semibold">enterprise-grade reliability</span> patterns
                 for AI workflows. Built for production, not just demos.
               </p>
             </div>
@@ -208,10 +208,10 @@ const NewHero: React.FC = () => {
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </a>
-              
+
               <a
                 href="https://github.com/puffinflow-io/puffinflow"
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer"
                 className="group px-8 py-4 bg-white/10 text-white font-semibold rounded-xl border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2"
               >
@@ -228,16 +228,16 @@ const NewHero: React.FC = () => {
           <div className="relative">
             {/* Glow Effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse"></div>
-            
+
             {/* Code Window */}
             <div className="relative transform hover:scale-105 transition-transform duration-700">
-              <CodeWindow 
+              <CodeWindow
                 code={heroCode}
                 language="python"
                 fileName="production_ai_workflow.py"
               />
             </div>
-            
+
             {/* Floating Elements */}
             <div className="absolute -top-8 -right-8 w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full blur-lg animate-bounce"></div>
             <div className="absolute -bottom-8 -left-8 w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full blur-lg animate-bounce delay-1000"></div>

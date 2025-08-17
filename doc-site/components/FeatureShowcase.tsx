@@ -40,7 +40,7 @@ const FeatureShowcase: React.FC = () => {
             Transform your AI prototype into enterprise-grade infrastructure in minutes, not months.
           </p>
         </div>
-        
+
         <div className="features-grid">
           {features.map((feature, index) => (
             <div key={index} className="feature-showcase-card">
@@ -53,7 +53,7 @@ const FeatureShowcase: React.FC = () => {
                   <p className="feature-description">{feature.description}</p>
                 </div>
               </div>
-              
+
               <div className="feature-demo">
                 {feature.demo.before && (
                   <div className="code-comparison">
@@ -68,7 +68,7 @@ const FeatureShowcase: React.FC = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {feature.demo.metrics && (
                   <div className="metrics-display">
                     {feature.demo.metrics.map((metric, idx) => (
@@ -79,7 +79,7 @@ const FeatureShowcase: React.FC = () => {
                     ))}
                   </div>
                 )}
-                
+
                 {feature.demo.states && (
                   <div className="state-flow">
                     {feature.demo.states.map((state, idx) => (

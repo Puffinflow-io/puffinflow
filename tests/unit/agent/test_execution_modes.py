@@ -145,7 +145,10 @@ class TestExecutionModes:
         # Should follow: router -> premium_flow -> send_welcome
         assert execution_log == ["router", "premium_flow", "send_welcome"]
         assert result.get_variable("user_type") == "premium"
-        assert result.get_variable("features") == ["advanced_analytics", "priority_support"]
+        assert result.get_variable("features") == [
+            "advanced_analytics",
+            "priority_support",
+        ]
         assert "premium" in result.get_variable("welcome_message")
 
     async def test_sequential_with_dependencies(self):
@@ -207,8 +210,11 @@ class TestExecutionModes:
         # Add states with dependencies
         agent.add_state("fetch_user_data", fetch_user_data)
         agent.add_state("fetch_sales_data", fetch_sales_data)
-        agent.add_state("generate_report", generate_report,
-                       dependencies=["fetch_user_data", "fetch_sales_data"])
+        agent.add_state(
+            "generate_report",
+            generate_report,
+            dependencies=["fetch_user_data", "fetch_sales_data"],
+        )
 
         # Run with PARALLEL mode
         result = await agent.run(execution_mode=ExecutionMode.PARALLEL)

@@ -6,7 +6,7 @@ The Context system is how states share data in Puffinflow. It's a secure, typed 
 
 **The Problem:** In async workflows, sharing data between functions usually means:
 - Global variables (dangerous with concurrency)
-- Passing parameters everywhere (verbose and brittle)  
+- Passing parameters everywhere (verbose and brittle)
 - Manual serialization (error-prone)
 
 **The Solution:** Puffinflow's Context acts as a secure, shared memory space that every state can safely access.
@@ -27,10 +27,10 @@ async def fetch_user(context):
 async def process_user(context):
     user = context.get_variable("user")
     timestamp = context.get_variable("timestamp")
-    
+
     # Use default values for optional data
     settings = context.get_variable("settings", {"theme": "default"})
-    
+
     print(f"Processing {user['name']} at {timestamp}")
     return "send_welcome"
 \`\`\`
@@ -58,11 +58,11 @@ async def initialize(context):
     context.set_typed_variable("avg_score", 85.5)      # Locked to float
     return "process"
 
-@agent.state  
+@agent.state
 async def process(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
-    
+
     count = context.get_typed_variable("user_count")
     print(f"Processing {count} users")
 \`\`\`
@@ -103,7 +103,7 @@ async def setup(context):
     # Configuration that won't change
     context.set_constant("api_url", "https://api.example.com")
     context.set_constant("max_retries", 3)
-    
+
     # Sensitive data stored securely
     context.set_secret("api_key", "sk-1234567890abcdef")
     context.set_secret("db_password", "super_secure_password")
@@ -113,10 +113,10 @@ async def setup(context):
 async def make_request(context):
     url = context.get_constant("api_url")
     api_key = context.get_secret("api_key")
-    
+
     # Don't log real secrets!
     print(f"Making request to {url} with key {api_key[:8]}...")
-    
+
     # context.set_constant("api_url", "different")  # ❌ ValueError: Constants are immutable
 \`\`\`
 
@@ -149,7 +149,7 @@ Use \`set_output()\` to mark final workflow results:
 async def calculate_metrics(context):
     orders = [{"amount": 100}, {"amount": 200}, {"amount": 150}]
     total = sum(order["amount"] for order in orders)
-    
+
     # Mark as final outputs
     context.set_output("total_revenue", total)
     context.set_output("order_count", len(orders))
@@ -161,7 +161,7 @@ async def send_report(context):
     revenue = context.get_output("total_revenue")
     count = context.get_output("order_count")
     avg = context.get_output("avg_order_value")
-    
+
     print(f"Report: \${revenue} revenue from {count} orders (avg: \${avg:.2f})")
 \`\`\`
 
@@ -190,10 +190,10 @@ async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
     context.set_validated_data("order", order)
-    
+
     # Cache session temporarily
     context.set_cached("session", {"order_id": order.id}, ttl=3600)
-    
+
     # Type-safe tracking
     context.set_typed_variable("amount_charged", order.total)
     return "finalize"
@@ -202,11 +202,11 @@ async def process_order(context):
 async def finalize(context):
     order = context.get_validated_data("order", Order)
     amount = context.get_typed_variable("amount_charged")
-    
+
     # Final outputs
     context.set_output("order_id", order.id)
     context.set_output("amount_processed", amount)
-    
+
     print(f"✅ Order {order.id} completed: \${amount}")
 
 # Run the workflow

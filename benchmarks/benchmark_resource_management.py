@@ -212,7 +212,7 @@ class ResourceManagementBenchmarks:
 
     def benchmark_quota_checking(self):
         """Benchmark quota checking performance."""
-        quotas = QuotaManager()
+        _ = QuotaManager()
         # Simple quota manager operation
         return True  # Simplified for now
 

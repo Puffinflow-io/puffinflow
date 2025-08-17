@@ -74,9 +74,18 @@ class TestIntroductionExamples:
             # Simulate web search API call
             await asyncio.sleep(0.01)  # Reduced for faster tests
             results = [
-                {"title": f"Article about {query}", "content": f"Detailed content about {query}..."},
-                {"title": f"{query} - Latest Research", "content": f"Recent findings on {query}..."},
-                {"title": f"Industry Analysis: {query}", "content": f"Market analysis of {query}..."}
+                {
+                    "title": f"Article about {query}",
+                    "content": f"Detailed content about {query}...",
+                },
+                {
+                    "title": f"{query} - Latest Research",
+                    "content": f"Recent findings on {query}...",
+                },
+                {
+                    "title": f"Industry Analysis: {query}",
+                    "content": f"Market analysis of {query}...",
+                },
             ]
 
             # Store results in context for next state
@@ -102,7 +111,7 @@ class TestIntroductionExamples:
                 "sentiment": "neutral",
                 "confidence": 0.92,
                 "word_count": sum(len(r["content"]) for r in results),
-                "sources_analyzed": len(results)
+                "sources_analyzed": len(results),
             }
 
             # Store analysis results
@@ -128,13 +137,13 @@ class TestIntroductionExamples:
                 "methodology": {
                     "sources_searched": len(raw_results),
                     "sources_analyzed": analysis["sources_analyzed"],
-                    "analysis_method": "LLM-powered content analysis"
+                    "analysis_method": "LLM-powered content analysis",
                 },
                 "metadata": {
                     "generated_at": "2024-01-15T10:30:00Z",
                     "agent_id": agent.name,
-                    "word_count": analysis["word_count"]
-                }
+                    "word_count": analysis["word_count"],
+                },
             }
 
             # Store final report
@@ -149,7 +158,9 @@ class TestIntroductionExamples:
         agent.add_state("generate_report", generate_report)
 
         # Run the enhanced workflow
-        result = await agent.run(initial_context={"search_query": "machine learning trends 2024"})
+        result = await agent.run(
+            initial_context={"search_query": "machine learning trends 2024"}
+        )
 
         # Verify the workflow completed successfully
         final_report = result.get_variable("final_report")
@@ -160,7 +171,9 @@ class TestIntroductionExamples:
         assert final_report == research_report  # Should be the same object
 
         # Verify report structure
-        assert research_report["title"] == "Research Report: Machine Learning Trends 2024"
+        assert (
+            research_report["title"] == "Research Report: Machine Learning Trends 2024"
+        )
         assert research_report["query"] == "machine learning trends 2024"
         assert research_report["confidence_score"] == 0.92
         assert research_report["sentiment_analysis"] == "neutral"
@@ -221,8 +234,12 @@ class TestIntroductionExamples:
                 return None
 
             agent.add_state("gather_info", gather_info)
-            agent.add_state("analyze_results", analyze_results, dependencies=["gather_info"])
-            agent.add_state("generate_report", generate_report, dependencies=["analyze_results"])
+            agent.add_state(
+                "analyze_results", analyze_results, dependencies=["gather_info"]
+            )
+            agent.add_state(
+                "generate_report", generate_report, dependencies=["analyze_results"]
+            )
 
             return agent
 
@@ -236,7 +253,7 @@ class TestIntroductionExamples:
         queries = [
             "machine learning trends 2024",
             "sustainable energy solutions",
-            "remote work productivity tools"
+            "remote work productivity tools",
         ]
 
         tasks = [run_research(query, str(i)) for i, query in enumerate(queries)]

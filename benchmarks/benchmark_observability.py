@@ -137,11 +137,16 @@ class ObservabilityBenchmarks:
     """Observability benchmarks."""
 
     def __init__(self):
-        from puffinflow.core.observability.config import MetricsConfig, TracingConfig, AlertingConfig
+        from puffinflow.core.observability.config import (
+            AlertingConfig,
+            MetricsConfig,
+            TracingConfig,
+        )
+
         metrics_config = MetricsConfig()
         tracing_config = TracingConfig()
         alerting_config = AlertingConfig()
-        
+
         self.metrics_provider = PrometheusMetricsProvider(metrics_config)
         self.tracing_provider = OpenTelemetryTracingProvider(tracing_config)
         self.event_manager = EventManager()

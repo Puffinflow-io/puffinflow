@@ -26,17 +26,19 @@ async def main():
     print("Starting agent run...")
     print(f"States: {list(agent.states.keys())}")
     print(f"Dependencies: {agent.dependencies}")
-    
+
     result = await agent.run()
 
     print(f"Agent status: {result.status}")
     print(f"Initialized: {result.get_variable('initialized')}")
     print(f"Updated: {result.get_variable('updated')}")
-    
+
     # Print state metadata
     for state_name in agent.states:
         metadata = agent.state_metadata.get(state_name)
-        print(f"State {state_name}: status={metadata.status if metadata else 'unknown'}")
+        print(
+            f"State {state_name}: status={metadata.status if metadata else 'unknown'}"
+        )
 
 
 if __name__ == "__main__":

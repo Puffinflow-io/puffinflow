@@ -470,11 +470,7 @@ class TestGettingStartedExamples:
         processor = Agent("document-processor")
 
         @state(
-            cpu=2.0,
-            memory=1024,
-            priority=Priority.HIGH,
-            max_retries=3,
-            timeout=120.0
+            cpu=2.0, memory=1024, priority=Priority.HIGH, max_retries=3, timeout=120.0
         )
         async def validate_document(context):
             """Validate uploaded document format and size."""
@@ -488,7 +484,7 @@ class TestGettingStartedExamples:
                     return "error_handler"
 
                 # Validate file format
-                if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
+                if not file_path.lower().endswith((".pdf", ".docx", ".txt")):
                     context.set_variable("error", "Unsupported file format")
                     return "error_handler"
 
@@ -500,11 +496,7 @@ class TestGettingStartedExamples:
                 return "error_handler"
 
         @state(
-            cpu=4.0,
-            memory=2048,
-            priority=Priority.NORMAL,
-            max_retries=2,
-            timeout=300.0
+            cpu=4.0, memory=2048, priority=Priority.NORMAL, max_retries=2, timeout=300.0
         )
         async def extract_content(context):
             """Extract text content from document."""
@@ -527,11 +519,7 @@ class TestGettingStartedExamples:
                 return "error_handler"
 
         @state(
-            cpu=2.0,
-            memory=1024,
-            priority=Priority.NORMAL,
-            max_retries=1,
-            timeout=180.0
+            cpu=2.0, memory=1024, priority=Priority.NORMAL, max_retries=1, timeout=180.0
         )
         async def analyze_content(context):
             """Analyze content with AI/ML processing."""
@@ -546,7 +534,7 @@ class TestGettingStartedExamples:
                     "sentiment": "positive",
                     "topics": ["technology", "business"],
                     "summary": f"Document contains {word_count} words about technology and business.",
-                    "confidence": 0.95
+                    "confidence": 0.95,
                 }
 
                 context.set_variable("analysis", analysis)
@@ -557,11 +545,7 @@ class TestGettingStartedExamples:
                 return "error_handler"
 
         @state(
-            cpu=1.0,
-            memory=512,
-            priority=Priority.NORMAL,
-            max_retries=2,
-            timeout=60.0
+            cpu=1.0, memory=512, priority=Priority.NORMAL, max_retries=2, timeout=60.0
         )
         async def save_results(context):
             """Save processing results to database."""
@@ -577,7 +561,7 @@ class TestGettingStartedExamples:
                     "id": result_id,
                     "file_path": file_path,
                     "analysis": analysis,
-                    "processed_at": "2024-01-15T10:30:00Z"
+                    "processed_at": "2024-01-15T10:30:00Z",
                 }
 
                 context.set_variable("results", results)
@@ -587,13 +571,7 @@ class TestGettingStartedExamples:
                 context.set_variable("error", str(e))
                 return "error_handler"
 
-        @state(
-            cpu=0.5,
-            memory=256,
-            priority=Priority.LOW,
-            max_retries=3,
-            timeout=30.0
-        )
+        @state(cpu=0.5, memory=256, priority=Priority.LOW, max_retries=3, timeout=30.0)
         async def send_notification(context):
             """Send completion notification."""
             try:
@@ -605,7 +583,7 @@ class TestGettingStartedExamples:
                 notification = {
                     "type": "success",
                     "message": f"Document {results['id']} processed successfully",
-                    "timestamp": "2024-01-15T10:35:00Z"
+                    "timestamp": "2024-01-15T10:35:00Z",
                 }
 
                 context.set_variable("notification", notification)
@@ -615,13 +593,7 @@ class TestGettingStartedExamples:
                 context.set_variable("error", str(e))
                 return "error_handler"
 
-        @state(
-            cpu=0.5,
-            memory=256,
-            priority=Priority.HIGH,
-            max_retries=1,
-            timeout=30.0
-        )
+        @state(cpu=0.5, memory=256, priority=Priority.HIGH, max_retries=1, timeout=30.0)
         async def error_handler(context):
             """Handle errors and cleanup."""
             try:
@@ -633,7 +605,7 @@ class TestGettingStartedExamples:
                     "type": "error",
                     "message": f"Document processing failed: {error}",
                     "file_path": file_path,
-                    "timestamp": "2024-01-15T10:30:00Z"
+                    "timestamp": "2024-01-15T10:30:00Z",
                 }
 
                 context.set_variable("error_notification", error_notification)
@@ -678,7 +650,7 @@ class TestGettingStartedExamples:
             file_path = context.get_variable("file_path")
 
             # Test unsupported file format
-            if not file_path.lower().endswith(('.pdf', '.docx', '.txt')):
+            if not file_path.lower().endswith((".pdf", ".docx", ".txt")):
                 context.set_variable("error", "Unsupported file format")
                 return "error_handler"
 
@@ -693,7 +665,7 @@ class TestGettingStartedExamples:
             error_notification = {
                 "type": "error",
                 "message": f"Document processing failed: {error}",
-                "file_path": file_path
+                "file_path": file_path,
             }
 
             context.set_variable("error_notification", error_notification)

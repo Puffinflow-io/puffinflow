@@ -8,7 +8,14 @@ import time
 import weakref
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    Protocol,
+    Union,
+)
 
 from .checkpoint import AgentCheckpoint
 from .context import Context
@@ -1085,7 +1092,9 @@ class Agent:
     def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
         """Validate the overall workflow configuration before execution."""
         if not self.states:
-            raise ValueError("No states defined. Add at least one state before running.")
+            raise ValueError(
+                "No states defined. Add at least one state before running."
+            )
 
         # Check for circular dependencies
         self._check_circular_dependencies()
@@ -1099,7 +1108,7 @@ class Agent:
     def _check_circular_dependencies(self) -> None:
         """Check for circular dependencies in the state graph."""
         # Build reverse graph: for each state, who depends on it
-        dependents = {state: [] for state in self.states}
+        dependents: dict[str, list[str]] = {state: [] for state in self.states}
         for state, deps in self.dependencies.items():
             for dep in deps:
                 if dep in dependents:
@@ -1120,7 +1129,7 @@ class Agent:
             rec_stack.remove(state)
             return False
 
-        visited = set()
+        visited: set[str] = set()
         for state in self.states:
             if state not in visited and has_cycle(state, visited, set()):
                 raise ValueError(

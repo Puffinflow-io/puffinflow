@@ -134,9 +134,9 @@ class ScheduleBuilder:
             elif scheduled_input.input_type.value == "const":
                 input_kwargs[key] = f"const:{scheduled_input.value}"
             elif scheduled_input.input_type.value == "cache":
-                input_kwargs[key] = (
-                    f"cache:{scheduled_input.ttl}:{scheduled_input.value}"
-                )
+                input_kwargs[
+                    key
+                ] = f"cache:{scheduled_input.ttl}:{scheduled_input.value}"
             elif scheduled_input.input_type.value == "typed":
                 input_kwargs[key] = f"typed:{scheduled_input.value}"
             elif scheduled_input.input_type.value == "output":

@@ -357,29 +357,37 @@ class TestContextAndDataExamples:
 
             # Store lists and nested objects
             context.set_variable("tags", ["customer", "active", "premium"])
-            context.set_variable("metadata", {
-                "last_login": "2024-01-15",
-                "preferences": {"theme": "dark", "notifications": True}
-            })
+            context.set_variable(
+                "metadata",
+                {
+                    "last_login": "2024-01-15",
+                    "preferences": {"theme": "dark", "notifications": True},
+                },
+            )
 
         async def process_enhanced_data(context):
             # Retrieve data
             user = context.get_variable("user")
             is_premium = context.get_variable("is_premium")
             _tags = context.get_variable("tags")  # Retrieved but not used in processing
-            _metadata = context.get_variable("metadata")  # Retrieved but not used in processing
+            _metadata = context.get_variable(
+                "metadata"
+            )  # Retrieved but not used in processing
 
             # Safe access with defaults
             region = context.get_variable("region", default="US")
 
             # Store processing results
-            context.set_variable("processing_result", {
-                "user_id": user["id"],
-                "processed_at": "2024-01-15T10:30:00Z",
-                "success": True,
-                "region": region,
-                "is_premium": is_premium
-            })
+            context.set_variable(
+                "processing_result",
+                {
+                    "user_id": user["id"],
+                    "processed_at": "2024-01-15T10:30:00Z",
+                    "success": True,
+                    "region": region,
+                    "is_premium": is_premium,
+                },
+            )
 
         agent.add_state("fetch_enhanced_data", fetch_enhanced_data)
         agent.add_state("process_enhanced_data", process_enhanced_data)
@@ -402,10 +410,10 @@ class TestContextAndDataExamples:
 
         async def initialize_enhanced(context):
             # Test multiple type locks
-            context.set_typed_variable("user_count", 100)      # int
-            context.set_typed_variable("avg_score", 85.5)      # float
-            context.set_typed_variable("is_enabled", True)     # bool
-            context.set_typed_variable("status", "active")     # str
+            context.set_typed_variable("user_count", 100)  # int
+            context.set_typed_variable("avg_score", 85.5)  # float
+            context.set_typed_variable("is_enabled", True)  # bool
+            context.set_typed_variable("status", "active")  # str
 
         async def update_enhanced(context):
             # Valid type updates

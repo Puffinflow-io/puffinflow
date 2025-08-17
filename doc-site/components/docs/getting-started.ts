@@ -10,8 +10,8 @@ pip install puffinflow
 
 ## Core Concept
 
-**Agent**: Your workflow orchestrator  
-**States**: Individual steps (just async Python functions)  
+**Agent**: Your workflow orchestrator
+**States**: Individual steps (just async Python functions)
 **Context**: Shared data between states
 
 ## Your First Workflow
@@ -32,7 +32,7 @@ async def fetch_data(context):
     context.set_variable("raw_data", data)
     return "process_data"
 
-@agent.state  
+@agent.state
 async def process_data(context):
     """Step 2: Transform the data"""
     raw_data = context.get_variable("raw_data")
@@ -93,7 +93,7 @@ await agent.run(initial_state="hello")
 Now that you have a working workflow, explore:
 
 - **[Error Handling](/docs/error-handling)** - Add retries and fault tolerance
-- **[Context & Data](/docs/context-and-data)** - Advanced data sharing patterns  
+- **[Context & Data](/docs/context-and-data)** - Advanced data sharing patterns
 - **[Examples](https://github.com/puffinflow/examples)** - Real-world workflow examples
 
 Ready to build something robust? 🐧

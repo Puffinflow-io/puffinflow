@@ -54,7 +54,7 @@ graph TD
     B --> C[Context & Data]
     C --> D[Basic Error Handling]
     D --> E[Simple Example Project]
-    
+
     style A fill:#e1f5fe
     style E fill:#c8e6c9
 \`\`\`
@@ -77,7 +77,7 @@ graph TD
     C --> D[Basic Observability]
     D --> E[Multi-State Workflows]
     E --> F[Production Deployment]
-    
+
     style A fill:#fff3e0
     style F fill:#c8e6c9
 \`\`\`
@@ -102,7 +102,7 @@ graph TD
     C --> D[Custom Primitives]
     D --> E[System Architecture]
     E --> F[Contributing to Core]
-    
+
     style A fill:#fce4ec
     style F fill:#c8e6c9
 \`\`\`
@@ -201,7 +201,7 @@ async def process_input(context):
     # Your AI processing logic here
     pass
 
-@state  
+@state
 async def generate_output(context):
     # Your output generation logic here
     pass

@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import CodeWindow from './CodeWindow';
-import { 
-    SunIcon, 
-    MoonIcon, 
-    ClipboardIcon, 
+import {
+    SunIcon,
+    MoonIcon,
+    ClipboardIcon,
     ClipboardCheckIcon,
     BookOpenIcon,
     RocketLaunchIcon,
@@ -69,7 +69,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ sidebarLinks, pageMarkdown, cur
             // First, extract code blocks from markdown before processing
             const codeBlocks: { code: string; language: string; id: string }[] = [];
             let codeBlockIndex = 0;
-            
+
             // Find all code blocks in the markdown and store them
             const markdownWithPlaceholders = pageMarkdown.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
                 const id = `CODE_BLOCK_${codeBlockIndex++}`;
@@ -80,25 +80,25 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ sidebarLinks, pageMarkdown, cur
                 });
                 return `\n\nCODE_PLACEHOLDER_${id}\n\n`;
             });
-            
+
             // Process the markdown without code blocks
             marked.setOptions({
                 breaks: true,
                 gfm: true
             });
-            
+
             const htmlContent = marked(markdownWithPlaceholders);
-            
+
             // If no code blocks, just render the HTML
             if (codeBlocks.length === 0) {
                 setProcessedContent(<div dangerouslySetInnerHTML={{ __html: htmlContent }} />);
                 return;
             }
-            
+
             // Split HTML by placeholders and create mixed content
             const parts = htmlContent.split(/CODE_PLACEHOLDER_(CODE_BLOCK_\d+)/);
             const elements: React.ReactNode[] = [];
-            
+
             for (let i = 0; i < parts.length; i++) {
                 if (i % 2 === 0) {
                     // HTML content
@@ -111,7 +111,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ sidebarLinks, pageMarkdown, cur
                     // Code block placeholder - find the matching code block
                     const placeholderId = parts[i];
                     const codeBlock = codeBlocks.find(block => block.id === placeholderId);
-                    
+
                     if (codeBlock) {
                         elements.push(
                             <CodeWindow
@@ -124,7 +124,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ sidebarLinks, pageMarkdown, cur
                     }
                 }
             }
-            
+
             setProcessedContent(<>{elements}</>);
         };
 
@@ -346,7 +346,7 @@ export const DocsPage: React.FC = () => {
             <section id="documentation-sections">
                 <h2>Documentation Sections</h2>
                 <p>Explore our comprehensive documentation covering all aspects of Puffinflow development:</p>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                     <div className="docs-card">
                         <h3>
@@ -357,7 +357,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Step-by-step guide to building your first Puffinflow workflow with examples and best practices.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/context-and-data" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -367,7 +367,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Learn how to share data between states using Puffinflow's powerful context system.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/resource-management" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -377,7 +377,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Control CPU, memory, rate limits, and resource allocation for optimal performance.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/error-handling" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -387,7 +387,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Build resilient workflows with comprehensive error handling and recovery patterns.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/checkpointing" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -397,7 +397,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Save and resume workflow progress for long-running processes and reliability.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/reliability" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -407,7 +407,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Production-ready patterns including circuit breakers, bulkheads, and monitoring.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/observability" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -417,7 +417,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Comprehensive monitoring, metrics collection, distributed tracing, and alerting.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/coordination" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -427,7 +427,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Synchronization primitives and patterns for coordinating multiple agents.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/multiagent" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -437,7 +437,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Build sophisticated multi-agent systems with team structures and collaboration.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/resources" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -447,7 +447,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Learning materials, examples, community links, and troubleshooting guides.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/rag-recipe" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -457,7 +457,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Complete tutorial for building production-ready RAG systems with Puffinflow.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/troubleshooting" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -467,7 +467,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Comprehensive guide to debugging and resolving common issues with Puffinflow.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/api-reference" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -477,7 +477,7 @@ export const DocsPage: React.FC = () => {
                         </h3>
                         <p>Complete reference documentation for all Puffinflow classes, methods, and functions.</p>
                     </div>
-                    
+
                     <div className="docs-card">
                         <h3>
                             <a href="#docs/deployment" className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
@@ -488,7 +488,7 @@ export const DocsPage: React.FC = () => {
                         <p>Deploy your Puffinflow applications to production with containerization, cloud platforms, and CI/CD pipelines.</p>
                     </div>
                 </div>
-                
+
                 <style jsx>{`
                     .docs-card {
                         padding: 1.5rem;
@@ -564,7 +564,7 @@ async def fetch_data(context):
     context.set_variable("raw_data", data)
     return "process_data"
 
-@agent.state  
+@agent.state
 async def process_data(context):
     """Step 2: Transform the data"""
     raw_data = context.get_variable("raw_data")
@@ -588,7 +588,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())`} fileName="my_workflow.py" />
-                
+
                 <p><strong>Output:</strong></p>
                 <CodeWindow language="bash" code={`Results:
   Hello, Alice!
@@ -694,10 +694,10 @@ async def fetch_user(context):
 async def process_user(context):
     user = context.get_variable("user")
     timestamp = context.get_variable("timestamp")
-    
+
     # Use default values for optional data
     settings = context.get_variable("settings", {"theme": "default"})
-    
+
     print(f"Processing {user['name']} at {timestamp}")
     return "send_welcome"`} fileName="basic_sharing.py" />
             </section>
@@ -763,11 +763,11 @@ async def initialize(context):
     context.set_typed_variable("avg_score", 85.5)      # Locked to float
     return "process"
 
-@agent.state  
+@agent.state
 async def process(context):
     context.set_typed_variable("user_count", 150)      # ✅ Works
     # context.set_typed_variable("user_count", "150")  # ❌ TypeError
-    
+
     count = context.get_typed_variable("user_count")
     print(f"Processing {count} users")`} fileName="type_safe.py" />
             </section>
@@ -804,7 +804,7 @@ async def setup(context):
     # Configuration that won't change
     context.set_constant("api_url", "https://api.example.com")
     context.set_constant("max_retries", 3)
-    
+
     # Sensitive data stored securely
     context.set_secret("api_key", "sk-1234567890abcdef")
     context.set_secret("db_password", "super_secure_password")
@@ -814,10 +814,10 @@ async def setup(context):
 async def make_request(context):
     url = context.get_constant("api_url")
     api_key = context.get_secret("api_key")
-    
+
     # Don't log real secrets!
     print(f"Making request to {url} with key {api_key[:8]}...")
-    
+
     # context.set_constant("api_url", "different")  # ❌ ValueError: Constants are immutable`} fileName="config_secrets.py" />
             </section>
 
@@ -846,7 +846,7 @@ async def use_cache(context):
 async def calculate_metrics(context):
     orders = [{"amount": 100}, {"amount": 200}, {"amount": 150}]
     total = sum(order["amount"] for order in orders)
-    
+
     # Mark as final outputs
     context.set_output("total_revenue", total)
     context.set_output("order_count", len(orders))
@@ -858,7 +858,7 @@ async def send_report(context):
     revenue = context.get_output("total_revenue")
     count = context.get_output("order_count")
     avg = context.get_output("avg_order_value")
-    
+
     print(f"Report: \${revenue} revenue from {count} orders (avg: \${avg:.2f})")`} fileName="workflow_outputs.py" />
             </section>
 
@@ -886,10 +886,10 @@ async def process_order(context):
     # Validated order data
     order = Order(id=123, total=99.99, customer_email="user@example.com")
     context.set_validated_data("order", order)
-    
+
     # Cache session temporarily
     context.set_cached("session", {"order_id": order.id}, ttl=3600)
-    
+
     # Type-safe tracking
     context.set_typed_variable("amount_charged", order.total)
     return "finalize"
@@ -898,11 +898,11 @@ async def process_order(context):
 async def finalize(context):
     order = context.get_validated_data("order", Order)
     amount = context.get_typed_variable("amount_charged")
-    
+
     # Final outputs
     context.set_output("order_id", order.id)
     context.set_output("amount_processed", amount)
-    
+
     print(f"✅ Order {order.id} completed: \${amount}")
 
 # Run the workflow
@@ -2766,7 +2766,7 @@ export const ReliabilityPage: React.FC = () => {
             <section id="reliability">
                 <h1>Reliability & Production Patterns</h1>
                 <p>Puffinflow provides comprehensive reliability patterns to ensure your workflows operate consistently in production environments. This guide covers health monitoring, graceful degradation, system resilience, and operational best practices for building bulletproof AI workflows.</p>
-                
+
                 <h2 id="circuit-breaker">Circuit Breaker Pattern</h2>
                 <p>Prevent cascading failures by automatically detecting and isolating failing services.</p>
                 <CodeWindow language="python" fileName="circuit_breaker.py" code={`from puffinflow import Agent, CircuitBreaker, state
@@ -2832,11 +2832,11 @@ class HealthMonitor:
     def __init__(self):
         self.checks = {}
         self.last_check = time.time()
-    
+
     async def register_check(self, name, check_func):
         """Register a health check function"""
         self.checks[name] = check_func
-    
+
     async def run_health_checks(self):
         """Run all registered health checks"""
         results = {}
@@ -2846,7 +2846,7 @@ class HealthMonitor:
                 results[name] = {"status": "healthy", "result": result}
             except Exception as e:
                 results[name] = {"status": "unhealthy", "error": str(e)}
-        
+
         return results
 
 monitor = HealthMonitor()
@@ -2854,26 +2854,26 @@ monitor = HealthMonitor()
 @state
 async def system_health_check(context):
     """Comprehensive system health monitoring"""
-    
+
     # Register health checks
     await monitor.register_check("database", check_database_connection)
     await monitor.register_check("external_api", check_api_availability)
     await monitor.register_check("memory", check_memory_usage)
     await monitor.register_check("disk_space", check_disk_space)
-    
+
     # Run all checks
     health_results = await monitor.run_health_checks()
-    
+
     # Determine overall health
-    unhealthy_services = [name for name, result in health_results.items() 
+    unhealthy_services = [name for name, result in health_results.items()
                          if result["status"] == "unhealthy"]
-    
+
     overall_health = "healthy" if not unhealthy_services else "degraded"
-    
+
     context.set_variable("health_status", overall_health)
     context.set_variable("health_details", health_results)
     context.set_output("unhealthy_services_count", len(unhealthy_services))
-    
+
     if unhealthy_services:
         print(f"⚠️ System health degraded. Unhealthy: {unhealthy_services}")
         return "handle_degraded_health"
@@ -2910,7 +2910,7 @@ class DisasterRecoveryManager:
     def __init__(self, backup_location):
         self.backup_location = backup_location
         self.recovery_points = []
-    
+
     async def create_backup(self, context_data, metadata=None):
         """Create a recovery point"""
         timestamp = datetime.now().isoformat()
@@ -2920,19 +2920,19 @@ class DisasterRecoveryManager:
             "metadata": metadata or {},
             "version": "1.0"
         }
-        
+
         backup_file = f"{self.backup_location}/backup_{timestamp}.json"
         with open(backup_file, 'w') as f:
             json.dump(backup_data, f, indent=2)
-        
+
         self.recovery_points.append(backup_file)
         return backup_file
-    
+
     async def restore_from_backup(self, backup_file):
         """Restore system state from backup"""
         with open(backup_file, 'r') as f:
             backup_data = json.load(f)
-        
+
         return backup_data["context_data"]
 
 recovery_manager = DisasterRecoveryManager("/backups")
@@ -2940,37 +2940,37 @@ recovery_manager = DisasterRecoveryManager("/backups")
 @state(checkpoint_interval=30.0)
 async def critical_data_processing(context):
     """Critical operation with disaster recovery"""
-    
+
     # Create recovery point before critical operation
     current_state = {
         "processed_items": context.get_variable("processed_items", []),
         "progress": context.get_variable("progress", 0),
         "configuration": context.get_variable("config", {})
     }
-    
+
     backup_file = await recovery_manager.create_backup(
         current_state,
         metadata={"operation": "critical_processing", "stage": "pre_operation"}
     )
-    
+
     context.set_variable("recovery_point", backup_file)
     print(f"🛡️ Recovery point created: {backup_file}")
-    
+
     try:
         # Perform critical operation
         result = await perform_critical_operation()
         context.set_variable("operation_result", result)
-        
+
         # Create post-operation backup
         final_state = {**current_state, "operation_result": result}
         final_backup = await recovery_manager.create_backup(
             final_state,
             metadata={"operation": "critical_processing", "stage": "post_operation"}
         )
-        
+
         print(f"✅ Operation complete. Final backup: {final_backup}")
         return "operation_success"
-        
+
     except Exception as e:
         print(f"❌ Critical operation failed: {e}")
         print(f"🔄 Recovery point available: {backup_file}")
@@ -2981,21 +2981,21 @@ async def critical_data_processing(context):
 async def disaster_recovery(context):
     """Recover from critical failure"""
     recovery_point = context.get_variable("recovery_point")
-    
+
     if recovery_point:
         print(f"🔄 Initiating disaster recovery from: {recovery_point}")
-        
+
         # Restore previous state
         restored_state = await recovery_manager.restore_from_backup(recovery_point)
-        
+
         # Restore context variables
         for key, value in restored_state.items():
             context.set_variable(key, value)
-        
+
         # Set recovery metadata
         context.set_variable("recovered_from_disaster", True)
         context.set_variable("recovery_timestamp", datetime.now().isoformat())
-        
+
         print("✅ System state restored from backup")
         return "retry_operation"
     else:
@@ -3028,7 +3028,7 @@ export const ObservabilityPage: React.FC = () => {
             <section id="observability">
                 <h1>Observability & Monitoring</h1>
                 <p>Comprehensive observability stack for monitoring, alerting, and debugging Puffinflow workflows in production.</p>
-                
+
                 <h2 id="metrics">Metrics Collection</h2>
                 <p>Collect and track key performance indicators for your workflows.</p>
                 <CodeWindow language="python" fileName="metrics.py" code={`from puffinflow import Agent, state
@@ -3042,19 +3042,19 @@ class MetricsCollector:
         self.counters = {}
         self.histograms = {}
         self.gauges = {}
-    
+
     def increment_counter(self, name: str, value: int = 1, tags: Dict = None):
         """Increment a counter metric"""
         key = f"{name}:{tags or {}}"
         self.counters[key] = self.counters.get(key, 0) + value
-    
+
     def record_histogram(self, name: str, value: float, tags: Dict = None):
         """Record a histogram value"""
         key = f"{name}:{tags or {}}"
         if key not in self.histograms:
             self.histograms[key] = []
         self.histograms[key].append(value)
-    
+
     def set_gauge(self, name: str, value: float, tags: Dict = None):
         """Set a gauge value"""
         key = f"{name}:{tags or {}}"
@@ -3066,32 +3066,32 @@ metrics = MetricsCollector()
 async def collect_workflow_metrics(context):
     """Collect comprehensive workflow metrics"""
     start_time = time.time()
-    
+
     # Counter metrics
     metrics.increment_counter("workflow.started", tags={"workflow": "data_processing"})
-    
+
     # Process data
     data_size = len(context.get_variable("input_data", []))
     processing_time = await process_data_with_timing(context)
-    
+
     # Record performance metrics
     metrics.record_histogram("workflow.duration_seconds", processing_time)
     metrics.record_histogram("workflow.data_size_items", data_size)
-    
+
     # Set current state gauges
     metrics.set_gauge("workflow.active_workers", 5)
     metrics.set_gauge("workflow.memory_usage_mb", 256.5)
-    
+
     # Success/failure tracking
     if context.get_variable("processing_successful", True):
         metrics.increment_counter("workflow.completed")
     else:
         metrics.increment_counter("workflow.failed")
-    
+
     # Store metrics in context for reporting
     context.set_output("processing_time", processing_time)
     context.set_output("data_items_processed", data_size)
-    
+
     return "export_metrics"
 
 async def process_data_with_timing(context):
@@ -3119,11 +3119,11 @@ class TraceSpan:
         self.end_time = None
         self.tags = {}
         self.logs = []
-    
+
     def set_tag(self, key: str, value: str):
         """Add a tag to the span"""
         self.tags[key] = value
-    
+
     def log(self, message: str, level: str = "info"):
         """Add a log entry to the span"""
         self.logs.append({
@@ -3131,11 +3131,11 @@ class TraceSpan:
             "level": level,
             "message": message
         })
-    
+
     def finish(self):
         """Mark the span as completed"""
         self.end_time = datetime.now().isoformat()
-    
+
     def to_dict(self):
         """Convert span to dictionary for export"""
         return {
@@ -3152,65 +3152,65 @@ class TraceSpan:
 @state
 async def traced_workflow_step(context):
     """Execute workflow step with distributed tracing"""
-    
+
     # Get parent span from context or create root span
     parent_span = context.get_variable("current_span")
     span = TraceSpan("data_processing_step", parent_span)
-    
+
     # Set span metadata
     span.set_tag("service", "puffinflow")
     span.set_tag("operation", "data_processing")
     span.set_tag("version", "1.0")
-    
+
     try:
         span.log("Starting data processing step")
-        
+
         # Store current span in context for child operations
         context.set_variable("current_span", span)
-        
+
         # Simulate work with child spans
         result = await traced_data_processing(context)
-        
+
         span.set_tag("status", "success")
         span.log(f"Processing completed. Result: {result}")
-        
+
         context.set_variable("processing_result", result)
-        
+
     except Exception as e:
         span.set_tag("status", "error")
         span.set_tag("error.message", str(e))
         span.log(f"Processing failed: {e}", level="error")
         raise
-    
+
     finally:
         span.finish()
-        
+
         # Store span for export
         spans = context.get_variable("trace_spans", [])
         spans.append(span.to_dict())
         context.set_variable("trace_spans", spans)
-    
+
     return "export_traces"
 
 async def traced_data_processing(context):
     """Data processing with child span"""
     parent_span = context.get_variable("current_span")
     child_span = TraceSpan("database_query", parent_span)
-    
+
     try:
         child_span.set_tag("db.type", "postgresql")
         child_span.set_tag("db.statement", "SELECT * FROM users")
         child_span.log("Executing database query")
-        
+
         # Simulate database work
         await asyncio.sleep(0.2)
-        
+
         child_span.log("Query completed successfully")
         return {"status": "success", "rows": 150}
-        
+
     finally:
         child_span.finish()
-        
+
         # Add child span to trace
         spans = context.get_variable("trace_spans", [])
         spans.append(child_span.to_dict())
@@ -3224,7 +3224,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Callable
 
 class AlertRule:
-    def __init__(self, name: str, condition: Callable, threshold: float, 
+    def __init__(self, name: str, condition: Callable, threshold: float,
                  duration: int = 60, severity: str = "warning"):
         self.name = name
         self.condition = condition
@@ -3239,45 +3239,45 @@ class AlertManager:
         self.rules = []
         self.alerts = []
         self.notification_handlers = []
-    
+
     def add_rule(self, rule: AlertRule):
         """Add an alerting rule"""
         self.rules.append(rule)
-    
+
     def add_notification_handler(self, handler: Callable):
         """Add a notification handler (email, slack, etc.)"""
         self.notification_handlers.append(handler)
-    
+
     async def evaluate_rules(self, metrics: Dict):
         """Evaluate all alerting rules against current metrics"""
         current_time = datetime.now()
-        
+
         for rule in self.rules:
             try:
                 # Check if condition is met
                 value = rule.condition(metrics)
                 condition_met = value > rule.threshold
-                
+
                 if condition_met and not rule.is_triggered:
                     # Start tracking this potential alert
                     if rule.triggered_at is None:
                         rule.triggered_at = current_time
-                    
+
                     # Check if duration threshold is met
                     elif (current_time - rule.triggered_at).seconds >= rule.duration:
                         await self._trigger_alert(rule, value, metrics)
                         rule.is_triggered = True
-                
+
                 elif not condition_met:
                     # Reset rule state
                     if rule.is_triggered:
                         await self._resolve_alert(rule)
                     rule.triggered_at = None
                     rule.is_triggered = False
-                    
+
             except Exception as e:
                 print(f"Error evaluating rule {rule.name}: {e}")
-    
+
     async def _trigger_alert(self, rule: AlertRule, value: float, metrics: Dict):
         """Trigger an alert"""
         alert = {
@@ -3290,13 +3290,13 @@ class AlertManager:
             "status": "active",
             "message": f"{rule.name}: {value} > {rule.threshold}"
         }
-        
+
         self.alerts.append(alert)
-        
+
         # Send notifications
         for handler in self.notification_handlers:
             await handler(alert)
-    
+
     async def _resolve_alert(self, rule: AlertRule):
         """Resolve an alert"""
         for alert in self.alerts:
@@ -3339,7 +3339,7 @@ alert_manager.add_rule(memory_usage_rule)
 @state
 async def monitor_and_alert(context):
     """Monitor system metrics and trigger alerts"""
-    
+
     # Collect current metrics
     metrics = {
         "error_rate": context.get_output("error_rate", 0.02),  # 2%
@@ -3348,15 +3348,15 @@ async def monitor_and_alert(context):
         "active_connections": context.get_output("active_connections", 100),
         "queue_depth": context.get_output("queue_depth", 50)
     }
-    
+
     # Evaluate alerting rules
     await alert_manager.evaluate_rules(metrics)
-    
+
     # Store alert status in context
     active_alerts = [a for a in alert_manager.alerts if a["status"] == "active"]
     context.set_variable("active_alerts", active_alerts)
     context.set_output("alert_count", len(active_alerts))
-    
+
     # Log current status
     if active_alerts:
         print(f"⚠️ {len(active_alerts)} active alerts")
@@ -3364,7 +3364,7 @@ async def monitor_and_alert(context):
             print(f"  - {alert['rule_name']}: {alert['message']}")
     else:
         print("✅ All systems normal - no active alerts")
-    
+
     return "continue_monitoring"
 
 # Notification handlers
@@ -3400,7 +3400,7 @@ export const CoordinationPage: React.FC = () => {
             <section id="coordination">
                 <h1>Coordination & Synchronization</h1>
                 <p>Advanced patterns for coordinating multiple agents and managing shared resources in distributed workflows.</p>
-                
+
                 <h2 id="synchronization">Synchronization Primitives</h2>
                 <p>Use semaphores, mutexes, and barriers to coordinate access to shared resources.</p>
                 <CodeWindow language="python" fileName="synchronization.py" code={`from puffinflow import Agent, state
@@ -3415,21 +3415,21 @@ sync_barrier = Barrier("processing_sync", parties=3)
 async def coordinated_api_call(context):
     """Make API call with semaphore coordination"""
     agent_id = context.get_variable("agent_id")
-    
+
     print(f"Agent {agent_id}: Waiting for API semaphore...")
     await api_semaphore.acquire(agent_id)
-    
+
     try:
         print(f"Agent {agent_id}: Making API call")
         # Simulate API call
         await asyncio.sleep(2.0)
         result = {"status": "success", "data": "api_response"}
         context.set_variable("api_result", result)
-        
+
     finally:
         await api_semaphore.release(agent_id)
         print(f"Agent {agent_id}: Released API semaphore")
-    
+
     return "process_result"`} />
 
                 <h2 id="resource-pools">Resource Pools</h2>
@@ -3444,13 +3444,13 @@ memory_pool = ResourcePool("memory", capacity=8192)  # 8GB
 async def gpu_intensive_task(context):
     """Task requiring GPU and memory resources"""
     print("Executing GPU-intensive task...")
-    
+
     # Simulate GPU computation
     await asyncio.sleep(3.0)
-    
+
     result = {"model_output": "processed", "accuracy": 0.95}
     context.set_variable("gpu_result", result)
-    
+
     return "finalize_results"`} />
             </section>
         </DocsLayout>
@@ -3471,7 +3471,7 @@ export const MultiAgentPage: React.FC = () => {
             <section id="multiagent">
                 <h1>Multi-Agent Systems & Collaboration</h1>
                 <p>Building sophisticated multi-agent systems with coordinated workflows, team structures, and collaborative intelligence.</p>
-                
+
                 <h2 id="agent-communication">Agent Communication</h2>
                 <p>Enable agents to communicate and coordinate through message passing and shared state.</p>
                 <CodeWindow language="python" fileName="communication.py" code={`from puffinflow import Agent, AgentTeam, EventBus, state
@@ -3488,7 +3488,7 @@ worker_2 = Agent("worker-2")
 async def coordinate_work(context):
     """Coordinator distributes work to workers"""
     tasks = ["task_1", "task_2", "task_3", "task_4"]
-    
+
     # Send tasks to workers via event bus
     for i, task in enumerate(tasks):
         worker_id = f"worker-{(i % 2) + 1}"
@@ -3497,7 +3497,7 @@ async def coordinate_work(context):
             "worker_id": worker_id,
             "priority": "normal"
         })
-    
+
     context.set_variable("tasks_distributed", len(tasks))
     return "monitor_progress"
 
@@ -3505,27 +3505,27 @@ async def coordinate_work(context):
 async def process_assigned_task(context):
     """Worker processes assigned tasks"""
     agent_id = context.get_variable("agent_id")
-    
+
     # Listen for task assignments
-    message = await event_bus.subscribe("task_assigned", 
+    message = await event_bus.subscribe("task_assigned",
                                        filter_fn=lambda msg: msg["worker_id"] == agent_id)
-    
+
     if message:
         task_id = message["task_id"]
         print(f"{agent_id}: Processing {task_id}")
-        
+
         # Simulate work
         await asyncio.sleep(1.0)
-        
+
         # Report completion
         await event_bus.publish("task_completed", {
             "task_id": task_id,
             "worker_id": agent_id,
             "result": f"completed_{task_id}"
         })
-        
+
         context.set_variable("last_completed_task", task_id)
-    
+
     return "wait_for_next_task"`} />
 
                 <h2 id="team-structures">Team Structures</h2>
@@ -3543,17 +3543,17 @@ processing_team = create_team("data-processing-team", {
 async def team_data_processing(context):
     """Process data using coordinated team"""
     data_batches = context.get_variable("data_batches", [])
-    
+
     # Distribute work across team members
     results = await processing_team.distribute_work(
         work_items=data_batches,
         work_function=process_data_batch
     )
-    
+
     # Aggregate results
     total_processed = sum(r["processed_count"] for r in results)
     context.set_variable("total_processed", total_processed)
-    
+
     return "finalize_processing"
 
 async def process_data_batch(batch_data):
@@ -3584,10 +3584,10 @@ export const ResourcesPage: React.FC = () => {
             <section id="resources">
                 <h1>Resources & Learning Materials</h1>
                 <p>Comprehensive collection of learning materials, examples, and resources to master Puffinflow development.</p>
-                
+
                 <h2 id="learning-paths">Learning Paths</h2>
                 <p>Structured learning paths for different experience levels and use cases.</p>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
                     <div className="learning-path-card">
                         <h3>Beginner Path</h3>
@@ -3598,7 +3598,7 @@ export const ResourcesPage: React.FC = () => {
                             <li>Simple Workflows</li>
                         </ol>
                     </div>
-                    
+
                     <div className="learning-path-card">
                         <h3>Production Path</h3>
                         <ol>
@@ -3609,7 +3609,7 @@ export const ResourcesPage: React.FC = () => {
                         </ol>
                     </div>
                 </div>
-                
+
                 <h2 id="installation">Installation Guide</h2>
                 <p>Complete installation instructions for different environments.</p>
                 <CodeWindow language="bash" fileName="install.sh" code={`# Install Puffinflow
@@ -3636,7 +3636,7 @@ python -c "import puffinflow; print(puffinflow.get_version())"`} />
                         <p>Solution: Ensure you're using <code>context.set_variable()</code> and <code>context.get_variable()</code> correctly</p>
                     </div>
                 </div>
-                
+
                 <style jsx>{`
                     .learning-path-card {
                         padding: 1.5rem;
@@ -3684,25 +3684,25 @@ export const TroubleshootingPage: React.FC = () => {
 
             <section id="installation-issues">
                 <h2>Installation Issues</h2>
-                
+
                 <h3>pip install fails</h3>
                 <p><strong>Problem:</strong> <InlineCode>pip install puffinflow</InlineCode> fails with dependency conflicts or build errors.</p>
                 <p><strong>Solutions:</strong></p>
-                
+
                 <div className="space-y-4 mb-6">
                     <div>
                         <h4>1. Update pip and setuptools:</h4>
                         <CodeWindow language="bash" code={`pip install --upgrade pip setuptools wheel
 pip install puffinflow`} fileName="Terminal" />
                     </div>
-                    
+
                     <div>
                         <h4>2. Use virtual environment:</h4>
                         <CodeWindow language="bash" code={`python -m venv puffinflow-env
 source puffinflow-env/bin/activate  # On Windows: puffinflow-env\\Scripts\\activate
 pip install puffinflow`} fileName="Terminal" />
                     </div>
-                    
+
                     <div>
                         <h4>3. Clear pip cache:</h4>
                         <CodeWindow language="bash" code={`pip cache purge
@@ -3713,14 +3713,14 @@ pip install puffinflow`} fileName="Terminal" />
                 <h3>Import errors</h3>
                 <p><strong>Problem:</strong> <InlineCode>ImportError: cannot import name 'Agent' from 'puffinflow'</InlineCode></p>
                 <p><strong>Solutions:</strong></p>
-                
+
                 <div className="space-y-4">
                     <div>
                         <h4>1. Verify installation:</h4>
                         <CodeWindow language="bash" code={`pip show puffinflow
 python -c "import puffinflow; print(puffinflow.__version__)"`} fileName="Terminal" />
                     </div>
-                    
+
                     <div>
                         <h4>2. Check Python version compatibility:</h4>
                         <CodeWindow language="bash" code={`python --version  # Should be 3.8+`} fileName="Terminal" />
@@ -3730,7 +3730,7 @@ python -c "import puffinflow; print(puffinflow.__version__)"`} fileName="Termina
 
             <section id="runtime-issues">
                 <h2>Runtime Issues</h2>
-                
+
                 <h3>Agent won't start</h3>
                 <p><strong>Problem:</strong> Agent fails to start or hangs during initialization.</p>
                 <p><strong>Diagnosis:</strong></p>
@@ -3751,33 +3751,33 @@ async def test_state(context):
 # Test basic functionality
 if __name__ == "__main__":
     asyncio.run(agent.run())`} fileName="debug_agent.py" />
-                
+
                 <h3>Context data not persisting</h3>
                 <p><strong>Problem:</strong> Data stored in context disappears between states.</p>
                 <CodeWindow language="python" code={`async def state_one(context):
     # ✅ Correct - data persists
     context.set_variable("data", {"key": "value"})
-    
+
     # ❌ Incorrect - local variable, doesn't persist
     local_data = {"key": "value"}
-    
+
     return "state_two"
 
 async def state_two(context):
     # ✅ This works
     data = context.get_variable("data")
-    
+
     # ❌ This fails - local_data doesn't exist
     # print(local_data)`} fileName="context_example.py" />
             </section>
 
             <section id="performance-issues">
                 <h2>Performance Issues</h2>
-                
+
                 <h3>Agent running slowly</h3>
                 <p><strong>Problem:</strong> Agent operations are slower than expected.</p>
                 <p><strong>Solutions:</strong></p>
-                
+
                 <div className="space-y-4">
                     <div>
                         <h4>1. Enable performance monitoring:</h4>
@@ -3787,7 +3787,7 @@ from puffinflow.observability import enable_monitoring
 enable_monitoring()
 agent = Agent("performance-test")`} fileName="monitoring.py" />
                     </div>
-                    
+
                     <div>
                         <h4>2. Check resource allocation:</h4>
                         <CodeWindow language="python" code={`@agent.state(cpu=2.0, memory=1024)  # Allocate adequate resources
@@ -3800,7 +3800,7 @@ async def resource_intensive_task(context):
 
             <section id="common-error-messages">
                 <h2>Common Error Messages</h2>
-                
+
                 <div className="space-y-6">
                     <div className="error-solution">
                         <h3>"State 'state_name' not found"</h3>
@@ -3812,11 +3812,11 @@ agent.add_state("target_state", target_function)
 async def source_state(context):
     # ✅ Return registered state name
     return "target_state"
-    
+
     # ❌ Don't return unregistered state names
     # return "nonexistent_state"`} fileName="state_registration.py" />
                     </div>
-                    
+
                     <div className="error-solution">
                         <h3>"Context variable 'key' not found"</h3>
                         <p><strong>Problem:</strong> Trying to access a variable that doesn't exist.</p>
@@ -3824,15 +3824,15 @@ async def source_state(context):
                         <CodeWindow language="python" code={`async def safe_access(context):
     # ✅ Use get_variable with default
     value = context.get_variable("key", "default_value")
-    
+
     # ✅ Check if variable exists
     if context.has_variable("key"):
         value = context.get_variable("key")
-    
+
     # ❌ Direct access without checking
     # value = context.get_variable("key")  # May raise KeyError`} fileName="safe_context.py" />
                     </div>
-                    
+
                     <div className="error-solution">
                         <h3>"Resource allocation failed"</h3>
                         <p><strong>Problem:</strong> Insufficient resources available for state execution.</p>
@@ -3859,7 +3859,7 @@ async def retry_on_resource_failure(context):
 
             <section id="development-and-testing">
                 <h2>Development and Testing</h2>
-                
+
                 <h3>Testing agent workflows</h3>
                 <p><strong>Problem:</strong> How to test agent workflows effectively.</p>
                 <p><strong>Solution:</strong></p>
@@ -3869,20 +3869,20 @@ from puffinflow import Agent
 @pytest.mark.asyncio
 async def test_agent_workflow():
     agent = Agent("test-agent")
-    
+
     @agent.state
     async def test_state(context):
         context.set_variable("test_result", "success")
         return None
-    
+
     # Run agent with test data
     result = await agent.run(
         initial_context={"input": "test_data"}
     )
-    
+
     # Assert expected outcomes
     assert result.get_variable("test_result") == "success"`} fileName="test_example.py" />
-                
+
                 <h3>Debugging state transitions</h3>
                 <p><strong>Problem:</strong> Hard to track state transitions during development.</p>
                 <p><strong>Solution:</strong></p>
@@ -3898,21 +3898,21 @@ agent = Agent("debug-agent")
 @agent.state
 async def debug_state(context):
     logger.debug(f"Executing state with context: {context.get_all_variables()}")
-    
+
     # Your state logic
     result = await some_operation()
-    
+
     logger.debug(f"State result: {result}")
     return "next_state"`} fileName="debug_example.py" />
             </section>
 
             <section id="production-deployment">
                 <h2>Production Deployment</h2>
-                
+
                 <h3>Agent performance in production</h3>
                 <p><strong>Problem:</strong> Agent performs differently in production vs development.</p>
                 <p><strong>Production checklist:</strong></p>
-                
+
                 <div className="space-y-4">
                     <div>
                         <h4>1. Use production-ready configuration:</h4>
@@ -3928,7 +3928,7 @@ configure_monitoring(
 
 agent = Agent("production-agent")`} fileName="production_config.py" />
                     </div>
-                    
+
                     <div>
                         <h4>2. Implement proper error handling:</h4>
                         <CodeWindow language="python" code={`@agent.state(max_retries=3, timeout=30.0)
@@ -3946,14 +3946,14 @@ async def production_state(context):
 
             <section id="getting-help">
                 <h2>Getting Help</h2>
-                
+
                 <h3>Community resources</h3>
                 <ul>
                     <li><strong><a href="https://github.com/m-ahmed-elbeskeri/puffinflow/issues" className="text-orange-400 hover:text-orange-300">GitHub Issues</a></strong> — Report bugs and request features</li>
                     <li><strong><a href="https://github.com/m-ahmed-elbeskeri/puffinflow/discussions" className="text-orange-400 hover:text-orange-300">Discussions</a></strong> — Ask questions and share experiences</li>
                     <li><strong><a href="https://puffinflow.readthedocs.io/" className="text-orange-400 hover:text-orange-300">Documentation</a></strong> — Complete guides and API reference</li>
                 </ul>
-                
+
                 <h3>Creating effective bug reports</h3>
                 <p>When reporting issues, include:</p>
                 <ol>
@@ -3968,7 +3968,7 @@ async def production_state(context):
 
             <section id="advanced-troubleshooting">
                 <h2>Advanced Troubleshooting</h2>
-                
+
                 <h3>Debugging async issues</h3>
                 <p><strong>Problem:</strong> Complex async behavior causing issues.</p>
                 <CodeWindow language="python" code={`import asyncio
@@ -3981,18 +3981,18 @@ async def debug_async_issue():
     except Exception as e:
         # Print full stack trace
         traceback.print_exc()
-        
+
         # Get event loop info
         loop = asyncio.get_event_loop()
         print(f"Event loop: {loop}")
         print(f"Running: {loop.is_running()}")
-        
+
         # Check for pending tasks
         tasks = asyncio.all_tasks(loop)
         print(f"Pending tasks: {len(tasks)}")
         for task in tasks:
             print(f"  {task}")`} fileName="async_debugging.py" />
-                
+
                 <h3>Performance profiling</h3>
                 <p><strong>Problem:</strong> Need to identify performance bottlenecks.</p>
                 <CodeWindow language="python" code={`import cProfile
@@ -4002,12 +4002,12 @@ import asyncio
 def profile_agent():
     profiler = cProfile.Profile()
     profiler.enable()
-    
+
     # Run your agent
     asyncio.run(agent.run())
-    
+
     profiler.disable()
-    
+
     # Analyze results
     stats = pstats.Stats(profiler)
     stats.sort_stats('cumulative')
@@ -4041,23 +4041,23 @@ export const APIReferencePage: React.FC = () => {
 
             <section id="core-classes">
                 <h2>Core Classes</h2>
-                
+
                 <h3 id="agent">Agent</h3>
                 <p>The main class for creating and managing workflow agents.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow import Agent
 
 class Agent:
     def __init__(self, name: str, config: Optional[AgentConfig] = None)`} fileName="agent_signature.py" />
-                
+
                 <p><strong>Parameters:</strong></p>
                 <ul>
                     <li><InlineCode>name</InlineCode> (str): Unique identifier for the agent</li>
                     <li><InlineCode>config</InlineCode> (AgentConfig, optional): Configuration settings</li>
                 </ul>
-                
+
                 <h4>Methods</h4>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>add_state(name: str, func: Callable, dependencies: Optional[List[str]] = None) → None</InlineCode></h5>
                     <p>Registers a state function with the agent.</p>
@@ -4067,14 +4067,14 @@ class Agent:
 agent.add_state("my_state", my_state)
 agent.add_state("dependent_state", other_func, dependencies=["my_state"])`} fileName="add_state_example.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>run(initial_context: Optional[Dict] = None) → Context</InlineCode></h5>
                     <p>Executes the agent workflow.</p>
                     <CodeWindow language="python" code={`result = await agent.run(initial_context={"input": "data"})
 output = result.get_variable("output")`} fileName="run_example.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>state(func: Optional[Callable] = None, **kwargs) → Callable</InlineCode></h5>
                     <p>Decorator to register state functions directly.</p>
@@ -4087,49 +4087,49 @@ async def my_state(context):
             <section id="context">
                 <h2>Context</h2>
                 <p>Provides data sharing and state management across workflow states.</p>
-                
+
                 <CodeWindow language="python" code={`class Context:
     def __init__(self, workflow_id: str, initial_data: Optional[Dict] = None)`} fileName="context_signature.py" />
-                
+
                 <p><strong>Properties:</strong></p>
                 <ul>
                     <li><InlineCode>workflow_id</InlineCode> (str): Unique workflow identifier</li>
                     <li><InlineCode>execution_id</InlineCode> (str): Unique execution identifier</li>
                 </ul>
-                
+
                 <h3>Variable Management</h3>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>set_variable(key: str, value: Any) → None</InlineCode></h4>
                     <p>Stores a variable in the context.</p>
                     <CodeWindow language="python" code={`context.set_variable("user_data", {"id": 123, "name": "Alice"})`} fileName="set_variable_example.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>get_variable(key: str, default: Any = None) → Any</InlineCode></h4>
                     <p>Retrieves a variable from the context.</p>
                     <CodeWindow language="python" code={`user_data = context.get_variable("user_data")
 safe_value = context.get_variable("optional_key", "default_value")`} fileName="get_variable_example.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>has_variable(key: str) → bool</InlineCode></h4>
                     <p>Checks if a variable exists in the context.</p>
                     <CodeWindow language="python" code={`if context.has_variable("user_data"):
     user_data = context.get_variable("user_data")`} fileName="has_variable_example.py" />
                 </div>
-                
+
                 <h3>Type-Safe Variables</h3>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>set_typed_variable(key: str, value: T) → None</InlineCode></h4>
                     <p>Stores a type-locked variable.</p>
                     <CodeWindow language="python" code={`context.set_typed_variable("user_count", 100)      # Locked to int
 context.set_typed_variable("avg_score", 85.5)      # Locked to float`} fileName="typed_variable_example.py" />
                 </div>
-                
+
                 <h3>Validated Data</h3>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>set_validated_data(key: str, value: BaseModel) → None</InlineCode></h4>
                     <p>Stores Pydantic model data with validation.</p>
@@ -4143,25 +4143,25 @@ class User(BaseModel):
 user = User(id=123, name="Alice", email="alice@example.com")
 context.set_validated_data("user", user)`} fileName="validated_data_example.py" />
                 </div>
-                
+
                 <h3>Constants and Secrets</h3>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>set_constant(key: str, value: Any) → None</InlineCode></h4>
                     <p>Stores an immutable constant.</p>
                     <CodeWindow language="python" code={`context.set_constant("api_url", "https://api.example.com")
 context.set_constant("max_retries", 3)`} fileName="constant_example.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>set_secret(key: str, value: str) → None</InlineCode></h4>
                     <p>Stores sensitive data securely.</p>
                     <CodeWindow language="python" code={`context.set_secret("api_key", os.getenv("API_KEY"))
 api_key = context.get_secret("api_key")`} fileName="secret_example.py" />
                 </div>
-                
+
                 <h3>Cached Data</h3>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>set_cached(key: str, value: Any, ttl: float) → None</InlineCode></h4>
                     <p>Stores data with time-to-live expiration.</p>
@@ -4172,10 +4172,10 @@ cached_data = context.get_cached("temp_results", default=[])`} fileName="cached_
 
             <section id="decorators">
                 <h2>Decorators</h2>
-                
+
                 <h3>@state</h3>
                 <p>Decorator for configuring state functions with resource management and behavior options.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow import state
 
 @state(
@@ -4192,9 +4192,9 @@ cached_data = context.get_cached("temp_results", default=[])`} fileName="cached_
     preemptible: bool = False
 )
 async def my_state(context: Context) -> Optional[Union[str, List[str]]]`} fileName="state_decorator.py" />
-                
+
                 <p><strong>Parameters:</strong></p>
-                
+
                 <h4>Resource Allocation</h4>
                 <ul>
                     <li><InlineCode>cpu</InlineCode> (float): CPU units to allocate (default: 1.0)</li>
@@ -4202,26 +4202,26 @@ async def my_state(context: Context) -> Optional[Union[str, List[str]]]`} fileNa
                     <li><InlineCode>gpu</InlineCode> (float): GPU units to allocate (default: 0.0)</li>
                     <li><InlineCode>io</InlineCode> (float): I/O bandwidth units (default: 1.0)</li>
                 </ul>
-                
+
                 <h4>Execution Control</h4>
                 <ul>
                     <li><InlineCode>priority</InlineCode> (Priority): Execution priority (default: Priority.NORMAL)</li>
                     <li><InlineCode>timeout</InlineCode> (float): Maximum execution time in seconds (default: 300.0)</li>
                     <li><InlineCode>preemptible</InlineCode> (bool): Allow preemption for higher priority tasks (default: False)</li>
                 </ul>
-                
+
                 <h4>Retry Configuration</h4>
                 <ul>
                     <li><InlineCode>max_retries</InlineCode> (int): Maximum retry attempts (default: 0)</li>
                     <li><InlineCode>retry_delay</InlineCode> (float): Delay between retries in seconds (default: 1.0)</li>
                 </ul>
-                
+
                 <h4>Rate Limiting</h4>
                 <ul>
                     <li><InlineCode>rate_limit</InlineCode> (float): Operations per second limit (default: 0.0 = no limit)</li>
                     <li><InlineCode>burst_limit</InlineCode> (int): Burst capacity above rate limit (default: 0)</li>
                 </ul>
-                
+
                 <CodeWindow language="python" code={`@state(
     cpu=2.0,
     memory=1024,
@@ -4238,10 +4238,10 @@ async def important_task(context):
 
             <section id="enums-and-constants">
                 <h2>Enums and Constants</h2>
-                
+
                 <h3>Priority</h3>
                 <p>Defines execution priority levels for states.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow import Priority
 
 class Priority(Enum):
@@ -4250,7 +4250,7 @@ class Priority(Enum):
     NORMAL = 3
     LOW = 2
     BACKGROUND = 1`} fileName="priority_enum.py" />
-                
+
                 <CodeWindow language="python" code={`@state(priority=Priority.HIGH)
 async def high_priority_state(context):
     pass`} fileName="priority_usage.py" />
@@ -4258,17 +4258,17 @@ async def high_priority_state(context):
 
             <section id="coordination">
                 <h2>Coordination</h2>
-                
+
                 <h3>AgentTeam</h3>
                 <p>Manages coordinated execution of multiple agents.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow import AgentTeam
 
 class AgentTeam:
     def __init__(self, agents: List[Agent], name: str = "team")`} fileName="agent_team.py" />
-                
+
                 <h4>Methods</h4>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>execute_parallel() → Dict[str, Context]</InlineCode></h5>
                     <p>Executes all agents in parallel.</p>
@@ -4280,34 +4280,34 @@ agent2 = Agent("worker2")
 team = AgentTeam([agent1, agent2], name="processing_team")
 results = await team.execute_parallel()`} fileName="team_parallel.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>execute_sequential() → List[Context]</InlineCode></h5>
                     <p>Executes agents one after another.</p>
                     <CodeWindow language="python" code={`results = await team.execute_sequential()`} fileName="team_sequential.py" />
                 </div>
-                
+
                 <h3>AgentPool</h3>
                 <p>Manages a pool of identical agents for load balancing.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow import AgentPool
 
 class AgentPool:
     def __init__(self, agent_factory: Callable[[], Agent], size: int = 5)`} fileName="agent_pool.py" />
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>submit_task(initial_context: Dict) → Awaitable[Context]</InlineCode></h5>
                     <p>Submits a task to the next available agent.</p>
                     <CodeWindow language="python" code={`def create_worker():
     agent = Agent("worker")
-    
+
     @agent.state
     async def process_task(context):
         data = context.get_variable("task_data")
         result = await process_data(data)
         context.set_variable("result", result)
         return None
-    
+
     return agent
 
 pool = AgentPool(create_worker, size=10)
@@ -4317,27 +4317,27 @@ result = await pool.submit_task({"task_data": "work_item"})`} fileName="pool_usa
 
             <section id="observability">
                 <h2>Observability</h2>
-                
+
                 <h3>MetricsCollector</h3>
                 <p>Collects and tracks performance metrics.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow.observability import MetricsCollector
 
 class MetricsCollector:
     def __init__(self, namespace: str = "puffinflow")`} fileName="metrics_collector.py" />
-                
+
                 <h4>Methods</h4>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>increment(metric_name: str, value: float = 1.0, tags: Optional[Dict] = None) → None</InlineCode></h5>
                     <p>Increments a counter metric.</p>
                 </div>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>gauge(metric_name: str, value: float, tags: Optional[Dict] = None) → None</InlineCode></h5>
                     <p>Sets a gauge metric value.</p>
                 </div>
-                
+
                 <div className="mb-6">
                     <h5><InlineCode>timer(metric_name: str, tags: Optional[Dict] = None) → ContextManager</InlineCode></h5>
                     <p>Context manager for timing operations.</p>
@@ -4346,10 +4346,10 @@ class MetricsCollector:
 @state
 async def monitored_state(context):
     metrics.increment("state_executions")
-    
+
     with metrics.timer("processing_time"):
         result = await process_data()
-    
+
     metrics.gauge("result_size", len(result))
     return "next_state"`} fileName="metrics_usage.py" />
                 </div>
@@ -4357,10 +4357,10 @@ async def monitored_state(context):
 
             <section id="configuration">
                 <h2>Configuration</h2>
-                
+
                 <h3>AgentConfig</h3>
                 <p>Configuration settings for agent behavior.</p>
-                
+
                 <CodeWindow language="python" code={`from puffinflow import AgentConfig
 
 class AgentConfig:
@@ -4374,7 +4374,7 @@ class AgentConfig:
         enable_tracing: bool = False,
         log_level: str = "INFO"
     )`} fileName="agent_config.py" />
-                
+
                 <CodeWindow language="python" code={`config = AgentConfig(
     max_concurrent_states=20,
     default_timeout=600.0,
@@ -4387,9 +4387,9 @@ agent = Agent("configured_agent", config=config)`} fileName="config_usage.py" />
 
             <section id="error-handling">
                 <h2>Error Handling</h2>
-                
+
                 <h3>Common Exceptions</h3>
-                
+
                 <div className="mb-6">
                     <h4>StateExecutionError</h4>
                     <p>Raised when state execution fails.</p>
@@ -4400,7 +4400,7 @@ try:
 except StateExecutionError as e:
     print(f"State '{e.state_name}' failed: {e.message}")`} fileName="state_execution_error.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h4>ResourceAllocationError</h4>
                     <p>Raised when resource allocation fails.</p>
@@ -4411,7 +4411,7 @@ try:
 except ResourceAllocationError as e:
     print(f"Resource allocation failed: {e.message}")`} fileName="resource_allocation_error.py" />
                 </div>
-                
+
                 <div className="mb-6">
                     <h4>ContextVariableError</h4>
                     <p>Raised when context variable operations fail.</p>
@@ -4426,14 +4426,14 @@ except ContextVariableError as e:
 
             <section id="utilities">
                 <h2>Utilities</h2>
-                
+
                 <h3>Checkpoint Management</h3>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>save_checkpoint(context: Context, filepath: str) → None</InlineCode></h4>
                     <p>Saves workflow state to file.</p>
                 </div>
-                
+
                 <div className="mb-6">
                     <h4><InlineCode>load_checkpoint(filepath: str) → Context</InlineCode></h4>
                     <p>Loads workflow state from file.</p>
@@ -4450,7 +4450,7 @@ restored_context = load_checkpoint("workflow_checkpoint.json")`} fileName="check
             <section id="type-hints">
                 <h2>Type Hints</h2>
                 <p>Complete type definitions for better IDE support:</p>
-                
+
                 <CodeWindow language="python" code={`from typing import Any, Dict, List, Optional, Union, Callable, Awaitable
 from puffinflow import Context, Agent, Priority
 
@@ -4471,7 +4471,7 @@ StateResult = Optional[Union[str, List[str]]]`} fileName="type_hints.py" />
 
 export const DeploymentPage: React.FC = () => {
     return (
-        <DocsLayout 
+        <DocsLayout
             sidebarLinks={[
                 { id: "overview", label: "Overview" },
                 { id: "local-development-setup", label: "Local Development" },

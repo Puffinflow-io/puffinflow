@@ -12,10 +12,10 @@ agent = Agent("customer-support")
 @agent.state
 async def process_request(context):
     user_input = context.get_variable("user_input")
-    
+
     # Your AI logic here
     response = await ai_model.process(user_input)
-    
+
     context.set_variable("response", response)
     return "send_response"
 
@@ -46,7 +46,7 @@ const NewQuickStart: React.FC = () => {
               Transform your prototype into a production-ready AI workflow with just a few decorators.
             </p>
           </div>
-          
+
           <div className="quickstart-grid">
             <div className="quickstart-steps">
               <div className="step">
@@ -61,7 +61,7 @@ const NewQuickStart: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="step">
                 <div className="step-number">2</div>
                 <div className="step-content">
@@ -71,7 +71,7 @@ const NewQuickStart: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="step">
                 <div className="step-number">3</div>
                 <div className="step-content">
@@ -82,7 +82,7 @@ const NewQuickStart: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="quickstart-code">
               <div className="code-window">
                 <div className="code-window-header">
@@ -99,7 +99,7 @@ const NewQuickStart: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="quickstart-actions">
             <a
               href="#docs"

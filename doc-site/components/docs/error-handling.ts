@@ -6,7 +6,7 @@ When building workflows, things will go wrong. APIs will be down, networks will 
 
 **Without error handling:**
 - One failed API call crashes your entire workflow
-- Temporary network issues cause permanent failures  
+- Temporary network issues cause permanent failures
 - Your system becomes unreliable and frustrating to use
 - You lose data and waste computing resources
 
@@ -33,17 +33,17 @@ agent = Agent("retry-demo")
 @agent.state(max_retries=3)
 async def call_flaky_api(context):
     """This API fails sometimes, but usually works if you try again"""
-    
+
     attempt = context.get_variable("attempts", 0) + 1
     context.set_variable("attempts", attempt)
-    
+
     print(f"🌐 Calling API (attempt {attempt})...")
-    
+
     # Simulate an API that fails 60% of the time
     if random.random() < 0.6:
         print(f"❌ API failed on attempt {attempt}")
         raise Exception("API temporarily unavailable")
-    
+
     print(f"✅ API succeeded on attempt {attempt}!")
     context.set_variable("api_data", {"result": "success"})
     return None
@@ -68,11 +68,11 @@ async def might_hang(context):
     If it times out, it will retry up to 2 more times
     """
     print("⏱️ Starting operation that might hang...")
-    
+
     # Simulate work that might take too long
     delay = random.uniform(5, 15)  # Sometimes over 10 seconds
     await asyncio.sleep(delay)
-    
+
     print("✅ Operation completed!")
     return None
 \`\`\`
@@ -110,14 +110,14 @@ async def overloaded_service(context):
     """
     attempt = context.get_variable("service_attempts", 0) + 1
     context.set_variable("service_attempts", attempt)
-    
+
     print(f"🔄 Calling overloaded service (attempt {attempt})...")
-    
+
     # Simulate a service that's more likely to work with fewer concurrent calls
     if random.random() < 0.7:
         print(f"❌ Service overloaded (attempt {attempt})")
         raise Exception("Service temporarily overloaded")
-    
+
     print(f"✅ Service call succeeded!")
     context.set_variable("service_result", {"status": "completed"})
     return None
@@ -142,7 +142,7 @@ network_retry = RetryPolicy(
     jitter=True           # Randomize to avoid conflicts
 )
 
-# For expensive operations: conservative retry  
+# For expensive operations: conservative retry
 expensive_retry = RetryPolicy(
     max_retries=2,
     initial_delay=5.0,
@@ -189,12 +189,12 @@ async def external_service_call(context):
     4. If successful, resume normal operation
     """
     print("🔌 Calling external service...")
-    
+
     # Simulate a service that might be completely down
     if random.random() < 0.8:  # High failure rate
         print("❌ Service is down")
         raise Exception("External service unavailable")
-    
+
     print("✅ Service call succeeded!")
     context.set_variable("external_data", {"response": "success"})
     return None
@@ -214,12 +214,12 @@ async def database_query(context):
     - Other operations can continue even if database is slow
     """
     print("🗄️ Running database query...")
-    
+
     # Simulate database that might be slow or unavailable
     if random.random() < 0.4:
         print("❌ Database connection failed")
         raise Exception("Database timeout")
-    
+
     print("✅ Database query completed!")
     context.set_variable("query_result", {"rows": 42})
     return None
@@ -231,12 +231,12 @@ async def file_processing(context):
     So file problems won't affect database operations and vice versa
     """
     print("📁 Processing file...")
-    
+
     # Simulate file operation
     if random.random() < 0.3:
         print("❌ File processing failed")
         raise Exception("File access denied")
-    
+
     print("✅ File processed!")
     context.set_variable("file_result", {"processed": True})
     return None
@@ -258,14 +258,14 @@ async def critical_payment_processing(context):
     payment_id = context.get_variable("payment_id")
     attempt = context.get_variable("payment_attempts", 0) + 1
     context.set_variable("payment_attempts", attempt)
-    
+
     print(f"💳 Processing payment {payment_id} (attempt {attempt})...")
-    
+
     # Simulate payment processing that might fail
     if random.random() < 0.9:  # Very high failure rate for demo
         print(f"❌ Payment processing failed")
         raise Exception("Payment gateway error")
-    
+
     print(f"✅ Payment {payment_id} processed successfully!")
     context.set_variable("payment_result", {"status": "completed"})
     return None
@@ -289,11 +289,11 @@ async def emergency_alert(context):
     - More aggressive retry policy
     """
     print("🚨 Sending emergency alert...")
-    
+
     if random.random() < 0.3:
         print("❌ Alert delivery failed")
         raise Exception("Alert system unavailable")
-    
+
     print("✅ Emergency alert sent!")
     return None
 
@@ -306,11 +306,11 @@ async def background_cleanup(context):
     - Won't interfere with important work
     """
     print("🧹 Running background cleanup...")
-    
+
     if random.random() < 0.5:
         print("❌ Cleanup failed (not critical)")
         raise Exception("Cleanup interrupted")
-    
+
     print("✅ Cleanup completed!")
     return None
 \`\`\`
@@ -341,11 +341,11 @@ async def validate_order(context):
     """Quick validation with short timeout"""
     order_id = context.get_variable("order_id", "ORD-12345")
     print(f"✅ Validating order {order_id}...")
-    
+
     # Fast operation, rarely fails
     if random.random() < 0.1:
         raise Exception("Invalid order data")
-    
+
     context.set_variable("validation_status", "valid")
     return "check_inventory"
 
@@ -354,11 +354,11 @@ async def check_inventory(context):
     """Check inventory with bulkhead isolation"""
     order_id = context.get_variable("order_id", "ORD-12345")
     print(f"📦 Checking inventory for {order_id}...")
-    
+
     # Inventory service can be slow
     if random.random() < 0.3:
         raise Exception("Inventory service timeout")
-    
+
     context.set_variable("inventory_status", "available")
     return "process_payment"
 
@@ -372,24 +372,24 @@ async def process_payment(context):
     """Critical payment processing with all protections"""
     order_id = context.get_variable("order_id", "ORD-12345")
     amount = context.get_variable("amount", 99.99)
-    
+
     attempt = context.get_variable("payment_attempts", 0) + 1
     context.set_variable("payment_attempts", attempt)
-    
+
     print(f"💳 Processing payment for {order_id}: \${amount} (attempt {attempt})...")
-    
+
     # Payment processing with various failure modes
     if random.random() < 0.6:
         error_types = [
             "Card declined",
-            "Payment gateway timeout", 
+            "Payment gateway timeout",
             "Insufficient funds",
             "Bank communication error"
         ]
         error = random.choice(error_types)
         print(f"❌ Payment failed: {error}")
         raise Exception(f"Payment error: {error}")
-    
+
     print(f"✅ Payment successful for {order_id}!")
     context.set_variable("payment_status", "completed")
     return "send_confirmation"
@@ -399,11 +399,11 @@ async def send_confirmation(context):
     """Send confirmation with moderate retry"""
     order_id = context.get_variable("order_id", "ORD-12345")
     print(f"📧 Sending confirmation for {order_id}...")
-    
+
     # Email service occasionally fails
     if random.random() < 0.2:
         raise Exception("Email service unavailable")
-    
+
     print(f"✅ Confirmation sent for {order_id}!")
     context.set_output("order_completed", True)
     context.set_output("order_id", order_id)
@@ -415,12 +415,12 @@ async def main():
         "order_id": "ORD-67890",
         "amount": 149.99
     }
-    
+
     result = await agent.run(
         initial_state="validate_order",
         initial_context=initial_data
     )
-    
+
     if result.get_output("order_completed"):
         print(f"\\n🎉 Order {result.get_output('order_id')} completed successfully!")
     else:
@@ -435,7 +435,7 @@ if __name__ == "__main__":
 ### How Many Retries Should I Use?
 
 - **Quick operations** (< 1 second): 2-3 retries
-- **Normal operations** (1-10 seconds): 3-5 retries  
+- **Normal operations** (1-10 seconds): 3-5 retries
 - **Slow operations** (10+ seconds): 1-3 retries
 - **Expensive operations** (costs money/resources): 1-2 retries
 
@@ -507,7 +507,7 @@ async def background_task(context):
 ## What Each Feature Protects Against
 
 - **max_retries**: Temporary failures, network hiccups
-- **timeout**: Hung operations, slow responses  
+- **timeout**: Hung operations, slow responses
 - **circuit_breaker**: Cascade failures, completely down services
 - **bulkhead**: Resource exhaustion, one failure affecting everything
 - **dead_letter**: Data loss, operations that need manual intervention
