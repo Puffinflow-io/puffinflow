@@ -1287,6 +1287,11 @@ class Agent:
         if self.status == AgentStatus.PAUSED:
             self.status = AgentStatus.RUNNING
 
+    def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
+        """Validate workflow configuration before execution."""
+        if not self.states:
+            raise ValueError("No states defined in the workflow.")
+
     # Find entry states
     def _find_entry_states(self) -> list[str]:
         """Find states with no dependencies."""

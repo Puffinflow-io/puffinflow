@@ -273,7 +273,9 @@ class TestExecutionModes:
 
         result = await agent.run(execution_mode=ExecutionMode.SEQUENTIAL)
 
-        assert result.status.value == "idle"
+        assert result.status.value == "failed"
+        assert isinstance(result.error, ValueError)
+        assert "No states defined" in str(result.error)
 
     async def test_sequential_mode_single_state(self):
         """Test SEQUENTIAL mode with single state."""
