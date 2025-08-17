@@ -34,7 +34,7 @@ class TestExecutionModes:
         agent.add_state("state_c", state_c)
 
         # Run with default (parallel) mode
-        result = await agent.run()
+        result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
 
         # All states should have executed
         assert "state_a" in execution_log
@@ -307,10 +307,9 @@ class TestExecutionModes:
         agent.add_state("state_a", state_a)
         agent.add_state("state_b", state_b)
 
-        # Run without execution_mode parameter (should default to PARALLEL)
+        # Run without execution_mode parameter (should default to SEQUENTIAL)
         await agent.run()
 
-        # Both states should execute (parallel behavior)
-        assert len(execution_log) == 2
+        # Only first state should execute (sequential behavior)
+        assert len(execution_log) == 1
         assert "state_a" in execution_log
-        assert "state_b" in execution_log

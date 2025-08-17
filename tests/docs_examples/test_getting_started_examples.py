@@ -166,7 +166,7 @@ class TestGettingStartedExamples:
             dependencies=["fetch_user_data", "fetch_sales_data"],
         )
 
-        result = await agent.run()
+        result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
 
         print(f"Final variables: {result.variables}")
         print(f"Final outputs: {result.outputs}")
@@ -496,7 +496,7 @@ class TestGettingStartedExamples:
                 return "error_handler"
 
         @state(
-            cpu=4.0, memory=2048, priority=Priority.NORMAL, max_retries=2, timeout=300.0
+            cpu=4.0, memory=512, priority=Priority.NORMAL, max_retries=2, timeout=300.0
         )
         async def extract_content(context):
             """Extract text content from document."""

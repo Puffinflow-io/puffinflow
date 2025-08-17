@@ -390,7 +390,7 @@ class TestContextAndDataExamples:
             )
 
         agent.add_state("fetch_enhanced_data", fetch_enhanced_data)
-        agent.add_state("process_enhanced_data", process_enhanced_data)
+        agent.add_state("process_enhanced_data", process_enhanced_data, dependencies=["fetch_enhanced_data"])
 
         result = await agent.run()
 
@@ -431,7 +431,7 @@ class TestContextAndDataExamples:
                 context.set_typed_variable("user_count", new_count)
 
         agent.add_state("initialize_enhanced", initialize_enhanced)
-        agent.add_state("update_enhanced", update_enhanced)
+        agent.add_state("update_enhanced", update_enhanced, dependencies=["initialize_enhanced"])
 
         result = await agent.run()
 

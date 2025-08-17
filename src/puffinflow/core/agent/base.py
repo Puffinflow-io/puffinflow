@@ -1092,9 +1092,8 @@ class Agent:
     def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
         """Validate the overall workflow configuration before execution."""
         if not self.states:
-            raise ValueError(
-                "No states defined. Add at least one state before running."
-            )
+            # Empty agent is allowed - it will just finish with no work done
+            return
 
         # Check for circular dependencies
         self._check_circular_dependencies()
@@ -1923,13 +1922,17 @@ class Agent:
 
             # Determine final status
             if self.status == AgentStatus.RUNNING:
-                has_failed_states = any(
-                    s.status == StateStatus.FAILED for s in self.state_metadata.values()
-                )
-                if has_failed_states:
-                    self.status = AgentStatus.FAILED
+                if not self.states:
+                    # No states defined - agent remains idle
+                    self.status = AgentStatus.IDLE
                 else:
-                    self.status = AgentStatus.COMPLETED
+                    has_failed_states = any(
+                        s.status == StateStatus.FAILED for s in self.state_metadata.values()
+                    )
+                    if has_failed_states:
+                        self.status = AgentStatus.FAILED
+                    else:
+                        self.status = AgentStatus.COMPLETED
 
             end_time = time.time()
 
