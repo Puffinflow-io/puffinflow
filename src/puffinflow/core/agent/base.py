@@ -1092,7 +1092,9 @@ class Agent:
     def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
         """Validate the overall workflow configuration before execution."""
         if not self.states:
-            raise ValueError("No states defined. Agent must have at least one state to run.")
+            raise ValueError(
+                "No states defined. Agent must have at least one state to run."
+            )
 
         # Check for circular dependencies
         self._check_circular_dependencies()
@@ -1105,23 +1107,21 @@ class Agent:
 
     def _check_circular_dependencies(self) -> None:
         """Check for circular dependencies in the state graph."""
-        # Build reverse graph: for each state, who depends on it
-        dependents: dict[str, list[str]] = {state: [] for state in self.states}
-        for state, deps in self.dependencies.items():
-            for dep in deps:
-                if dep in dependents:
-                    dependents[dep].append(state)
 
         def has_cycle(state: str, visited: set, rec_stack: set) -> bool:
             visited.add(state)
             rec_stack.add(state)
 
-            # Check all states that depend on this state
-            for dependent in dependents.get(state, []):
-                if dependent not in visited:
-                    if has_cycle(dependent, visited, rec_stack):
+            # Follow dependencies from this state
+            for dep in self.dependencies.get(state, []):
+                if dep not in self.states:
+                    # Skip non-existent dependencies
+                    continue
+                if dep not in visited:
+                    if has_cycle(dep, visited, rec_stack):
                         return True
-                elif dependent in rec_stack:
+                elif dep in rec_stack:
+                    # Found a back edge - cycle detected
                     return True
 
             rec_stack.remove(state)
@@ -1286,11 +1286,6 @@ class Agent:
         """Resume agent execution."""
         if self.status == AgentStatus.PAUSED:
             self.status = AgentStatus.RUNNING
-
-    def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
-        """Validate workflow configuration before execution."""
-        if not self.states:
-            raise ValueError("No states defined in the workflow.")
 
     # Find entry states
     def _find_entry_states(self) -> list[str]:
@@ -1931,7 +1926,8 @@ class Agent:
                     self.status = AgentStatus.IDLE
                 else:
                     has_failed_states = any(
-                        s.status == StateStatus.FAILED for s in self.state_metadata.values()
+                        s.status == StateStatus.FAILED
+                        for s in self.state_metadata.values()
                     )
                     if has_failed_states:
                         self.status = AgentStatus.FAILED

@@ -4,16 +4,15 @@ Comprehensive tests for all documentation examples to ensure they work exactly a
 """
 
 import asyncio
-import random
 import sys
+
 import pytest
-from unittest.mock import AsyncMock, patch
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 # Add the src directory to Python path
-sys.path.insert(0, 'src')
+sys.path.insert(0, "src")
 
-from puffinflow import Agent, state, Priority
+from puffinflow import Agent, state
 from puffinflow.core.agent.state import RetryPolicy
 
 
@@ -45,7 +44,7 @@ class TestErrorHandlingExamples:
         agent.add_state("call_flaky_api", call_flaky_api)
 
         result = await agent.run()
-            
+
         assert result.get_variable("api_data") == {"result": "success"}
         assert result.get_variable("attempts") >= 2  # Should succeed after retries
 
@@ -71,7 +70,7 @@ class TestErrorHandlingExamples:
 
         agent.add_state("might_hang", might_hang)
         result = await agent.run()
-        
+
         assert result.get_variable("completed") is True
 
     @pytest.mark.asyncio
@@ -82,9 +81,9 @@ class TestErrorHandlingExamples:
         # Smart retry policy that waits longer each time
         smart_retry = RetryPolicy(
             max_retries=4,
-            initial_delay=0.01,      # Reduced for testing
-            exponential_base=2.0,    # Double each time
-            jitter=True             # Add randomness to prevent thundering herd
+            initial_delay=0.01,  # Reduced for testing
+            exponential_base=2.0,  # Double each time
+            jitter=True,  # Add randomness to prevent thundering herd
         )
 
         @state
@@ -104,13 +103,15 @@ class TestErrorHandlingExamples:
                 print(f"❌ Service overloaded (attempt {attempt})")
                 raise Exception("Service temporarily overloaded")
 
-            print(f"✅ Service call succeeded!")
+            print("✅ Service call succeeded!")
             context.set_variable("service_result", {"status": "completed"})
             return None
 
-        agent.add_state("overloaded_service", overloaded_service, retry_policy=smart_retry)
+        agent.add_state(
+            "overloaded_service", overloaded_service, retry_policy=smart_retry
+        )
         result = await agent.run()
-        
+
         assert result.get_variable("service_result") == {"status": "completed"}
 
 
@@ -140,6 +141,7 @@ class TestResourceManagementExamples:
         @state(cpu=2.0, memory=512)  # Reduced for testing environment
         async def heavy_task(context):
             import time
+
             time.sleep(0.01)  # Reduced for testing
             print("💪 Heavy computation finished")
             context.set_variable("heavy_done", True)
@@ -150,7 +152,7 @@ class TestResourceManagementExamples:
         agent.add_state("heavy_task", heavy_task)
 
         result = await agent.run()
-        
+
         assert result.get_variable("light_done") is True
         assert result.get_variable("medium_done") is True
         assert result.get_variable("heavy_done") is True
@@ -175,7 +177,7 @@ class TestResourceManagementExamples:
 
         agent.add_state("might_get_stuck", might_get_stuck)
         result = await agent.run()
-        
+
         assert result.get_variable("completed") is True
 
     @pytest.mark.asyncio
@@ -205,7 +207,7 @@ class TestResourceManagementExamples:
 
         agent.add_state("might_fail", might_fail)
         result = await agent.run()
-        
+
         assert result.get_variable("success") is True
         assert result.get_variable("attempts") == 2
 
@@ -229,16 +231,19 @@ class TestResourceManagementExamples:
 
         @state(cpu=0.5, memory=256)
         async def process_response(context):
-            result = context.get_variable("api_result")
+            context.get_variable("api_result")
             context.set_variable("processed", True)
             return None
 
         agent.add_state("call_api", call_api)
         agent.add_state("process_response", process_response)
-        
+
         result = await agent.run()
-        
-        assert result.get_variable("api_result") == {"data": "API response", "status": "success"}
+
+        assert result.get_variable("api_result") == {
+            "data": "API response",
+            "status": "success",
+        }
         assert result.get_variable("processed") is True
 
 
@@ -263,7 +268,7 @@ class TestContextAndDataExamples:
             timestamp = context.get_variable("timestamp")
 
             # Use default values for optional data
-            settings = context.get_variable("settings", {"theme": "default"})
+            context.get_variable("settings", {"theme": "default"})
 
             print(f"Processing {user['name']} at {timestamp}")
             context.set_variable("processed", True)
@@ -271,7 +276,7 @@ class TestContextAndDataExamples:
 
         @state
         async def send_welcome(context):
-            user = context.get_variable("user")
+            context.get_variable("user")
             context.set_variable("welcome_sent", True)
             return None
 
@@ -280,8 +285,12 @@ class TestContextAndDataExamples:
         agent.add_state("send_welcome", send_welcome)
 
         result = await agent.run()
-        
-        assert result.get_variable("user") == {"id": 123, "name": "Alice", "email": "alice@example.com"}
+
+        assert result.get_variable("user") == {
+            "id": 123,
+            "name": "Alice",
+            "email": "alice@example.com",
+        }
         assert result.get_variable("timestamp") == "2025-01-15T10:30:00Z"
         assert result.get_variable("processed") is True
         assert result.get_variable("welcome_sent") is True
@@ -293,17 +302,17 @@ class TestContextAndDataExamples:
 
         @state
         async def initialize(context):
-            context.set_typed_variable("user_count", 100)      # Locked to int
-            context.set_typed_variable("avg_score", 85.5)      # Locked to float
+            context.set_typed_variable("user_count", 100)  # Locked to int
+            context.set_typed_variable("avg_score", 85.5)  # Locked to float
             return "process"
 
         @state
         async def process(context):
-            context.set_typed_variable("user_count", 150)      # Works
+            context.set_typed_variable("user_count", 150)  # Works
 
             count = context.get_typed_variable("user_count")
             score = context.get_typed_variable("avg_score")
-            
+
             print(f"Processing {count} users with avg score {score}")
             context.set_variable("processing_done", True)
             return None
@@ -312,7 +321,7 @@ class TestContextAndDataExamples:
         agent.add_state("process", process)
 
         result = await agent.run()
-        
+
         assert result.get_typed_variable("user_count") == 150
         assert result.get_typed_variable("avg_score") == 85.5
         assert result.get_variable("processing_done") is True
@@ -320,7 +329,6 @@ class TestContextAndDataExamples:
     @pytest.mark.asyncio
     async def test_validated_data_example(self):
         """Test the validated data example from docs."""
-        from pydantic import BaseModel, EmailStr
 
         class User(BaseModel):
             id: int
@@ -348,7 +356,7 @@ class TestContextAndDataExamples:
         agent.add_state("update_user", update_user)
 
         result = await agent.run()
-        
+
         user = result.get_validated_data("user", User)
         assert user.id == 123
         assert user.name == "Alice"
@@ -378,7 +386,7 @@ class TestContextAndDataExamples:
 
             # Don't log real secrets!
             print(f"Making request to {url} with key {api_key[:8]}...")
-            
+
             context.set_variable("request_made", True)
             return None
 
@@ -386,7 +394,7 @@ class TestContextAndDataExamples:
         agent.add_state("make_request", make_request)
 
         result = await agent.run()
-        
+
         assert result.get_constant("api_url") == "https://api.example.com"
         assert result.get_constant("max_retries") == 3
         assert result.get_secret("api_key") == "sk-1234567890abcdef"
@@ -400,17 +408,17 @@ class TestContextAndDataExamples:
         @state
         async def cache_session(context):
             context.set_cached("user_session", {"user_id": 123}, ttl=300)  # 5 minutes
-            context.set_cached("temp_token", "abc123", ttl=60)            # 1 minute
+            context.set_cached("temp_token", "abc123", ttl=60)  # 1 minute
             return "use_cache"
 
         @state
         async def use_cache(context):
             session = context.get_cached("user_session", default="EXPIRED")
             token = context.get_cached("temp_token", default="EXPIRED")
-            
+
             context.set_variable("session_valid", session != "EXPIRED")
             context.set_variable("token_valid", token != "EXPIRED")
-            
+
             if session != "EXPIRED":
                 print(f"Active session: {session}")
             else:
@@ -421,7 +429,7 @@ class TestContextAndDataExamples:
         agent.add_state("use_cache", use_cache)
 
         result = await agent.run()
-        
+
         # Should be valid immediately after caching
         assert result.get_variable("session_valid") is True
         assert result.get_variable("token_valid") is True
@@ -456,7 +464,7 @@ class TestContextAndDataExamples:
         agent.add_state("send_report", send_report)
 
         result = await agent.run()
-        
+
         assert result.get_output("total_revenue") == 450
         assert result.get_output("order_count") == 3
         assert result.get_output("avg_order_value") == 150.0
@@ -465,7 +473,6 @@ class TestContextAndDataExamples:
     @pytest.mark.asyncio
     async def test_complete_context_example(self):
         """Test the complete example from context-and-data docs."""
-        from pydantic import BaseModel
 
         class Order(BaseModel):
             id: int
@@ -510,7 +517,7 @@ class TestContextAndDataExamples:
         agent.add_state("finalize", finalize)
 
         result = await agent.run()
-        
+
         assert result.get_output("order_id") == 123
         assert result.get_output("amount_processed") == 99.99
         assert result.get_constant("tax_rate") == 0.08

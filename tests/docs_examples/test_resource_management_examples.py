@@ -4,14 +4,14 @@ Tests for resource-management.ts documentation examples.
 """
 
 import asyncio
-import pytest
 import sys
-from unittest.mock import patch
+
+import pytest
 
 # Add the src directory to Python path
-sys.path.insert(0, 'src')
+sys.path.insert(0, "src")
 
-from puffinflow import Agent, state, Priority
+from puffinflow import Agent, Priority, state
 
 
 class TestResourceManagementExamples:
@@ -40,6 +40,7 @@ class TestResourceManagementExamples:
         @state(cpu=2.0, memory=512)  # Reduced for testing environment
         async def heavy_task(context):
             import time
+
             time.sleep(0.01)  # Reduced for testing
             print("💪 Heavy computation finished")
             context.set_variable("heavy_completed", True)
@@ -50,7 +51,7 @@ class TestResourceManagementExamples:
         agent.add_state("heavy_task", heavy_task)
 
         result = await agent.run()
-        
+
         assert result.get_variable("light_completed") is True
         assert result.get_variable("medium_completed") is True
         assert result.get_variable("heavy_completed") is True
@@ -75,7 +76,7 @@ class TestResourceManagementExamples:
 
         agent.add_state("might_get_stuck", might_get_stuck)
         result = await agent.run()
-        
+
         assert result.get_variable("task_completed") is True
 
     @pytest.mark.asyncio
@@ -105,7 +106,7 @@ class TestResourceManagementExamples:
 
         agent.add_state("might_fail", might_fail)
         result = await agent.run()
-        
+
         assert result.get_variable("success") is True
         assert result.get_variable("attempts") == 2
 
@@ -129,16 +130,19 @@ class TestResourceManagementExamples:
 
         @state(cpu=0.5, memory=256)
         async def process_response(context):
-            result = context.get_variable("api_result")
+            context.get_variable("api_result")
             context.set_variable("response_processed", True)
             return None
 
         agent.add_state("call_api", call_api)
         agent.add_state("process_response", process_response)
-        
+
         result = await agent.run()
-        
-        assert result.get_variable("api_result") == {"data": "API response", "status": "success"}
+
+        assert result.get_variable("api_result") == {
+            "data": "API response",
+            "status": "success",
+        }
         assert result.get_variable("response_processed") is True
 
     @pytest.mark.asyncio
@@ -170,7 +174,7 @@ class TestResourceManagementExamples:
 
         agent.add_state("urgent_task", urgent_task)
         agent.add_state("background_cleanup", background_cleanup)
-        
+
         # Test urgent task
         result = await agent.run()
         # Since both states are added, one will run depending on the execution order
@@ -250,7 +254,7 @@ class TestResourceManagementExamples:
 
         # Run the complete workflow
         result = await agent.run()
-        
+
         assert result.get_output("final_image") == "/tmp/photo_ai.jpg"
         assert result.get_output("processing_complete") is True
         assert result.get_variable("valid") is True

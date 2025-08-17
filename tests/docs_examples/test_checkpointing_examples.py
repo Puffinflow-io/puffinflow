@@ -4,11 +4,12 @@ Tests for checkpointing.ts documentation examples.
 """
 
 import asyncio
-import pytest
 import sys
 
+import pytest
+
 # Add the src directory to Python path
-sys.path.insert(0, 'src')
+sys.path.insert(0, "src")
 
 from puffinflow import Agent, state
 
@@ -110,7 +111,7 @@ class TestCheckpointingExamples:
                 progress = {
                     "current_iteration": minute + 1,
                     "total_iterations": 3,
-                    "completion": ((minute + 1) / 3) * 100
+                    "completion": ((minute + 1) / 3) * 100,
                 }
                 context.set_variable("work_progress", progress)
 
@@ -137,14 +138,17 @@ class TestCheckpointingExamples:
         @state
         async def data_processor(context):
             """A processor that knows how to resume intelligently"""
-            
+
             # Check if we're resuming from a checkpoint
-            batch_info = context.get_variable("batch_processing", {
-                "current_batch": 0,
-                "total_batches": 5,  # Reduced for testing
-                "items_per_batch": 10,  # Reduced for testing
-                "total_processed": 0
-            })
+            batch_info = context.get_variable(
+                "batch_processing",
+                {
+                    "current_batch": 0,
+                    "total_batches": 5,  # Reduced for testing
+                    "items_per_batch": 10,  # Reduced for testing
+                    "total_processed": 0,
+                },
+            )
 
             if batch_info["current_batch"] > 0:
                 print(f"🔄 Resuming from batch {batch_info['current_batch']}")
@@ -153,11 +157,15 @@ class TestCheckpointingExamples:
                 print("🚀 Starting fresh data processing")
 
             # Continue from where we left off
-            for batch_num in range(batch_info["current_batch"], batch_info["total_batches"]):
-                print(f"📦 Processing batch {batch_num + 1}/{batch_info['total_batches']}")
+            for batch_num in range(
+                batch_info["current_batch"], batch_info["total_batches"]
+            ):
+                print(
+                    f"📦 Processing batch {batch_num + 1}/{batch_info['total_batches']}"
+                )
 
                 # Process items in this batch
-                for item_num in range(batch_info["items_per_batch"]):
+                for _ in range(batch_info["items_per_batch"]):
                     # Simulate processing an item (much faster for testing)
                     await asyncio.sleep(0.001)
                     batch_info["total_processed"] += 1
@@ -170,7 +178,9 @@ class TestCheckpointingExamples:
                 print(f"💾 Batch {batch_num + 1} complete, checkpoint saved")
 
                 # Show progress
-                completion_percent = (batch_info["current_batch"] / batch_info["total_batches"]) * 100
+                completion_percent = (
+                    batch_info["current_batch"] / batch_info["total_batches"]
+                ) * 100
                 print(f"📈 Overall progress: {completion_percent:.1f}%")
 
             print("🎉 All batches processed successfully!")
@@ -222,11 +232,15 @@ class TestCheckpointingExamples:
         result = await agent.run()
         # Since all three states are added, at least one should complete
         frequent_complete = result.get_variable("frequent_complete")
-        expensive_complete = result.get_variable("expensive_complete") 
+        expensive_complete = result.get_variable("expensive_complete")
         critical_complete = result.get_variable("critical_complete")
-        
+
         # At least one of the checkpoint frequency tests should complete
-        assert frequent_complete is True or expensive_complete is True or critical_complete is True
+        assert (
+            frequent_complete is True
+            or expensive_complete is True
+            or critical_complete is True
+        )
 
     @pytest.mark.asyncio
     async def test_tracked_workflow_with_progress(self):
@@ -236,20 +250,24 @@ class TestCheckpointingExamples:
         @state
         async def tracked_workflow(context):
             """Workflow with comprehensive progress tracking"""
-            
+
             # Initialize progress tracking
             import time
-            progress = context.get_variable("detailed_progress", {
-                "workflow_id": f"wf_{int(time.time())}",
-                "start_time": time.time(),
-                "phases": {
-                    "initialization": {"status": "pending", "duration": 0},
-                    "processing": {"status": "pending", "duration": 0},
-                    "finalization": {"status": "pending", "duration": 0}
+
+            progress = context.get_variable(
+                "detailed_progress",
+                {
+                    "workflow_id": f"wf_{int(time.time())}",
+                    "start_time": time.time(),
+                    "phases": {
+                        "initialization": {"status": "pending", "duration": 0},
+                        "processing": {"status": "pending", "duration": 0},
+                        "finalization": {"status": "pending", "duration": 0},
+                    },
+                    "current_phase": "initialization",
+                    "overall_progress": 0,
                 },
-                "current_phase": "initialization",
-                "overall_progress": 0
-            })
+            )
 
             phases = ["initialization", "processing", "finalization"]
             phase_work = [5, 10, 3]  # Reduced work units for testing
@@ -284,11 +302,14 @@ class TestCheckpointingExamples:
             total_duration = time.time() - progress["start_time"]
             print(f"🎉 Workflow completed in {total_duration:.3f} seconds!")
 
-            context.set_output("workflow_summary", {
-                "total_duration": total_duration,
-                "phases_completed": len(phases),
-                "final_status": "success"
-            })
+            context.set_output(
+                "workflow_summary",
+                {
+                    "total_duration": total_duration,
+                    "phases_completed": len(phases),
+                    "final_status": "success",
+                },
+            )
 
             return None
 
@@ -298,10 +319,12 @@ class TestCheckpointingExamples:
         summary = result.get_output("workflow_summary")
         assert summary["phases_completed"] == 3
         assert summary["final_status"] == "success"
-        
+
         progress = result.get_variable("detailed_progress")
         assert progress["overall_progress"] == 1.0  # 100% complete
-        assert all(phase["status"] == "completed" for phase in progress["phases"].values())
+        assert all(
+            phase["status"] == "completed" for phase in progress["phases"].values()
+        )
 
 
 if __name__ == "__main__":
