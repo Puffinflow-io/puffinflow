@@ -1092,8 +1092,7 @@ class Agent:
     def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
         """Validate the overall workflow configuration before execution."""
         if not self.states:
-            # Empty agent is allowed - it will just finish with no work done
-            return
+            raise ValueError("No states defined. Agent must have at least one state to run.")
 
         # Check for circular dependencies
         self._check_circular_dependencies()
