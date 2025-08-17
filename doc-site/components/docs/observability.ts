@@ -117,8 +117,9 @@ async def demo_builtin_metrics():
 
 if __name__ == "__main__":
     asyncio.run(demo_builtin_metrics())
+\`\`\`
 
-### Advanced Metrics Configuration
+## Advanced Metrics Configuration
 
 \`\`\`python
 from puffinflow import Agent, Priority

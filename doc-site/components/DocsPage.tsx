@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { marked } from 'marked';
+import CodeWindow from './CodeWindow';
 import { 
     SunIcon, 
     MoonIcon, 
@@ -41,24 +43,93 @@ const InlineCode: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 interface DocsLayoutProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
     sidebarLinks: { id: string; label: string }[];
     pageMarkdown: string;
     currentPage: 'introduction' | 'getting-started' | 'context-and-data' | 'resource-management' | 'error-handling' | 'checkpointing' | 'rag-recipe' | 'reliability' | 'observability' | 'coordination' | 'multiagent' | 'resources' | 'troubleshooting' | 'api-reference' | 'deployment';
     pageKey: 'docs' | 'docs/getting-started' | 'docs/context-and-data' | 'docs/resource-management' | 'docs/error-handling' | 'docs/checkpointing' | 'docs/rag-recipe' | 'docs/reliability' | 'docs/observability' | 'docs/coordination' | 'docs/multiagent' | 'docs/resources' | 'docs/troubleshooting' | 'docs/api-reference' | 'docs/deployment';
 }
 
-const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMarkdown, currentPage, pageKey }) => {
+const DocsLayout: React.FC<DocsLayoutProps> = ({ sidebarLinks, pageMarkdown, currentPage, pageKey }) => {
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
     const [activeSection, setActiveSection] = useState(sidebarLinks[0]?.id || '');
     const [copyText, setCopyText] = useState('Copy as Markdown');
     const articleRef = useRef<HTMLElement>(null);
+    const [processedContent, setProcessedContent] = useState<React.ReactNode>(null);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('puffin-docs-theme') as 'light' | 'dark';
         const initialTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
         setTheme(initialTheme);
     }, []);
+
+    useEffect(() => {
+        // Process markdown and create CodeWindow components for code blocks
+        const processMarkdown = () => {
+            // First, extract code blocks from markdown before processing
+            const codeBlocks: { code: string; language: string; id: string }[] = [];
+            let codeBlockIndex = 0;
+            
+            // Find all code blocks in the markdown and store them
+            const markdownWithPlaceholders = pageMarkdown.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+                const id = `CODE_BLOCK_${codeBlockIndex++}`;
+                codeBlocks.push({
+                    id,
+                    language: language || 'text',
+                    code: code.trim()
+                });
+                return `\n\nCODE_PLACEHOLDER_${id}\n\n`;
+            });
+            
+            // Process the markdown without code blocks
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+            
+            const htmlContent = marked(markdownWithPlaceholders);
+            
+            // If no code blocks, just render the HTML
+            if (codeBlocks.length === 0) {
+                setProcessedContent(<div dangerouslySetInnerHTML={{ __html: htmlContent }} />);
+                return;
+            }
+            
+            // Split HTML by placeholders and create mixed content
+            const parts = htmlContent.split(/CODE_PLACEHOLDER_(CODE_BLOCK_\d+)/);
+            const elements: React.ReactNode[] = [];
+            
+            for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                    // HTML content
+                    if (parts[i].trim()) {
+                        elements.push(
+                            <div key={`html-${i}`} dangerouslySetInnerHTML={{ __html: parts[i] }} />
+                        );
+                    }
+                } else {
+                    // Code block placeholder - find the matching code block
+                    const placeholderId = parts[i];
+                    const codeBlock = codeBlocks.find(block => block.id === placeholderId);
+                    
+                    if (codeBlock) {
+                        elements.push(
+                            <CodeWindow
+                                key={`code-${i}`}
+                                code={codeBlock.code}
+                                language={codeBlock.language}
+                                fileName={`example.${codeBlock.language === 'python' ? 'py' : codeBlock.language}`}
+                            />
+                        );
+                    }
+                }
+            }
+            
+            setProcessedContent(<>{elements}</>);
+        };
+
+        processMarkdown();
+    }, [pageMarkdown]);
 
     useEffect(() => {
         document.body.classList.add('docs-view');
@@ -205,7 +276,7 @@ const DocsLayout: React.FC<DocsLayoutProps> = ({ children, sidebarLinks, pageMar
                     </div>
 
                     <article ref={articleRef} className="prose-puffin w-full max-w-none">
-                        {children}
+                        {processedContent || <div>Loading...</div>}
                     </article>
                 </div>
             </div>
