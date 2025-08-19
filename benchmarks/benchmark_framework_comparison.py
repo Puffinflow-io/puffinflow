@@ -1,827 +1,2073 @@
 #!/usr/bin/env python3
 """
-Benchmark suite comparing PuffinFlow against other orchestration frameworks.
-Includes benchmarks against Dagster, Prefect, and LangGraph.
+Fair Agent Framework Benchmark Suite
+Compares LlamaIndex, LangGraph, and PuffinFlow using equivalent implementations
+and appropriate execution models for each framework.
+
+METHODOLOGY:
+- Each framework tested using its intended execution model
+- Equivalent functionality with consistent import counting
+- Real-world workloads instead of artificial compute
+- Framework overhead measured separately from execution model differences
+- Native concurrency patterns for each framework
 """
 
 import asyncio
+import json
 import statistics
 import sys
 import time
+import uuid
+import gc
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
-
+from typing import Callable, Optional, List, Dict, Any, TypedDict
 import psutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Framework availability flags
+PUFFINFLOW_AVAILABLE = False
+LANGGRAPH_AVAILABLE = False
+LLAMAINDEX_AVAILABLE = False
 
-from puffinflow.core.agent.base import Agent  # noqa: E402
-from puffinflow.core.coordination.coordinator import AgentCoordinator  # noqa: E402
-from puffinflow.core.observability.config import MetricsConfig  # noqa: E402
-from puffinflow.core.observability.metrics import (  # noqa: E402
-    PrometheusMetricsProvider,
-)
+# Try importing each framework
+try:
+    from puffinflow import Agent
+    from puffinflow import state
+    PUFFINFLOW_AVAILABLE = True
+except ImportError:
+    PUFFINFLOW_AVAILABLE = False
+
+try:
+    from typing import TypedDict, Annotated
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    LANGGRAPH_AVAILABLE = True
+except ImportError:
+    LANGGRAPH_AVAILABLE = False
+
+try:
+    from llama_index.core import VectorStoreIndex, Document, Settings
+    from llama_index.core.workflow import (
+        Workflow, StartEvent, StopEvent, step, Context as LlamaContext, Event
+    )
+    from llama_index.core.llms import MockLLM
+    LLAMAINDEX_AVAILABLE = True
+except ImportError:
+    LLAMAINDEX_AVAILABLE = False
 
 
 @dataclass
-class FrameworkBenchmarkResult:
-    """Benchmark result container for framework comparisons."""
-
-    name: str
+class BenchmarkResult:
+    """Fair benchmark results across all metrics."""
+    
     framework: str
-    duration_ms: float
-    memory_mb: float
-    cpu_percent: float
-    iterations: int
-    min_time: float
-    max_time: float
-    median_time: float
-    std_dev: float
-    throughput_ops_per_sec: float
-    setup_time_ms: float
-    teardown_time_ms: float
+    execution_model: str  # "async", "sync", "mixed"
+    
+    # Code Efficiency (lines of equivalent functionality)
+    code_simple_loc: int      # Simple 3-step workflow
+    code_complex_loc: int     # Complex workflow with error handling
+    code_typed_loc: int       # Type-safe implementation
+    
+    # Execution Speed (milliseconds) - native execution model
+    speed_simple_ms: float    # Simple workflow
+    speed_complex_ms: float   # Complex workflow
+    speed_io_heavy_ms: float  # I/O heavy workflow
+    
+    # Framework Overhead (percentage of total time spent on orchestration)
+    overhead_simple_percent: float   # Simple workflow overhead
+    overhead_complex_percent: float  # Complex workflow overhead
+    
+    # Concurrency (tasks per second) - native concurrency model
+    concurrency_low_tps: float    # 10 concurrent tasks
+    concurrency_high_tps: float   # 100 concurrent tasks
+    
+    # Memory Efficiency (MB per task)
+    memory_simple_mb: float   # Simple task memory footprint
+    memory_complex_mb: float  # Complex task memory footprint
 
 
-class FrameworkBenchmarkRunner:
-    """Benchmark runner for comparing orchestration frameworks."""
-
-    def __init__(self):
-        self.process = psutil.Process()
-        self.results: list[FrameworkBenchmarkResult] = []
-
-    def run_framework_benchmark(
-        self,
-        name: str,
-        framework: str,
-        benchmark_func: Callable,
-        iterations: int = 100,
-        warmup_iterations: int = 10,
-        setup_func: Optional[Callable] = None,
-        teardown_func: Optional[Callable] = None,
-    ) -> FrameworkBenchmarkResult:
-        """Run a benchmark for a specific framework."""
-
-        print(f"Running {name} benchmark for {framework}...")
-
-        # Setup phase
-        setup_start = time.perf_counter()
-        setup_context = setup_func() if setup_func else None
-        setup_time = (time.perf_counter() - setup_start) * 1000
-
-        # Warmup
-        for _ in range(warmup_iterations):
-            try:
-                if setup_context:
-                    benchmark_func(setup_context)
-                else:
-                    benchmark_func()
-            except Exception:
-                pass  # Ignore warmup failures
-
-        # Actual benchmark
-        times = []
-        memory_usage = []
-        cpu_usage = []
-
-        for _ in range(iterations):
-            # Memory before
-            mem_before = self.process.memory_info().rss / 1024 / 1024
-            cpu_before = self.process.cpu_percent()
-
-            start_time = time.perf_counter()
-
-            try:
-                if setup_context:
-                    benchmark_func(setup_context)
-                else:
-                    benchmark_func()
-                success = True
-            except Exception as e:
-                print(f"Benchmark iteration failed: {e}")
-                success = False
-
-            end_time = time.perf_counter()
-
-            if success:
-                duration = (end_time - start_time) * 1000  # Convert to ms
-                times.append(duration)
-
-                # Memory after
-                mem_after = self.process.memory_info().rss / 1024 / 1024
-                memory_usage.append(mem_after - mem_before)
-
-                cpu_usage.append(self.process.cpu_percent() - cpu_before)
-
-        # Teardown phase
-        teardown_start = time.perf_counter()
-        if teardown_func and setup_context:
-            teardown_func(setup_context)
-        teardown_time = (time.perf_counter() - teardown_start) * 1000
-
-        if not times:
-            raise ValueError(f"All benchmark iterations failed for {framework}")
-
-        # Calculate statistics
-        avg_duration = statistics.mean(times)
-        min_time = min(times)
-        max_time = max(times)
-        median_time = statistics.median(times)
-        std_dev = statistics.stdev(times) if len(times) > 1 else 0.0
-        throughput = 1000 / avg_duration if avg_duration > 0 else 0
-
-        avg_memory = statistics.mean(memory_usage) if memory_usage else 0.0
-        avg_cpu = statistics.mean(cpu_usage) if cpu_usage else 0.0
-
-        result = FrameworkBenchmarkResult(
-            name=name,
-            framework=framework,
-            duration_ms=avg_duration,
-            memory_mb=avg_memory,
-            cpu_percent=avg_cpu,
-            iterations=len(times),
-            min_time=min_time,
-            max_time=max_time,
-            median_time=median_time,
-            std_dev=std_dev,
-            throughput_ops_per_sec=throughput,
-            setup_time_ms=setup_time,
-            teardown_time_ms=teardown_time,
-        )
-
-        self.results.append(result)
-
-        print(f"  {framework}: {avg_duration:.2f}ms avg, {throughput:.2f} ops/s")
-        return result
-
-
-class PuffinFlowBenchmarks:
-    """PuffinFlow-specific benchmarks for comparison."""
-
-    def __init__(self):
-        self.coordinator = None
-        self.metrics_provider = None
-
-    def setup_simple_workflow(self):
-        """Setup a simple workflow for benchmarking."""
-
-        # Create a simple agent for coordination
-        class SimpleAgent(Agent):
-            def __init__(self):
-                super().__init__(name="coordination_test_agent")
-
-            async def run(self):
-                return {"status": "complete"}
-
-        agent = SimpleAgent()
-        self.coordinator = AgentCoordinator(agent)
-        metrics_config = MetricsConfig()
-        self.metrics_provider = PrometheusMetricsProvider(metrics_config)
-
+class RealWorldWorkloads:
+    """Real-world workloads that are equivalent across frameworks."""
+    
+    @staticmethod
+    async def mock_llm_call(prompt: str, complexity: int = 200) -> Dict[str, Any]:
+        """Simulate LLM processing with actual computation."""
+        # Simulate text processing and token generation
+        tokens = prompt.split()
+        processed_tokens = []
+        
+        # More CPU-intensive text processing simulation
+        for _ in range(complexity):
+            for token in tokens:
+                # Simulate token embedding calculation with matrix operations
+                embedding = 0
+                for i, c in enumerate(token):
+                    # Simulate complex mathematical operations
+                    embedding += (ord(c) ** 2) * (i + 1) * 3.14159
+                    embedding = int(embedding) % 100000
+                processed_tokens.append(embedding)
+                
+                # Add more computational work
+                for j in range(10):
+                    embedding = (embedding * 31 + j) % 1000000
+        
+        # Simulate expensive response generation with string operations
+        response_parts = []
+        for i in range(len(tokens) * 5):
+            part = f"token_{i}_" + str(sum(processed_tokens) % 1000)
+            response_parts.append(part)
+        
+        response = f"Mock response to: {prompt[:50]}..." + "_".join(response_parts)
+        
         return {
-            "coordinator": self.coordinator,
-            "metrics": self.metrics_provider,
-            "agent": agent,
+            "response": response,
+            "tokens": len(processed_tokens),
+            "embedding_sum": sum(processed_tokens) % 10000
+        }
+    
+    @staticmethod
+    def mock_llm_call_sync(prompt: str, complexity: int = 200) -> Dict[str, Any]:
+        """Synchronous version of mock LLM processing."""
+        # Same CPU-intensive work as async version
+        tokens = prompt.split()
+        processed_tokens = []
+        
+        # More CPU-intensive text processing simulation
+        for _ in range(complexity):
+            for token in tokens:
+                # Simulate token embedding calculation with matrix operations
+                embedding = 0
+                for i, c in enumerate(token):
+                    # Simulate complex mathematical operations
+                    embedding += (ord(c) ** 2) * (i + 1) * 3.14159
+                    embedding = int(embedding) % 100000
+                processed_tokens.append(embedding)
+                
+                # Add more computational work
+                for j in range(10):
+                    embedding = (embedding * 31 + j) % 1000000
+        
+        # Simulate expensive response generation with string operations
+        response_parts = []
+        for i in range(len(tokens) * 5):
+            part = f"token_{i}_" + str(sum(processed_tokens) % 1000)
+            response_parts.append(part)
+        
+        response = f"Mock response to: {prompt[:50]}..." + "_".join(response_parts)
+        
+        return {
+            "response": response,
+            "tokens": len(processed_tokens),
+            "embedding_sum": sum(processed_tokens) % 10000
+        }
+    
+    @staticmethod
+    async def mock_vector_search(query: str, complexity: int = 50) -> List[Dict[str, Any]]:
+        """Simulate vector database search with actual computation."""
+        # Simulate vector similarity calculation with higher dimensionality
+        query_vector = [ord(c) % 100 for c in query.ljust(512)[:512]]  # 512-dimensional vectors
+        results = []
+        
+        # CPU-intensive similarity calculations with more documents
+        for doc_id in range(10):  # More documents to search
+            doc_vector = [(i * doc_id + ord(c)) % 100 for i, c in enumerate(query.ljust(512)[:512])]
+            
+            # Simulate multiple expensive similarity calculations
+            best_similarity = 0.0
+            for _ in range(complexity):
+                # Cosine similarity calculation
+                dot_product = sum(a * b for a, b in zip(query_vector, doc_vector))
+                magnitude_q = sum(a * a for a in query_vector) ** 0.5
+                magnitude_d = sum(b * b for b in doc_vector) ** 0.5
+                if magnitude_q > 0 and magnitude_d > 0:
+                    similarity = dot_product / (magnitude_q * magnitude_d)
+                    best_similarity = max(best_similarity, abs(similarity))
+                
+                # Additional vector operations
+                euclidean_dist = sum((a - b) ** 2 for a, b in zip(query_vector, doc_vector)) ** 0.5
+                manhattan_dist = sum(abs(a - b) for a, b in zip(query_vector, doc_vector))
+            
+            results.append({
+                "doc_id": f"doc_{doc_id}",
+                "score": abs(best_similarity) % 1.0,
+                "content": f"Result {doc_id} for {query}"
+            })
+        
+        return sorted(results, key=lambda x: x["score"], reverse=True)[:5]
+    
+    @staticmethod
+    def mock_vector_search_sync(query: str, complexity: int = 50) -> List[Dict[str, Any]]:
+        """Synchronous vector search with same computation."""
+        # Simulate vector similarity calculation with higher dimensionality
+        query_vector = [ord(c) % 100 for c in query.ljust(512)[:512]]  # 512-dimensional vectors
+        results = []
+        
+        # CPU-intensive similarity calculations with more documents
+        for doc_id in range(10):  # More documents to search
+            doc_vector = [(i * doc_id + ord(c)) % 100 for i, c in enumerate(query.ljust(512)[:512])]
+            
+            # Simulate multiple expensive similarity calculations
+            best_similarity = 0.0
+            for _ in range(complexity):
+                # Cosine similarity calculation
+                dot_product = sum(a * b for a, b in zip(query_vector, doc_vector))
+                magnitude_q = sum(a * a for a in query_vector) ** 0.5
+                magnitude_d = sum(b * b for b in doc_vector) ** 0.5
+                if magnitude_q > 0 and magnitude_d > 0:
+                    similarity = dot_product / (magnitude_q * magnitude_d)
+                    best_similarity = max(best_similarity, abs(similarity))
+                
+                # Additional vector operations
+                euclidean_dist = sum((a - b) ** 2 for a, b in zip(query_vector, doc_vector)) ** 0.5
+                manhattan_dist = sum(abs(a - b) for a, b in zip(query_vector, doc_vector))
+            
+            results.append({
+                "doc_id": f"doc_{doc_id}",
+                "score": abs(best_similarity) % 1.0,
+                "content": f"Result {doc_id} for {query}"
+            })
+        
+        return sorted(results, key=lambda x: x["score"], reverse=True)[:5]
+    
+    @staticmethod
+    async def mock_api_call(endpoint: str, data: dict, complexity: int = 30) -> Dict[str, Any]:
+        """Simulate external API call with data processing."""
+        # Simulate JSON serialization/deserialization overhead
+        serialized_data = str(data)
+        processed_data = {}
+        
+        # More CPU-intensive data transformation
+        for iteration in range(complexity):
+            for key, value in data.items():
+                # Simulate complex data validation and transformation
+                key_str = str(key)
+                value_str = str(value)
+                
+                # Hash calculations with multiple passes
+                key_hash = 0
+                for i, c in enumerate(key_str):
+                    key_hash += (ord(c) ** 2) * (i + 1) * iteration
+                    key_hash = key_hash % 1000000
+                
+                value_hash = 0
+                for i, c in enumerate(value_str):
+                    value_hash += (ord(c) ** 3) * (i + 1) * iteration
+                    value_hash = value_hash % 1000000
+                
+                # Complex transformation operations
+                combined_hash = (key_hash * value_hash) % 1000000
+                for _ in range(5):
+                    combined_hash = (combined_hash * 31 + iteration) % 1000000
+                
+                processed_data[f"processed_{key}_{iteration}"] = combined_hash
+        
+        return {
+            "status": "success",
+            "endpoint": endpoint,
+            "data": processed_data,
+            "processed_items": len(processed_data)
+        }
+    
+    @staticmethod
+    def mock_api_call_sync(endpoint: str, data: dict, complexity: int = 30) -> Dict[str, Any]:
+        """Synchronous API call with same computation."""
+        # Same CPU-intensive processing as async version
+        serialized_data = str(data)
+        processed_data = {}
+        
+        # More CPU-intensive data transformation
+        for iteration in range(complexity):
+            for key, value in data.items():
+                # Simulate complex data validation and transformation
+                key_str = str(key)
+                value_str = str(value)
+                
+                # Hash calculations with multiple passes
+                key_hash = 0
+                for i, c in enumerate(key_str):
+                    key_hash += (ord(c) ** 2) * (i + 1) * iteration
+                    key_hash = key_hash % 1000000
+                
+                value_hash = 0
+                for i, c in enumerate(value_str):
+                    value_hash += (ord(c) ** 3) * (i + 1) * iteration
+                    value_hash = value_hash % 1000000
+                
+                # Complex transformation operations
+                combined_hash = (key_hash * value_hash) % 1000000
+                for _ in range(5):
+                    combined_hash = (combined_hash * 31 + iteration) % 1000000
+                
+                processed_data[f"processed_{key}_{iteration}"] = combined_hash
+        
+        return {
+            "status": "success",
+            "endpoint": endpoint,
+            "data": processed_data,
+            "processed_items": len(processed_data)
         }
 
-    def teardown_simple_workflow(self, context):
-        """Teardown the simple workflow."""
-        if context and "coordinator" in context:
-            # Cleanup any resources
-            pass
-
-    def simple_task_execution(self, context=None):
-        """Simple task execution benchmark."""
-
-        class SimpleTask(Agent):
-            def __init__(self):
-                super().__init__(name="simple_task")
-
-            async def run(self):
-                # Simulate some work
-                result = sum(range(100))
-                return {"result": result}
-
-        task = SimpleTask()
-
-        # Run synchronously for consistent timing
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(task.run())
-            return result
-        finally:
-            loop.close()
-
-    def multi_task_workflow(self, context=None):
-        """Multi-task workflow benchmark."""
-
-        class Task1(Agent):
-            def __init__(self):
-                super().__init__(name="task1")
-
-            async def run(self):
-                return {"data": list(range(10))}
-
-        class Task2(Agent):
-            def __init__(self):
-                super().__init__(name="task2")
-
-            async def run(self):
-                return {"processed": [x * 2 for x in range(10)]}
-
-        task1 = Task1()
-        task2 = Task2()
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result1 = loop.run_until_complete(task1.run())
-            result2 = loop.run_until_complete(task2.run())
-            return {"task1": result1, "task2": result2}
-        finally:
-            loop.close()
-
-    def coordination_benchmark(self, context=None):
-        """Coordination primitives benchmark."""
-        if context and "coordinator" in context:
-            _ = context["coordinator"]
-        else:
-            # Create a minimal agent for coordination
-            class MinimalAgent(Agent):
-                def __init__(self):
-                    super().__init__(name="minimal_agent")
-
-                async def run(self):
-                    return {"status": "complete"}
-
-            agent = MinimalAgent()
-            _ = AgentCoordinator(agent)
-
-        # Simple coordination test
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            # Simulate coordination operations
-            loop.run_until_complete(asyncio.sleep(0.001))
-            return {"coordinated": True}
-        finally:
-            loop.close()
-
-
-class DagsterBenchmarks:
-    """Dagster benchmarks (real implementation)."""
-
-    def setup_simple_workflow(self):
-        """Setup Dagster workflow."""
-        try:
-            from dagster import DagsterInstance, asset, materialize
-
-            @asset
-            def simple_asset():
-                return sum(range(100))
-
-            @asset
-            def data_asset():
-                return list(range(10))
-
-            @asset
-            def processed_asset(data_asset):
-                return [x * 2 for x in data_asset]
-
-            # Create temporary instance
-            instance = DagsterInstance.ephemeral()
-
-            return {
-                "dagster_context": "real",
-                "simple_asset": simple_asset,
-                "data_asset": data_asset,
-                "processed_asset": processed_asset,
-                "instance": instance,
-                "materialize": materialize,
-            }
-        except ImportError:
-            return {"dagster_context": "unavailable"}
-
-    def teardown_simple_workflow(self, context):
-        """Teardown Dagster workflow."""
-        if context and "instance" in context:
-            # Cleanup instance if needed
-            pass
-
-    def simple_task_execution(self, context=None):
-        """Simple Dagster task execution."""
-        if not context or context.get("dagster_context") != "real":
-            # Fallback to simple execution
-            return {"result": sum(range(100))}
-
-        try:
-            # Materialize the simple asset
-            _ = context["materialize"](
-                [context["simple_asset"]], instance=context["instance"]
-            )
-            return {"result": "materialized"}
-        except Exception:
-            return {"result": sum(range(100))}
-
-    def multi_task_workflow(self, context=None):
-        """Multi-task Dagster workflow."""
-        if not context or context.get("dagster_context") != "real":
-            # Fallback to simple execution
-            data = list(range(10))
-            processed = [x * 2 for x in data]
-            return {"data": data, "processed": processed}
-
-        try:
-            # Materialize dependent assets
-            _ = context["materialize"](
-                [context["data_asset"], context["processed_asset"]],
-                instance=context["instance"],
-            )
-            return {"workflow": "materialized"}
-        except Exception:
-            data = list(range(10))
-            processed = [x * 2 for x in data]
-            return {"data": data, "processed": processed}
-
-    def coordination_benchmark(self, context=None):
-        """Dagster coordination benchmark."""
-        if not context or context.get("dagster_context") != "real":
-            time.sleep(0.001)
-            return {"coordinated": True}
-
-        try:
-            # Test asset dependency resolution
-            _ = [context["data_asset"], context["processed_asset"]]
-            # Simulate coordination overhead
-            time.sleep(0.001)
-            return {"coordinated": True}
-        except Exception:
-            time.sleep(0.001)
-            return {"coordinated": True}
-
-
-class PrefectBenchmarks:
-    """Prefect benchmarks (real implementation)."""
-
-    def setup_simple_workflow(self):
-        """Setup Prefect workflow."""
-        try:
-            from prefect import flow, task
-
-            @task
-            def simple_task():
-                return sum(range(100))
-
-            @task
-            def data_task():
-                return list(range(10))
-
-            @task
-            def process_task(data):
-                return [x * 2 for x in data]
-
-            @flow
-            def simple_flow():
-                return simple_task()
-
-            @flow
-            def multi_task_flow():
-                data = data_task()
-                processed = process_task(data)
-                return {"data": data, "processed": processed}
-
-            return {
-                "prefect_context": "real",
-                "simple_task": simple_task,
-                "simple_flow": simple_flow,
-                "multi_task_flow": multi_task_flow,
-            }
-        except ImportError:
-            return {"prefect_context": "unavailable"}
-
-    def teardown_simple_workflow(self, context):
-        """Teardown Prefect workflow."""
-        pass
-
-    def simple_task_execution(self, context=None):
-        """Simple Prefect task execution."""
-        if not context or context.get("prefect_context") != "real":
-            # Fallback to simple execution
-            return {"result": sum(range(100))}
-
-        try:
-            # Run the simple flow
-            result = context["simple_flow"]()
-            return {"result": result}
-        except Exception:
-            return {"result": sum(range(100))}
-
-    def multi_task_workflow(self, context=None):
-        """Multi-task Prefect workflow."""
-        if not context or context.get("prefect_context") != "real":
-            # Fallback to simple execution
-            task1_result = list(range(10))
-            task2_result = [x * 2 for x in task1_result]
-            return {"task1": task1_result, "task2": task2_result}
-
-        try:
-            # Run the multi-task flow
-            result = context["multi_task_flow"]()
-            return result
-        except Exception:
-            task1_result = list(range(10))
-            task2_result = [x * 2 for x in task1_result]
-            return {"task1": task1_result, "task2": task2_result}
-
-    def coordination_benchmark(self, context=None):
-        """Prefect coordination benchmark."""
-        if not context or context.get("prefect_context") != "real":
-            time.sleep(0.001)
-            return {"coordinated": True}
-
-        try:
-            # Test task coordination - simple task dependency
-            from prefect import task
-
-            @task
-            def coord_task():
-                time.sleep(0.001)
-                return True
-
-            result = coord_task()
-            return {"coordinated": result}
-        except Exception:
-            time.sleep(0.001)
-            return {"coordinated": True}
-
-
-class LangGraphBenchmarks:
-    """LangGraph benchmarks (real implementation)."""
-
-    def setup_simple_workflow(self):
-        """Setup LangGraph workflow."""
-        try:
-            from typing import TypedDict
-
-            from langgraph.graph import END, START, StateGraph
-
-            class State(TypedDict):
-                value: int
-                data: list
-                processed: list
-
-            def simple_node(state: State):
-                return {"value": sum(range(100))}
-
-            def data_node(state: State):
-                return {"data": list(range(10))}
-
-            def process_node(state: State):
-                data = state.get("data", [])
-                return {"processed": [x * 2 for x in data]}
-
-            # Create simple graph
-            simple_graph = StateGraph(State)
-            simple_graph.add_node("simple", simple_node)
-            simple_graph.add_edge(START, "simple")
-            simple_graph.add_edge("simple", END)
-            simple_compiled = simple_graph.compile()
-
-            # Create multi-node graph
-            multi_graph = StateGraph(State)
-            multi_graph.add_node("data", data_node)
-            multi_graph.add_node("process", process_node)
-            multi_graph.add_edge(START, "data")
-            multi_graph.add_edge("data", "process")
-            multi_graph.add_edge("process", END)
-            multi_compiled = multi_graph.compile()
-
-            return {
-                "langgraph_context": "real",
-                "simple_graph": simple_compiled,
-                "multi_graph": multi_compiled,
-                "State": State,
-            }
-        except ImportError:
-            return {"langgraph_context": "unavailable"}
-
-    def teardown_simple_workflow(self, context):
-        """Teardown LangGraph workflow."""
-        pass
-
-    def simple_task_execution(self, context=None):
-        """Simple LangGraph agent execution."""
-        if not context or context.get("langgraph_context") != "real":
-            # Fallback to simple execution
-            return {"result": sum(range(100))}
-
-        try:
-            # Run the simple graph
-            initial_state = {"value": 0, "data": [], "processed": []}
-            result = context["simple_graph"].invoke(initial_state)
-            return {"result": result.get("value", 0)}
-        except Exception:
-            return {"result": sum(range(100))}
-
-    def multi_task_workflow(self, context=None):
-        """Multi-agent LangGraph workflow."""
-        if not context or context.get("langgraph_context") != "real":
-            # Fallback to simple execution
-            agent1_result = list(range(10))
-            agent2_result = [x * 2 for x in agent1_result]
-            return {"agent1": agent1_result, "agent2": agent2_result}
-
-        try:
-            # Run the multi-node graph
-            initial_state = {"value": 0, "data": [], "processed": []}
-            result = context["multi_graph"].invoke(initial_state)
-            return {
-                "agent1": result.get("data", []),
-                "agent2": result.get("processed", []),
-            }
-        except Exception:
-            agent1_result = list(range(10))
-            agent2_result = [x * 2 for x in agent1_result]
-            return {"agent1": agent1_result, "agent2": agent2_result}
-
-    def coordination_benchmark(self, context=None):
-        """LangGraph coordination benchmark."""
-        if not context or context.get("langgraph_context") != "real":
-            time.sleep(0.0005)
-            return {"coordinated": True}
-
-        try:
-            # Test graph state coordination
-            from typing import TypedDict
-
-            from langgraph.graph import END, START, StateGraph
-
-            class CoordState(TypedDict):
-                step: int
-
-            def coord_node(state: CoordState):
-                time.sleep(0.0005)
-                return {"step": state.get("step", 0) + 1}
-
-            graph = StateGraph(CoordState)
-            graph.add_node("coord", coord_node)
-            graph.add_edge(START, "coord")
-            graph.add_edge("coord", END)
-            compiled = graph.compile()
-
-            result = compiled.invoke({"step": 0})
-            return {"coordinated": result.get("step", 0) > 0}
-        except Exception:
-            time.sleep(0.0005)
-            return {"coordinated": True}
-
-
-def run_framework_comparison_benchmarks():
-    """Run comprehensive framework comparison benchmarks."""
-
-    runner = FrameworkBenchmarkRunner()
-
-    # Initialize framework benchmarks
-    puffinflow_bench = PuffinFlowBenchmarks()
-    dagster_bench = DagsterBenchmarks()
-    prefect_bench = PrefectBenchmarks()
-    langgraph_bench = LangGraphBenchmarks()
-
-    benchmarks = [
-        # Simple Task Execution
-        {
-            "name": "Simple Task Execution",
-            "frameworks": [
-                (
-                    "PuffinFlow",
-                    puffinflow_bench.simple_task_execution,
-                    puffinflow_bench.setup_simple_workflow,
-                    puffinflow_bench.teardown_simple_workflow,
-                ),
-                (
-                    "Dagster",
-                    dagster_bench.simple_task_execution,
-                    dagster_bench.setup_simple_workflow,
-                    dagster_bench.teardown_simple_workflow,
-                ),
-                (
-                    "Prefect",
-                    prefect_bench.simple_task_execution,
-                    prefect_bench.setup_simple_workflow,
-                    prefect_bench.teardown_simple_workflow,
-                ),
-                (
-                    "LangGraph",
-                    langgraph_bench.simple_task_execution,
-                    langgraph_bench.setup_simple_workflow,
-                    langgraph_bench.teardown_simple_workflow,
-                ),
-            ],
-        },
-        # Multi-Task Workflow
-        {
-            "name": "Multi-Task Workflow",
-            "frameworks": [
-                (
-                    "PuffinFlow",
-                    puffinflow_bench.multi_task_workflow,
-                    puffinflow_bench.setup_simple_workflow,
-                    puffinflow_bench.teardown_simple_workflow,
-                ),
-                (
-                    "Dagster",
-                    dagster_bench.multi_task_workflow,
-                    dagster_bench.setup_simple_workflow,
-                    dagster_bench.teardown_simple_workflow,
-                ),
-                (
-                    "Prefect",
-                    prefect_bench.multi_task_workflow,
-                    prefect_bench.setup_simple_workflow,
-                    prefect_bench.teardown_simple_workflow,
-                ),
-                (
-                    "LangGraph",
-                    langgraph_bench.multi_task_workflow,
-                    langgraph_bench.setup_simple_workflow,
-                    langgraph_bench.teardown_simple_workflow,
-                ),
-            ],
-        },
-        # Coordination Benchmark
-        {
-            "name": "Coordination Primitives",
-            "frameworks": [
-                (
-                    "PuffinFlow",
-                    puffinflow_bench.coordination_benchmark,
-                    puffinflow_bench.setup_simple_workflow,
-                    puffinflow_bench.teardown_simple_workflow,
-                ),
-                (
-                    "Dagster",
-                    dagster_bench.coordination_benchmark,
-                    dagster_bench.setup_simple_workflow,
-                    dagster_bench.teardown_simple_workflow,
-                ),
-                (
-                    "Prefect",
-                    prefect_bench.coordination_benchmark,
-                    prefect_bench.setup_simple_workflow,
-                    prefect_bench.teardown_simple_workflow,
-                ),
-                (
-                    "LangGraph",
-                    langgraph_bench.coordination_benchmark,
-                    langgraph_bench.setup_simple_workflow,
-                    langgraph_bench.teardown_simple_workflow,
-                ),
-            ],
-        },
-    ]
-
-    print("🔥 Framework Comparison Benchmarks")
-    print("=" * 80)
-
-    for benchmark in benchmarks:
-        print(f"\n📊 {benchmark['name']}")
-        print("-" * 60)
-
-        for framework_name, bench_func, setup_func, teardown_func in benchmark[
-            "frameworks"
-        ]:
+
+# =============================================================================
+# PUFFINFLOW IMPLEMENTATION (Async Native)
+# =============================================================================
+
+class PuffinFlowBenchmark:
+    """PuffinFlow benchmark using native async execution."""
+    
+    def setup_framework(self):
+        if not PUFFINFLOW_AVAILABLE:
+            return {"error": "PuffinFlow not available"}
+        return {"framework": "puffinflow", "execution_model": "async", "status": "ready"}
+    
+    def get_code_efficiency_metrics(self):
+        """Measure equivalent functionality lines of code."""
+        
+        # Simple: 3-step workflow with imports
+        simple_code = '''
+from puffinflow import Agent, state
+
+agent = Agent("simple-workflow")
+
+@state
+async def search_step(context):
+    query = context.get_variable("query")
+    results = await RealWorldWorkloads.mock_vector_search(query)
+    context.set_variable("search_results", results)
+    return "llm_step"
+
+@state
+async def llm_step(context):
+    results = context.get_variable("search_results")
+    prompt = f"Analyze: {results}"
+    response = await RealWorldWorkloads.mock_llm_call(prompt)
+    context.set_variable("llm_response", response)
+    return "api_step"
+
+@state
+async def api_step(context):
+    response = context.get_variable("llm_response")
+    result = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+    context.set_variable("final_result", result)
+    return None
+
+result = await agent.run({"query": "test query"})
+'''
+        
+        # Complex: Error handling, retries, validation
+        complex_code = '''
+from puffinflow import Agent, state
+
+agent = Agent("complex-workflow")
+
+@state
+async def search_with_retry(context):
+    attempt = context.get_variable("attempt", 0)
+    query = context.get_variable("query")
+    
+    try:
+        results = await RealWorldWorkloads.mock_vector_search(query)
+        if not results:
+            raise ValueError("No results found")
+        context.set_variable("search_results", results)
+        return "validate_results"
+    except Exception as e:
+        if attempt < 3:
+            context.set_variable("attempt", attempt + 1)
+            context.set_variable("last_error", str(e))
+            return "search_with_retry"
+        return "error_handler"
+
+@state
+async def validate_results(context):
+    results = context.get_variable("search_results")
+    if len(results) >= 2 and all(r.get("score", 0) > 0.5 for r in results):
+        return "llm_step"
+    else:
+        context.set_variable("validation_error", "Quality check failed")
+        return "error_handler"
+
+@state
+async def llm_step(context):
+    results = context.get_variable("search_results")
+    prompt = f"Analyze: {results}"
+    response = await RealWorldWorkloads.mock_llm_call(prompt)
+    context.set_variable("llm_response", response)
+    return "api_step"
+
+@state
+async def api_step(context):
+    response = context.get_variable("llm_response")
+    result = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+    context.set_variable("final_result", result)
+    return None
+
+@state
+async def error_handler(context):
+    error = context.get_variable("last_error", context.get_variable("validation_error", "Unknown"))
+    context.set_variable("status", "failed")
+    context.set_variable("error", error)
+    return None
+
+result = await agent.run({"query": "test query"})
+'''
+        
+        # Typed: With type hints and validation
+        typed_code = '''
+from puffinflow import Agent, state
+from typing import Dict, List, Any, Optional
+
+agent = Agent("typed-workflow")
+
+@state
+async def search_step(context) -> Optional[str]:
+    query: str = context.get_variable("query")
+    results: List[Dict[str, Any]] = await RealWorldWorkloads.mock_vector_search(query)
+    context.set_variable("search_results", results)
+    return "llm_step"
+
+@state
+async def llm_step(context) -> Optional[str]:
+    results: List[Dict[str, Any]] = context.get_variable("search_results")
+    prompt: str = f"Analyze: {results}"
+    response: Dict[str, Any] = await RealWorldWorkloads.mock_llm_call(prompt)
+    context.set_variable("llm_response", response)
+    return "api_step"
+
+@state
+async def api_step(context) -> None:
+    response: Dict[str, Any] = context.get_variable("llm_response")
+    result: Dict[str, Any] = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+    context.set_variable("final_result", result)
+    return None
+
+result = await agent.run({"query": "test query"})
+'''
+        
+        return {
+            "simple": len([line for line in simple_code.strip().split('\n') if line.strip()]),
+            "complex": len([line for line in complex_code.strip().split('\n') if line.strip()]),
+            "typed": len([line for line in typed_code.strip().split('\n') if line.strip()])
+        }
+    
+    async def test_execution_speed(self, complexity: str):
+        """Test execution speed using real workloads."""
+        
+        if complexity == "simple":
+            return await self._test_simple_workflow()
+        elif complexity == "complex":
+            return await self._test_complex_workflow()
+        else:  # io_heavy
+            return await self._test_io_heavy_workflow()
+    
+    async def _test_simple_workflow(self):
+        """Simple 3-step workflow."""
+        agent = Agent("simple-speed-test")
+        
+        @state
+        async def search_step(context):
+            query = context.get_variable("query")
+            results = await RealWorldWorkloads.mock_vector_search(query)
+            context.set_variable("search_results", results)
+            return "llm_step"
+        
+        @state
+        async def llm_step(context):
+            results = context.get_variable("search_results")
+            prompt = f"Analyze: {results}"
+            response = await RealWorldWorkloads.mock_llm_call(prompt)
+            context.set_variable("llm_response", response)
+            return "api_step"
+        
+        @state
+        async def api_step(context):
+            response = context.get_variable("llm_response")
+            result = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+            context.set_variable("final_result", result)
+            return None
+        
+        agent.add_state("search_step", search_step)
+        agent.add_state("llm_step", llm_step)
+        agent.add_state("api_step", api_step)
+        
+        start_time = time.perf_counter()
+        result = await agent.run({"query": "test query"})
+        execution_time = (time.perf_counter() - start_time) * 1000
+        return execution_time
+    
+    async def _test_complex_workflow(self):
+        """Complex workflow with error handling."""
+        agent = Agent("complex-speed-test")
+        
+        @state
+        async def search_with_retry(context):
+            query = context.get_variable("query")
+            results = await RealWorldWorkloads.mock_vector_search(query)
+            context.set_variable("search_results", results)
+            return "validate_results"
+        
+        @state
+        async def validate_results(context):
+            return "llm_step"  # Always pass for speed test
+        
+        @state
+        async def llm_step(context):
+            results = context.get_variable("search_results")
+            prompt = f"Analyze: {results}"
+            response = await RealWorldWorkloads.mock_llm_call(prompt)
+            context.set_variable("llm_response", response)
+            return "api_step"
+        
+        @state
+        async def api_step(context):
+            response = context.get_variable("llm_response")
+            result = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+            context.set_variable("final_result", result)
+            return None
+        
+        agent.add_state("search_with_retry", search_with_retry)
+        agent.add_state("validate_results", validate_results)
+        agent.add_state("llm_step", llm_step)
+        agent.add_state("api_step", api_step)
+        
+        start_time = time.perf_counter()
+        result = await agent.run({"query": "test query"})
+        execution_time = (time.perf_counter() - start_time) * 1000
+        return execution_time
+    
+    async def _test_io_heavy_workflow(self):
+        """I/O heavy workflow with multiple API calls."""
+        agent = Agent("io-heavy-speed-test")
+        
+        @state
+        async def parallel_search(context):
+            query = context.get_variable("query")
+            tasks = [
+                RealWorldWorkloads.mock_vector_search(f"{query}_db1"),
+                RealWorldWorkloads.mock_vector_search(f"{query}_db2"),
+                RealWorldWorkloads.mock_vector_search(f"{query}_db3")
+            ]
+            results = await asyncio.gather(*tasks)
+            context.set_variable("search_results", results)
+            return "llm_step"
+        
+        @state
+        async def llm_step(context):
+            results = context.get_variable("search_results")
+            tasks = [
+                RealWorldWorkloads.mock_llm_call(f"Analyze DB1: {results[0]}"),
+                RealWorldWorkloads.mock_llm_call(f"Analyze DB2: {results[1]}")
+            ]
+            responses = await asyncio.gather(*tasks)
+            context.set_variable("llm_responses", responses)
+            return "api_step"
+        
+        @state
+        async def api_step(context):
+            responses = context.get_variable("llm_responses")
+            tasks = [
+                RealWorldWorkloads.mock_api_call("/save", {"data": responses[0]}),
+                RealWorldWorkloads.mock_api_call("/notify", {"data": responses[1]})
+            ]
+            results = await asyncio.gather(*tasks)
+            context.set_variable("final_results", results)
+            return None
+        
+        agent.add_state("parallel_search", parallel_search)
+        agent.add_state("llm_step", llm_step)
+        agent.add_state("api_step", api_step)
+        
+        start_time = time.perf_counter()
+        result = await agent.run({"query": "test query"})
+        execution_time = (time.perf_counter() - start_time) * 1000
+        return execution_time
+    
+    async def test_framework_overhead(self, complexity: str):
+        """Measure actual framework orchestration overhead."""
+        
+        # First, measure raw compute time
+        if complexity == "simple":
+            start_compute = time.perf_counter()
+            await RealWorldWorkloads.mock_vector_search("query")
+            await RealWorldWorkloads.mock_llm_call("prompt")
+            await RealWorldWorkloads.mock_api_call("/save", {"data": "test"})
+            pure_compute_time = (time.perf_counter() - start_compute) * 1000
+        else:  # complex
+            start_compute = time.perf_counter()
+            await RealWorldWorkloads.mock_vector_search("query")
+            await RealWorldWorkloads.mock_llm_call("prompt")
+            await RealWorldWorkloads.mock_api_call("/save", {"data": "test"})
+            pure_compute_time = (time.perf_counter() - start_compute) * 1000
+        
+        # Then measure with framework
+        framework_time = await self.test_execution_speed(complexity)
+        
+        # Calculate overhead (properly handle near-zero times)
+        if pure_compute_time < 0.001:  # If pure compute is less than 1ms
+            pure_compute_time = 0.001  # Set minimum baseline
+        
+        if framework_time < 0.001:  # If framework time is less than 1ms
+            framework_time = 0.001  # Set minimum
+            
+        framework_overhead = framework_time - pure_compute_time
+        overhead_percent = (framework_overhead / pure_compute_time) * 100
+        
+        return max(0, overhead_percent)  # Ensure non-negative
+    
+    async def test_concurrency(self, task_count: int):
+        """Test native async concurrency."""
+        
+        async def single_task(task_id: int):
+            agent = Agent(f"concurrent-{task_id}")
+            
+            @state
+            async def task_step(context):
+                query = f"query_{task_id}"
+                result = await RealWorldWorkloads.mock_vector_search(query)
+                context.set_variable("result", result)
+                return None
+            
+            agent.add_state("task_step", task_step)
+            
             try:
-                runner.run_framework_benchmark(
-                    name=benchmark["name"],
-                    framework=framework_name,
-                    benchmark_func=bench_func,
-                    iterations=50,  # Reduced for comparison benchmarks
-                    warmup_iterations=5,
-                    setup_func=setup_func,
-                    teardown_func=teardown_func,
-                )
-            except Exception as e:
-                print(f"  {framework_name}: FAILED - {e}")
+                await agent.run({"task_id": task_id})
+                return True
+            except Exception:
+                return False
+        
+        start_time = time.perf_counter()
+        tasks = [single_task(i) for i in range(task_count)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        total_time = time.perf_counter() - start_time
+        
+        successful = sum(1 for r in results if r is True)
+        return successful / total_time if total_time > 0 else 0
+    
+    async def test_memory_efficiency(self, complexity: str):
+        """Test memory usage for different complexity levels."""
+        gc.collect()
+        baseline_memory = self._get_memory_mb()
+        
+        # Hold reference to prevent garbage collection
+        memory_holder = []
+        
+        if complexity == "simple":
+            agent = Agent("memory-test")
+            
+            @state
+            async def memory_step(context):
+                # Allocate and hold memory
+                data = [f"memory_test_{i}" * 100 for i in range(5000)]  # ~4MB
+                context.set_variable("memory_data", data)
+                memory_holder.append(data)  # Prevent GC
+                return None
+            
+            agent.add_state("memory_step", memory_step)
+            # Just run the specific state
+            await agent.run_state("memory_step")
+        else:  # complex
+            agent = Agent("complex-memory-test")
+            
+            @state
+            async def complex_memory_step(context):
+                # Allocate larger memory for complex test
+                data = [f"complex_memory_{i}" * 200 for i in range(8000)]  # ~12.8MB
+                context.set_variable("complex_data", data)
+                memory_holder.append(data)  # Prevent GC
+                return None
+            
+            agent.add_state("complex_memory_step", complex_memory_step)
+            # Just run the specific state
+            await agent.run_state("complex_memory_step")
+        
+        peak_memory = self._get_memory_mb()
+        memory_used = peak_memory - baseline_memory
+        
+        # Clean up
+        memory_holder.clear()
+        gc.collect()
+        
+        return max(0, memory_used)
+    
+    def _get_memory_mb(self):
+        """Get current memory usage in MB."""
+        process = psutil.Process()
+        return process.memory_info().rss / 1024 / 1024
+    
+    async def run_full_benchmark(self, context):
+        """Run complete benchmark suite."""
+        
+        # Code Efficiency
+        code_metrics = self.get_code_efficiency_metrics()
+        
+        # Execution Speed
+        speed_simple = await self.test_execution_speed("simple")
+        speed_complex = await self.test_execution_speed("complex")
+        speed_io_heavy = await self.test_execution_speed("io_heavy")
+        
+        # Framework Overhead
+        overhead_simple = await self.test_framework_overhead("simple")
+        overhead_complex = await self.test_framework_overhead("complex")
+        
+        # Concurrency
+        concurrency_low = await self.test_concurrency(10)
+        concurrency_high = await self.test_concurrency(100)
+        
+        # Memory Efficiency
+        memory_simple = await self.test_memory_efficiency("simple")
+        memory_complex = await self.test_memory_efficiency("complex")
+        
+        return BenchmarkResult(
+            framework="PuffinFlow",
+            execution_model="async",
+            code_simple_loc=code_metrics["simple"],
+            code_complex_loc=code_metrics["complex"],
+            code_typed_loc=code_metrics["typed"],
+            speed_simple_ms=speed_simple,
+            speed_complex_ms=speed_complex,
+            speed_io_heavy_ms=speed_io_heavy,
+            overhead_simple_percent=overhead_simple,
+            overhead_complex_percent=overhead_complex,
+            concurrency_low_tps=concurrency_low,
+            concurrency_high_tps=concurrency_high,
+            memory_simple_mb=memory_simple,
+            memory_complex_mb=memory_complex
+        )
 
+
+# =============================================================================
+# LANGGRAPH IMPLEMENTATION (Sync Native) 
+# =============================================================================
+
+class LangGraphBenchmark:
+    """LangGraph benchmark using native synchronous execution."""
+    
+    def setup_framework(self):
+        if not LANGGRAPH_AVAILABLE:
+            return {"error": "LangGraph not available"}
+        
+        from typing import TypedDict
+        from langgraph.graph import END, START, StateGraph
+        
+        return {
+            "framework": "langgraph",
+            "execution_model": "sync", 
+            "status": "ready",
+            "StateGraph": StateGraph,
+            "START": START,
+            "END": END,
+            "TypedDict": TypedDict
+        }
+    
+    def get_code_efficiency_metrics(self):
+        """Measure equivalent functionality lines of code."""
+        
+        # Simple: 3-step workflow with imports
+        simple_code = '''
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+class WorkflowState(TypedDict):
+    query: str
+    search_results: list
+    llm_response: dict
+    final_result: dict
+
+def search_step(state: WorkflowState) -> WorkflowState:
+    query = state["query"]
+    results = RealWorldWorkloads.mock_vector_search_sync(query)
+    return {"search_results": results}
+
+def llm_step(state: WorkflowState) -> WorkflowState:
+    results = state["search_results"]
+    prompt = f"Analyze: {results}"
+    response = RealWorldWorkloads.mock_llm_call_sync(prompt)
+    return {"llm_response": response}
+
+def api_step(state: WorkflowState) -> WorkflowState:
+    response = state["llm_response"]
+    result = RealWorldWorkloads.mock_api_call_sync("/save", {"data": response})
+    return {"final_result": result}
+
+workflow = StateGraph(WorkflowState)
+workflow.add_node("search_step", search_step)
+workflow.add_node("llm_step", llm_step)
+workflow.add_node("api_step", api_step)
+workflow.add_edge(START, "search_step")
+workflow.add_edge("search_step", "llm_step")
+workflow.add_edge("llm_step", "api_step")
+workflow.add_edge("api_step", END)
+
+app = workflow.compile()
+result = app.invoke({"query": "test query", "search_results": [], "llm_response": {}, "final_result": {}})
+'''
+        
+        # Complex: Error handling, retries, validation
+        complex_code = '''
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+class ComplexState(TypedDict):
+    query: str
+    attempt: int
+    search_results: list
+    llm_response: dict
+    final_result: dict
+    error: str
+    status: str
+
+def search_with_retry(state: ComplexState) -> ComplexState:
+    attempt = state.get("attempt", 0)
+    query = state["query"]
+    
+    try:
+        results = RealWorldWorkloads.mock_vector_search_sync(query)
+        if not results:
+            raise ValueError("No results found")
+        return {"search_results": results, "attempt": attempt}
+    except Exception as e:
+        if attempt < 3:
+            return {"attempt": attempt + 1, "error": str(e)}
+        return {"error": str(e), "status": "failed"}
+
+def validate_results(state: ComplexState) -> ComplexState:
+    results = state["search_results"]
+    if len(results) >= 2 and all(r.get("score", 0) > 0.5 for r in results):
+        return state
+    else:
+        return {"error": "Quality check failed", "status": "failed"}
+
+def llm_step(state: ComplexState) -> ComplexState:
+    results = state["search_results"]
+    prompt = f"Analyze: {results}"
+    response = RealWorldWorkloads.mock_llm_call_sync(prompt)
+    return {"llm_response": response}
+
+def api_step(state: ComplexState) -> ComplexState:
+    response = state["llm_response"]
+    result = RealWorldWorkloads.mock_api_call_sync("/save", {"data": response})
+    return {"final_result": result, "status": "completed"}
+
+def error_handler(state: ComplexState) -> ComplexState:
+    return {"status": "failed"}
+
+def should_retry(state: ComplexState) -> str:
+    if state.get("error") and state.get("attempt", 0) < 3:
+        return "search_with_retry"
+    elif state.get("error"):
+        return "error_handler"
+    return "validate_results"
+
+def should_continue(state: ComplexState) -> str:
+    if state.get("error"):
+        return "error_handler"
+    return "llm_step"
+
+workflow = StateGraph(ComplexState)
+workflow.add_node("search_with_retry", search_with_retry)
+workflow.add_node("validate_results", validate_results)
+workflow.add_node("llm_step", llm_step)
+workflow.add_node("api_step", api_step)
+workflow.add_node("error_handler", error_handler)
+
+workflow.add_edge(START, "search_with_retry")
+workflow.add_conditional_edges("search_with_retry", should_retry)
+workflow.add_conditional_edges("validate_results", should_continue)
+workflow.add_edge("llm_step", "api_step")
+workflow.add_edge("api_step", END)
+workflow.add_edge("error_handler", END)
+
+app = workflow.compile()
+result = app.invoke({"query": "test query", "attempt": 0, "search_results": [], "llm_response": {}, "final_result": {}, "error": "", "status": ""})
+'''
+        
+        # Typed: Already type-safe by default
+        typed_code = simple_code  # LangGraph is inherently typed
+        
+        return {
+            "simple": len([line for line in simple_code.strip().split('\n') if line.strip()]),
+            "complex": len([line for line in complex_code.strip().split('\n') if line.strip()]),
+            "typed": len([line for line in typed_code.strip().split('\n') if line.strip()])
+        }
+    
+    def test_execution_speed(self, complexity: str, context):
+        """Test execution speed using native synchronous execution."""
+        
+        if complexity == "simple":
+            return self._test_simple_workflow(context)
+        elif complexity == "complex":
+            return self._test_complex_workflow(context)
+        else:  # io_heavy
+            return self._test_io_heavy_workflow(context)
+    
+    def _test_simple_workflow(self, context):
+        """Simple 3-step workflow using sync execution."""
+        StateGraph = context["StateGraph"]
+        START = context["START"]
+        END = context["END"]
+        TypedDict = context["TypedDict"]
+        
+        class WorkflowState(TypedDict):
+            query: str
+            search_results: list
+            llm_response: dict
+            final_result: dict
+        
+        def search_step(state: WorkflowState) -> WorkflowState:
+            query = state["query"]
+            results = RealWorldWorkloads.mock_vector_search_sync(query)
+            return {"search_results": results}
+        
+        def llm_step(state: WorkflowState) -> WorkflowState:
+            results = state["search_results"]
+            prompt = f"Analyze: {results}"
+            response = RealWorldWorkloads.mock_llm_call_sync(prompt)
+            return {"llm_response": response}
+        
+        def api_step(state: WorkflowState) -> WorkflowState:
+            response = state["llm_response"]
+            result = RealWorldWorkloads.mock_api_call_sync("/save", {"data": response})
+            return {"final_result": result}
+        
+        workflow = StateGraph(WorkflowState)
+        workflow.add_node("search_step", search_step)
+        workflow.add_node("llm_step", llm_step)
+        workflow.add_node("api_step", api_step)
+        workflow.add_edge(START, "search_step")
+        workflow.add_edge("search_step", "llm_step")
+        workflow.add_edge("llm_step", "api_step")
+        workflow.add_edge("api_step", END)
+        
+        app = workflow.compile()
+        
+        start_time = time.perf_counter()
+        app.invoke({
+            "query": "test query",
+            "search_results": [],
+            "llm_response": {},
+            "final_result": {}
+        })
+        return (time.perf_counter() - start_time) * 1000
+    
+    def _test_complex_workflow(self, context):
+        """Complex workflow with error handling."""
+        StateGraph = context["StateGraph"]
+        START = context["START"]
+        END = context["END"]
+        TypedDict = context["TypedDict"]
+        
+        class ComplexState(TypedDict):
+            query: str
+            search_results: list
+            llm_response: dict
+            final_result: dict
+        
+        def search_step(state: ComplexState) -> ComplexState:
+            query = state["query"]
+            results = RealWorldWorkloads.mock_vector_search_sync(query)
+            return {"search_results": results}
+        
+        def llm_step(state: ComplexState) -> ComplexState:
+            results = state["search_results"]
+            prompt = f"Analyze: {results}"
+            response = RealWorldWorkloads.mock_llm_call_sync(prompt)
+            return {"llm_response": response}
+        
+        def api_step(state: ComplexState) -> ComplexState:
+            response = state["llm_response"]
+            result = RealWorldWorkloads.mock_api_call_sync("/save", {"data": response})
+            return {"final_result": result}
+        
+        workflow = StateGraph(ComplexState)
+        workflow.add_node("search_step", search_step)
+        workflow.add_node("llm_step", llm_step)
+        workflow.add_node("api_step", api_step)
+        workflow.add_edge(START, "search_step")
+        workflow.add_edge("search_step", "llm_step")
+        workflow.add_edge("llm_step", "api_step")
+        workflow.add_edge("api_step", END)
+        
+        app = workflow.compile()
+        
+        start_time = time.perf_counter()
+        app.invoke({
+            "query": "test query",
+            "search_results": [],
+            "llm_response": {},
+            "final_result": {}
+        })
+        return (time.perf_counter() - start_time) * 1000
+    
+    def _test_io_heavy_workflow(self, context):
+        """I/O heavy workflow using thread pool for parallelism."""
+        StateGraph = context["StateGraph"]
+        START = context["START"]
+        END = context["END"]
+        TypedDict = context["TypedDict"]
+        
+        class IOHeavyState(TypedDict):
+            query: str
+            search_results: list
+            llm_responses: list
+            final_results: list
+        
+        def parallel_search(state: IOHeavyState) -> IOHeavyState:
+            query = state["query"]
+            # Use thread pool for parallel execution in sync context
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                futures = [
+                    executor.submit(RealWorldWorkloads.mock_vector_search_sync, f"{query}_db1"),
+                    executor.submit(RealWorldWorkloads.mock_vector_search_sync, f"{query}_db2"),
+                    executor.submit(RealWorldWorkloads.mock_vector_search_sync, f"{query}_db3")
+                ]
+                results = [future.result() for future in futures]
+            return {"search_results": results}
+        
+        def llm_step(state: IOHeavyState) -> IOHeavyState:
+            results = state["search_results"]
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(RealWorldWorkloads.mock_llm_call_sync, f"Analyze DB1: {results[0]}"),
+                    executor.submit(RealWorldWorkloads.mock_llm_call_sync, f"Analyze DB2: {results[1]}")
+                ]
+                responses = [future.result() for future in futures]
+            return {"llm_responses": responses}
+        
+        def api_step(state: IOHeavyState) -> IOHeavyState:
+            responses = state["llm_responses"]
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(RealWorldWorkloads.mock_api_call_sync, "/save", {"data": responses[0]}),
+                    executor.submit(RealWorldWorkloads.mock_api_call_sync, "/notify", {"data": responses[1]})
+                ]
+                results = [future.result() for future in futures]
+            return {"final_results": results}
+        
+        workflow = StateGraph(IOHeavyState)
+        workflow.add_node("parallel_search", parallel_search)
+        workflow.add_node("llm_step", llm_step)
+        workflow.add_node("api_step", api_step)
+        workflow.add_edge(START, "parallel_search")
+        workflow.add_edge("parallel_search", "llm_step")
+        workflow.add_edge("llm_step", "api_step")
+        workflow.add_edge("api_step", END)
+        
+        app = workflow.compile()
+        
+        start_time = time.perf_counter()
+        app.invoke({
+            "query": "test query",
+            "search_results": [],
+            "llm_responses": [],
+            "final_results": []
+        })
+        return (time.perf_counter() - start_time) * 1000
+    
+    def test_framework_overhead(self, complexity: str, context):
+        """Measure framework orchestration overhead."""
+        
+        # Measure raw compute time
+        if complexity == "simple":
+            start_compute = time.perf_counter()
+            RealWorldWorkloads.mock_vector_search_sync("query")
+            RealWorldWorkloads.mock_llm_call_sync("prompt")
+            RealWorldWorkloads.mock_api_call_sync("/save", {"data": "test"})
+            pure_compute_time = (time.perf_counter() - start_compute) * 1000
+        else:  # complex
+            start_compute = time.perf_counter()
+            RealWorldWorkloads.mock_vector_search_sync("query")
+            RealWorldWorkloads.mock_llm_call_sync("prompt")
+            RealWorldWorkloads.mock_api_call_sync("/save", {"data": "test"})
+            pure_compute_time = (time.perf_counter() - start_compute) * 1000
+        
+        # Measure with framework
+        framework_time = self.test_execution_speed(complexity, context)
+        
+        # Calculate overhead (properly handle near-zero times)
+        if pure_compute_time < 0.001:  # If pure compute is less than 1ms
+            pure_compute_time = 0.001  # Set minimum baseline
+        
+        if framework_time < 0.001:  # If framework time is less than 1ms
+            framework_time = 0.001  # Set minimum
+            
+        framework_overhead = framework_time - pure_compute_time
+        overhead_percent = (framework_overhead / pure_compute_time) * 100
+        
+        return max(0, overhead_percent)  # Ensure non-negative
+    
+    def test_concurrency(self, task_count: int, context):
+        """Test thread-based concurrency."""
+        
+        StateGraph = context["StateGraph"]
+        START = context["START"]
+        END = context["END"]
+        TypedDict = context["TypedDict"]
+        
+        class TaskState(TypedDict):
+            task_id: int
+            result: list
+        
+        def single_task_workflow(task_id: int):
+            def task_step(state: TaskState) -> TaskState:
+                query = f"query_{task_id}"
+                result = RealWorldWorkloads.mock_vector_search_sync(query)
+                return {"result": result}
+            
+            workflow = StateGraph(TaskState)
+            workflow.add_node("task_step", task_step)
+            workflow.add_edge(START, "task_step")
+            workflow.add_edge("task_step", END)
+            
+            app = workflow.compile()
+            
+            try:
+                app.invoke({"task_id": task_id, "result": []})
+                return True
+            except Exception:
+                return False
+        
+        start_time = time.perf_counter()
+        
+        # Use thread pool for concurrency
+        with ThreadPoolExecutor(max_workers=min(task_count, 50)) as executor:
+            futures = [executor.submit(single_task_workflow, i) for i in range(task_count)]
+            results = [future.result() for future in as_completed(futures)]
+        
+        total_time = time.perf_counter() - start_time
+        successful = sum(1 for r in results if r is True)
+        
+        return successful / total_time if total_time > 0 else 0
+    
+    def test_memory_efficiency(self, complexity: str, context):
+        """Test memory usage."""
+        gc.collect()
+        baseline_memory = self._get_memory_mb()
+        
+        # Hold reference to prevent garbage collection
+        memory_holder = []
+        
+        StateGraph = context["StateGraph"]
+        START = context["START"]
+        END = context["END"]
+        TypedDict = context["TypedDict"]
+        
+        class MemoryState(TypedDict):
+            data: list
+            result: str
+        
+        if complexity == "simple":
+            def memory_step(state: MemoryState) -> MemoryState:
+                # Allocate and hold memory
+                data = [f"memory_test_{i}" * 100 for i in range(5000)]  # ~4MB
+                memory_holder.append(data)  # Prevent GC
+                return {"data": data, "result": "memory_test"}
+        else:  # complex
+            def memory_step(state: MemoryState) -> MemoryState:
+                # Allocate larger memory for complex test
+                data = [f"complex_memory_{i}" * 200 for i in range(8000)]  # ~12.8MB
+                memory_holder.append(data)  # Prevent GC
+                return {"data": data, "result": "complex_memory_test"}
+        
+        workflow = StateGraph(MemoryState)
+        workflow.add_node("memory_step", memory_step)
+        workflow.add_edge(START, "memory_step")
+        workflow.add_edge("memory_step", END)
+        
+        app = workflow.compile()
+        app.invoke({"data": [], "result": ""})
+        
+        peak_memory = self._get_memory_mb()
+        memory_used = peak_memory - baseline_memory
+        
+        # Clean up
+        memory_holder.clear()
+        gc.collect()
+        
+        return max(0, memory_used)
+    
+    def _get_memory_mb(self):
+        """Get current memory usage in MB."""
+        process = psutil.Process()
+        return process.memory_info().rss / 1024 / 1024
+    
+    def run_full_benchmark(self, context):
+        """Run complete benchmark suite."""
+        
+        # Code Efficiency
+        code_metrics = self.get_code_efficiency_metrics()
+        
+        # Execution Speed
+        speed_simple = self.test_execution_speed("simple", context)
+        speed_complex = self.test_execution_speed("complex", context)
+        speed_io_heavy = self.test_execution_speed("io_heavy", context)
+        
+        # Framework Overhead
+        overhead_simple = self.test_framework_overhead("simple", context)
+        overhead_complex = self.test_framework_overhead("complex", context)
+        
+        # Concurrency
+        concurrency_low = self.test_concurrency(10, context)
+        concurrency_high = self.test_concurrency(100, context)
+        
+        # Memory Efficiency
+        memory_simple = self.test_memory_efficiency("simple", context)
+        memory_complex = self.test_memory_efficiency("complex", context)
+        
+        return BenchmarkResult(
+            framework="LangGraph",
+            execution_model="sync",
+            code_simple_loc=code_metrics["simple"],
+            code_complex_loc=code_metrics["complex"],
+            code_typed_loc=code_metrics["typed"],
+            speed_simple_ms=speed_simple,
+            speed_complex_ms=speed_complex,
+            speed_io_heavy_ms=speed_io_heavy,
+            overhead_simple_percent=overhead_simple,
+            overhead_complex_percent=overhead_complex,
+            concurrency_low_tps=concurrency_low,
+            concurrency_high_tps=concurrency_high,
+            memory_simple_mb=memory_simple,
+            memory_complex_mb=memory_complex
+        )
+
+
+# =============================================================================
+# LLAMAINDEX IMPLEMENTATION (Async Native)
+# =============================================================================
+
+class LlamaIndexBenchmark:
+    """LlamaIndex benchmark using native async execution."""
+    
+    def setup_framework(self):
+        if not LLAMAINDEX_AVAILABLE:
+            return {"error": "LlamaIndex not available"}
+        
+        # Configure LlamaIndex settings
+        Settings.llm = MockLLM()
+        
+        return {
+            "framework": "llamaindex",
+            "execution_model": "async",
+            "status": "ready",
+            "Workflow": Workflow,
+            "StartEvent": StartEvent,
+            "StopEvent": StopEvent,
+            "step": step,
+            "LlamaContext": LlamaContext,
+            "Event": Event
+        }
+    
+    def get_code_efficiency_metrics(self):
+        """Measure equivalent functionality lines of code."""
+        
+        # Simple: 3-step workflow with imports
+        simple_code = '''
+from llama_index.core.workflow import Workflow, StartEvent, StopEvent, step, Context, Event
+
+class SearchEvent(Event):
+    results: list
+
+class LLMEvent(Event):
+    response: dict
+
+class SimpleWorkflow(Workflow):
+    @step
+    async def search_step(self, ctx: Context, ev: StartEvent) -> SearchEvent:
+        query = ev.query
+        results = await RealWorldWorkloads.mock_vector_search(query)
+        await ctx.store.set("search_results", results)
+        return SearchEvent(results=results)
+    
+    @step
+    async def llm_step(self, ctx: Context, ev: SearchEvent) -> LLMEvent:
+        prompt = f"Analyze: {ev.results}"
+        response = await RealWorldWorkloads.mock_llm_call(prompt)
+        await ctx.store.set("llm_response", response)
+        return LLMEvent(response=response)
+    
+    @step
+    async def api_step(self, ctx: Context, ev: LLMEvent) -> StopEvent:
+        result = await RealWorldWorkloads.mock_api_call("/save", {"data": ev.response})
+        await ctx.store.set("final_result", result)
+        return StopEvent(result=result)
+
+workflow = SimpleWorkflow()
+result = await workflow.run(query="test query")
+'''
+        
+        # Complex: Error handling, retries, validation
+        complex_code = '''
+from llama_index.core.workflow import Workflow, StartEvent, StopEvent, step, Context, Event
+
+class SearchEvent(Event):
+    results: list
+
+class RetryEvent(Event):
+    query: str
+    attempt: int
+
+class LLMEvent(Event):
+    response: dict
+
+class ErrorEvent(Event):
+    error: str
+
+class ComplexWorkflow(Workflow):
+    @step
+    async def search_with_retry(self, ctx: Context, ev: StartEvent | RetryEvent) -> SearchEvent | ErrorEvent:
+        query = ev.query if hasattr(ev, 'query') else "default"
+        attempt = ev.attempt if hasattr(ev, 'attempt') else 0
+        
+        try:
+            results = await RealWorldWorkloads.mock_vector_search(query)
+            if not results:
+                raise ValueError("No results found")
+            await ctx.store.set("search_results", results)
+            return SearchEvent(results=results)
+        except Exception as e:
+            if attempt < 3:
+                return RetryEvent(query=query, attempt=attempt + 1)
+            return ErrorEvent(error=str(e))
+    
+    @step
+    async def validate_results(self, ctx: Context, ev: SearchEvent) -> LLMEvent | ErrorEvent:
+        if len(ev.results) >= 2 and all(r.get("score", 0) > 0.5 for r in ev.results):
+            return LLMEvent(response={})  # Continue to LLM
+        else:
+            return ErrorEvent(error="Quality check failed")
+    
+    @step
+    async def llm_step(self, ctx: Context, ev: LLMEvent) -> StopEvent:
+        results = await ctx.store.get("search_results")
+        prompt = f"Analyze: {results}"
+        response = await RealWorldWorkloads.mock_llm_call(prompt)
+        result = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+        await ctx.store.set("final_result", result)
+        return StopEvent(result=result)
+    
+    @step
+    async def error_handler(self, ctx: Context, ev: ErrorEvent) -> StopEvent:
+        await ctx.store.set("error", ev.error)
+        await ctx.store.set("status", "failed")
+        return StopEvent(result={"status": "failed", "error": ev.error})
+    
+    @step
+    async def retry_handler(self, ctx: Context, ev: RetryEvent) -> SearchEvent | ErrorEvent:
+        return await self.search_with_retry(ctx, ev)
+
+workflow = ComplexWorkflow()
+result = await workflow.run(query="test query")
+'''
+        
+        # Typed: With type annotations
+        typed_code = '''
+from llama_index.core.workflow import Workflow, StartEvent, StopEvent, step, Context, Event
+from typing import List, Dict, Any
+
+class SearchEvent(Event):
+    results: List[Dict[str, Any]]
+
+class LLMEvent(Event):
+    response: Dict[str, Any]
+
+class TypedWorkflow(Workflow):
+    @step
+    async def search_step(self, ctx: Context, ev: StartEvent) -> SearchEvent:
+        query: str = ev.query
+        results: List[Dict[str, Any]] = await RealWorldWorkloads.mock_vector_search(query)
+        await ctx.store.set("search_results", results)
+        return SearchEvent(results=results)
+    
+    @step
+    async def llm_step(self, ctx: Context, ev: SearchEvent) -> LLMEvent:
+        prompt: str = f"Analyze: {ev.results}"
+        response: Dict[str, Any] = await RealWorldWorkloads.mock_llm_call(prompt)
+        await ctx.store.set("llm_response", response)
+        return LLMEvent(response=response)
+    
+    @step
+    async def api_step(self, ctx: Context, ev: LLMEvent) -> StopEvent:
+        result: Dict[str, Any] = await RealWorldWorkloads.mock_api_call("/save", {"data": ev.response})
+        await ctx.store.set("final_result", result)
+        return StopEvent(result=result)
+
+workflow = TypedWorkflow()
+result = await workflow.run(query="test query")
+'''
+        
+        return {
+            "simple": len([line for line in simple_code.strip().split('\n') if line.strip()]),
+            "complex": len([line for line in complex_code.strip().split('\n') if line.strip()]),
+            "typed": len([line for line in typed_code.strip().split('\n') if line.strip()])
+        }
+    
+    async def test_execution_speed(self, complexity: str, context):
+        """Test execution speed using real workloads."""
+        
+        if complexity == "simple":
+            return await self._test_simple_workflow(context)
+        elif complexity == "complex":
+            return await self._test_complex_workflow(context)
+        else:  # io_heavy
+            return await self._test_io_heavy_workflow(context)
+    
+    async def _test_simple_workflow(self, context):
+        """Simple 3-step workflow."""
+        Workflow = context["Workflow"]
+        StartEvent = context["StartEvent"]
+        StopEvent = context["StopEvent"]
+        step = context["step"]
+        LlamaContext = context["LlamaContext"]
+        Event = context["Event"]
+        
+        class SearchEvent(Event):
+            results: list
+        
+        class LLMEvent(Event):
+            response: dict
+        
+        class SimpleWorkflow(Workflow):
+            @step
+            async def search_step(self, ctx: LlamaContext, ev: StartEvent) -> SearchEvent:
+                query = getattr(ev, 'query', 'test query')
+                results = await RealWorldWorkloads.mock_vector_search(query)
+                await ctx.store.set("search_results", results)
+                return SearchEvent(results=results)
+            
+            @step
+            async def llm_step(self, ctx: LlamaContext, ev: SearchEvent) -> LLMEvent:
+                prompt = f"Analyze: {ev.results}"
+                response = await RealWorldWorkloads.mock_llm_call(prompt)
+                await ctx.store.set("llm_response", response)
+                return LLMEvent(response=response)
+            
+            @step
+            async def api_step(self, ctx: LlamaContext, ev: LLMEvent) -> StopEvent:
+                result = await RealWorldWorkloads.mock_api_call("/save", {"data": ev.response})
+                await ctx.store.set("final_result", result)
+                return StopEvent(result=result)
+        
+        workflow = SimpleWorkflow()
+        
+        start_time = time.perf_counter()
+        await workflow.run()
+        return (time.perf_counter() - start_time) * 1000
+    
+    async def _test_complex_workflow(self, context):
+        """Complex workflow with error handling."""
+        Workflow = context["Workflow"]
+        StartEvent = context["StartEvent"]
+        StopEvent = context["StopEvent"]
+        step = context["step"]
+        LlamaContext = context["LlamaContext"]
+        Event = context["Event"]
+        
+        class SearchEvent(Event):
+            results: list
+        
+        class LLMEvent(Event):
+            response: dict
+        
+        class ComplexWorkflow(Workflow):
+            @step
+            async def search_step(self, ctx: LlamaContext, ev: StartEvent) -> SearchEvent:
+                query = getattr(ev, 'query', 'test query')
+                results = await RealWorldWorkloads.mock_vector_search(query)
+                await ctx.store.set("search_results", results)
+                return SearchEvent(results=results)
+            
+            @step
+            async def validate_step(self, ctx: LlamaContext, ev: SearchEvent) -> LLMEvent:
+                # Always pass for speed test
+                return LLMEvent(response={})
+            
+            @step
+            async def llm_step(self, ctx: LlamaContext, ev: LLMEvent) -> StopEvent:
+                results = await ctx.store.get("search_results")
+                prompt = f"Analyze: {results}"
+                response = await RealWorldWorkloads.mock_llm_call(prompt)
+                result = await RealWorldWorkloads.mock_api_call("/save", {"data": response})
+                await ctx.store.set("final_result", result)
+                return StopEvent(result=result)
+        
+        workflow = ComplexWorkflow()
+        
+        start_time = time.perf_counter()
+        await workflow.run()
+        return (time.perf_counter() - start_time) * 1000
+    
+    async def _test_io_heavy_workflow(self, context):
+        """I/O heavy workflow with parallel operations."""
+        Workflow = context["Workflow"]
+        StartEvent = context["StartEvent"]
+        StopEvent = context["StopEvent"]
+        step = context["step"]
+        LlamaContext = context["LlamaContext"]
+        Event = context["Event"]
+        
+        class SearchEvent(Event):
+            results: list
+        
+        class LLMEvent(Event):
+            responses: list
+        
+        class IOHeavyWorkflow(Workflow):
+            @step
+            async def parallel_search(self, ctx: LlamaContext, ev: StartEvent) -> SearchEvent:
+                query = getattr(ev, 'query', 'test query')
+                tasks = [
+                    RealWorldWorkloads.mock_vector_search(f"{query}_db1"),
+                    RealWorldWorkloads.mock_vector_search(f"{query}_db2"),
+                    RealWorldWorkloads.mock_vector_search(f"{query}_db3")
+                ]
+                results = await asyncio.gather(*tasks)
+                await ctx.store.set("search_results", results)
+                return SearchEvent(results=results)
+            
+            @step
+            async def llm_step(self, ctx: LlamaContext, ev: SearchEvent) -> LLMEvent:
+                tasks = [
+                    RealWorldWorkloads.mock_llm_call(f"Analyze DB1: {ev.results[0]}"),
+                    RealWorldWorkloads.mock_llm_call(f"Analyze DB2: {ev.results[1]}")
+                ]
+                responses = await asyncio.gather(*tasks)
+                await ctx.store.set("llm_responses", responses)
+                return LLMEvent(responses=responses)
+            
+            @step
+            async def api_step(self, ctx: LlamaContext, ev: LLMEvent) -> StopEvent:
+                tasks = [
+                    RealWorldWorkloads.mock_api_call("/save", {"data": ev.responses[0]}),
+                    RealWorldWorkloads.mock_api_call("/notify", {"data": ev.responses[1]})
+                ]
+                results = await asyncio.gather(*tasks)
+                await ctx.store.set("final_results", results)
+                return StopEvent(result=results)
+        
+        workflow = IOHeavyWorkflow()
+        
+        start_time = time.perf_counter()
+        await workflow.run()
+        return (time.perf_counter() - start_time) * 1000
+    
+    async def test_framework_overhead(self, complexity: str, context):
+        """Measure framework orchestration overhead."""
+        
+        # Measure raw compute time
+        if complexity == "simple":
+            start_compute = time.perf_counter()
+            await RealWorldWorkloads.mock_vector_search("query")
+            await RealWorldWorkloads.mock_llm_call("prompt")
+            await RealWorldWorkloads.mock_api_call("/save", {"data": "test"})
+            pure_compute_time = (time.perf_counter() - start_compute) * 1000
+        else:  # complex
+            start_compute = time.perf_counter()
+            await RealWorldWorkloads.mock_vector_search("query")
+            await RealWorldWorkloads.mock_llm_call("prompt")
+            await RealWorldWorkloads.mock_api_call("/save", {"data": "test"})
+            pure_compute_time = (time.perf_counter() - start_compute) * 1000
+        
+        # Measure with framework
+        framework_time = await self.test_execution_speed(complexity, context)
+        
+        # Calculate overhead (properly handle near-zero times)
+        if pure_compute_time < 0.001:  # If pure compute is less than 1ms
+            pure_compute_time = 0.001  # Set minimum baseline
+        
+        if framework_time < 0.001:  # If framework time is less than 1ms
+            framework_time = 0.001  # Set minimum
+            
+        framework_overhead = framework_time - pure_compute_time
+        overhead_percent = (framework_overhead / pure_compute_time) * 100
+        
+        return max(0, overhead_percent)  # Ensure non-negative
+    
+    async def test_concurrency(self, task_count: int, context):
+        """Test native async concurrency."""
+        
+        Workflow = context["Workflow"]
+        StartEvent = context["StartEvent"]
+        StopEvent = context["StopEvent"]
+        step = context["step"]
+        LlamaContext = context["LlamaContext"]
+        
+        async def single_task(task_id: int):
+            class TaskWorkflow(Workflow):
+                def __init__(self, task_id):
+                    super().__init__()
+                    self.task_id = task_id
+                
+                @step
+                async def task_step(self, ctx: LlamaContext, ev: StartEvent) -> StopEvent:
+                    query = f"query_{self.task_id}"
+                    result = await RealWorldWorkloads.mock_vector_search(query)
+                    await ctx.store.set("result", result)
+                    return StopEvent(result=result)
+            
+            workflow = TaskWorkflow(task_id)
+            
+            try:
+                await workflow.run()
+                return True
+            except Exception:
+                return False
+        
+        start_time = time.perf_counter()
+        tasks = [single_task(i) for i in range(task_count)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        total_time = time.perf_counter() - start_time
+        
+        successful = sum(1 for r in results if r is True)
+        return successful / total_time if total_time > 0 else 0
+    
+    async def test_memory_efficiency(self, complexity: str, context):
+        """Test memory usage."""
+        gc.collect()
+        baseline_memory = self._get_memory_mb()
+        
+        # Hold reference to prevent garbage collection
+        memory_holder = []
+        
+        Workflow = context["Workflow"]
+        StartEvent = context["StartEvent"]
+        StopEvent = context["StopEvent"]
+        step = context["step"]
+        LlamaContext = context["LlamaContext"]
+        Event = context["Event"]
+        
+        class MemoryEvent(Event):
+            data: list
+        
+        class MemoryWorkflow(Workflow):
+            @step
+            async def memory_step(self, ctx: LlamaContext, ev: StartEvent) -> StopEvent:
+                if complexity == "simple":
+                    # Allocate and hold memory
+                    data = [f"memory_test_{i}" * 100 for i in range(5000)]  # ~4MB
+                else:  # complex
+                    # Allocate larger memory for complex test
+                    data = [f"complex_memory_{i}" * 200 for i in range(8000)]  # ~12.8MB
+                
+                memory_holder.append(data)  # Prevent GC
+                await ctx.store.set("memory_data", data)
+                return StopEvent(result="memory_test")
+        
+        workflow = MemoryWorkflow()
+        await workflow.run()
+        
+        peak_memory = self._get_memory_mb()
+        memory_used = peak_memory - baseline_memory
+        
+        # Clean up
+        memory_holder.clear()
+        gc.collect()
+        
+        return max(0, memory_used)
+    
+    def _get_memory_mb(self):
+        """Get current memory usage in MB."""
+        process = psutil.Process()
+        return process.memory_info().rss / 1024 / 1024
+    
+    async def run_full_benchmark(self, context):
+        """Run complete benchmark suite."""
+        
+        # Code Efficiency
+        code_metrics = self.get_code_efficiency_metrics()
+        
+        # Execution Speed
+        speed_simple = await self.test_execution_speed("simple", context)
+        speed_complex = await self.test_execution_speed("complex", context)
+        speed_io_heavy = await self.test_execution_speed("io_heavy", context)
+        
+        # Framework Overhead
+        overhead_simple = await self.test_framework_overhead("simple", context)
+        overhead_complex = await self.test_framework_overhead("complex", context)
+        
+        # Concurrency
+        concurrency_low = await self.test_concurrency(10, context)
+        concurrency_high = await self.test_concurrency(100, context)
+        
+        # Memory Efficiency
+        memory_simple = await self.test_memory_efficiency("simple", context)
+        memory_complex = await self.test_memory_efficiency("complex", context)
+        
+        return BenchmarkResult(
+            framework="LlamaIndex",
+            execution_model="async",
+            code_simple_loc=code_metrics["simple"],
+            code_complex_loc=code_metrics["complex"],
+            code_typed_loc=code_metrics["typed"],
+            speed_simple_ms=speed_simple,
+            speed_complex_ms=speed_complex,
+            speed_io_heavy_ms=speed_io_heavy,
+            overhead_simple_percent=overhead_simple,
+            overhead_complex_percent=overhead_complex,
+            concurrency_low_tps=concurrency_low,
+            concurrency_high_tps=concurrency_high,
+            memory_simple_mb=memory_simple,
+            memory_complex_mb=memory_complex
+        )
+
+
+# =============================================================================
+# BENCHMARK RUNNER AND RESULTS
+# =============================================================================
+
+class FairBenchmarkRunner:
+    """Fair benchmark runner that respects each framework's execution model."""
+    
+    def __init__(self):
+        self.process = psutil.Process()
+        self.results: List[BenchmarkResult] = []
+    
+    async def run_framework_benchmark(self, framework_name: str, benchmark_class) -> BenchmarkResult:
+        """Run complete benchmark for a framework using its native execution model."""
+        
+        print(f"🔧 Running fair benchmark for {framework_name}...")
+        
+        benchmark = benchmark_class()
+        
+        # Setup framework
+        setup_start = time.perf_counter()
+        context = benchmark.setup_framework()
+        setup_time = (time.perf_counter() - setup_start) * 1000
+        
+        if context.get("error"):
+            print(f"  ❌ {framework_name}: Setup failed - {context['error']}")
+            return self._create_failed_result(framework_name)
+        
+        try:
+            # Run benchmark using appropriate execution model
+            if context["execution_model"] == "async":
+                result = await benchmark.run_full_benchmark(context)
+            else:  # sync
+                result = benchmark.run_full_benchmark(context)
+                
+            self.results.append(result)
+            
+            print(f"  ✅ {framework_name} ({context['execution_model']}): Benchmark completed")
+            print(f"     Code LOC: {result.code_simple_loc}/{result.code_complex_loc}/{result.code_typed_loc}")
+            print(f"     Speed: {result.speed_simple_ms:.1f}/{result.speed_complex_ms:.1f}/{result.speed_io_heavy_ms:.1f}ms")
+            print(f"     Overhead: {result.overhead_simple_percent:.1f}/{result.overhead_complex_percent:.1f}%")
+            
+            return result
+            
+        except Exception as e:
+            print(f"  ❌ {framework_name}: Benchmark failed - {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return self._create_failed_result(framework_name)
+    
+    def _create_failed_result(self, framework: str) -> BenchmarkResult:
+        """Create a failed result."""
+        return BenchmarkResult(
+            framework=framework,
+            execution_model="unknown",
+            code_simple_loc=999,
+            code_complex_loc=999,
+            code_typed_loc=999,
+            speed_simple_ms=float('inf'),
+            speed_complex_ms=float('inf'),
+            speed_io_heavy_ms=float('inf'),
+            overhead_simple_percent=100.0,
+            overhead_complex_percent=100.0,
+            concurrency_low_tps=0.0,
+            concurrency_high_tps=0.0,
+            memory_simple_mb=float('inf'),
+            memory_complex_mb=float('inf')
+        )
+
+
+def print_fair_benchmark_results(results: List[BenchmarkResult]):
+    """Print fair benchmark results with execution model awareness."""
+    
+    print("\n" + "=" * 120)
+    print("🏆 FAIR AGENT FRAMEWORK BENCHMARK RESULTS")
+    print("=" * 120)
+    print("Each framework tested using its intended execution model:")
+    print("• PuffinFlow: Native async with state management")
+    print("• LangGraph: Native sync with typed state graphs") 
+    print("• LlamaIndex: Native async with event-driven workflows")
+    print("• Real workloads: Mock LLM calls, vector search, API calls")
+    print("• Equivalent functionality measured consistently")
+    print("=" * 120)
+    
+    if not results:
+        print("No benchmark results available.")
+        return
+    
+    # Filter successful results
+    successful_results = [r for r in results if r.code_simple_loc < 999]
+    
+    if not successful_results:
+        print("No frameworks completed successfully.")
+        return
+    
+    # 1. EXECUTION MODEL SUMMARY
+    print(f"\n🔄 EXECUTION MODELS")
+    print("-" * 60)
+    print(f"{'Framework':<12} {'Execution Model':<15} {'Concurrency Type'}")
+    print("-" * 60)
+    for result in successful_results:
+        concurrency_type = "async/await" if result.execution_model == "async" else "threads"
+        print(f"{result.framework:<12} {result.execution_model:<15} {concurrency_type}")
+    
+    # 2. CODE EFFICIENCY ANALYSIS
+    print(f"\n📝 CODE EFFICIENCY (Lines of Code - Lower is Better)")
+    print("-" * 80)
+    print(f"{'Framework':<12} {'Simple':<8} {'Complex':<9} {'Typed':<8} {'Avg':<8} {'Best In'}")
+    print("-" * 80)
+    
+    for result in successful_results:
+        avg_loc = (result.code_simple_loc + result.code_complex_loc + result.code_typed_loc) / 3
+        best_in = []
+        
+        if result.code_simple_loc == min(r.code_simple_loc for r in successful_results):
+            best_in.append("Simple")
+        if result.code_complex_loc == min(r.code_complex_loc for r in successful_results):
+            best_in.append("Complex")
+        if result.code_typed_loc == min(r.code_typed_loc for r in successful_results):
+            best_in.append("Typed")
+        
+        best_str = ", ".join(best_in) if best_in else "-"
+        
+        print(f"{result.framework:<12} {result.code_simple_loc:<8} {result.code_complex_loc:<9} "
+              f"{result.code_typed_loc:<8} {avg_loc:<8.1f} {best_str}")
+    
+    # 3. EXECUTION SPEED ANALYSIS
+    print(f"\n⚡ EXECUTION SPEED (Milliseconds - Lower is Better)")
+    print("-" * 80)
+    print(f"{'Framework':<12} {'Model':<6} {'Simple':<8} {'Complex':<9} {'I/O Heavy':<10} {'Best In'}")
+    print("-" * 80)
+    
+    for result in successful_results:
+        best_in = []
+        
+        if result.speed_simple_ms == min(r.speed_simple_ms for r in successful_results):
+            best_in.append("Simple")
+        if result.speed_complex_ms == min(r.speed_complex_ms for r in successful_results):
+            best_in.append("Complex")
+        if result.speed_io_heavy_ms == min(r.speed_io_heavy_ms for r in successful_results):
+            best_in.append("I/O")
+        
+        best_str = ", ".join(best_in) if best_in else "-"
+        
+        print(f"{result.framework:<12} {result.execution_model:<6} {result.speed_simple_ms:<8.1f} "
+              f"{result.speed_complex_ms:<9.1f} {result.speed_io_heavy_ms:<10.1f} {best_str}")
+    
+    # 4. FRAMEWORK OVERHEAD ANALYSIS
+    print(f"\n🔧 FRAMEWORK OVERHEAD (Percentage - Lower is Better)")
+    print("-" * 70)
+    print(f"{'Framework':<12} {'Simple (%)':<11} {'Complex (%)':<12} {'Avg (%)':<9} {'Best In'}")
+    print("-" * 70)
+    
+    for result in successful_results:
+        avg_overhead = (result.overhead_simple_percent + result.overhead_complex_percent) / 2
+        best_in = []
+        
+        if result.overhead_simple_percent == min(r.overhead_simple_percent for r in successful_results):
+            best_in.append("Simple")
+        if result.overhead_complex_percent == min(r.overhead_complex_percent for r in successful_results):
+            best_in.append("Complex")
+        
+        best_str = ", ".join(best_in) if best_in else "-"
+        
+        print(f"{result.framework:<12} {result.overhead_simple_percent:<11.1f} "
+              f"{result.overhead_complex_percent:<12.1f} {avg_overhead:<9.1f} {best_str}")
+    
+    # 5. CONCURRENCY ANALYSIS
+    print(f"\n🚀 CONCURRENCY (Tasks per Second - Higher is Better)")
+    print("-" * 80)
+    print(f"{'Framework':<12} {'Model':<6} {'Low (10)':<9} {'High (100)':<11} {'Scaling':<10} {'Best In'}")
+    print("-" * 80)
+    
+    for result in successful_results:
+        scaling_factor = result.concurrency_high_tps / result.concurrency_low_tps if result.concurrency_low_tps > 0 else 0
+        best_in = []
+        
+        if result.concurrency_low_tps == max(r.concurrency_low_tps for r in successful_results):
+            best_in.append("Low")
+        if result.concurrency_high_tps == max(r.concurrency_high_tps for r in successful_results):
+            best_in.append("High")
+        
+        best_str = ", ".join(best_in) if best_in else "-"
+        
+        print(f"{result.framework:<12} {result.execution_model:<6} {result.concurrency_low_tps:<9.1f} "
+              f"{result.concurrency_high_tps:<11.1f} {scaling_factor:<10.2f}x {best_str}")
+    
+    # 6. MEMORY EFFICIENCY ANALYSIS
+    print(f"\n💾 MEMORY EFFICIENCY (MB per Task - Lower is Better)")
+    print("-" * 70)
+    print(f"{'Framework':<12} {'Simple':<8} {'Complex':<9} {'Avg':<8} {'Best In'}")
+    print("-" * 70)
+    
+    for result in successful_results:
+        avg_memory = (result.memory_simple_mb + result.memory_complex_mb) / 2
+        best_in = []
+        
+        valid_simple = [r.memory_simple_mb for r in successful_results if r.memory_simple_mb != float('inf')]
+        valid_complex = [r.memory_complex_mb for r in successful_results if r.memory_complex_mb != float('inf')]
+        
+        if valid_simple and result.memory_simple_mb == min(valid_simple):
+            best_in.append("Simple")
+        if valid_complex and result.memory_complex_mb == min(valid_complex):
+            best_in.append("Complex")
+        
+        best_str = ", ".join(best_in) if best_in else "-"
+        
+        simple_str = f"{result.memory_simple_mb:.1f}" if result.memory_simple_mb != float('inf') else "∞"
+        complex_str = f"{result.memory_complex_mb:.1f}" if result.memory_complex_mb != float('inf') else "∞"
+        avg_str = f"{avg_memory:.1f}" if avg_memory != float('inf') else "∞"
+        
+        print(f"{result.framework:<12} {simple_str:<8} {complex_str:<9} {avg_str:<8} {best_str}")
+    
+    # 7. OVERALL PERFORMANCE CHAMPION
+    print(f"\n🏆 OVERALL PERFORMANCE ANALYSIS")
+    print("-" * 120)
+    
+    # Calculate weighted scores
+    framework_scores = {}
+    
+    for result in successful_results:
+        scores = {}
+        
+        # Code efficiency (lower is better - invert for scoring)
+        total_code = result.code_simple_loc + result.code_complex_loc + result.code_typed_loc
+        max_code = max(r.code_simple_loc + r.code_complex_loc + r.code_typed_loc for r in successful_results)
+        scores["code"] = (max_code - total_code) / max_code * 100
+        
+        # Speed (lower is better - invert for scoring)
+        total_speed = result.speed_simple_ms + result.speed_complex_ms + result.speed_io_heavy_ms
+        max_speed = max(r.speed_simple_ms + r.speed_complex_ms + r.speed_io_heavy_ms for r in successful_results)
+        scores["speed"] = (max_speed - total_speed) / max_speed * 100
+        
+        # Overhead (lower is better - invert for scoring)
+        avg_overhead = (result.overhead_simple_percent + result.overhead_complex_percent) / 2
+        max_overhead = max((r.overhead_simple_percent + r.overhead_complex_percent) / 2 for r in successful_results)
+        scores["overhead"] = (max_overhead - avg_overhead) / max_overhead * 100
+        
+        # Concurrency (higher is better)
+        total_concurrency = result.concurrency_low_tps + result.concurrency_high_tps
+        max_concurrency = max(r.concurrency_low_tps + r.concurrency_high_tps for r in successful_results)
+        scores["concurrency"] = (total_concurrency / max_concurrency) * 100 if max_concurrency > 0 else 0
+        
+        # Memory (lower is better - handle infinity)
+        valid_memory = []
+        for r in successful_results:
+            total_mem = r.memory_simple_mb + r.memory_complex_mb
+            if total_mem != float('inf'):
+                valid_memory.append(total_mem)
+        
+        if valid_memory:
+            max_memory = max(valid_memory)
+            result_memory = result.memory_simple_mb + result.memory_complex_mb
+            if result_memory != float('inf') and max_memory > 0:
+                scores["memory"] = (max_memory - result_memory) / max_memory * 100
+            else:
+                scores["memory"] = 0
+        else:
+            scores["memory"] = 50  # Neutral score if no valid data
+        
+        # Overall weighted score
+        overall = (
+            scores["code"] * 0.20 +      # 20% weight
+            scores["speed"] * 0.30 +     # 30% weight (execution is critical)
+            scores["overhead"] * 0.25 +  # 25% weight (framework efficiency)
+            scores["concurrency"] * 0.15 + # 15% weight
+            scores["memory"] * 0.10      # 10% weight
+        )
+        
+        framework_scores[result.framework] = {
+            "overall": overall,
+            "execution_model": result.execution_model,
+            **scores
+        }
+    
+    # Sort by overall score
+    sorted_frameworks = sorted(framework_scores.items(), key=lambda x: x[1]["overall"], reverse=True)
+    
+    print(f"{'Rank':<6} {'Framework':<12} {'Model':<6} {'Overall':<8} {'Code':<6} {'Speed':<6} {'Overhead':<9} {'Concur':<6} {'Memory'}")
+    print("-" * 120)
+    
+    for i, (framework, scores) in enumerate(sorted_frameworks):
+        rank_symbol = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"{i+1}."
+        
+        print(f"{rank_symbol:<6} {framework:<12} {scores['execution_model']:<6} {scores['overall']:<8.1f} "
+              f"{scores['code']:<6.1f} {scores['speed']:<6.1f} {scores['overhead']:<9.1f} "
+              f"{scores['concurrency']:<6.1f} {scores['memory']:.1f}")
+    
+    # Performance insights
+    champion_name, champion_scores = sorted_frameworks[0]
+    print(f"\n🏆 PERFORMANCE CHAMPION: {champion_name}")
+    print(f"   • Execution Model: {champion_scores['execution_model']}")
+    print(f"   • Overall Score: {champion_scores['overall']:.1f}/100")
+    print(f"   • Strongest in: ", end="")
+    
+    strengths = []
+    if champion_scores["code"] >= 80:
+        strengths.append("code efficiency")
+    if champion_scores["speed"] >= 80:
+        strengths.append("execution speed")
+    if champion_scores["overhead"] >= 80:
+        strengths.append("low overhead")
+    if champion_scores["concurrency"] >= 80:
+        strengths.append("concurrency")
+    if champion_scores["memory"] >= 80:
+        strengths.append("memory efficiency")
+    
+    print(", ".join(strengths) if strengths else "balanced performance")
+    
+    print(f"\n📊 KEY INSIGHTS:")
+    print(f"   • Async frameworks (PuffinFlow, LlamaIndex) excel at I/O-heavy workloads")
+    print(f"   • Sync frameworks (LangGraph) may have lower overhead for CPU-bound tasks")
+    print(f"   • Framework choice should align with your workload characteristics")
+    print(f"   • All frameworks are viable - choose based on your specific needs")
+
+
+async def main():
+    """Run the fair benchmark suite."""
+    
+    print("🔧 Fair Agent Framework Benchmark Suite")
+    print("=" * 80)
+    print("Testing frameworks using their intended execution models:")
+    print("• PuffinFlow: Native async execution")
+    print("• LangGraph: Native sync execution with thread-based concurrency")
+    print("• LlamaIndex: Native async execution") 
+    print("• Real workloads: LLM calls, vector search, API calls")
+    print("• Consistent measurement methodology")
+    print("=" * 80)
+    
+    runner = FairBenchmarkRunner()
+    
+    # Framework benchmarks to run
+    framework_benchmarks = [
+        ("PuffinFlow", PuffinFlowBenchmark),
+        ("LangGraph", LangGraphBenchmark),
+        ("LlamaIndex", LlamaIndexBenchmark),
+    ]
+    
+    # Run benchmarks
+    for framework_name, benchmark_class in framework_benchmarks:
+        try:
+            await runner.run_framework_benchmark(framework_name, benchmark_class)
+        except Exception as e:
+            print(f"❌ {framework_name}: Benchmark suite failed - {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    # Print results
+    print_fair_benchmark_results(runner.results)
+    
+    print(f"\n✅ Fair benchmark suite completed!")
+    print(f"📊 Frameworks tested: {len([r for r in runner.results if r.code_simple_loc < 999])}")
+    print(f"📈 Each framework tested using its native execution model")
+    print(f"🎯 Results reflect real-world performance characteristics")
+    
     return runner.results
 
 
-def print_comparison_results(results: list[FrameworkBenchmarkResult]):
-    """Print detailed comparison results."""
-
-    print("\n" + "=" * 100)
-    print("📈 FRAMEWORK COMPARISON RESULTS")
-    print("=" * 100)
-
-    # Group results by benchmark name
-    benchmark_groups = {}
-    for result in results:
-        if result.name not in benchmark_groups:
-            benchmark_groups[result.name] = []
-        benchmark_groups[result.name].append(result)
-
-    for benchmark_name, benchmark_results in benchmark_groups.items():
-        print(f"\n🎯 {benchmark_name}")
-        print("-" * 80)
-
-        # Sort by performance (duration)
-        sorted_results = sorted(benchmark_results, key=lambda x: x.duration_ms)
-
-        print(
-            f"{'Framework':<12} {'Avg (ms)':<10} {'Throughput':<12} {'Memory (MB)':<12} {'Setup (ms)':<12}"
-        )
-        print("-" * 80)
-
-        for i, result in enumerate(sorted_results):
-            rank_symbol = (
-                "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else "  "
-            )
-            print(
-                f"{rank_symbol} {result.framework:<10} {result.duration_ms:<10.2f} "
-                f"{result.throughput_ops_per_sec:<12.1f} {result.memory_mb:<12.2f} "
-                f"{result.setup_time_ms:<12.2f}"
-            )
-
-    # Overall performance summary
-    print("\n🏆 OVERALL PERFORMANCE SUMMARY")
-    print("-" * 80)
-
-    framework_scores = {}
-    for _, benchmark_results in benchmark_groups.items():
-        sorted_results = sorted(benchmark_results, key=lambda x: x.duration_ms)
-        for i, result in enumerate(sorted_results):
-            if result.framework not in framework_scores:
-                framework_scores[result.framework] = []
-            framework_scores[result.framework].append(
-                len(sorted_results) - i
-            )  # Higher score is better
-
-    # Calculate average scores
-    framework_avg_scores = {}
-    for framework, scores in framework_scores.items():
-        framework_avg_scores[framework] = sum(scores) / len(scores)
-
-    # Sort by average score
-    ranked_frameworks = sorted(
-        framework_avg_scores.items(), key=lambda x: x[1], reverse=True
-    )
-
-    print(f"{'Rank':<6} {'Framework':<12} {'Avg Score':<12} {'Performance Profile'}")
-    print("-" * 80)
-
-    for i, (framework, avg_score) in enumerate(ranked_frameworks):
-        rank_symbol = (
-            "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"{i+1}."
-        )
-
-        # Get performance profile
-        framework_results = [r for r in results if r.framework == framework]
-        avg_duration = sum(r.duration_ms for r in framework_results) / len(
-            framework_results
-        )
-        avg_throughput = sum(r.throughput_ops_per_sec for r in framework_results) / len(
-            framework_results
-        )
-
-        profile = (
-            "Fast" if avg_duration < 10 else "Medium" if avg_duration < 50 else "Slow"
-        )
-
-        print(
-            f"{rank_symbol:<6} {framework:<12} {avg_score:<12.1f} {profile} ({avg_duration:.1f}ms, {avg_throughput:.1f} ops/s)"
-        )
-
-
-def main():
-    """Main function to run framework comparison benchmarks."""
-
-    print("🚀 Starting Framework Comparison Benchmarks")
-    print("Comparing PuffinFlow vs Dagster vs Prefect vs LangGraph")
-    print("=" * 80)
-
-    try:
-        # Run benchmarks
-        results = run_framework_comparison_benchmarks()
-
-        # Print results
-        print_comparison_results(results)
-
-        print("\n✅ Framework comparison completed successfully!")
-        print(f"📊 Total benchmarks run: {len(results)}")
-
-        return results
-
-    except Exception as e:
-        print(f"\n❌ Framework comparison failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return []
-
-
 if __name__ == "__main__":
-    main()
+    results = asyncio.run(main())
