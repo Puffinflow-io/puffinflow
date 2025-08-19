@@ -70,12 +70,9 @@ PuffinFlow delivers exceptional performance in production workloads. Our compreh
 
 ### Framework Comparison Results
 
-**Native API Framework Performance (vs LangGraph and LlamaIndex)**
-| Framework | Total Execution | Framework Overhead | Efficiency | Concurrent Workflows | Success Rate |
-|-----------|-----------------|-------------------|------------|---------------------|--------------|
-| **🥇 PuffinFlow** | **1.5ms** | **41.9%** | **58.1%** | **5 workflows** | **100%** |
-| **🥈 LlamaIndex** | **1.5ms** | 52.6% | 47.4% | 4 workflows | **100%** |
-| **🥉 LangGraph** | 2.2ms | 62.7% | 37.3% | 3 workflows | **100%** |
+**Standardized Performance Comparison (Fair Testing Conditions)**
+
+All frameworks tested with identical computational workloads and 3 concurrent workflows for fair comparison.
 
 ### Detailed Workflow-Specific Performance Comparison
 
