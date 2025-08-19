@@ -1,0 +1,276 @@
+{
+  "orchestration_benchmarks": [
+    {
+      "name": "Deep Dependency Chain",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "dependency_chain_latency",
+          "value": 11.188996099372162,
+          "unit": "ms",
+          "description": "Total time to execute deep dependency chain",
+          "is_better_lower": true
+        },
+        {
+          "name": "parallelization_efficiency",
+          "value": 18.968678210821842,
+          "unit": "ratio",
+          "description": "How well the framework parallelizes independent work",
+          "is_better_lower": false
+        },
+        {
+          "name": "dependency_wait_time",
+          "value": 0,
+          "unit": "ms",
+          "description": "Average time agents wait for dependencies",
+          "is_better_lower": true
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:10"
+    },
+    {
+      "name": "Wide Fanout Pattern",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "fanout_total_time",
+          "value": 51.69143180028186,
+          "unit": "ms",
+          "description": "Total time for fanout pattern execution",
+          "is_better_lower": true
+        },
+        {
+          "name": "consumer_avg_wait",
+          "value": 51.043957012108876,
+          "unit": "ms",
+          "description": "Average wait time for consumers",
+          "is_better_lower": true
+        },
+        {
+          "name": "consumer_start_spread",
+          "value": 0.21479319948412012,
+          "unit": "ms",
+          "description": "Spread in consumer start times (lower = better coordination)",
+          "is_better_lower": true
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:11"
+    },
+    {
+      "name": "Diamond DAG Pattern",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "diamond_dag_time",
+          "value": 63.031766599669936,
+          "unit": "ms",
+          "description": "Time to resolve and execute diamond DAG",
+          "is_better_lower": true
+        },
+        {
+          "name": "dag_execution_efficiency",
+          "value": 0.9519538820186109,
+          "unit": "ratio",
+          "description": "How efficiently the DAG is executed vs theoretical minimum",
+          "is_better_lower": false
+        },
+        {
+          "name": "max_dependency_resolution_time",
+          "value": 41.914376099884976,
+          "unit": "ms",
+          "description": "Maximum time any agent waits for dependencies",
+          "is_better_lower": true
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:12"
+    },
+    {
+      "name": "Cascading Failure Resilience",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "failure_handling_time",
+          "value": 62.32652070102631,
+          "unit": "ms",
+          "description": "Time to handle failures and retries",
+          "is_better_lower": true
+        },
+        {
+          "name": "failure_recovery_rate",
+          "value": 0.9833333333333334,
+          "unit": "ratio",
+          "description": "Proportion of agents that eventually succeeded",
+          "is_better_lower": false
+        },
+        {
+          "name": "retry_efficiency",
+          "value": 1.5,
+          "unit": "attempts",
+          "description": "Average attempts needed per agent",
+          "is_better_lower": true
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:13"
+    },
+    {
+      "name": "Partial Failure Isolation",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "isolation_execution_time",
+          "value": 21.26892329979455,
+          "unit": "ms",
+          "description": "Time to execute with isolated failures",
+          "is_better_lower": true
+        },
+        {
+          "name": "failure_isolation_rate",
+          "value": 1.0,
+          "unit": "ratio",
+          "description": "Rate of successful isolation from failures",
+          "is_better_lower": false
+        },
+        {
+          "name": "partial_success_rate",
+          "value": 0.6,
+          "unit": "ratio",
+          "description": "Proportion of agents that completed despite other failures",
+          "is_better_lower": false
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:13"
+    },
+    {
+      "name": "Resource Contention",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "resource_contention_time",
+          "value": 29.815094599325676,
+          "unit": "ms",
+          "description": "Total time under resource pressure",
+          "is_better_lower": true
+        },
+        {
+          "name": "contention_overhead_ratio",
+          "value": 19.330553828949697,
+          "unit": "ratio",
+          "description": "Ratio of wait time to work time",
+          "is_better_lower": true
+        },
+        {
+          "name": "resource_utilization_efficiency",
+          "value": 0.31554172772759204,
+          "unit": "ratio",
+          "description": "How efficiently resources are utilized",
+          "is_better_lower": false
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:14"
+    },
+    {
+      "name": "Memory Pressure",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "memory_pressure_time",
+          "value": 92.68831180015695,
+          "unit": "ms",
+          "description": "Time to execute under memory pressure",
+          "is_better_lower": true
+        },
+        {
+          "name": "memory_allocation_efficiency",
+          "value": 101236.8,
+          "unit": "ratio",
+          "description": "Efficiency of memory allocation and cleanup",
+          "is_better_lower": false
+        },
+        {
+          "name": "peak_memory_usage",
+          "value": 0.001953125,
+          "unit": "MB",
+          "description": "Peak additional memory used during execution",
+          "is_better_lower": true
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:15"
+    },
+    {
+      "name": "Horizontal Scaling",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "scaling_efficiency",
+          "value": 8.341609436162468,
+          "unit": "ratio",
+          "description": "How well throughput scales with agent count",
+          "is_better_lower": false
+        },
+        {
+          "name": "throughput_consistency",
+          "value": 0.7742696271674459,
+          "unit": "cv",
+          "description": "Coefficient of variation in throughput (lower is better)",
+          "is_better_lower": true
+        },
+        {
+          "name": "max_throughput",
+          "value": 7489.0385631931895,
+          "unit": "agents/sec",
+          "description": "Maximum achieved throughput",
+          "is_better_lower": false
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:16"
+    },
+    {
+      "name": "Coordination Overhead",
+      "framework": "PuffinFlow",
+      "metrics": [
+        {
+          "name": "coordination_overhead_growth",
+          "value": 1.7805339984169504,
+          "unit": "ratio",
+          "description": "How coordination overhead grows with complexity",
+          "is_better_lower": true
+        },
+        {
+          "name": "max_coordination_latency",
+          "value": 117.01756313994338,
+          "unit": "ms",
+          "description": "Maximum coordination latency observed",
+          "is_better_lower": true
+        },
+        {
+          "name": "coordination_scalability",
+          "value": 0.5616469119725722,
+          "unit": "ratio",
+          "description": "Inverse of overhead growth (higher is better)",
+          "is_better_lower": false
+        }
+      ],
+      "iterations": 10,
+      "success_rate": 1.0,
+      "timestamp": "2025-08-17 21:42:20"
+    }
+  ],
+  "generated_at": "2025-08-17 21:42:20",
+  "description": "Orchestration-focused benchmarks measuring workflow complexity, error handling, resource management, and scalability"
+}

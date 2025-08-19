@@ -110,7 +110,7 @@ async def step_one(context):
     context.set_variable("step", 1)
     return "step_two"  # Explicitly control next step
 
-@state 
+@state
 async def step_two(context):
     context.set_variable("step", 2)
     # End workflow

@@ -42,7 +42,7 @@ class StateType:
 
 
 class Context:
-    """Enhanced context for agent state management with rich content support."""
+    """Context for agent state management with rich content support."""
 
     _META_TYPED = "_meta_typed_"
     _META_VALIDATED = "_meta_validated_"

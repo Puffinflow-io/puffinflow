@@ -1,4 +1,4 @@
-"""Fresh integration tests using proven working agent patterns."""
+"""Integration tests."""
 
 import asyncio
 

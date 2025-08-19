@@ -1,4 +1,4 @@
-"""Agent module with enhanced coordination features."""
+"""Agent module with coordination features."""
 
 from typing import Any, Callable
 
@@ -268,9 +268,9 @@ __all__ = [
 ]
 
 __doc__ = """
-Enhanced Agent Module for PuffinFlow
+Agent Module for PuffinFlow
 
-This module provides the core Agent class with enhanced features for:
+This module provides the core Agent class with features for:
 - Direct variable access and manipulation
 - Rich context management with multiple content types
 - Team coordination and messaging

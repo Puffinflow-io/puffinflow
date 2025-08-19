@@ -45,15 +45,20 @@ class TestGettingStartedExamples:
         agent.add_state("fetch_data", fetch_data)
         agent.add_state("process_data", process_data)
         agent.add_state("save_results", save_results)
-        
+
         # Run the workflow
         result = await agent.run()
-        
+
         # Verify the workflow worked correctly
-        assert result.get_variable("final_results") == ["Hello, Alice!", "Hello, Bob!", "Hello, Charlie!"]
+        assert result.get_variable("final_results") == [
+            "Hello, Alice!",
+            "Hello, Bob!",
+            "Hello, Charlie!",
+        ]
 
     async def test_plain_function_state(self):
         """Test alternative without decorators from documentation."""
+
         async def my_function(context):
             context.set_variable("message", "Hello from Puffinflow!")
             return None
@@ -133,7 +138,7 @@ class TestGettingStartedExamples:
             context.set_variable("step", 1)
             return "step_two"  # Explicitly control next step
 
-        @state 
+        @state
         async def step_two(context):
             context.set_variable("step", 2)
             # End workflow
@@ -262,11 +267,17 @@ class TestGettingStartedExamples:
             # Waits for both parallel states to complete
             users = context.get_variable("users")
             orders = context.get_variable("orders")
-            context.set_variable("report", f"Report: {len(users)} users, {len(orders)} orders")
+            context.set_variable(
+                "report", f"Report: {len(users)} users, {len(orders)} orders"
+            )
 
         agent.add_state("fetch_users", fetch_users)
         agent.add_state("fetch_orders", fetch_orders)
-        agent.add_state("generate_report", generate_report, dependencies=["fetch_users", "fetch_orders"])
+        agent.add_state(
+            "generate_report",
+            generate_report,
+            dependencies=["fetch_users", "fetch_orders"],
+        )
 
         result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
 

@@ -217,7 +217,7 @@ async def external_service_call(context):
 from puffinflow.core.reliability import CircuitBreakerConfig
 circuit_config = CircuitBreakerConfig(failure_threshold=3, recovery_timeout=30.0)
 retry_policy = RetryPolicy(max_retries=3)
-agent.add_state("external_service_call", external_service_call, 
+agent.add_state("external_service_call", external_service_call,
                 retry_policy=retry_policy, circuit_breaker_config=circuit_config)
 \`\`\`
 
@@ -267,9 +267,9 @@ from puffinflow.core.reliability import BulkheadConfig
 db_bulkhead = BulkheadConfig(name="database", max_concurrent=2)
 file_bulkhead = BulkheadConfig(name="file_ops", max_concurrent=3)
 
-agent.add_state("database_query", database_query, 
+agent.add_state("database_query", database_query,
                 retry_policy=RetryPolicy(max_retries=2), bulkhead_config=db_bulkhead)
-agent.add_state("file_processing", file_processing, 
+agent.add_state("file_processing", file_processing,
                 retry_policy=RetryPolicy(max_retries=3), bulkhead_config=file_bulkhead)
 \`\`\`
 

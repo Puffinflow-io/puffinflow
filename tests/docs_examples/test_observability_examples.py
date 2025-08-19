@@ -4,15 +4,15 @@ Tests for observability.ts documentation examples.
 """
 
 import asyncio
-import pytest
 import sys
 import time
-from unittest.mock import Mock, patch
+
+import pytest
 
 # Add the src directory to Python path
-sys.path.insert(0, 'src')
+sys.path.insert(0, "src")
 
-from puffinflow import Agent, state, Priority
+from puffinflow import Agent, Priority, state
 
 
 class TestObservabilityExamples:
@@ -26,7 +26,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def process_user_request(context):
             """Process request with metrics tracking"""
-            
+
             user_id = context.get_variable("user_id", "user_123")
             request_type = context.get_variable("request_type", "search")
 
@@ -63,10 +63,7 @@ class TestObservabilityExamples:
 
         # Run with sample context
         result = await agent.run(
-                        initial_context={
-                "user_id": "user_001",
-                "request_type": "search"
-            }
+            initial_context={"user_id": "user_001", "request_type": "search"}
         )
 
         assert result.get_variable("request_processed") is True
@@ -82,7 +79,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def start_traced_workflow(context):
             """Start workflow with tracing"""
-            
+
             user_id = context.get_variable("user_id", "user_123")
             print(f"🚀 Starting traced workflow for {user_id}")
 
@@ -101,7 +98,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def load_user_data(context):
             """Load user data with tracing"""
-            
+
             if not context.get_variable("authenticated", False):
                 return "handle_auth_failure"
 
@@ -114,7 +111,7 @@ class TestObservabilityExamples:
             user_data = {
                 "user_id": user_id,
                 "name": f"User {user_id.split('_')[1]}",
-                "subscription": "premium"
+                "subscription": "premium",
             }
 
             context.set_variable("user_data", user_data)
@@ -123,7 +120,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def personalize_experience(context):
             """Personalize with tracing"""
-            
+
             user_data = context.get_variable("user_data")
             print(f"🎨 Personalizing for {user_data['name']}")
 
@@ -140,7 +137,7 @@ class TestObservabilityExamples:
         @state(timeout=10.0)
         async def handle_auth_failure(context):
             """Handle authentication failure"""
-            
+
             print("❌ Authentication failed")
             context.set_output("auth_status", "failed")
             return None
@@ -152,9 +149,7 @@ class TestObservabilityExamples:
         agent.add_state("handle_auth_failure", handle_auth_failure)
 
         # Test successful workflow
-        result = await agent.run(
-                        initial_context={"user_id": "user_001"}
-        )
+        result = await agent.run(initial_context={"user_id": "user_001"})
 
         assert result.get_variable("authenticated") is True
         assert result.get_variable("user_data")["user_id"] == "user_001"
@@ -163,16 +158,14 @@ class TestObservabilityExamples:
 
         # Test failed authentication with a new agent instance
         failed_agent = Agent("tracing-demo-failed")
-        
+
         # Add states to the failed agent
         failed_agent.add_state("start_traced_workflow", start_traced_workflow)
         failed_agent.add_state("load_user_data", load_user_data)
         failed_agent.add_state("personalize_experience", personalize_experience)
         failed_agent.add_state("handle_auth_failure", handle_auth_failure)
-        
-        result = await failed_agent.run(
-            initial_context={"user_id": "invalid_user"}
-        )
+
+        result = await failed_agent.run(initial_context={"user_id": "invalid_user"})
 
         assert result.get_variable("authenticated") is False
         assert result.get_output("auth_status") == "failed"
@@ -185,7 +178,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def api_request_with_logging(context):
             """API request with structured logging"""
-            
+
             request_id = context.get_variable("request_id", "req_001")
             user_id = context.get_variable("user_id", "user_123")
             endpoint = context.get_variable("endpoint", "/api/profile")
@@ -211,7 +204,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def database_operation(context):
             """Database operation with logging"""
-            
+
             request_id = context.get_variable("request_id")
             print(f"🗄️ Database operation for request {request_id}")
 
@@ -231,9 +224,9 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def complete_request(context):
             """Complete request with logging"""
-            
+
             request_id = context.get_variable("request_id")
-            
+
             print(f"📝 Completing request {request_id}")
             print(f"   API Status: {context.get_variable('api_status')}")
             print(f"   DB Status: {context.get_variable('db_status')}")
@@ -249,10 +242,10 @@ class TestObservabilityExamples:
 
         # Run the logging workflow
         result = await agent.run(
-                        initial_context={
+            initial_context={
                 "request_id": "req_001",
                 "user_id": "user_123",
-                "endpoint": "/api/profile"
+                "endpoint": "/api/profile",
             }
         )
 
@@ -271,7 +264,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0)
         async def monitored_operation(context):
             """Operation with health monitoring"""
-            
+
             print("🔍 Running monitored operation...")
 
             # Simulate health monitoring
@@ -279,7 +272,7 @@ class TestObservabilityExamples:
                 "cpu_usage": 45.0,
                 "memory_usage": 60.0,
                 "response_time": 0.150,
-                "error_rate": 0.01
+                "error_rate": 0.01,
             }
 
             # Simulate work
@@ -296,7 +289,7 @@ class TestObservabilityExamples:
             health_report = {
                 "overall_status": health_status,
                 "metrics": health_metrics,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             print(f"📊 Health Status: {health_status}")
@@ -323,7 +316,7 @@ class TestObservabilityExamples:
         @state(timeout=30.0, priority=Priority.HIGH)
         async def production_ready_state(context):
             """Production state with full observability"""
-            
+
             print("🚀 Running production state with full observability")
 
             # Simulate production work
@@ -341,11 +334,14 @@ class TestObservabilityExamples:
 
             # Set outputs for monitoring
             context.set_output("production_complete", True)
-            context.set_output("performance_metrics", {
-                "execution_time": execution_time,
-                "business_kpi": business_kpi,
-                "user_satisfaction": user_satisfaction
-            })
+            context.set_output(
+                "performance_metrics",
+                {
+                    "execution_time": execution_time,
+                    "business_kpi": business_kpi,
+                    "user_satisfaction": user_satisfaction,
+                },
+            )
 
             print(f"✅ Production operation completed in {execution_time:.3f}s")
             print(f"   Business KPI: {business_kpi}")
@@ -359,12 +355,12 @@ class TestObservabilityExamples:
         result = await agent.run()
 
         assert result.get_output("production_complete") is True
-        
+
         metrics = result.get_output("performance_metrics")
         assert metrics["business_kpi"] == 95.5
         assert metrics["user_satisfaction"] == 4.8
         assert metrics["execution_time"] > 0
-        
+
         assert result.get_variable("business_kpi") == 95.5
         assert result.get_variable("user_satisfaction") == 4.8
 

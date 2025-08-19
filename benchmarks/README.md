@@ -294,7 +294,7 @@ Comprehensive performance evaluation of agent framework capabilities:
 Each framework is tested using its native patterns and APIs:
 
 **PuffinFlow**: Uses `@state` decorators and `Agent` classes with proper dependency resolution
-**LangGraph**: Uses `StateGraph` with `TypedDict` state definitions and native node routing  
+**LangGraph**: Uses `StateGraph` with `TypedDict` state definitions and native node routing
 **LlamaIndex**: Uses `Workflow` classes with event-driven `@step` methods
 
 #### Technical Measurement Methodology:
@@ -308,7 +308,7 @@ Each framework is tested using its native patterns and APIs:
 #### Benchmark Environment:
 
 - **Consistent Hardware**: All tests run on the same system configuration
-- **Local Execution**: No network or database overhead to ensure fair comparison  
+- **Local Execution**: No network or database overhead to ensure fair comparison
 - **Realistic Workloads**: Tests mirror common agent coordination patterns
 - **Error Handling**: Proper timeout and error handling for failed framework setups
 

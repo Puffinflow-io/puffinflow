@@ -39,7 +39,9 @@ class TestErrorHandlingExamples:
             context.set_variable("expensive_result", "success")
 
         agent.add_state("stable_api_call", stable_api_call)
-        agent.add_state("expensive_operation", expensive_operation, dependencies=["stable_api_call"])
+        agent.add_state(
+            "expensive_operation", expensive_operation, dependencies=["stable_api_call"]
+        )
 
         result = await agent.run()
 
@@ -78,7 +80,11 @@ class TestErrorHandlingExamples:
                     context.set_variable("rt_result", "timeout")
 
         agent.add_state("quick_health_check", quick_health_check)
-        agent.add_state("real_time_api_call", real_time_api_call, dependencies=["quick_health_check"])
+        agent.add_state(
+            "real_time_api_call",
+            real_time_api_call,
+            dependencies=["quick_health_check"],
+        )
 
         result = await agent.run()
 
@@ -132,9 +138,21 @@ class TestErrorHandlingExamples:
             context.set_variable("background_status", "completed")
 
         agent.add_state("critical_system_operation", critical_system_operation)
-        agent.add_state("user_facing_operation", user_facing_operation, dependencies=["critical_system_operation"])
-        agent.add_state("business_logic_operation", business_logic_operation, dependencies=["user_facing_operation"])
-        agent.add_state("background_operation", background_operation, dependencies=["business_logic_operation"])
+        agent.add_state(
+            "user_facing_operation",
+            user_facing_operation,
+            dependencies=["critical_system_operation"],
+        )
+        agent.add_state(
+            "business_logic_operation",
+            business_logic_operation,
+            dependencies=["user_facing_operation"],
+        )
+        agent.add_state(
+            "background_operation",
+            background_operation,
+            dependencies=["business_logic_operation"],
+        )
 
         result = await agent.run()
 

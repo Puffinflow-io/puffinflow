@@ -36,7 +36,7 @@ class ResourceState(Enum):
 
 @dataclass
 class CoordinationPrimitive:
-    """Enhanced coordination primitive"""
+    """Coordination primitive"""
 
     name: str
     type: PrimitiveType

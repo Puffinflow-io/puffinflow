@@ -4,9 +4,6 @@ from unittest.mock import patch
 
 import pytest
 
-# Note: The imports in the decorators __init__.py have incorrect paths
-# They use 'src.puffinflow' instead of 'puffinflow', so we'll test what we can
-
 
 class TestDecoratorsModuleStructure:
     """Test the decorators module structure and expected exports."""

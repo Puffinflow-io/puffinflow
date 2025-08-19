@@ -1,4 +1,4 @@
-"""Enhanced Agent with direct access and coordination features."""
+"""Agent with direct access and coordination features."""
 
 import asyncio
 import json

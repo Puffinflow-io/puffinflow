@@ -480,6 +480,7 @@ class CompositeRateLimiter:
         # If any fails, the whole request fails
         # Note: This approach may consume tokens from some limiters even if others fail
         # A more sophisticated approach would require checking all first, then acquiring
+        # TODO: Implement a more sophisticated acquisition strategy
 
         acquired_from = []
         for i, limiter in enumerate(self.limiters):

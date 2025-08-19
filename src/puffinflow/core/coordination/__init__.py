@@ -1,4 +1,4 @@
-"""Enhanced coordination module for multi-agent workflows."""
+"""Coordination module for multi-agent workflows."""
 
 from .agent_group import (
     AgentGroup,
@@ -43,7 +43,7 @@ from .fluent_api import (
     run_sequential_agents,
 )
 
-# Import existing coordination components
+# Import coordination components
 try:
     from .coordinator import AgentCoordinator, CoordinationConfig, enhance_agent
     from .deadlock import DeadlockDetector, DeadlockResolutionStrategy
@@ -74,7 +74,6 @@ except ImportError:
 
 __all__ = [
     "AdaptiveRateLimiter",
-    # Existing coordination (if available)
     "AgentCoordinator",
     # Group coordination
     "AgentGroup",

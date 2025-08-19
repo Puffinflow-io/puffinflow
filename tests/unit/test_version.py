@@ -41,7 +41,7 @@ class TestVersionModule:
         # All required exports must be present
         for export in required_exports:
             assert export in version.__all__, f"Missing required export: {export}"
-        
+
         # Additional exports like __commit_id__ may be present on some platforms
         # but shouldn't break functionality
 
