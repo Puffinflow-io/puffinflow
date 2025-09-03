@@ -208,3 +208,7 @@ trufflehog-results.json
 .safety
 .semgrep
 .vercel
+
+# Extracted repositories (now separate repos)
+doc-site/
+puffinflow-visual-editor/
