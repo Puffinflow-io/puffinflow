@@ -3,42 +3,33 @@ import React from 'react';
 import CodeBlock from './CodeBlock';
 
 const heroCode = `
-# Production AI workflows that actually work
+# Before Puffinflow: Your AI pipeline dies randomly
+try:
+    result = await openai_call(prompt)  # What if this fails?
+    processed = await heavy_processing(result)  # Memory leak here
+    await save_to_db(processed)  # What if DB is down?
+except:
+    # Good luck debugging this mess 🤷‍♂️
+    pass
+
+# After Puffinflow: Bulletproof in 3 decorators  
 from puffinflow import Agent, Context, state
 
-class CustomerSupportAgent(Agent):
+class RobustAI(Agent):
     def __init__(self):
-        super().__init__("customer-support-ai")
-        self.add_state("classify_request", self.classify_request)
-        self.add_state("handle_technical", self.handle_technical)
-        self.add_state("send_response", self.send_response)
+        super().__init__("bulletproof-ai")
+        self.add_state("ai_pipeline", self.ai_pipeline)
 
-    @state(cpu=1.0, memory=256.0)
-    async def classify_request(self, context: Context):
-        user_msg = context.get_variable("user_message")
-        classification = await llm.classify(user_msg)
-        context.set_variable("intent", classification)
-        
-        # Dynamic routing based on AI decision
-        return f"handle_{classification}"
+    @state(retries=3, circuit_breaker=True, memory_limit=512)
+    async def ai_pipeline(self, context: Context):
+        result = await openai_call(prompt)  # Auto-retries with backoff
+        processed = await heavy_processing(result)  # Memory managed  
+        await save_to_db(processed)  # Circuit breaker prevents cascade
+        return "success"  # Full observability included ✨
 
-    @state(rate_limit=50.0, timeout=30.0)  # Quota-aware
-    async def handle_technical(self, context: Context):
-        intent = context.get_variable("intent")
-        response = await llm.technical_support(intent)
-        context.set_variable("response", response)
-        return "send_response"
-
-    @state(checkpoint=True)  # Auto-save progress
-    async def send_response(self, context: Context):
-        response = context.get_variable("response")
-        await send_to_user(response)
-        return None  # Workflow complete
-
-# Handles 1000s of concurrent conversations
-agent = CustomerSupportAgent()
-agent.set_variable("user_message", "My API is down")
-await agent.run()
+# Production-ready AI that actually works
+agent = RobustAI()
+result = await agent.run()  # Never fails silently again
 `.trim();
 
 const Hero: React.FC = () => {
@@ -56,10 +47,10 @@ const Hero: React.FC = () => {
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-extrabold text-gray-50 tracking-tighter leading-tight">
-            Production-Grade Workflow Orchestration <br className="hidden md:block" /> for <span className="text-orange-400">AI Engineers</span>
+            Turn Your Broken AI Pipeline <br className="hidden md:block" /> Into <span className="text-orange-400">Bulletproof Production Code</span>
           </h1>
           <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-            When your AI workflows need to actually work in production. Puffinflow gives you enterprise reliability patterns that conversational AI frameworks don't provide.
+            Stop debugging mysterious AI failures at 3 AM. Three decorators give you retries, circuit breakers, memory management, and full observability.
           </p>
           <div className="mt-10 flex justify-center items-center flex-wrap gap-4">
             <a
