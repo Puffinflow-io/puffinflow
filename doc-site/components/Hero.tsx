@@ -4,34 +4,41 @@ import CodeBlock from './CodeBlock';
 
 const heroCode = `
 # Production AI workflows that actually work
-from puffinflow import Agent
+from puffinflow import Agent, Context, state
 
-agent = Agent("customer-support-ai")
+class CustomerSupportAgent(Agent):
+    def __init__(self):
+        super().__init__("customer-support-ai")
+        self.add_state("classify_request", self.classify_request)
+        self.add_state("handle_technical", self.handle_technical)
+        self.add_state("send_response", self.send_response)
 
-@agent.state
-async def classify_request(context):
-    user_msg = context.get_variable("user_message")
-    classification = await llm.classify(user_msg)
-    context.set_variable("intent", classification)
+    @state(cpu=1.0, memory=256.0)
+    async def classify_request(self, context: Context):
+        user_msg = context.get_variable("user_message")
+        classification = await llm.classify(user_msg)
+        context.set_variable("intent", classification)
+        
+        # Dynamic routing based on AI decision
+        return f"handle_{classification}"
 
-    # Dynamic routing based on AI decision
-    return f"handle_{classification}"
+    @state(rate_limit=50.0, timeout=30.0)  # Quota-aware
+    async def handle_technical(self, context: Context):
+        intent = context.get_variable("intent")
+        response = await llm.technical_support(intent)
+        context.set_variable("response", response)
+        return "send_response"
 
-@agent.state(rate_limit=50.0, timeout=30.0)  # Quota-aware
-async def handle_technical(context):
-    intent = context.get_variable("intent")
-    response = await llm.technical_support(intent)
-    context.set_variable("response", response)
-    return "send_response"
-
-@agent.state(checkpoint=True)  # Auto-save progress
-async def send_response(context):
-    response = context.get_variable("response")
-    await send_to_user(response)
-    return None  # Workflow complete
+    @state(checkpoint=True)  # Auto-save progress
+    async def send_response(self, context: Context):
+        response = context.get_variable("response")
+        await send_to_user(response)
+        return None  # Workflow complete
 
 # Handles 1000s of concurrent conversations
-await agent.run(initial_context={"user_message": "My API is down"})
+agent = CustomerSupportAgent()
+agent.set_variable("user_message", "My API is down")
+await agent.run()
 `.trim();
 
 const Hero: React.FC = () => {

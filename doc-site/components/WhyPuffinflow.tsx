@@ -61,17 +61,21 @@ const featuresData = [
             "Focus on business logic, not boilerplate.",
             "No rigid DAG structures to fight against."
         ],
-        code: `from puffinflow import flow, task
+        code: `from puffinflow import Agent, Context, state
 
-@task
-def say_hello():
-    print("Hello, World! I'm Puffinflow!")
+class HelloAgent(Agent):
+    def __init__(self):
+        super().__init__("hello-agent")
+        self.add_state("say_hello", self.say_hello)
 
-@flow(name="My First Puffinflow")
-def my_first_flow():
-    say_hello()
+    @state(cpu=0.5, memory=128.0)
+    async def say_hello(self, context: Context):
+        print("Hello, World! I'm Puffinflow!")
+        return None  # Complete
 
-my_first_flow()`,
+# Run the agent
+agent = HelloAgent()
+await agent.run()`,
         fileName: 'simple_flow.py',
         theme: 'sky',
     },
@@ -111,18 +115,25 @@ async def reliable_api_call(context: Context):
             "Visualizers for complex workflow graphs.",
             "Time-travel debugging to inspect past states."
         ],
-        code: `# After a flow runs, inspect its state
-run = my_first_flow.get_latest_run()
+        code: `async def debug_agent():
+    # After an agent runs, inspect its state
+    agent = MyAgent("debug-agent")
+    result = await agent.run()
 
-print(f"Status: {run.status}")
-# > Status: COMPLETED
+    print(f"Status: {result.status}")
+    # > Status: COMPLETED
 
-# Get variables set during the run
-api_result = run.get_variable("api_result")
-print(f"API Result: {api_result}")
+    # Get outputs from the run
+    api_result = result.get_output("api_result")
+    print(f"API Result: {api_result}")
 
-# Access logs for a specific state
-logs = run.get_logs("reliable_api_call")`,
+    # Access agent variables
+    batch_size = agent.get_variable("batch_size")
+    print(f"Batch Size: {batch_size}")
+
+# Run the debug function
+import asyncio
+asyncio.run(debug_agent())`,
         fileName: 'inspect_run.py',
         theme: 'purple',
     }
