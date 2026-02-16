@@ -1,0 +1,4 @@
+# TruffleHog configuration file
+# Minimal valid configuration
+filterUnverified: true
+logLevel: info
