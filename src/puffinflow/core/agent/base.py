@@ -1,6 +1,7 @@
 """Agent with direct access and coordination features."""
 
 import asyncio
+import contextlib
 import heapq
 import json
 import logging
@@ -1393,7 +1394,7 @@ class Agent:
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             # Apply Command results from branches using reducers
-            for i, res in enumerate(results):
+            for _, res in enumerate(results):
                 if isinstance(res, Exception):
                     continue
                 if isinstance(res, Command):
@@ -1452,10 +1453,8 @@ class Agent:
         finally:
             if not task.done():
                 task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError, Exception):
                     await task
-                except (asyncio.CancelledError, Exception):
-                    pass
 
     def _apply_initial_context(self, initial_context: dict[str, Any]) -> None:
         """Apply initial context data with support for different data types."""
@@ -1656,7 +1655,7 @@ class Agent:
 
         # Build dependency graph for topological sort (Kahn's algorithm)
         pending_set = {sn for sn, _ in pending}
-        pending_map = {sn: mn for sn, mn in pending}
+        pending_map = dict(pending)
         # Collect depends_on from decorator metadata
         deps_map: dict[str, list[str]] = {}
         for state_name, method_name in pending:
@@ -2875,12 +2874,10 @@ class Agent:
                     self.completed_once = set(_sm_core.get_completed_once())
                     for sn in self.states:
                         status_str = _sm_core.get_state_status(sn)
-                        try:
+                        with contextlib.suppress(ValueError, AttributeError):
                             self.state_metadata[sn].status = StateStatus(
                                 status_str
                             )
-                        except (ValueError, AttributeError):
-                            pass
 
                 else:
                     # Pure Python path

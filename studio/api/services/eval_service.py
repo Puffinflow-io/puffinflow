@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from studio.eval.engine import EvalEngine
 from studio.eval.scorers import get_scorer
@@ -114,7 +116,7 @@ class EvalService:
         self,
         session: AsyncSession,
         run_id: str,
-    ) -> Optional[EvalRun]:
+    ) -> EvalRun | None:
         result = await session.execute(
             select(EvalRun)
             .options(selectinload(EvalRun.results))

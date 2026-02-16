@@ -1,6 +1,6 @@
 """Eval suite YAML parser and data models."""
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any
 from pathlib import Path
 from pydantic import BaseModel, Field
 import yaml
@@ -12,7 +12,7 @@ class EvalCaseConfig(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)  # Input variables for the agent
     expected: dict[str, Any] = Field(default_factory=dict)  # Expected output
     tags: list[str] = Field(default_factory=list)
-    timeout: Optional[float] = None
+    timeout: float | None = None
 
 
 class ScoringConfig(BaseModel):

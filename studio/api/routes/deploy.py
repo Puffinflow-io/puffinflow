@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Workflow
 from ..services.deploy_service import deploy_service
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/deploy", tags=["deploy"])
 
@@ -67,7 +69,7 @@ async def trigger_deploy(body: DeployRequest, session: AsyncSession = Depends(ge
         )
         return _to_out(deployment)
     except ValueError as exc:
-        raise HTTPException(422, str(exc))
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/{deployment_id}", response_model=DeployOut)

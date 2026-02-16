@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ..ir import WorkflowIR
 from .base import DeployGenerator
+
+if TYPE_CHECKING:
+    from ..ir import WorkflowIR
 
 
 class ModalGenerator(DeployGenerator):

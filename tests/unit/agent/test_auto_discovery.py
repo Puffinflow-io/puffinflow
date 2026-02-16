@@ -173,7 +173,7 @@ class TestBackwardCompat:
 
     @pytest.mark.asyncio
     async def test_bare_agent_no_auto_states(self):
-        agent = Agent("bare")
+        _agent = Agent("bare")
         assert Agent._puffinflow_auto_states == ()
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, List, Protocol, runtime_checkable
 
 Namespace = tuple[str, ...]
 
@@ -30,20 +30,20 @@ class BaseStore(Protocol):
         namespace: Namespace,
         key: str,
         value: Any,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None: ...
 
-    async def get(self, namespace: Namespace, key: str) -> Optional[Item]: ...
+    async def get(self, namespace: Namespace, key: str) -> Item | None: ...
 
     async def delete(self, namespace: Namespace, key: str) -> bool: ...
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> list[Item]: ...
+    ) -> List[Item]: ...
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
-    ) -> list[Item]: ...
+    ) -> List[Item]: ...
 
 
 class MemoryStore:
@@ -62,7 +62,7 @@ class MemoryStore:
         namespace: Namespace,
         key: str,
         value: Any,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         now = time.time()
         self._seq += 1
@@ -83,7 +83,7 @@ class MemoryStore:
                 metadata=metadata or {},
             )
 
-    async def get(self, namespace: Namespace, key: str) -> Optional[Item]:
+    async def get(self, namespace: Namespace, key: str) -> Item | None:
         return self._data.get((namespace, key))
 
     async def delete(self, namespace: Namespace, key: str) -> bool:
@@ -95,7 +95,7 @@ class MemoryStore:
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> list[Item]:
+    ) -> List[Item]:
         items = [
             item for (ns, _), item in self._data.items() if ns == namespace
         ]
@@ -108,7 +108,7 @@ class MemoryStore:
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
-    ) -> list[Item]:
+    ) -> List[Item]:
         results: list[Item] = []
         for (ns, k), item in self._data.items():
             if ns[:len(namespace)] != namespace:

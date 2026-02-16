@@ -4,16 +4,18 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import yaml
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from studio.codegen.deploy.docker_gen import DockerGenerator
 from studio.codegen.deploy.modal_gen import ModalGenerator
 from studio.codegen.generator import CodeGenerator
 from studio.codegen.ir import WorkflowIR
 from ..models import Deployment, Workflow
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class DeployService:
@@ -73,7 +75,7 @@ class DeployService:
         self,
         session: AsyncSession,
         deployment_id: str,
-    ) -> Optional[Deployment]:
+    ) -> Deployment | None:
         return await session.get(Deployment, deployment_id)
 
 

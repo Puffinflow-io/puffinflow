@@ -511,9 +511,8 @@ class Context:
         if state_type in (StateType.ANY, StateType.UNTYPED):
             keys.update(self.get_variable_keys())
 
-        if state_type in (StateType.ANY, StateType.TYPED):
-            if self._typed_data is not None:
-                keys.update(self._typed_data.keys())
+        if state_type in (StateType.ANY, StateType.TYPED) and self._typed_data is not None:
+            keys.update(self._typed_data.keys())
 
         return keys
 

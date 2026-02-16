@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Optional
+from typing import Any, List
 
 try:
-    import aiosqlite
+    import aiosqlite  # type: ignore[import-not-found]
 except ImportError as _e:
     raise ImportError(
         "SqliteStore requires 'aiosqlite'. Install with: pip install aiosqlite"
@@ -21,7 +21,7 @@ class SqliteStore:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self._db_path = db_path
-        self._db: Optional[aiosqlite.Connection] = None
+        self._db: aiosqlite.Connection | None = None
 
     async def _ensure_db(self) -> aiosqlite.Connection:
         if self._db is None:
@@ -49,7 +49,7 @@ class SqliteStore:
         namespace: Namespace,
         key: str,
         value: Any,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         db = await self._ensure_db()
         now = time.time()
@@ -67,7 +67,7 @@ class SqliteStore:
         )
         await db.commit()
 
-    async def get(self, namespace: Namespace, key: str) -> Optional[Item]:
+    async def get(self, namespace: Namespace, key: str) -> Item | None:
         db = await self._ensure_db()
         ns_str = self._ns_str(namespace)
         cursor = await db.execute(
@@ -93,11 +93,11 @@ class SqliteStore:
             "DELETE FROM store WHERE namespace=? AND key=?", (ns_str, key)
         )
         await db.commit()
-        return cursor.rowcount > 0
+        return bool(cursor.rowcount > 0)
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> list[Item]:
+    ) -> List[Item]:
         db = await self._ensure_db()
         ns_str = self._ns_str(namespace)
         cursor = await db.execute(
@@ -120,7 +120,7 @@ class SqliteStore:
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
-    ) -> list[Item]:
+    ) -> List[Item]:
         db = await self._ensure_db()
         ns_str = self._ns_str(namespace)
         if query:

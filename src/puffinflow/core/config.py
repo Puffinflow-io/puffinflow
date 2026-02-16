@@ -45,7 +45,7 @@ if _HAS_PYDANTIC_SETTINGS:
 else:
     # Lightweight fallback when pydantic-settings is not installed
     class Settings:  # type: ignore[no-redef]
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs) -> None:
             self.app_name: str = kwargs.get("app_name", "PuffinFlow")
             self.environment: str = kwargs.get("environment", "development")
             self.debug: bool = kwargs.get("debug", False)

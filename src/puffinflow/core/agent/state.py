@@ -1,5 +1,7 @@
 """State management types and enums."""
 
+from __future__ import annotations
+
 import asyncio
 import random
 import uuid
@@ -23,8 +25,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .base import Agent
-
-from .command import Command, Send
+    from .command import Command, Send
 
 StateResult = Union[
     str,

@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..db import get_session
 from ..models import EvalCase, EvalRun, EvalSuite, Workflow
 from ..services.eval_service import eval_service
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/eval", tags=["eval"])
 
@@ -27,8 +29,8 @@ class SuiteCreate(BaseModel):
 
 
 class SuiteUpdate(BaseModel):
-    name: Optional[str] = None
-    scoring_config: Optional[dict] = None
+    name: str | None = None
+    scoring_config: dict | None = None
 
 
 class SuiteOut(BaseModel):
@@ -135,7 +137,7 @@ def _run_out(r: EvalRun, include_results: bool = False) -> dict:
 
 @router.get("/suites", response_model=list[SuiteOut])
 async def list_suites(
-    project_id: Optional[str] = None,
+    project_id: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     query = select(EvalSuite).order_by(EvalSuite.created_at.desc())

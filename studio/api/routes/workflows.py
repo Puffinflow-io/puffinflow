@@ -1,16 +1,19 @@
 """Workflow CRUD routes with code generation integration."""
 from __future__ import annotations
 
-from typing import Optional
+import contextlib
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Workflow
 from ..services.codegen_service import codegen_service
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/workflows", tags=["workflows"])
 
@@ -25,8 +28,8 @@ class WorkflowCreate(BaseModel):
 
 
 class WorkflowUpdate(BaseModel):
-    name: Optional[str] = None
-    yaml_content: Optional[str] = None
+    name: str | None = None
+    yaml_content: str | None = None
 
 
 class WorkflowOut(BaseModel):
@@ -60,7 +63,7 @@ def _to_out(w: Workflow) -> dict:
 
 @router.get("", response_model=list[WorkflowOut])
 async def list_workflows(
-    project_id: Optional[str] = None,
+    project_id: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     query = select(Workflow).order_by(Workflow.created_at.desc())
@@ -74,10 +77,8 @@ async def list_workflows(
 async def create_workflow(body: WorkflowCreate, session: AsyncSession = Depends(get_session)):
     generated = ""
     if body.yaml_content:
-        try:
+        with contextlib.suppress(Exception):
             generated = codegen_service.generate_from_yaml(body.yaml_content)
-        except Exception:
-            pass  # Store YAML even if codegen fails
 
     workflow = Workflow(
         project_id=body.project_id,
@@ -143,7 +144,7 @@ async def regenerate_workflow(workflow_id: str, session: AsyncSession = Depends(
         workflow.generated_python = codegen_service.generate_from_yaml(workflow.yaml_content)
         workflow.version = (workflow.version or 1) + 1
     except Exception as exc:
-        raise HTTPException(422, f"Code generation failed: {exc}")
+        raise HTTPException(422, f"Code generation failed: {exc}") from exc
     await session.commit()
     await session.refresh(workflow)
     return _to_out(workflow)
@@ -170,7 +171,7 @@ async def reverse_parse_workflow(
         workflow.generated_python = body.python_source
         workflow.version = (workflow.version or 1) + 1
     except Exception as exc:
-        raise HTTPException(422, f"Reverse parse failed: {exc}")
+        raise HTTPException(422, f"Reverse parse failed: {exc}") from exc
     await session.commit()
     await session.refresh(workflow)
     return _to_out(workflow)

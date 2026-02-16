@@ -23,7 +23,7 @@ def append_reducer(existing: Any, new: Any) -> Any:
         existing = [existing] if existing is not None else []
     if isinstance(new, list):
         return existing + new
-    return existing + [new]
+    return [*existing, new]
 
 
 def replace_reducer(existing: Any, new: Any) -> Any:

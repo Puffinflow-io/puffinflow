@@ -10,7 +10,7 @@ __all__ = [
 
 # SqliteStore is optional — requires aiosqlite
 try:
-    from .sqlite import SqliteStore
+    from .sqlite import SqliteStore  # noqa: F401
 
     __all__.append("SqliteStore")
 except ImportError:

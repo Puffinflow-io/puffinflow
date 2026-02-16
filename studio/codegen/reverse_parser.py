@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import Optional
 
 from .ir import (
     AgentConfig,
@@ -44,7 +43,7 @@ class ReverseParser:
             raise ValueError("No Agent subclass found in source")
         return self._build_ir(class_node, source)
 
-    def _find_agent_class(self, tree: ast.Module) -> Optional[ast.ClassDef]:
+    def _find_agent_class(self, tree: ast.Module) -> ast.ClassDef | None:
         """Find the first class that inherits from Agent."""
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
@@ -56,9 +55,8 @@ class ReverseParser:
     def _is_state_method(self, func_node: ast.AsyncFunctionDef) -> bool:
         """Check if a function has a @state() decorator."""
         for dec in func_node.decorator_list:
-            if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name):
-                if dec.func.id == "state":
-                    return True
+            if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name) and dec.func.id == "state":
+                return True
             if isinstance(dec, ast.Name) and dec.id == "state":
                 return True
         return False
@@ -182,30 +180,28 @@ class ReverseParser:
                 for sub in stmt.body:
                     if isinstance(sub, ast.Return) and isinstance(
                         sub.value, ast.Constant
-                    ):
-                        if isinstance(sub.value.value, str):
-                            # Mark as true edge
-                            for e in edges:
-                                if e.to_node == sub.value.value and e.label is None:
-                                    e.label = "true"
+                    ) and isinstance(sub.value.value, str):
+                        # Mark as true edge
+                        for e in edges:
+                            if e.to_node == sub.value.value and e.label is None:
+                                e.label = "true"
                 if stmt.orelse:
                     for sub in stmt.orelse:
                         if isinstance(sub, ast.Return) and isinstance(
                             sub.value, ast.Constant
-                        ):
-                            if isinstance(sub.value.value, str):
-                                for e in edges:
-                                    if (
-                                        e.to_node == sub.value.value
-                                        and e.label is None
-                                    ):
-                                        e.label = "false"
+                        ) and isinstance(sub.value.value, str):
+                            for e in edges:
+                                if (
+                                    e.to_node == sub.value.value
+                                    and e.label is None
+                                ):
+                                    e.label = "false"
 
         return edges
 
     def _extract_llm_config(
         self, func_node: ast.AsyncFunctionDef
-    ) -> Optional[LLMConfig]:
+    ) -> LLMConfig | None:
         """Try to extract LLM configuration from a method."""
         model = "gpt-4"
         output_key = "response"
@@ -222,16 +218,14 @@ class ReverseParser:
                         pass
 
             # Look for ctx.set_variable("key", response) to find output_key
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                if node.func.attr == "set_variable" and len(node.args) >= 1:
-                    if isinstance(node.args[0], ast.Constant):
-                        output_key = node.args[0].value
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "set_variable" and len(node.args) >= 1 and isinstance(node.args[0], ast.Constant):
+                output_key = node.args[0].value
 
         return LLMConfig(model=model, output_key=output_key)
 
     def _extract_conditional_config(
         self, func_node: ast.AsyncFunctionDef
-    ) -> Optional[ConditionalConfig]:
+    ) -> ConditionalConfig | None:
         """Extract conditional branching config."""
         for stmt in func_node.body:
             if isinstance(stmt, ast.If):
@@ -272,7 +266,7 @@ class ReverseParser:
 
     def _extract_output_config(
         self, func_node: ast.AsyncFunctionDef
-    ) -> Optional[OutputConfig]:
+    ) -> OutputConfig | None:
         """Extract output mappings from set_output calls."""
         mappings: dict[str, str] = {}
         for stmt in func_node.body:
@@ -280,35 +274,34 @@ class ReverseParser:
                 func = stmt.value.func
                 if isinstance(func, ast.Attribute) and func.attr == "set_output":
                     args = stmt.value.args
-                    if len(args) >= 2:
-                        if isinstance(args[0], ast.Constant):
-                            output_name = args[0].value
-                            # Try to extract the variable key from
-                            # ctx.get_variable("key")
-                            if isinstance(args[1], ast.Call):
-                                inner = args[1]
-                                if (
-                                    isinstance(inner.func, ast.Attribute)
-                                    and inner.func.attr == "get_variable"
-                                    and inner.args
-                                    and isinstance(inner.args[0], ast.Constant)
-                                ):
-                                    mappings[output_name] = inner.args[0].value
-                                else:
-                                    mappings[output_name] = output_name
+                    if len(args) >= 2 and isinstance(args[0], ast.Constant):
+                        output_name = args[0].value
+                        # Try to extract the variable key from
+                        # ctx.get_variable("key")
+                        if isinstance(args[1], ast.Call):
+                            inner = args[1]
+                            if (
+                                isinstance(inner.func, ast.Attribute)
+                                and inner.func.attr == "get_variable"
+                                and inner.args
+                                and isinstance(inner.args[0], ast.Constant)
+                            ):
+                                mappings[output_name] = inner.args[0].value
                             else:
                                 mappings[output_name] = output_name
+                        else:
+                            mappings[output_name] = output_name
         if mappings:
             return OutputConfig(mappings=mappings)
         return None
 
     def _extract_init_info(
         self, class_node: ast.ClassDef
-    ) -> tuple[str, str, Optional[StoreConfig]]:
+    ) -> tuple[str, str, StoreConfig | None]:
         """Extract agent name and store config from __init__."""
         agent_name = class_node.name.lower()
         class_name = class_node.name
-        store_config: Optional[StoreConfig] = None
+        store_config: StoreConfig | None = None
 
         for item in class_node.body:
             if isinstance(item, ast.FunctionDef) and item.name == "__init__":
@@ -318,15 +311,14 @@ class ReverseParser:
                     ):
                         call = stmt.value
                         # super().__init__("name", ...) pattern
-                        if isinstance(call.func, ast.Attribute):
-                            if call.func.attr == "__init__":
-                                if call.args and isinstance(
-                                    call.args[0], ast.Constant
-                                ):
-                                    agent_name = call.args[0].value
-                                for kw in call.keywords:
-                                    if kw.arg == "store":
-                                        store_config = StoreConfig(type="memory")
+                        if isinstance(call.func, ast.Attribute) and call.func.attr == "__init__":
+                            if call.args and isinstance(
+                                call.args[0], ast.Constant
+                            ):
+                                agent_name = call.args[0].value
+                            for kw in call.keywords:
+                                if kw.arg == "store":
+                                    store_config = StoreConfig(type="memory")
 
         return agent_name, class_name, store_config
 

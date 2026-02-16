@@ -6,10 +6,12 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from .scorers import Scorer, get_scorer
-from .suite import EvalCaseConfig, EvalSuiteConfig
+
+if TYPE_CHECKING:
+    from .suite import EvalCaseConfig, EvalSuiteConfig
 
 
 @dataclass
@@ -20,7 +22,7 @@ class EvalCaseResult:
     actual_output: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
     passed: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -44,7 +46,7 @@ class EvalRunResult:
 class EvalEngine:
     """Engine for running evaluation suites."""
 
-    def __init__(self, workflow_path: str, scorers: Optional[dict[str, Scorer]] = None):
+    def __init__(self, workflow_path: str, scorers: dict[str, Scorer] | None = None):
         self.workflow_path = workflow_path
         self.scorers = scorers or {}
 

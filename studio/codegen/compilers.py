@@ -7,14 +7,13 @@ indented Python source lines for the method body.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from .ir import Edge, MergeConfig, Node, NodeType
 
 
 def _find_next_state(
     node: Node, edges: list[Edge], all_nodes: list[Node]
-) -> Optional[str]:
+) -> str | None:
     """Find the single outgoing target state for a node."""
     for edge in edges:
         if edge.from_node == node.id:
@@ -111,9 +110,7 @@ def compile_function(
 
     # Set output
     if cfg.output_key:
-        if cfg.code:
-            lines.append(f'    ctx.set_variable("{cfg.output_key}", result)')
-        elif cfg.module:
+        if cfg.code or cfg.module:
             lines.append(f'    ctx.set_variable("{cfg.output_key}", result)')
 
     next_state = _find_next_state(node, edges, all_nodes)

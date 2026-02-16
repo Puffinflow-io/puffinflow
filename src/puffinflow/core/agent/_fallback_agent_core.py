@@ -8,7 +8,7 @@ States are added incrementally via add_state().
 from __future__ import annotations
 
 import heapq
-from typing import List, Optional
+from typing import List
 
 
 # Status constants matching Rust side
@@ -360,14 +360,14 @@ class FallbackAgentCore:
         idx = self._name_to_idx.get(state_name)
         return self._priority[idx] if idx is not None else 0
 
-    def get_state_last_execution(self, state_name: str) -> Optional[float]:
+    def get_state_last_execution(self, state_name: str) -> float | None:
         idx = self._name_to_idx.get(state_name)
         if idx is None:
             return None
         v = self._last_execution[idx]
         return None if v == 0.0 else v
 
-    def get_state_last_success(self, state_name: str) -> Optional[float]:
+    def get_state_last_success(self, state_name: str) -> float | None:
         idx = self._name_to_idx.get(state_name)
         if idx is None:
             return None

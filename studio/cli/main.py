@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -39,7 +38,7 @@ def init(
         typer.echo(f"  puffinflow dev")
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +47,7 @@ def init(
 @app.command()
 def codegen(
     file: Path = typer.Argument(..., help="Path to workflow YAML file"),
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output Python file path"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Output Python file path"),
     watch: bool = typer.Option(False, "--watch", "-w", help="Watch for changes and auto-regenerate"),
 ):
     """Generate Python code from a workflow YAML file."""
@@ -78,7 +77,7 @@ def codegen(
         _run(file)
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if watch:
         import time
@@ -118,7 +117,7 @@ def validate(
         typer.echo(f"Valid: {file}")
     except Exception as exc:
         typer.echo(f"Invalid: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +174,7 @@ def run_tests(
 def deploy(
     workflow: Path = typer.Argument(..., help="Path to workflow YAML file"),
     target: str = typer.Option("docker", "--target", "-t", help="Deploy target: modal, docker"),
-    output_dir: Optional[Path] = typer.Option(None, "--output", "-o", help="Output directory for deploy files"),
+    output_dir: Path | None = typer.Option(None, "--output", "-o", help="Output directory for deploy files"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Generate files only, don't deploy"),
 ):
     """Generate deployment artefacts for a workflow."""
@@ -212,7 +211,7 @@ def deploy(
             typer.echo("\n(dry-run — files generated but not deployed)")
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -237,9 +236,9 @@ def dev(
             [sys.executable, "-m", "uvicorn", "studio.api.main:app",
              "--host", host, "--port", str(port), "--reload"],
         )
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         typer.echo("Error: uvicorn not found. Install with: pip install uvicorn", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Start Next.js dev server
     web_dir = Path(__file__).resolve().parent.parent / "web"

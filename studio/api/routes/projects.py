@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Project
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -25,9 +27,9 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    settings: Optional[dict] = None
+    name: str | None = None
+    description: str | None = None
+    settings: dict | None = None
 
 
 class ProjectOut(BaseModel):

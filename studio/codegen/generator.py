@@ -156,7 +156,6 @@ class CodeGenerator:
     def _gen_main(self) -> str:
         ir = self.ir
         class_name = ir.agent.class_name
-        agent_name = ir.agent.name
 
         lines = [
             'if __name__ == "__main__":',

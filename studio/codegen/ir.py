@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -26,18 +26,18 @@ class Position(BaseModel):
 
 class LLMConfig(BaseModel):
     model: str = "gpt-4"
-    system_prompt: Optional[str] = None
+    system_prompt: str | None = None
     user_prompt: str = ""
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     output_key: str = "response"
 
 
 class FunctionConfig(BaseModel):
-    code: Optional[str] = None  # Inline Python code
-    module: Optional[str] = None  # External module.function path
+    code: str | None = None  # Inline Python code
+    module: str | None = None  # External module.function path
     input_keys: list[str] = Field(default_factory=list)
-    output_key: Optional[str] = None
+    output_key: str | None = None
 
 
 class ConditionalConfig(BaseModel):
@@ -66,7 +66,7 @@ class SubgraphConfig(BaseModel):
 
 class ToolConfig(BaseModel):
     tool_name: str
-    tool_module: Optional[str] = None
+    tool_module: str | None = None
     parameters: dict[str, Any] = Field(default_factory=dict)
     output_key: str = "tool_result"
 
@@ -74,10 +74,10 @@ class ToolConfig(BaseModel):
 class MemoryConfig(BaseModel):
     operation: str  # "get", "put", "delete", "list", "search"
     namespace: list[str] = Field(default_factory=lambda: ["default"])
-    key: Optional[str] = None  # Variable name or literal
-    value_key: Optional[str] = None  # Variable name for value
+    key: str | None = None  # Variable name or literal
+    value_key: str | None = None  # Variable name for value
     output_key: str = "memory_result"
-    query: Optional[str] = None  # For search
+    query: str | None = None  # For search
     limit: int = 10
 
 
@@ -93,10 +93,10 @@ class MergeConfig(BaseModel):
 
 
 class ResourceConfig(BaseModel):
-    cpu: Optional[float] = None
-    memory: Optional[float] = None
-    timeout: Optional[float] = None
-    gpu: Optional[float] = None
+    cpu: float | None = None
+    memory: float | None = None
+    timeout: float | None = None
+    gpu: float | None = None
 
 
 class RetryConfig(BaseModel):
@@ -108,16 +108,16 @@ class RetryConfig(BaseModel):
 class NodeConfig(BaseModel):
     """Union wrapper - actual config depends on node type."""
 
-    llm: Optional[LLMConfig] = None
-    function: Optional[FunctionConfig] = None
-    conditional: Optional[ConditionalConfig] = None
-    input: Optional[InputConfig] = None
-    output: Optional[OutputConfig] = None
-    subgraph: Optional[SubgraphConfig] = None
-    tool: Optional[ToolConfig] = None
-    memory: Optional[MemoryConfig] = None
-    fan_out: Optional[FanOutConfig] = None
-    merge: Optional[MergeConfig] = None
+    llm: LLMConfig | None = None
+    function: FunctionConfig | None = None
+    conditional: ConditionalConfig | None = None
+    input: InputConfig | None = None
+    output: OutputConfig | None = None
+    subgraph: SubgraphConfig | None = None
+    tool: ToolConfig | None = None
+    memory: MemoryConfig | None = None
+    fan_out: FanOutConfig | None = None
+    merge: MergeConfig | None = None
 
     def get_config(self, node_type: NodeType):
         """Get the config for a specific node type."""
@@ -129,27 +129,27 @@ class Node(BaseModel):
     type: NodeType
     position: Position = Field(default_factory=Position)
     config: NodeConfig = Field(default_factory=NodeConfig)
-    resources: Optional[ResourceConfig] = None
-    retry: Optional[RetryConfig] = None
+    resources: ResourceConfig | None = None
+    retry: RetryConfig | None = None
 
 
 class Edge(BaseModel):
     from_node: str
     to_node: str
-    label: Optional[str] = None  # "true"/"false" for conditionals
+    label: str | None = None  # "true"/"false" for conditionals
 
 
 class WorkflowInput(BaseModel):
     name: str
     type: str = "str"
-    default: Optional[Any] = None
-    description: Optional[str] = None
+    default: Any | None = None
+    description: str | None = None
 
 
 class WorkflowOutput(BaseModel):
     name: str
     type: str = "str"
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class WorkflowMetadata(BaseModel):
@@ -167,14 +167,14 @@ class StoreConfig(BaseModel):
 class ReducerConfig(BaseModel):
     key: str
     type: str = "append"  # "append", "replace", "add", "custom"
-    module: Optional[str] = None  # For custom reducers
+    module: str | None = None  # For custom reducers
 
 
 class AgentConfig(BaseModel):
     name: str
     class_name: str
     max_concurrent: int = 5
-    store: Optional[StoreConfig] = None
+    store: StoreConfig | None = None
     reducers: list[ReducerConfig] = Field(default_factory=list)
 
 

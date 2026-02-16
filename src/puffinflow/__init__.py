@@ -2,6 +2,8 @@
 PuffinFlow - Workflow Orchestration Framework.
 """
 
+from typing import Any
+
 # Import version from setuptools-scm generated file
 try:
     from .version import __version__
@@ -151,7 +153,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         module_path, attr = _LAZY_IMPORTS[name]
         import importlib

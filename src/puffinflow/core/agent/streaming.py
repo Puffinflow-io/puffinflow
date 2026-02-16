@@ -44,9 +44,8 @@ class StreamManager:
         if self._closed:
             return
         # Filter by mode
-        if self._mode == StreamMode.UPDATES:
-            if event.event_type not in ("node_complete", "custom"):
-                return
+        if self._mode == StreamMode.UPDATES and event.event_type not in ("node_complete", "custom"):
+            return
         self._queue.put_nowait(event)
 
     def emit_node_start(self, state_name: str) -> None:
