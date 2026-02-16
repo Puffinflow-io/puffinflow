@@ -106,7 +106,7 @@ This means:
   pip install puffinflow
   python -c "import puffinflow; print(puffinflow.__version__)"
   ```
-  - **DONE (local dev install).** `pip install -e .` succeeds — maturin compiles the Rust core via PyO3 and produces `puffinflow-0.1.0-cp313-cp313-win_amd64.whl`. `import puffinflow` works and `__version__` returns `"0.1.0"` (not "unknown"). All core imports verified: `Agent`, `state`, `Command`, `Send`, `Context`, `MemoryStore`, `AgentStatus`, `ExecutionMode`. **NOTE:** `pip install puffinflow` from PyPI does NOT work yet — package is not published. Pre-built wheels must be built and uploaded via `maturin publish` or CI before launch. This is a **blocking pre-launch task**.
+  - **DONE (local dev install).** `pip install -e .` succeeds — maturin compiles the Rust core via PyO3 and produces `puffinflow-0.1.0-cp313-cp313-win_amd64.whl`. `import puffinflow` works and `__version__` returns `"0.1.0"` (not "unknown"). All core imports verified: `Agent`, `state`, `Command`, `Send`, `Context`, `MemoryStore`, `AgentStatus`, `ExecutionMode`. **CRITICAL:** `pip install puffinflow` from PyPI installs an **outdated version (2.0.1.dev0)** — a pure-Python wheel missing `Command`, `Send`, `MemoryStore` exports. This old version is **incompatible** with all marketing code examples. **BLOCKING PRE-LAUNCH TASK:** Publish the current codebase (with Rust core) to PyPI via `maturin publish` or CI. Must build wheels for Linux/macOS/Windows x86_64 + arm64. The old 2.0.1.dev0 version must be superseded.
 - [x] Test with extras:
   ```
   pip install puffinflow[all]
