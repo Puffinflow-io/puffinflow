@@ -1,0 +1,116 @@
+"""Base store protocol and in-memory implementation."""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any, Optional, Protocol, runtime_checkable
+
+Namespace = tuple[str, ...]
+
+
+@dataclass
+class Item:
+    """A stored item with metadata."""
+
+    namespace: Namespace
+    key: str
+    value: Any
+    created_at: float
+    updated_at: float
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@runtime_checkable
+class BaseStore(Protocol):
+    """Protocol for persistent key-value stores."""
+
+    async def put(
+        self,
+        namespace: Namespace,
+        key: str,
+        value: Any,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> None: ...
+
+    async def get(self, namespace: Namespace, key: str) -> Optional[Item]: ...
+
+    async def delete(self, namespace: Namespace, key: str) -> bool: ...
+
+    async def list(
+        self, namespace: Namespace, limit: int = 100, offset: int = 0
+    ) -> list[Item]: ...
+
+    async def search(
+        self, namespace: Namespace, query: str = "", limit: int = 10
+    ) -> list[Item]: ...
+
+
+class MemoryStore:
+    """In-memory implementation of BaseStore."""
+
+    __slots__ = ("_data",)
+
+    def __init__(self) -> None:
+        # Keyed by (namespace, key)
+        self._data: dict[tuple[Namespace, str], Item] = {}
+
+    async def put(
+        self,
+        namespace: Namespace,
+        key: str,
+        value: Any,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> None:
+        now = time.time()
+        existing = self._data.get((namespace, key))
+        if existing is not None:
+            existing.value = value
+            existing.updated_at = now
+            if metadata is not None:
+                existing.metadata.update(metadata)
+        else:
+            self._data[(namespace, key)] = Item(
+                namespace=namespace,
+                key=key,
+                value=value,
+                created_at=now,
+                updated_at=now,
+                metadata=metadata or {},
+            )
+
+    async def get(self, namespace: Namespace, key: str) -> Optional[Item]:
+        return self._data.get((namespace, key))
+
+    async def delete(self, namespace: Namespace, key: str) -> bool:
+        if (namespace, key) in self._data:
+            del self._data[(namespace, key)]
+            return True
+        return False
+
+    async def list(
+        self, namespace: Namespace, limit: int = 100, offset: int = 0
+    ) -> list[Item]:
+        items = [
+            item for (ns, _), item in self._data.items() if ns == namespace
+        ]
+        # Sort by updated_at descending
+        items.sort(key=lambda i: i.updated_at, reverse=True)
+        return items[offset : offset + limit]
+
+    async def search(
+        self, namespace: Namespace, query: str = "", limit: int = 10
+    ) -> list[Item]:
+        results: list[Item] = []
+        for (ns, k), item in self._data.items():
+            if ns[:len(namespace)] != namespace:
+                continue
+            if query:
+                # Simple text search across key and string values
+                searchable = str(k) + str(item.value)
+                if query.lower() not in searchable.lower():
+                    continue
+            results.append(item)
+            if len(results) >= limit:
+                break
+        return results

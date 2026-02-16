@@ -1,0 +1,18 @@
+[package]
+name = "puffinflow"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "_rust_core"
+crate-type = ["cdylib"]
+path = "rust/src/lib.rs"
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

@@ -1,0 +1,20 @@
+"""Import shim for StateMachineCore and AgentCore.
+
+Tries to import the Rust extension first, falls back to pure Python.
+"""
+
+try:
+    from puffinflow._rust_core import StateMachineCore  # type: ignore[import-not-found]
+except ImportError:
+    from ._fallback_core import StateMachineCore  # type: ignore[assignment]
+
+try:
+    from puffinflow._rust_core import AgentCore  # type: ignore[import-not-found]
+
+    _HAS_AGENT_CORE = True
+except ImportError:
+    from ._fallback_agent_core import FallbackAgentCore as AgentCore  # type: ignore[assignment]
+
+    _HAS_AGENT_CORE = True  # fallback is always available
+
+__all__ = ["StateMachineCore", "AgentCore", "_HAS_AGENT_CORE"]
