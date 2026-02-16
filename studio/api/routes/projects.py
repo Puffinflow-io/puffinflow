@@ -64,7 +64,9 @@ async def list_projects(session: AsyncSession = Depends(get_session)):
 
 
 @router.post("", response_model=ProjectOut, status_code=201)
-async def create_project(body: ProjectCreate, session: AsyncSession = Depends(get_session)):
+async def create_project(
+    body: ProjectCreate, session: AsyncSession = Depends(get_session)
+):
     project = Project(
         name=body.name,
         description=body.description,

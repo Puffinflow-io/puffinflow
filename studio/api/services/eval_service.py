@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from studio.eval.engine import EvalEngine
 from studio.eval.scorers import get_scorer
 from studio.eval.suite import EvalCaseConfig, EvalSuiteConfig, ScoringConfig
+
 from ..models import EvalCase, EvalResult, EvalRun, EvalSuite, Workflow
 
 
@@ -45,7 +46,9 @@ class EvalService:
             db_cases = result.scalars().all()
 
             # Build eval config
-            scoring_data = json.loads(suite.scoring_config) if suite.scoring_config else {}
+            scoring_data = (
+                json.loads(suite.scoring_config) if suite.scoring_config else {}
+            )
             scoring = ScoringConfig(**scoring_data) if scoring_data else ScoringConfig()
 
             cases = [
@@ -93,14 +96,16 @@ class EvalService:
                 session.add(er)
 
             run.status = "completed"
-            run.summary_scores = json.dumps({
-                "avg_score": eval_result.avg_score,
-                "pass_rate": eval_result.pass_rate,
-                "total": eval_result.total_cases,
-                "passed": eval_result.passed_cases,
-                "failed": eval_result.failed_cases,
-                "errors": eval_result.error_cases,
-            })
+            run.summary_scores = json.dumps(
+                {
+                    "avg_score": eval_result.avg_score,
+                    "pass_rate": eval_result.pass_rate,
+                    "total": eval_result.total_cases,
+                    "passed": eval_result.passed_cases,
+                    "failed": eval_result.failed_cases,
+                    "errors": eval_result.error_cases,
+                }
+            )
             await session.commit()
             await session.refresh(run)
 

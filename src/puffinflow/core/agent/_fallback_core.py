@@ -10,8 +10,6 @@ Key optimizations over the previous Agent internals:
 from __future__ import annotations
 
 import heapq
-from typing import List, Optional
-
 
 # Status constants matching Rust side
 _PENDING = 0
@@ -106,7 +104,7 @@ class StateMachineCore:
         self._seq += 1
         heapq.heappush(self._heap, (neg_pri, self._seq, idx))
 
-    def get_ready_states(self) -> List[str]:
+    def get_ready_states(self) -> list[str]:
         """Pop ready states from heap. Returns list of state names."""
         ready: list[str] = []
         reinsert: list[tuple[int, int, int]] = []
@@ -141,7 +139,7 @@ class StateMachineCore:
         self._running.add(idx)
         self._status[idx] = _RUNNING
 
-    def mark_completed(self, state_name: str) -> List[str]:
+    def mark_completed(self, state_name: str) -> list[str]:
         """Mark state completed, check dependents, queue newly-ready states.
 
         Returns list of newly queued state names.
@@ -207,15 +205,15 @@ class StateMachineCore:
         """Check if there are states in the queue."""
         return bool(self._in_queue)
 
-    def get_completed_states(self) -> List[str]:
+    def get_completed_states(self) -> list[str]:
         """Get list of currently completed state names."""
         return [self._names[i] for i in self._completed]
 
-    def get_completed_once(self) -> List[str]:
+    def get_completed_once(self) -> list[str]:
         """Get list of state names that have completed at least once."""
         return [self._names[i] for i in self._completed_once]
 
-    def get_running_states(self) -> List[str]:
+    def get_running_states(self) -> list[str]:
         """Get list of currently running state names."""
         return [self._names[i] for i in self._running]
 

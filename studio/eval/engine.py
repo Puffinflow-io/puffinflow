@@ -1,5 +1,6 @@
 """Eval engine for running evaluation suites against workflows."""
 from __future__ import annotations
+
 import asyncio
 import importlib.util
 import sys
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 @dataclass
 class EvalCaseResult:
     """Result of running a single eval case."""
+
     case_name: str
     scores: dict[str, float] = field(default_factory=dict)
     actual_output: dict[str, Any] = field(default_factory=dict)
@@ -28,6 +30,7 @@ class EvalCaseResult:
 @dataclass
 class EvalRunResult:
     """Result of running a full eval suite."""
+
     suite_name: str
     results: list[EvalCaseResult] = field(default_factory=list)
     total_cases: int = 0
@@ -76,10 +79,12 @@ class EvalEngine:
         case_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                case_results.append(EvalCaseResult(
-                    case_name=suite.cases[i].name,
-                    error=str(result),
-                ))
+                case_results.append(
+                    EvalCaseResult(
+                        case_name=suite.cases[i].name,
+                        error=str(result),
+                    )
+                )
             else:
                 case_results.append(result)
 
@@ -119,7 +124,7 @@ class EvalEngine:
             agent = agent_class(agent_class.__name__.lower())
             result = await agent.run(initial_context={"variables": case.input})
 
-            actual_output = result.outputs if hasattr(result, 'outputs') else {}
+            actual_output = result.outputs if hasattr(result, "outputs") else {}
 
             # Score with all configured scorers
             scores = {}
@@ -159,9 +164,14 @@ class EvalEngine:
 
             # Find Agent subclass
             from puffinflow import Agent
+
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (isinstance(attr, type) and issubclass(attr, Agent) and attr is not Agent):
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, Agent)
+                    and attr is not Agent
+                ):
                     return attr
 
             raise ValueError(f"No Agent subclass found in {path}")
@@ -170,8 +180,10 @@ class EvalEngine:
             # YAML workflow - generate Python first then load
             from studio.codegen.generator import CodeGenerator
             from studio.codegen.ir import WorkflowIR
+
             yaml_content = path.read_text()
             import yaml as yaml_lib
+
             data = yaml_lib.safe_load(yaml_content)
             ir = WorkflowIR(**data)
             gen = CodeGenerator(ir)
@@ -182,8 +194,13 @@ class EvalEngine:
             exec(python_code, namespace)
 
             from puffinflow import Agent
+
             for value in namespace.values():
-                if isinstance(value, type) and issubclass(value, Agent) and value is not Agent:
+                if (
+                    isinstance(value, type)
+                    and issubclass(value, Agent)
+                    and value is not Agent
+                ):
                     return value
 
             raise ValueError(f"No Agent subclass found in generated code from {path}")

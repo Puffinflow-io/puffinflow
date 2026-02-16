@@ -2,9 +2,10 @@
 
 import asyncio
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncIterator, Optional
+from typing import Any, Optional
 
 
 class StreamMode(str, Enum):
@@ -44,41 +45,52 @@ class StreamManager:
         if self._closed:
             return
         # Filter by mode
-        if self._mode == StreamMode.UPDATES and event.event_type not in ("node_complete", "custom"):
+        if self._mode == StreamMode.UPDATES and event.event_type not in (
+            "node_complete",
+            "custom",
+        ):
             return
         self._queue.put_nowait(event)
 
     def emit_node_start(self, state_name: str) -> None:
         """Emit a node_start event."""
-        self.emit(StreamEvent(
-            event_type="node_start",
-            state_name=state_name,
-            data={"state": state_name},
-        ))
+        self.emit(
+            StreamEvent(
+                event_type="node_start",
+                state_name=state_name,
+                data={"state": state_name},
+            )
+        )
 
     def emit_node_complete(self, state_name: str, result: Any = None) -> None:
         """Emit a node_complete event."""
-        self.emit(StreamEvent(
-            event_type="node_complete",
-            state_name=state_name,
-            data={"state": state_name, "result": result},
-        ))
+        self.emit(
+            StreamEvent(
+                event_type="node_complete",
+                state_name=state_name,
+                data={"state": state_name, "result": result},
+            )
+        )
 
     def emit_token(self, state_name: str, token: str) -> None:
         """Emit a token event (for LLM streaming)."""
-        self.emit(StreamEvent(
-            event_type="token",
-            state_name=state_name,
-            data={"token": token},
-        ))
+        self.emit(
+            StreamEvent(
+                event_type="token",
+                state_name=state_name,
+                data={"token": token},
+            )
+        )
 
     def emit_custom(self, state_name: str, name: str, data: Any) -> None:
         """Emit a custom event."""
-        self.emit(StreamEvent(
-            event_type="custom",
-            state_name=state_name,
-            data={"name": name, "payload": data},
-        ))
+        self.emit(
+            StreamEvent(
+                event_type="custom",
+                state_name=state_name,
+                data={"name": name, "payload": data},
+            )
+        )
 
     def close(self) -> None:
         """Signal end of stream with a sentinel None."""

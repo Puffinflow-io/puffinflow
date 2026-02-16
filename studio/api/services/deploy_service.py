@@ -1,9 +1,7 @@
 """Deploy service — orchestrates deployment generation and tracking."""
 from __future__ import annotations
 
-import json
 import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
@@ -12,6 +10,7 @@ from studio.codegen.deploy.docker_gen import DockerGenerator
 from studio.codegen.deploy.modal_gen import ModalGenerator
 from studio.codegen.generator import CodeGenerator
 from studio.codegen.ir import WorkflowIR
+
 from ..models import Deployment, Workflow
 
 if TYPE_CHECKING:
@@ -36,7 +35,9 @@ class DeployService:
         """Generate deploy artefacts and create a Deployment record."""
         generator_cls = self._generators.get(target)
         if generator_cls is None:
-            raise ValueError(f"Unknown deploy target: {target}. Available: {list(self._generators)}")
+            raise ValueError(
+                f"Unknown deploy target: {target}. Available: {list(self._generators)}"
+            )
 
         # Parse workflow YAML → IR → Python
         data = yaml.safe_load(workflow.yaml_content)

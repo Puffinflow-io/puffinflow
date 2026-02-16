@@ -1,7 +1,7 @@
 """Command pattern for unified state updates and routing."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 
 @dataclass

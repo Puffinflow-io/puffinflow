@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,9 +14,7 @@ if TYPE_CHECKING:
 class ModalGenerator(DeployGenerator):
     """Generate Modal deployment script for a PuffinFlow agent."""
 
-    def generate(
-        self, ir: WorkflowIR, python_code: str, output_dir: str
-    ) -> list[str]:
+    def generate(self, ir: WorkflowIR, python_code: str, output_dir: str) -> list[str]:
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         generated: list[str] = []

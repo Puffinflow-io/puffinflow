@@ -1,13 +1,12 @@
 """Tests for StateMachineCore (runs against whichever backend is available)."""
 
-import pytest
 
 from puffinflow.core.agent._core import StateMachineCore
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _simple_configs():
     """3 linear states: a -> b -> c"""
@@ -41,6 +40,7 @@ def _diamond_configs():
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestConstruction:
     def test_basic_creation(self):
         core = StateMachineCore(_simple_configs())
@@ -59,6 +59,7 @@ class TestConstruction:
 # ---------------------------------------------------------------------------
 # Queue operations
 # ---------------------------------------------------------------------------
+
 
 class TestQueue:
     def test_add_to_queue(self):
@@ -98,6 +99,7 @@ class TestQueue:
 # Linear workflow (a -> b -> c)
 # ---------------------------------------------------------------------------
 
+
 class TestLinearWorkflow:
     def test_full_linear_execution(self):
         core = StateMachineCore(_simple_configs())
@@ -135,6 +137,7 @@ class TestLinearWorkflow:
 # Parallel states
 # ---------------------------------------------------------------------------
 
+
 class TestParallelStates:
     def test_all_independent_ready(self):
         core = StateMachineCore(_parallel_configs())
@@ -151,6 +154,7 @@ class TestParallelStates:
 # ---------------------------------------------------------------------------
 # Diamond dependency (a -> b,c -> d)
 # ---------------------------------------------------------------------------
+
 
 class TestDiamondWorkflow:
     def test_diamond_execution(self):
@@ -192,6 +196,7 @@ class TestDiamondWorkflow:
 # ---------------------------------------------------------------------------
 # handle_result
 # ---------------------------------------------------------------------------
+
 
 class TestHandleResult:
     def test_none_result(self):
@@ -240,6 +245,7 @@ class TestHandleResult:
 # Failure handling
 # ---------------------------------------------------------------------------
 
+
 class TestFailure:
     def test_mark_failed(self):
         core = StateMachineCore(_simple_configs())
@@ -263,6 +269,7 @@ class TestFailure:
 # ---------------------------------------------------------------------------
 # Status queries
 # ---------------------------------------------------------------------------
+
 
 class TestStatus:
     def test_initial_status(self):
@@ -290,6 +297,7 @@ class TestStatus:
 # Reset
 # ---------------------------------------------------------------------------
 
+
 class TestReset:
     def test_reset_clears_all(self):
         core = StateMachineCore(_simple_configs())
@@ -311,6 +319,7 @@ class TestReset:
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_priority_boost(self):

@@ -57,9 +57,7 @@ class CodeGenerator:
         if "add" in reducer_types:
             reducer_imports.append("add_reducer")
         if reducer_imports:
-            imports.append(
-                f"from puffinflow import {', '.join(reducer_imports)}"
-            )
+            imports.append(f"from puffinflow import {', '.join(reducer_imports)}")
 
         return "\n".join(imports)
 
@@ -84,9 +82,7 @@ class CodeGenerator:
                 store_arg = ", store=MemoryStore()"
             else:
                 store_arg = ", store=MemoryStore()"
-        lines.append(
-            f'        super().__init__("{ir.agent.name}"{store_arg})'
-        )
+        lines.append(f'        super().__init__("{ir.agent.name}"{store_arg})')
 
         # Register reducers
         for reducer in ir.agent.reducers:
@@ -99,15 +95,11 @@ class CodeGenerator:
                     f'        self.add_reducer("{reducer.key}", replace_reducer)'
                 )
             elif reducer.type == "add":
-                lines.append(
-                    f'        self.add_reducer("{reducer.key}", add_reducer)'
-                )
+                lines.append(f'        self.add_reducer("{reducer.key}", add_reducer)')
             elif reducer.type == "custom" and reducer.module:
                 mod, func = reducer.module.rsplit(".", 1)
                 lines.append(f"        from {mod} import {func}")
-                lines.append(
-                    f'        self.add_reducer("{reducer.key}", {func})'
-                )
+                lines.append(f'        self.add_reducer("{reducer.key}", {func})')
 
         lines.append("")
 
@@ -161,7 +153,7 @@ class CodeGenerator:
             'if __name__ == "__main__":',
             "    import asyncio",
             "",
-            f'    agent = {class_name}()',
+            f"    agent = {class_name}()",
             "    result = asyncio.run(agent.run())",
             "    print(result.outputs)",
         ]

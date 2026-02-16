@@ -1,8 +1,9 @@
 """Evaluation scorers for comparing expected vs actual outputs."""
 from __future__ import annotations
+
 import importlib
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 
 class Scorer(ABC):
@@ -89,7 +90,9 @@ class CustomScorer(Scorer):
     def _load_function(self):
         parts = self.module_path.rsplit(".", 1)
         if len(parts) != 2:
-            raise ValueError(f"Invalid module path: {self.module_path}. Expected 'module.function'")
+            raise ValueError(
+                f"Invalid module path: {self.module_path}. Expected 'module.function'"
+            )
         module_name, func_name = parts
         module = importlib.import_module(module_name)
         func = getattr(module, func_name)

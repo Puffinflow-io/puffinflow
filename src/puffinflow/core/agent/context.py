@@ -89,9 +89,7 @@ class Context:
     def store(self) -> Any:
         """Access the persistent store. Raises if no store is configured."""
         if self._store is None:
-            raise RuntimeError(
-                "No store configured. Pass store= to Agent() to enable."
-            )
+            raise RuntimeError("No store configured. Pass store= to Agent() to enable.")
         return self._store
 
     # --- Streaming ---
@@ -127,19 +125,19 @@ class Context:
             if k.startswith(self._META_TYPED):
                 if self._typed_var_types is None:
                     self._typed_var_types = {}
-                self._typed_var_types[k[len(self._META_TYPED):]] = v
+                self._typed_var_types[k[len(self._META_TYPED) :]] = v
             elif k.startswith(self._META_VALIDATED):
                 if self._validated_types is None:
                     self._validated_types = {}
-                self._validated_types[k[len(self._META_VALIDATED):]] = v
+                self._validated_types[k[len(self._META_VALIDATED) :]] = v
             elif k.startswith(self._META_CACHE):
                 if self._cache is None:
                     self._cache = {}
-                self._cache[k[len(self._META_CACHE):]] = v
+                self._cache[k[len(self._META_CACHE) :]] = v
             elif k.startswith(self._META_OUTPUT):
                 if self._outputs is None:
                     self._outputs = {}
-                self._outputs[k[len(self._META_OUTPUT):]] = v
+                self._outputs[k[len(self._META_OUTPUT) :]] = v
 
     @staticmethod
     def _now() -> float:
@@ -511,7 +509,10 @@ class Context:
         if state_type in (StateType.ANY, StateType.UNTYPED):
             keys.update(self.get_variable_keys())
 
-        if state_type in (StateType.ANY, StateType.TYPED) and self._typed_data is not None:
+        if (
+            state_type in (StateType.ANY, StateType.TYPED)
+            and self._typed_data is not None
+        ):
             keys.update(self._typed_data.keys())
 
         return keys

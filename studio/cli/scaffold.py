@@ -247,7 +247,9 @@ def scaffold_project(
     Returns the project root directory.
     """
     if template not in TEMPLATES:
-        raise ValueError(f"Unknown template '{template}'. Choose from: {list(TEMPLATES)}")
+        raise ValueError(
+            f"Unknown template '{template}'. Choose from: {list(TEMPLATES)}"
+        )
 
     root = Path(output_dir) / name
     root.mkdir(parents=True, exist_ok=True)

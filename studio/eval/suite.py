@@ -1,13 +1,16 @@
 """Eval suite YAML parser and data models."""
 from __future__ import annotations
-from typing import Any
+
 from pathlib import Path
-from pydantic import BaseModel, Field
+from typing import Any
+
 import yaml
+from pydantic import BaseModel, Field
 
 
 class EvalCaseConfig(BaseModel):
     """A single eval test case."""
+
     name: str
     input: dict[str, Any] = Field(default_factory=dict)  # Input variables for the agent
     expected: dict[str, Any] = Field(default_factory=dict)  # Expected output
@@ -17,13 +20,17 @@ class EvalCaseConfig(BaseModel):
 
 class ScoringConfig(BaseModel):
     """Scoring configuration for a suite."""
+
     default_scorer: str = "contains"
     threshold: float = 0.7
-    scorers: dict[str, dict[str, Any]] = Field(default_factory=dict)  # named scorer configs
+    scorers: dict[str, dict[str, Any]] = Field(
+        default_factory=dict
+    )  # named scorer configs
 
 
 class EvalSuiteConfig(BaseModel):
     """Full eval suite configuration."""
+
     name: str
     workflow: str  # Path to workflow YAML or Python
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)

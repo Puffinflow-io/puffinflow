@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Protocol, runtime_checkable
+from typing import Any, List, Protocol, runtime_checkable  # noqa: UP035
 
 Namespace = tuple[str, ...]
 
@@ -31,19 +31,24 @@ class BaseStore(Protocol):
         key: str,
         value: Any,
         metadata: dict[str, Any] | None = None,
-    ) -> None: ...
+    ) -> None:
+        ...
 
-    async def get(self, namespace: Namespace, key: str) -> Item | None: ...
+    async def get(self, namespace: Namespace, key: str) -> Item | None:
+        ...
 
-    async def delete(self, namespace: Namespace, key: str) -> bool: ...
+    async def delete(self, namespace: Namespace, key: str) -> bool:
+        ...
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> List[Item]: ...
+    ) -> list[Item]:
+        ...
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
-    ) -> List[Item]: ...
+    ) -> List[Item]:  # noqa: UP006  # 'list' resolves to the method, not the builtin
+        ...
 
 
 class MemoryStore:
@@ -95,10 +100,8 @@ class MemoryStore:
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> List[Item]:
-        items = [
-            item for (ns, _), item in self._data.items() if ns == namespace
-        ]
+    ) -> list[Item]:
+        items = [item for (ns, _), item in self._data.items() if ns == namespace]
         # Sort by updated_at descending, then by insertion order descending
         items.sort(
             key=lambda i: (i.updated_at, self._order.get((i.namespace, i.key), 0)),
@@ -108,10 +111,10 @@ class MemoryStore:
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
-    ) -> List[Item]:
-        results: list[Item] = []
+    ) -> List[Item]:  # noqa: UP006  # 'list' resolves to the method, not the builtin
+        results: List[Item] = []  # noqa: UP006
         for (ns, k), item in self._data.items():
-            if ns[:len(namespace)] != namespace:
+            if ns[: len(namespace)] != namespace:
                 continue
             if query:
                 # Simple text search across key and string values

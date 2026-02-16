@@ -26,7 +26,7 @@ import subprocess
 import sys
 import time
 import tracemalloc
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any
 
 WORKLOAD_SIZE = 5000
 NUM_RUNS = 20
@@ -42,6 +42,7 @@ def workload() -> int:
 # ---------------------------------------------------------------------------
 # PuffinFlow benchmarks
 # ---------------------------------------------------------------------------
+
 
 async def _puffinflow_sequential(n_steps: int) -> float:
     from puffinflow import Agent, state
@@ -179,6 +180,7 @@ async def _puffinflow_memory() -> float:
 # LangGraph benchmarks
 # ---------------------------------------------------------------------------
 
+
 async def _langgraph_sequential(n_steps: int) -> float:
     from langgraph.graph import StateGraph
     from typing_extensions import TypedDict
@@ -206,7 +208,7 @@ async def _langgraph_fanout() -> float:
     from typing_extensions import TypedDict
 
     class St(TypedDict):
-        values: Annotated[List[int], operator.add]
+        values: Annotated[list[int], operator.add]
 
     builder = StateGraph(St)
     builder.add_node("start", lambda s: {"values": [workload()]})
@@ -277,6 +279,7 @@ async def _langgraph_memory() -> float:
 # ---------------------------------------------------------------------------
 # LlamaIndex Workflows benchmarks
 # ---------------------------------------------------------------------------
+
 
 async def _llamaindex_sequential(n_steps: int) -> float:
     from llama_index.core.workflow import (
@@ -466,6 +469,7 @@ async def _llamaindex_memory() -> float:
 # Prefect benchmarks
 # ---------------------------------------------------------------------------
 
+
 async def _prefect_sequential(n_steps: int) -> float:
     from prefect import flow, task
 
@@ -551,6 +555,7 @@ async def _prefect_memory() -> float:
 # ---------------------------------------------------------------------------
 # Dagster benchmarks
 # ---------------------------------------------------------------------------
+
 
 async def _dagster_sequential(n_steps: int) -> float:
     from dagster import In, job, op
@@ -662,6 +667,7 @@ async def _dagster_memory() -> float:
 # Import time measurement
 # ---------------------------------------------------------------------------
 
+
 def _measure_import_time(module_name: str) -> float:
     """Measure cold-start import time in a subprocess, subtracting Python startup."""
     # Script that prints elapsed time for importing the module
@@ -676,7 +682,9 @@ def _measure_import_time(module_name: str) -> float:
         "print(time.perf_counter() - t0)"
     )
 
-    baseline_script = "import time; t0 = time.perf_counter(); print(time.perf_counter() - t0)"
+    baseline_script = (
+        "import time; t0 = time.perf_counter(); print(time.perf_counter() - t0)"
+    )
 
     def _median_time(code: str) -> float:
         times = []
@@ -702,6 +710,7 @@ def _measure_import_time(module_name: str) -> float:
 # ---------------------------------------------------------------------------
 # Runner helpers
 # ---------------------------------------------------------------------------
+
 
 async def _run_timed(fn, *args, runs: int = NUM_RUNS) -> float:
     """Run fn multiple times and return median duration in seconds."""
@@ -775,15 +784,15 @@ LIGHTWEIGHT_FRAMEWORKS = {
     },
 }
 
-HEAVY_FRAMEWORKS: Dict[str, Any] = {
+HEAVY_FRAMEWORKS: dict[str, Any] = {
     # Prefect and Dagster removed — not comparing against server-based frameworks
 }
 
 
-async def _bench_framework(name: str, fns: dict) -> Dict[str, Any]:
+async def _bench_framework(name: str, fns: dict) -> dict[str, Any]:
     """Benchmark a single framework, returning raw results."""
     print(f"  Benchmarking {name}...")
-    results: Dict[str, Any] = {"name": name}
+    results: dict[str, Any] = {"name": name}
 
     try:
         results["seq3"] = await _run_timed(fns["seq3"])
@@ -850,7 +859,7 @@ def _check_available(frameworks: dict) -> dict:
     return available
 
 
-def _print_table(title: str, all_results: List[dict]) -> None:
+def _print_table(title: str, all_results: list[dict]) -> None:
     """Print a markdown-style comparison table."""
     if not all_results:
         return
@@ -924,9 +933,7 @@ async def run_benchmarks(output_json: bool = False) -> dict:
         data = _build_json(light_results, heavy_results)
         print("\n" + json.dumps(data, indent=2, default=str))
     else:
-        _print_table(
-            "**Lightweight frameworks (async/graph-based)**", light_results
-        )
+        _print_table("**Lightweight frameworks (async/graph-based)**", light_results)
         _print_table(
             "**Heavy frameworks (server/materialization-based)**", heavy_results
         )
@@ -938,9 +945,7 @@ async def run_benchmarks(output_json: bool = False) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PuffinFlow benchmark suite")
-    parser.add_argument(
-        "--json", action="store_true", help="Output results as JSON"
-    )
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     args = parser.parse_args()
     asyncio.run(run_benchmarks(output_json=args.json))
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,9 +14,7 @@ if TYPE_CHECKING:
 class DockerGenerator(DeployGenerator):
     """Generate Dockerfile, FastAPI serve wrapper, and requirements."""
 
-    def generate(
-        self, ir: WorkflowIR, python_code: str, output_dir: str
-    ) -> list[str]:
+    def generate(self, ir: WorkflowIR, python_code: str, output_dir: str) -> list[str]:
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         generated: list[str] = []
@@ -70,7 +67,7 @@ async def health():
         generated.append(str(serve_path))
 
         # Generate Dockerfile
-        dockerfile = f'''FROM python:3.11-slim
+        dockerfile = """FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -82,7 +79,7 @@ COPY . .
 EXPOSE 8000
 
 CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "8000"]
-'''
+"""
 
         dockerfile_path = out / "Dockerfile"
         dockerfile_path.write_text(dockerfile, encoding="utf-8")

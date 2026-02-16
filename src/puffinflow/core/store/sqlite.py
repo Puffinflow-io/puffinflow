@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, List
+from typing import Any, List  # noqa: UP035
 
 try:
     import aiosqlite  # type: ignore[import-not-found]
@@ -26,7 +26,8 @@ class SqliteStore:
     async def _ensure_db(self) -> aiosqlite.Connection:
         if self._db is None:
             self._db = await aiosqlite.connect(self._db_path)
-            await self._db.execute("""
+            await self._db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS store (
                     namespace TEXT NOT NULL,
                     key TEXT NOT NULL,
@@ -36,7 +37,8 @@ class SqliteStore:
                     updated_at REAL NOT NULL,
                     PRIMARY KEY (namespace, key)
                 )
-            """)
+            """
+            )
             await self._db.commit()
         return self._db
 
@@ -97,7 +99,7 @@ class SqliteStore:
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> List[Item]:
+    ) -> list[Item]:
         db = await self._ensure_db()
         ns_str = self._ns_str(namespace)
         cursor = await db.execute(
@@ -120,7 +122,7 @@ class SqliteStore:
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
-    ) -> List[Item]:
+    ) -> List[Item]:  # noqa: UP006  # 'list' resolves to the method, not the builtin
         db = await self._ensure_db()
         ns_str = self._ns_str(namespace)
         if query:

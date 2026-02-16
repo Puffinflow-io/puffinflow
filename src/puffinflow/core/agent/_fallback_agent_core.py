@@ -8,8 +8,6 @@ States are added incrementally via add_state().
 from __future__ import annotations
 
 import heapq
-from typing import List
-
 
 # Status constants matching Rust side
 _PENDING = 0
@@ -173,7 +171,7 @@ class FallbackAgentCore:
         self._cached_entry_par = entry_all
         self._validated = True
 
-    def prepare_run(self, mode: str) -> List[str]:
+    def prepare_run(self, mode: str) -> list[str]:
         """Validate if needed, reset tracking, return entry state names."""
         if not self._validated:
             self.validate(mode)
@@ -214,7 +212,7 @@ class FallbackAgentCore:
         self._seq += 1
         heapq.heappush(self._heap, (neg_pri, self._seq, idx))
 
-    def get_ready_states(self) -> List[str]:
+    def get_ready_states(self) -> list[str]:
         """Pop ready states from heap."""
         ready: list[str] = []
         reinsert: list[tuple[int, int, int]] = []
@@ -245,7 +243,7 @@ class FallbackAgentCore:
         self._running.add(idx)
         self._status[idx] = _RUNNING
 
-    def mark_completed(self, state_name: str) -> List[str]:
+    def mark_completed(self, state_name: str) -> list[str]:
         """Mark state completed, check dependents, queue newly-ready states."""
         idx = self._name_to_idx.get(state_name)
         if idx is None:
@@ -311,13 +309,13 @@ class FallbackAgentCore:
     def has_queued(self) -> bool:
         return bool(self._in_queue)
 
-    def get_completed_states(self) -> List[str]:
+    def get_completed_states(self) -> list[str]:
         return [self._names[i] for i in self._completed]
 
-    def get_completed_once(self) -> List[str]:
+    def get_completed_once(self) -> list[str]:
         return [self._names[i] for i in self._completed_once]
 
-    def get_running_states(self) -> List[str]:
+    def get_running_states(self) -> list[str]:
         return [self._names[i] for i in self._running]
 
     def get_state_status(self, state_name: str) -> str:
@@ -374,16 +372,16 @@ class FallbackAgentCore:
         v = self._last_success[idx]
         return None if v == 0.0 else v
 
-    def get_all_state_names(self) -> List[str]:
+    def get_all_state_names(self) -> list[str]:
         return list(self._names)
 
-    def get_dependencies(self, state_name: str) -> List[str]:
+    def get_dependencies(self, state_name: str) -> list[str]:
         idx = self._name_to_idx.get(state_name)
         if idx is None:
             return []
         return [self._names[d] for d in self._deps[idx]]
 
-    def get_dependents(self, state_name: str) -> List[str]:
+    def get_dependents(self, state_name: str) -> list[str]:
         idx = self._name_to_idx.get(state_name)
         if idx is None:
             return []
@@ -401,9 +399,7 @@ class FallbackAgentCore:
         idx = self._name_to_idx.get(state_name)
         if idx is None:
             return 0.0
-        delay = self._retry_initial_delay[idx] * (
-            self._retry_exp_base[idx] ** attempt
-        )
+        delay = self._retry_initial_delay[idx] * (self._retry_exp_base[idx] ** attempt)
         delay = min(delay, 60.0)
         if self._retry_jitter[idx]:
             delay *= 0.75

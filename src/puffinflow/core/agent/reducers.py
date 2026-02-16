@@ -1,6 +1,6 @@
 """State reducers for safe parallel state merging."""
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 
 def add_reducer(existing: Any, new: Any) -> Any:

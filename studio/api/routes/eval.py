@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from ..db import get_session
 from ..models import EvalCase, EvalRun, EvalSuite, Workflow
@@ -122,7 +121,9 @@ def _run_out(r: EvalRun, include_results: bool = False) -> dict:
             {
                 "id": res.id,
                 "case_id": res.case_id,
-                "actual_output": json.loads(res.actual_output) if res.actual_output else {},
+                "actual_output": json.loads(res.actual_output)
+                if res.actual_output
+                else {},
                 "scores": json.loads(res.scores_json) if res.scores_json else {},
                 "latency_ms": res.latency_ms or 0.0,
                 "passed": bool(res.passed),

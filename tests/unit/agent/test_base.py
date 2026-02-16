@@ -822,10 +822,10 @@ class TestWorkflowExecution:
             # timeout check at the top of the main loop — must exceed
             # the 0.1s timeout to trigger failure before states execute.
             time_values = [
-                start_time,       # run() start_time
-                start_time,       # session_start check
-                start_time + 0.2, # first timeout check → exceeds 0.1
-                start_time + 0.3, # end_time in exception path
+                start_time,  # run() start_time
+                start_time,  # session_start check
+                start_time + 0.2,  # first timeout check → exceeds 0.1
+                start_time + 0.3,  # end_time in exception path
             ]
 
             def time_side_effect():

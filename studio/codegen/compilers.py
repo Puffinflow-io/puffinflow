@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from .ir import Edge, MergeConfig, Node, NodeType
+from .ir import Edge, Node, NodeType
 
 
 def _find_next_state(
@@ -30,7 +30,7 @@ def compile_llm(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[st
     """Generate LLM call code."""
     cfg = node.config.llm
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines: list[str] = []
 
     # Extract template variables from user_prompt
@@ -45,11 +45,11 @@ def compile_llm(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[st
             prompt_str = prompt_str.replace("{{" + var + "}}", "{" + var + "}")
         lines.append(f'    prompt = f"{prompt_str}"')
     else:
-        lines.append(f'    prompt = {cfg.user_prompt!r}')
+        lines.append(f"    prompt = {cfg.user_prompt!r}")
 
     # System prompt
     if cfg.system_prompt:
-        lines.append(f'    system_prompt = {cfg.system_prompt!r}')
+        lines.append(f"    system_prompt = {cfg.system_prompt!r}")
         lines.append(
             f'    response = await llm_client.call('
             f'prompt, system=system_prompt, '
@@ -77,13 +77,11 @@ def compile_llm(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[st
     return lines
 
 
-def compile_function(
-    node: Node, edges: list[Edge], all_nodes: list[Node]
-) -> list[str]:
+def compile_function(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[str]:
     """Generate function call or inline code."""
     cfg = node.config.function
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines: list[str] = []
 
     # Read input variables
@@ -109,9 +107,8 @@ def compile_function(
             lines.append(f"    result = {cfg.module}()")
 
     # Set output
-    if cfg.output_key:
-        if cfg.code or cfg.module:
-            lines.append(f'    ctx.set_variable("{cfg.output_key}", result)')
+    if cfg.output_key and (cfg.code or cfg.module):
+        lines.append(f'    ctx.set_variable("{cfg.output_key}", result)')
 
     next_state = _find_next_state(node, edges, all_nodes)
     if next_state:
@@ -128,7 +125,7 @@ def compile_conditional(
     """Generate if/else branching."""
     cfg = node.config.conditional
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines = [
         f"    if {cfg.condition}:",
         f'        return "{cfg.true_target}"',
@@ -141,7 +138,7 @@ def compile_input(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[
     """Generate input variable initialization."""
     cfg = node.config.input
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines: list[str] = []
 
     for var_def in cfg.variables:
@@ -153,9 +150,7 @@ def compile_input(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[
                 f'ctx.get_variable("{name}", {default!r}))'
             )
         else:
-            lines.append(
-                f'    ctx.set_variable("{name}", ctx.get_variable("{name}"))'
-            )
+            lines.append(f'    ctx.set_variable("{name}", ctx.get_variable("{name}"))')
 
     next_state = _find_next_state(node, edges, all_nodes)
     if next_state:
@@ -170,7 +165,7 @@ def compile_output(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list
     """Generate output mapping."""
     cfg = node.config.output
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines: list[str] = []
 
     for output_name, var_key in cfg.mappings.items():
@@ -186,7 +181,7 @@ def compile_tool(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[s
     """Generate tool invocation."""
     cfg = node.config.tool
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines: list[str] = []
 
     # Import tool if module specified
@@ -206,7 +201,7 @@ def compile_tool(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[s
         param_parts = []
         for k, v in cfg.parameters.items():
             if isinstance(v, str) and v.startswith("ctx."):
-                param_parts.append(f'{k}={v}')
+                param_parts.append(f"{k}={v}")
             else:
                 param_parts.append(f"{k}={v!r}")
         params = ", ".join(param_parts)
@@ -229,7 +224,7 @@ def compile_memory(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list
     """Generate memory store operations."""
     cfg = node.config.memory
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines: list[str] = []
 
     ns_tuple = repr(tuple(cfg.namespace))
@@ -237,9 +232,7 @@ def compile_memory(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list
 
     if cfg.operation == "put":
         key_expr = f'ctx.get_variable("{cfg.key}")' if cfg.key else '""'
-        val_expr = (
-            f'ctx.get_variable("{cfg.value_key}")' if cfg.value_key else "None"
-        )
+        val_expr = f'ctx.get_variable("{cfg.value_key}")' if cfg.value_key else "None"
         lines.append(f"    key = {key_expr}")
         lines.append(f"    value = {val_expr}")
         lines.append("    await ctx.store.put(namespace, key, value)")
@@ -255,9 +248,7 @@ def compile_memory(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list
         lines.append("    result = await ctx.store.delete(namespace, key)")
         lines.append(f'    ctx.set_variable("{cfg.output_key}", result)')
     elif cfg.operation == "list":
-        lines.append(
-            f"    items = await ctx.store.list(namespace, limit={cfg.limit})"
-        )
+        lines.append(f"    items = await ctx.store.list(namespace, limit={cfg.limit})")
         lines.append("    result = [item.value for item in items]")
         lines.append(f'    ctx.set_variable("{cfg.output_key}", result)')
     elif cfg.operation == "search":
@@ -279,13 +270,11 @@ def compile_memory(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list
     return lines
 
 
-def compile_fan_out(
-    node: Node, edges: list[Edge], all_nodes: list[Node]
-) -> list[str]:
+def compile_fan_out(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[str]:
     """Generate fan-out dispatch."""
     cfg = node.config.fan_out
     if cfg is None:
-        return ['    return None']
+        return ["    return None"]
     lines = [
         f'    items = ctx.get_variable("{cfg.items_key}")',
         f'    return [Send("{cfg.target_state}", '

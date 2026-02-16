@@ -6,7 +6,6 @@ from puffinflow.core.agent.base import Agent
 from puffinflow.core.agent.decorators.flexible import cpu_intensive, state
 from puffinflow.core.agent.state import AgentStatus
 
-
 # ---------------------------------------------------------------------------
 # Helper agent classes defined at module level so __init_subclass__ runs
 # ---------------------------------------------------------------------------

@@ -3,7 +3,6 @@ Flexible state decorator with optional parameters and multiple configuration met
 """
 
 from dataclasses import dataclass, field
-from functools import wraps
 from typing import Any, Callable, Optional, Union
 
 from ...coordination.primitives import PrimitiveType

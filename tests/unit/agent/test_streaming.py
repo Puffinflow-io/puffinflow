@@ -12,18 +12,17 @@ Tests cover:
 - Zero overhead when no stream manager is attached
 """
 
-import asyncio
 
 import pytest
 
 from puffinflow.core.agent import Agent, AgentStatus, Command
-from puffinflow.core.agent.streaming import StreamEvent, StreamManager, StreamMode
 from puffinflow.core.agent.state import ExecutionMode, RetryPolicy
-
+from puffinflow.core.agent.streaming import StreamEvent, StreamMode
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_linear_agent(name: str = "test-stream"):
     """Create a simple two-state sequential agent: step_a -> step_b -> end."""

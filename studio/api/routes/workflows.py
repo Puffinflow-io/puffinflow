@@ -74,7 +74,9 @@ async def list_workflows(
 
 
 @router.post("", response_model=WorkflowOut, status_code=201)
-async def create_workflow(body: WorkflowCreate, session: AsyncSession = Depends(get_session)):
+async def create_workflow(
+    body: WorkflowCreate, session: AsyncSession = Depends(get_session)
+):
     generated = ""
     if body.yaml_content:
         with contextlib.suppress(Exception):
@@ -114,7 +116,9 @@ async def update_workflow(
     if body.yaml_content is not None:
         workflow.yaml_content = body.yaml_content
         try:
-            workflow.generated_python = codegen_service.generate_from_yaml(body.yaml_content)
+            workflow.generated_python = codegen_service.generate_from_yaml(
+                body.yaml_content
+            )
             workflow.version = (workflow.version or 1) + 1
         except Exception:
             pass
@@ -124,7 +128,9 @@ async def update_workflow(
 
 
 @router.delete("/{workflow_id}", status_code=204)
-async def delete_workflow(workflow_id: str, session: AsyncSession = Depends(get_session)):
+async def delete_workflow(
+    workflow_id: str, session: AsyncSession = Depends(get_session)
+):
     workflow = await session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(404, "Workflow not found")
@@ -133,7 +139,9 @@ async def delete_workflow(workflow_id: str, session: AsyncSession = Depends(get_
 
 
 @router.post("/{workflow_id}/generate", response_model=WorkflowOut)
-async def regenerate_workflow(workflow_id: str, session: AsyncSession = Depends(get_session)):
+async def regenerate_workflow(
+    workflow_id: str, session: AsyncSession = Depends(get_session)
+):
     """Regenerate Python code from stored YAML."""
     workflow = await session.get(Workflow, workflow_id)
     if not workflow:
@@ -141,7 +149,9 @@ async def regenerate_workflow(workflow_id: str, session: AsyncSession = Depends(
     if not workflow.yaml_content:
         raise HTTPException(400, "No YAML content to generate from")
     try:
-        workflow.generated_python = codegen_service.generate_from_yaml(workflow.yaml_content)
+        workflow.generated_python = codegen_service.generate_from_yaml(
+            workflow.yaml_content
+        )
         workflow.version = (workflow.version or 1) + 1
     except Exception as exc:
         raise HTTPException(422, f"Code generation failed: {exc}") from exc
@@ -167,6 +177,7 @@ async def reverse_parse_workflow(
     try:
         ir = codegen_service.reverse_parse(body.python_source)
         import yaml
+
         workflow.yaml_content = yaml.dump(ir.model_dump(), default_flow_style=False)
         workflow.generated_python = body.python_source
         workflow.version = (workflow.version or 1) + 1

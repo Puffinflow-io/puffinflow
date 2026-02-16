@@ -12,8 +12,7 @@ Tests cover:
 
 import pytest
 
-from puffinflow.core.agent import Agent, AgentStatus, Command, Send
-
+from puffinflow.core.agent import Agent, AgentStatus, Command
 
 # ---------------------------------------------------------------------------
 # Helpers

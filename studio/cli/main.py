@@ -20,8 +20,12 @@ app = typer.Typer(
 @app.command()
 def init(
     name: str = typer.Argument(..., help="Project name"),
-    template: str = typer.Option("basic", "--template", "-t", help="Template: basic, research, pipeline"),
-    output_dir: str = typer.Option(".", "--output", "-o", help="Parent directory for the project"),
+    template: str = typer.Option(
+        "basic", "--template", "-t", help="Template: basic, research, pipeline"
+    ),
+    output_dir: str = typer.Option(
+        ".", "--output", "-o", help="Parent directory for the project"
+    ),
 ):
     """Scaffold a new PuffinFlow project."""
     from .scaffold import scaffold_project
@@ -29,13 +33,13 @@ def init(
     try:
         root = scaffold_project(name, template=template, output_dir=output_dir)
         typer.echo(f"Created project at {root}")
-        typer.echo(f"  workflows/main.yaml  — starter workflow")
-        typer.echo(f"  evals/main_eval.yaml — starter eval suite")
+        typer.echo("  workflows/main.yaml  — starter workflow")
+        typer.echo("  evals/main_eval.yaml — starter eval suite")
         typer.echo()
         typer.echo("Next steps:")
         typer.echo(f"  cd {root}")
-        typer.echo(f"  puffinflow codegen workflows/main.yaml")
-        typer.echo(f"  puffinflow dev")
+        typer.echo("  puffinflow codegen workflows/main.yaml")
+        typer.echo("  puffinflow dev")
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc
@@ -47,8 +51,12 @@ def init(
 @app.command()
 def codegen(
     file: Path = typer.Argument(..., help="Path to workflow YAML file"),
-    output: Path | None = typer.Option(None, "--output", "-o", help="Output Python file path"),
-    watch: bool = typer.Option(False, "--watch", "-w", help="Watch for changes and auto-regenerate"),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Output Python file path"
+    ),
+    watch: bool = typer.Option(
+        False, "--watch", "-w", help="Watch for changes and auto-regenerate"
+    ),
 ):
     """Generate Python code from a workflow YAML file."""
     import yaml as yaml_lib
@@ -127,7 +135,9 @@ def validate(
 def run_tests(
     suite: Path = typer.Argument(..., help="Path to eval suite YAML"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-    parallel: int = typer.Option(1, "--parallel", "-p", help="Number of parallel eval cases"),
+    parallel: int = typer.Option(
+        1, "--parallel", "-p", help="Number of parallel eval cases"
+    ),
 ):
     """Run an evaluation suite."""
     from studio.eval.engine import EvalEngine
@@ -146,11 +156,15 @@ def run_tests(
     # Print results
     typer.echo(f"\n{'=' * 60}")
     typer.echo(f"Suite: {result.suite_name}")
-    typer.echo(f"Total: {result.total_cases}  Passed: {result.passed_cases}  "
-               f"Failed: {result.failed_cases}  Errors: {result.error_cases}")
-    typer.echo(f"Avg Score: {result.avg_score:.2f}  "
-               f"Avg Latency: {result.avg_latency_ms:.0f}ms  "
-               f"Pass Rate: {result.pass_rate:.0%}")
+    typer.echo(
+        f"Total: {result.total_cases}  Passed: {result.passed_cases}  "
+        f"Failed: {result.failed_cases}  Errors: {result.error_cases}"
+    )
+    typer.echo(
+        f"Avg Score: {result.avg_score:.2f}  "
+        f"Avg Latency: {result.avg_latency_ms:.0f}ms  "
+        f"Pass Rate: {result.pass_rate:.0%}"
+    )
     typer.echo(f"{'=' * 60}")
 
     if verbose:
@@ -173,9 +187,15 @@ def run_tests(
 @app.command()
 def deploy(
     workflow: Path = typer.Argument(..., help="Path to workflow YAML file"),
-    target: str = typer.Option("docker", "--target", "-t", help="Deploy target: modal, docker"),
-    output_dir: Path | None = typer.Option(None, "--output", "-o", help="Output directory for deploy files"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Generate files only, don't deploy"),
+    target: str = typer.Option(
+        "docker", "--target", "-t", help="Deploy target: modal, docker"
+    ),
+    output_dir: Path | None = typer.Option(
+        None, "--output", "-o", help="Output directory for deploy files"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Generate files only, don't deploy"
+    ),
 ):
     """Generate deployment artefacts for a workflow."""
     import yaml as yaml_lib
@@ -188,7 +208,9 @@ def deploy(
     generators = {"modal": ModalGenerator, "docker": DockerGenerator}
     gen_cls = generators.get(target)
     if gen_cls is None:
-        typer.echo(f"Unknown target: {target}. Choose from: {list(generators)}", err=True)
+        typer.echo(
+            f"Unknown target: {target}. Choose from: {list(generators)}", err=True
+        )
         raise typer.Exit(1)
 
     try:
@@ -227,17 +249,28 @@ def dev(
 
     typer.echo("Starting PuffinFlow Studio dev servers…")
     typer.echo(f"  API:      http://{host}:{port}")
-    typer.echo(f"  Frontend: http://localhost:3000")
+    typer.echo("  Frontend: http://localhost:3000")
     typer.echo()
 
     # Start API server
     try:
         api_proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "studio.api.main:app",
-             "--host", host, "--port", str(port), "--reload"],
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "studio.api.main:app",
+                "--host",
+                host,
+                "--port",
+                str(port),
+                "--reload",
+            ],
         )
     except FileNotFoundError as exc:
-        typer.echo("Error: uvicorn not found. Install with: pip install uvicorn", err=True)
+        typer.echo(
+            "Error: uvicorn not found. Install with: pip install uvicorn", err=True
+        )
         raise typer.Exit(1) from exc
 
     # Start Next.js dev server
@@ -250,7 +283,9 @@ def dev(
                 cwd=str(web_dir),
             )
         except FileNotFoundError:
-            typer.echo("Warning: npm not found — frontend server not started.", err=True)
+            typer.echo(
+                "Warning: npm not found — frontend server not started.", err=True
+            )
 
     try:
         api_proc.wait()

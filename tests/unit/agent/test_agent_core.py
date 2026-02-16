@@ -4,10 +4,10 @@ import pytest
 
 from puffinflow.core.agent._core import AgentCore
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _build_linear_core():
     """Build a core with 3 linear states: a -> b -> c."""
@@ -40,6 +40,7 @@ def _build_diamond_core():
 # ---------------------------------------------------------------------------
 # Construction & add_state
 # ---------------------------------------------------------------------------
+
 
 class TestAddState:
     def test_empty_core(self):
@@ -79,6 +80,7 @@ class TestAddState:
 # Validation
 # ---------------------------------------------------------------------------
 
+
 class TestValidation:
     def test_validate_linear(self):
         core = _build_linear_core()
@@ -117,6 +119,7 @@ class TestValidation:
 # ---------------------------------------------------------------------------
 # prepare_run
 # ---------------------------------------------------------------------------
+
 
 class TestPrepareRun:
     def test_sequential_returns_first_entry(self):
@@ -158,6 +161,7 @@ class TestPrepareRun:
 # Queue operations (same as StateMachineCore)
 # ---------------------------------------------------------------------------
 
+
 class TestQueue:
     def test_add_to_queue(self):
         core = _build_linear_core()
@@ -192,6 +196,7 @@ class TestQueue:
 # ---------------------------------------------------------------------------
 # Full execution workflows
 # ---------------------------------------------------------------------------
+
 
 class TestLinearWorkflow:
     def test_full_linear_execution(self):
@@ -280,6 +285,7 @@ class TestParallelStates:
 # handle_result
 # ---------------------------------------------------------------------------
 
+
 class TestHandleResult:
     def test_none_result(self):
         core = _build_linear_core()
@@ -310,6 +316,7 @@ class TestHandleResult:
 # ---------------------------------------------------------------------------
 # Failure & Retry
 # ---------------------------------------------------------------------------
+
 
 class TestFailure:
     def test_mark_failed(self):
@@ -345,7 +352,9 @@ class TestRetry:
 
     def test_get_retry_delay(self):
         core = AgentCore("test")
-        core.add_state("s1", 1, 3, [], retry_delay=1.0, retry_base=2.0, retry_jitter=False)
+        core.add_state(
+            "s1", 1, 3, [], retry_delay=1.0, retry_base=2.0, retry_jitter=False
+        )
         delay_0 = core.get_retry_delay("s1", 0)
         delay_1 = core.get_retry_delay("s1", 1)
         delay_2 = core.get_retry_delay("s1", 2)
@@ -355,7 +364,9 @@ class TestRetry:
 
     def test_get_retry_delay_with_jitter(self):
         core = AgentCore("test")
-        core.add_state("s1", 1, 3, [], retry_delay=1.0, retry_base=2.0, retry_jitter=True)
+        core.add_state(
+            "s1", 1, 3, [], retry_delay=1.0, retry_base=2.0, retry_jitter=True
+        )
         delay = core.get_retry_delay("s1", 0)
         # With jitter, delay should be 1.0 * 0.75 = 0.75
         assert delay == pytest.approx(0.75)
@@ -364,6 +375,7 @@ class TestRetry:
 # ---------------------------------------------------------------------------
 # Metadata accessors
 # ---------------------------------------------------------------------------
+
 
 class TestAccessors:
     def test_get_state_attempts(self):
@@ -420,6 +432,7 @@ class TestAccessors:
 # Status queries
 # ---------------------------------------------------------------------------
 
+
 class TestStatus:
     def test_initial_status(self):
         core = _build_linear_core()
@@ -443,6 +456,7 @@ class TestStatus:
 # Reset
 # ---------------------------------------------------------------------------
 
+
 class TestReset:
     def test_reset_clears_all(self):
         core = _build_linear_core()
@@ -465,6 +479,7 @@ class TestReset:
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_priority_boost(self):

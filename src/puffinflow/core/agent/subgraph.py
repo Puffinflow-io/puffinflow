@@ -65,7 +65,9 @@ def make_subgraph_state(
                 if evt is not None:
                     prefixed = StreamEvent(
                         event_type=evt.event_type,
-                        state_name=f"{prefix}.{evt.state_name}" if evt.state_name else prefix,
+                        state_name=f"{prefix}.{evt.state_name}"
+                        if evt.state_name
+                        else prefix,
                         data=evt.data,
                         timestamp=evt.timestamp,
                     )

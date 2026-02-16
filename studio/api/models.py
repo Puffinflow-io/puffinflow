@@ -30,8 +30,12 @@ class Project(Base):
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    workflows = relationship("Workflow", back_populates="project", cascade="all, delete-orphan")
-    eval_suites = relationship("EvalSuite", back_populates="project", cascade="all, delete-orphan")
+    workflows = relationship(
+        "Workflow", back_populates="project", cascade="all, delete-orphan"
+    )
+    eval_suites = relationship(
+        "EvalSuite", back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Workflow(Base):
@@ -47,7 +51,9 @@ class Workflow(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     project = relationship("Project", back_populates="workflows")
-    deployments = relationship("Deployment", back_populates="workflow", cascade="all, delete-orphan")
+    deployments = relationship(
+        "Deployment", back_populates="workflow", cascade="all, delete-orphan"
+    )
 
 
 class EvalSuite(Base):
@@ -61,7 +67,9 @@ class EvalSuite(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     project = relationship("Project", back_populates="eval_suites")
-    cases = relationship("EvalCase", back_populates="suite", cascade="all, delete-orphan")
+    cases = relationship(
+        "EvalCase", back_populates="suite", cascade="all, delete-orphan"
+    )
     runs = relationship("EvalRun", back_populates="suite", cascade="all, delete-orphan")
 
 
@@ -92,7 +100,9 @@ class EvalRun(Base):
 
     suite = relationship("EvalSuite", back_populates="runs")
     workflow = relationship("Workflow")
-    results = relationship("EvalResult", back_populates="run", cascade="all, delete-orphan")
+    results = relationship(
+        "EvalResult", back_populates="run", cascade="all, delete-orphan"
+    )
 
 
 class EvalResult(Base):

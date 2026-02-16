@@ -7,28 +7,21 @@ back into node types and reconstruct a WorkflowIR.
 from __future__ import annotations
 
 import ast
-import re
 
 from .ir import (
     AgentConfig,
     ConditionalConfig,
     Edge,
-    FanOutConfig,
     FunctionConfig,
     LLMConfig,
-    MemoryConfig,
-    MergeConfig,
     Node,
     NodeConfig,
     NodeType,
     OutputConfig,
     Position,
     StoreConfig,
-    ToolConfig,
     WorkflowIR,
-    WorkflowInput,
     WorkflowMetadata,
-    WorkflowOutput,
 )
 
 
@@ -55,7 +48,11 @@ class ReverseParser:
     def _is_state_method(self, func_node: ast.AsyncFunctionDef) -> bool:
         """Check if a function has a @state() decorator."""
         for dec in func_node.decorator_list:
-            if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name) and dec.func.id == "state":
+            if (
+                isinstance(dec, ast.Call)
+                and isinstance(dec.func, ast.Name)
+                and dec.func.id == "state"
+            ):
                 return True
             if isinstance(dec, ast.Name) and dec.id == "state":
                 return True
@@ -160,9 +157,7 @@ class ReverseParser:
                     func = val.func
                     if isinstance(func, ast.Name) and func.id == "Command":
                         for kw in val.keywords:
-                            if kw.arg == "goto" and isinstance(
-                                kw.value, ast.Constant
-                            ):
+                            if kw.arg == "goto" and isinstance(kw.value, ast.Constant):
                                 edges.append(
                                     Edge(
                                         from_node=method_name,
@@ -178,30 +173,29 @@ class ReverseParser:
         for stmt in func_node.body:
             if isinstance(stmt, ast.If):
                 for sub in stmt.body:
-                    if isinstance(sub, ast.Return) and isinstance(
-                        sub.value, ast.Constant
-                    ) and isinstance(sub.value.value, str):
+                    if (
+                        isinstance(sub, ast.Return)
+                        and isinstance(sub.value, ast.Constant)
+                        and isinstance(sub.value.value, str)
+                    ):
                         # Mark as true edge
                         for e in edges:
                             if e.to_node == sub.value.value and e.label is None:
                                 e.label = "true"
                 if stmt.orelse:
                     for sub in stmt.orelse:
-                        if isinstance(sub, ast.Return) and isinstance(
-                            sub.value, ast.Constant
-                        ) and isinstance(sub.value.value, str):
+                        if (
+                            isinstance(sub, ast.Return)
+                            and isinstance(sub.value, ast.Constant)
+                            and isinstance(sub.value.value, str)
+                        ):
                             for e in edges:
-                                if (
-                                    e.to_node == sub.value.value
-                                    and e.label is None
-                                ):
+                                if e.to_node == sub.value.value and e.label is None:
                                     e.label = "false"
 
         return edges
 
-    def _extract_llm_config(
-        self, func_node: ast.AsyncFunctionDef
-    ) -> LLMConfig | None:
+    def _extract_llm_config(self, func_node: ast.AsyncFunctionDef) -> LLMConfig | None:
         """Try to extract LLM configuration from a method."""
         model = "gpt-4"
         output_key = "response"
@@ -212,13 +206,17 @@ class ReverseParser:
                 for kw in node.keywords:
                     if kw.arg == "model" and isinstance(kw.value, ast.Constant):
                         model = kw.value.value
-                    if kw.arg == "temperature" and isinstance(
-                        kw.value, ast.Constant
-                    ):
+                    if kw.arg == "temperature" and isinstance(kw.value, ast.Constant):
                         pass
 
             # Look for ctx.set_variable("key", response) to find output_key
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "set_variable" and len(node.args) >= 1 and isinstance(node.args[0], ast.Constant):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "set_variable"
+                and len(node.args) >= 1
+                and isinstance(node.args[0], ast.Constant)
+            ):
                 output_key = node.args[0].value
 
         return LLMConfig(model=model, output_key=output_key)
@@ -306,15 +304,14 @@ class ReverseParser:
         for item in class_node.body:
             if isinstance(item, ast.FunctionDef) and item.name == "__init__":
                 for stmt in item.body:
-                    if isinstance(stmt, ast.Expr) and isinstance(
-                        stmt.value, ast.Call
-                    ):
+                    if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
                         call = stmt.value
                         # super().__init__("name", ...) pattern
-                        if isinstance(call.func, ast.Attribute) and call.func.attr == "__init__":
-                            if call.args and isinstance(
-                                call.args[0], ast.Constant
-                            ):
+                        if (
+                            isinstance(call.func, ast.Attribute)
+                            and call.func.attr == "__init__"
+                        ):
+                            if call.args and isinstance(call.args[0], ast.Constant):
                                 agent_name = call.args[0].value
                             for kw in call.keywords:
                                 if kw.arg == "store":

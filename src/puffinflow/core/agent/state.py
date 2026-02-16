@@ -7,7 +7,7 @@ import random
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Any, Optional, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Union, runtime_checkable
 
 from typing_extensions import Protocol
 
@@ -89,7 +89,7 @@ class StateStatus(str, Enum):
 class StateFunction(Protocol):
     """Protocol for state functions."""
 
-    async def __call__(self, context: "Context") -> StateResult:
+    async def __call__(self, context: Context) -> StateResult:
         ...
 
 
@@ -135,13 +135,13 @@ class StateMetadata:
     status: StateStatus
     attempts: int = 0
     max_retries: int = 3
-    resources: Optional["ResourceRequirements"] = None
+    resources: ResourceRequirements | None = None
     dependencies: dict[str, Any] = field(default_factory=dict)
     satisfied_dependencies: set = field(default_factory=set)
-    last_execution: Optional[float] = None
-    last_success: Optional[float] = None
+    last_execution: float | None = None
+    last_success: float | None = None
     state_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    retry_policy: Optional[RetryPolicy] = None
+    retry_policy: RetryPolicy | None = None
     priority: Priority = Priority.NORMAL
     coordination_primitives: list[Any] = field(default_factory=list)
 

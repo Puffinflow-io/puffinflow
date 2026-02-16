@@ -1,7 +1,6 @@
 """Deployment routes — trigger and check status."""
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -54,7 +53,9 @@ def _to_out(d) -> dict:
 
 
 @router.post("", response_model=DeployOut, status_code=201)
-async def trigger_deploy(body: DeployRequest, session: AsyncSession = Depends(get_session)):
+async def trigger_deploy(
+    body: DeployRequest, session: AsyncSession = Depends(get_session)
+):
     workflow = await session.get(Workflow, body.workflow_id)
     if not workflow:
         raise HTTPException(404, "Workflow not found")
@@ -73,7 +74,9 @@ async def trigger_deploy(body: DeployRequest, session: AsyncSession = Depends(ge
 
 
 @router.get("/{deployment_id}", response_model=DeployOut)
-async def get_deployment(deployment_id: str, session: AsyncSession = Depends(get_session)):
+async def get_deployment(
+    deployment_id: str, session: AsyncSession = Depends(get_session)
+):
     deployment = await deploy_service.get_deployment(session, deployment_id)
     if not deployment:
         raise HTTPException(404, "Deployment not found")

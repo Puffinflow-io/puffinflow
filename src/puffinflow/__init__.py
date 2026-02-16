@@ -62,7 +62,10 @@ _LAZY_IMPORTS = {
     "Bulkhead": (".core.reliability.bulkhead", "Bulkhead"),
     "BulkheadConfig": (".core.reliability.bulkhead", "BulkheadConfig"),
     "CircuitBreaker": (".core.reliability.circuit_breaker", "CircuitBreaker"),
-    "CircuitBreakerConfig": (".core.reliability.circuit_breaker", "CircuitBreakerConfig"),
+    "CircuitBreakerConfig": (
+        ".core.reliability.circuit_breaker",
+        "CircuitBreakerConfig",
+    ),
     "ResourceLeakDetector": (".core.reliability.leak_detector", "ResourceLeakDetector"),
     # Resources
     "AllocationStrategy": (".core.resources.allocation", "AllocationStrategy"),

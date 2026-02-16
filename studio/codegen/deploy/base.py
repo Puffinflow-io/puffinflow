@@ -13,9 +13,7 @@ class DeployGenerator(ABC):
     """Base class for platform-specific deploy file generators."""
 
     @abstractmethod
-    def generate(
-        self, ir: WorkflowIR, python_code: str, output_dir: str
-    ) -> list[str]:
+    def generate(self, ir: WorkflowIR, python_code: str, output_dir: str) -> list[str]:
         """Generate deploy files.
 
         Args:

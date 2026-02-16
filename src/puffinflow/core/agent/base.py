@@ -34,7 +34,7 @@ from .state import (
     StateResult,
     StateStatus,
 )
-from .streaming import StreamEvent, StreamManager, StreamMode
+from .streaming import StreamManager, StreamMode
 
 # Import StateMachineCore and AgentCore (Rust or Python fallback)
 try:
@@ -45,9 +45,9 @@ except Exception:
     _HAS_CORE = False
 
 try:
-    from ._core import AgentCore, _HAS_AGENT_CORE
+    from ._core import _HAS_AGENT_CORE, AgentCore
 except Exception:
-    AgentCore = None  # type: ignore[assignment,misc]
+    AgentCore = None
     _HAS_AGENT_CORE = False
 
 # Import scheduling components
@@ -521,7 +521,9 @@ class _StateMetadataProxy:
 
     __slots__ = ("_core", "_name", "_extras", "_overrides", "_default_retry_policy")
 
-    def __init__(self, core, name: str, extras: Optional[dict] = None, default_retry_policy=None):
+    def __init__(
+        self, core, name: str, extras: Optional[dict] = None, default_retry_policy=None
+    ):
         self._core = core
         self._name = name
         self._extras = extras  # ref to agent._state_extras.get(name)
@@ -625,8 +627,6 @@ class _StateMetadataProxy:
         return set()
 
 
-
-
 class _StateMetadataProxyDict:
     """Dict-like proxy backed by AgentCore. No StateMetadata objects created."""
 
@@ -649,7 +649,11 @@ class _StateMetadataProxyDict:
         return proxy
 
     def __contains__(self, name: str) -> bool:
-        return name in self._core._name_to_idx if hasattr(self._core, '_name_to_idx') else name in self._core.get_all_state_names()
+        return (
+            name in self._core._name_to_idx
+            if hasattr(self._core, "_name_to_idx")
+            else name in self._core.get_all_state_names()
+        )
 
     def __iter__(self):
         return iter(self._core.get_all_state_names())
@@ -754,13 +758,17 @@ class Agent:
         # Dependencies always populated (needed by slow path even when _core exists)
         self._dependencies_dict: dict[str, list[str]] = {}
         self._dependents_dict: dict[str, list[str]] = {}
-        self._deps_snapshot: Optional[int] = None  # id() of deps dict values at last add_state
+        self._deps_snapshot: Optional[
+            int
+        ] = None  # id() of deps dict values at last add_state
         self._use_fast_path: bool = False
         self._validated: bool = False
         self.status = AgentStatus.IDLE
         self._shared_state: Optional[dict[str, Any]] = None
         # Tracking containers: lazy when _core is available
-        self._priority_queue: Optional[list[PrioritizedState]] = None if _has_core else []
+        self._priority_queue: Optional[list[PrioritizedState]] = (
+            None if _has_core else []
+        )
         self._running_states_set: Optional[set[str]] = None if _has_core else set()
         self._completed_states_set: Optional[set[str]] = None if _has_core else set()
         self._completed_once_set: Optional[set[str]] = None if _has_core else set()
@@ -1031,6 +1039,7 @@ class Agent:
         """Lazily create context if it doesn't exist yet."""
         if self._context is None:
             self._create_context(self.shared_state)
+        assert self._context is not None
         return self._context
 
     def get_output(self, key: str, default: Any = None) -> Any:
@@ -1128,7 +1137,11 @@ class Agent:
         self, key: str, old_value: Any, new_value: Any
     ) -> None:
         """Trigger watchers for variable changes."""
-        if self._variable_watchers and key in self._variable_watchers and old_value != new_value:
+        if (
+            self._variable_watchers
+            and key in self._variable_watchers
+            and old_value != new_value
+        ):
             for handler in self._variable_watchers[key]:
                 try:
                     if asyncio.iscoroutinefunction(handler):
@@ -1149,7 +1162,11 @@ class Agent:
         self, key: str, old_value: Any, new_value: Any
     ) -> None:
         """Trigger watchers for shared variable changes."""
-        if self._shared_variable_watchers and key in self._shared_variable_watchers and old_value != new_value:
+        if (
+            self._shared_variable_watchers
+            and key in self._shared_variable_watchers
+            and old_value != new_value
+        ):
             for handler in self._shared_variable_watchers[key]:
                 try:
                     if asyncio.iscoroutinefunction(handler):
@@ -1359,15 +1376,11 @@ class Agent:
             for key, value in cmd.update.items():
                 if self._reducers is not None and self._reducers.has(key):
                     existing = ctx.shared_state.get(key)
-                    ctx.shared_state[key] = self._reducers.apply(
-                        key, existing, value
-                    )
+                    ctx.shared_state[key] = self._reducers.apply(key, existing, value)
                 else:
                     ctx.shared_state[key] = value
 
-    async def _execute_send_branches(
-        self, sends: list[Send], ctx: Any
-    ) -> None:
+    async def _execute_send_branches(self, sends: list[Send], ctx: Any) -> None:
         """Execute Send branches in parallel with isolated contexts."""
         tasks = []
         for send in sends:
@@ -1382,14 +1395,10 @@ class Agent:
             child_ctx._stream = getattr(ctx, "_stream", None)
             child_ctx._reducers = self._reducers
 
-            async def _run_send(
-                _state_name: str, _child_ctx: Context
-            ) -> Any:
+            async def _run_send(_state_name: str, _child_ctx: Context) -> Any:
                 return await self.states[_state_name](_child_ctx)
 
-            tasks.append(
-                asyncio.create_task(_run_send(send.state, child_ctx))
-            )
+            tasks.append(asyncio.create_task(_run_send(send.state, child_ctx)))
 
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -1598,7 +1607,11 @@ class Agent:
             self._sm_proxy = None
 
             # Store extras when non-None (resources, coordination_primitives, retry_policy)
-            if final_requirements is not None or coordination_primitives or retry_policy:
+            if (
+                final_requirements is not None
+                or coordination_primitives
+                or retry_policy
+            ):
                 if self._state_extras is None:
                     self._state_extras = {}
                 extras: dict[str, Any] = {}
@@ -2063,7 +2076,11 @@ class Agent:
                 self._add_to_queue_fast(result)
         elif isinstance(result, list):
             for ns in result:
-                if isinstance(ns, str) and ns in self.states and ns not in self.completed_states:
+                if (
+                    isinstance(ns, str)
+                    and ns in self.states
+                    and ns not in self.completed_states
+                ):
                     self._add_to_queue_fast(ns)
 
     async def run_state(self, state_name: str) -> None:
@@ -2167,9 +2184,10 @@ class Agent:
         if isinstance(result, Command):
             if result.update and self._context is not None:
                 self._apply_command(result, self._context)
-            result = result.goto
-            if result is None:
+            goto = result.goto
+            if goto is None:
                 return
+            result = goto  # type: ignore[assignment]
 
         if isinstance(result, str):
             # Single next state
@@ -2603,15 +2621,14 @@ class Agent:
                 and self._circuit_breaker is None
                 and self._resource_pool is None
                 and "_find_entry_states_by_mode" not in self.__dict__
-                and not (_extras and any(
-                    "resources" in v for v in _extras.values()
-                ))
+                and not (_extras and any("resources" in v for v in _extras.values()))
             )
             if _fast:
                 # ============================================================
                 # AgentCore fast path — persistent core, validation cached,
                 # sync fast path for non-suspending coroutines
                 # ============================================================
+                assert _core is not None
                 # Validate only if deps were externally mutated after add_state
                 _snap = self._deps_snapshot
                 if _snap is not None and _snap != sum(
@@ -2620,7 +2637,7 @@ class Agent:
                     self._validate_workflow_configuration(execution_mode)
 
                 mode_str = execution_mode.value
-                entry_states = self._core.prepare_run(mode_str)
+                entry_states = _core.prepare_run(mode_str)
 
                 # Lazy context
                 self._create_context(self.shared_state)
@@ -2628,14 +2645,14 @@ class Agent:
                     self._apply_initial_context(initial_context)
 
                 for sn in entry_states:
-                    self._core.add_to_queue(sn, 0)
+                    _core.add_to_queue(sn, 0)
 
                 _ctx = self._context
                 _states = self.states
-                _has_timeout = timeout is not None
+                _timeout: Optional[float] = timeout
 
                 while self.status == AgentStatus.RUNNING:
-                    if _has_timeout and (time.time() - start_time) > timeout:
+                    if _timeout is not None and (time.time() - start_time) > _timeout:
                         logger.warning(
                             f"Agent {self.name} timed out after {timeout} seconds."
                         )
@@ -2662,14 +2679,10 @@ class Agent:
                             elif isinstance(result, list) and any(
                                 isinstance(r, Send) for r in result
                             ):
-                                sends = [
-                                    r for r in result if isinstance(r, Send)
-                                ]
+                                sends = [r for r in result if isinstance(r, Send)]
                                 await self._execute_send_branches(sends, _ctx)
                                 _goto = [
-                                    r
-                                    for r in result
-                                    if isinstance(r, str)
+                                    r for r in result if isinstance(r, str)
                                 ] or None
 
                             # Streaming: emit node_complete
@@ -2678,7 +2691,7 @@ class Agent:
 
                             # Batched: mark_completed + handle_result + is_done
                             if _core.execute_step(sn, _goto):
-                                if _has_timeout:
+                                if _timeout is not None:
                                     # One more iteration so timeout check fires
                                     continue
                                 break
@@ -2717,14 +2730,13 @@ class Agent:
                         # States in queue but none can run — check for parallel ready
                         ready = _core.get_ready_states()
                         if ready:
-                            async def _run_with_agent_core(
-                                _sn: str, _cr, _ct
-                            ) -> None:
+
+                            async def _run_with_agent_core(_sn: str, _cr, _ct) -> None:
                                 _cr.mark_running(_sn)
                                 try:
                                     res = await _states[_sn](_ct)
                                     _cr.execute_step(_sn, res)
-                                except Exception as exc:
+                                except Exception:
                                     _cr.mark_failed(_sn)
                                     if _cr.should_retry(_sn):
                                         _cr.add_to_queue(_sn, 0)
@@ -2792,7 +2804,7 @@ class Agent:
                 _use_sm_core = (
                     _HAS_CORE
                     and self._use_fast_path
-                    and not hasattr(type(self), '_execute_state_fast_override')
+                    and not hasattr(type(self), "_execute_state_fast_override")
                 )
 
                 if _use_sm_core:
@@ -2834,31 +2846,22 @@ class Agent:
                                     _sm_core.mark_failed(sn)
                                     await self._handle_state_failure(sn, e, 0.0)
                             else:
-                                async def _run_with_core(
-                                    _sn: str, _core_ref
-                                ) -> None:
+
+                                async def _run_with_core(_sn: str, _core_ref) -> None:
                                     _core_ref.mark_running(_sn)
                                     try:
-                                        res = await self.states[_sn](
-                                            self._context
-                                        )
+                                        res = await self.states[_sn](self._context)
                                         _core_ref.mark_completed(_sn)
                                         _core_ref.handle_result(_sn, res)
                                     except Exception as exc:
                                         _core_ref.mark_failed(_sn)
-                                        await self._handle_state_failure(
-                                            _sn, exc, 0.0
-                                        )
+                                        await self._handle_state_failure(_sn, exc, 0.0)
 
                                 tasks = [
-                                    asyncio.create_task(
-                                        _run_with_core(sn, _sm_core)
-                                    )
+                                    asyncio.create_task(_run_with_core(sn, _sm_core))
                                     for sn in ready[: self.max_concurrent]
                                 ]
-                                await asyncio.gather(
-                                    *tasks, return_exceptions=True
-                                )
+                                await asyncio.gather(*tasks, return_exceptions=True)
                         elif _sm_core.has_queued():
                             logger.warning(
                                 f"Deadlock in agent {self.name}: States in "
@@ -2875,9 +2878,7 @@ class Agent:
                     for sn in self.states:
                         status_str = _sm_core.get_state_status(sn)
                         with contextlib.suppress(ValueError, AttributeError):
-                            self.state_metadata[sn].status = StateStatus(
-                                status_str
-                            )
+                            self.state_metadata[sn].status = StateStatus(status_str)
 
                 else:
                     # Pure Python path
@@ -2905,9 +2906,7 @@ class Agent:
                         if ready_states:
                             if len(ready_states) == 1:
                                 if self._use_fast_path:
-                                    await self._execute_state_fast(
-                                        ready_states[0]
-                                    )
+                                    await self._execute_state_fast(ready_states[0])
                                 else:
                                     await self.run_state(ready_states[0])
                             else:
@@ -2919,12 +2918,8 @@ class Agent:
                                     )
                                     for s in ready_states[: self.max_concurrent]
                                 ]
-                                await asyncio.gather(
-                                    *tasks, return_exceptions=True
-                                )
-                        elif (
-                            self.priority_queue and not self.running_states
-                        ):
+                                await asyncio.gather(*tasks, return_exceptions=True)
+                        elif self.priority_queue and not self.running_states:
                             logger.warning(
                                 f"Deadlock in agent {self.name}: States in "
                                 f"queue but none can run."

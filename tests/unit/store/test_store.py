@@ -1,17 +1,16 @@
 """Unit tests for the persistent key-value store module."""
 
-import time
 
 import pytest
 
-from puffinflow.core.store import MemoryStore, Item
+from puffinflow.core.agent import Agent
+from puffinflow.core.store import Item, MemoryStore
 from puffinflow.core.store.base import BaseStore
-from puffinflow.core.agent import Agent, AgentStatus
-
 
 # ---------------------------------------------------------------------------
 # 1. test_put_get -- put a value, get it back, verify Item fields
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_put_get():
@@ -35,6 +34,7 @@ async def test_put_get():
 # ---------------------------------------------------------------------------
 # 2. test_namespaces -- items in different namespaces are isolated
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_namespaces():
@@ -61,6 +61,7 @@ async def test_namespaces():
 # 3. test_delete -- delete returns True and item is gone; missing returns False
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_delete():
     store = MemoryStore()
@@ -85,6 +86,7 @@ async def test_delete():
 # ---------------------------------------------------------------------------
 # 4. test_list -- list items in a namespace with limit and offset
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_list():
@@ -118,6 +120,7 @@ async def test_list():
 # ---------------------------------------------------------------------------
 # 5. test_search -- search finds items by query string match
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_search():
@@ -156,6 +159,7 @@ async def test_search():
 # 6. test_context_access -- agent with store= kwarg, context accesses ctx.store
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_context_access():
     store = MemoryStore()
@@ -184,6 +188,7 @@ async def test_context_access():
 # 7. test_cross_state_persistence -- put in one state, get in another state
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_cross_state_persistence():
     store = MemoryStore()
@@ -211,6 +216,7 @@ async def test_cross_state_persistence():
 # 8. test_protocol_conformance -- MemoryStore is instance of BaseStore
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_protocol_conformance():
     store = MemoryStore()
@@ -228,6 +234,7 @@ async def test_protocol_conformance():
 # ---------------------------------------------------------------------------
 # 9. test_sqlite_basic -- skip if aiosqlite not installed, basic put/get
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_sqlite_basic():
@@ -264,6 +271,7 @@ async def test_sqlite_basic():
 # ---------------------------------------------------------------------------
 # 10. test_metadata -- put with metadata dict, verify it persists
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_metadata():

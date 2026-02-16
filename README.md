@@ -30,6 +30,8 @@ LangGraph cold import:         1,117 ms
 PuffinFlow cold import:            1 ms  (1000x faster)
 ```
 
+Full benchmark methodology and results: [BENCHMARKS.md](./BENCHMARKS.md)
+
 Run the benchmarks yourself: `python benchmarks/benchmark.py`
 
 ## Quick Start

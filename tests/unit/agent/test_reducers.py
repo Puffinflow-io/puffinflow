@@ -10,7 +10,6 @@ Tests cover:
 - Default last-write-wins behavior without reducers
 """
 
-import asyncio
 
 import pytest
 
@@ -24,7 +23,6 @@ from puffinflow.core.agent.reducers import (
     replace_reducer,
 )
 from puffinflow.core.agent.state import AgentStatus, ExecutionMode
-
 
 # ============================================================================
 # UNIT TESTS FOR BUILT-IN REDUCERS
@@ -151,9 +149,7 @@ class TestAgentReducerIntegration:
 
         agent.add_state("state_a", state_a)
         agent.add_state("state_b", state_b)
-        agent.add_state(
-            "gather", gather, dependencies=["state_a", "state_b"]
-        )
+        agent.add_state("gather", gather, dependencies=["state_a", "state_b"])
         agent.add_reducer("total", add_reducer)
 
         result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
