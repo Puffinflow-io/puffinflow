@@ -326,12 +326,12 @@ jobs:
           - os: ubuntu-latest
             target: x86_64
             manylinux: auto
-          # Linux aarch64
+          # Linux aarch64 (cross-compiled via QEMU)
           - os: ubuntu-latest
             target: aarch64
             manylinux: auto
-          # macOS x86_64
-          - os: macos-13
+          # macOS x86_64 (cross-compiled from ARM runner)
+          - os: macos-14
             target: x86_64
           # macOS Apple Silicon
           - os: macos-14
@@ -344,6 +344,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Set up QEMU (for Linux cross-compilation)
+        if: matrix.target == 'aarch64' && runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Python
         uses: actions/setup-python@v5
