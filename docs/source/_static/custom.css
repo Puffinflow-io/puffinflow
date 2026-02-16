@@ -1,0 +1,42 @@
+/* Custom CSS for PuffinFlow Documentation */
+
+/* Brand colors and theme */
+:root {
+    --puffinflow-primary: #2E86AB;
+    --puffinflow-secondary: #A23B72;
+    --puffinflow-accent: #F18F01;
+    --puffinflow-success: #C73E1D;
+    --puffinflow-light: #F5F5F5;
+    --puffinflow-dark: #2C3E50;
+}
+
+/* Header customization */
+.wy-nav-top {
+    background-color: var(--puffinflow-primary) !important;
+}
+
+.wy-nav-top a {
+    color: white !important;
+}
+
+/* Sidebar customization */
+.wy-nav-side {
+    background: linear-gradient(180deg, var(--puffinflow-primary) 0%, var(--puffinflow-secondary) 100%);
+}
+
+.wy-menu-vertical a {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.wy-menu-vertical a:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+}
+
+.wy-menu-vertical li.current a {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    border-right: 3px solid var(--puffinflow-accent);
+}
+
+.wy-menu-vertical li.current > a {

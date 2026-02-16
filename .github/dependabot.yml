@@ -1,0 +1,158 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "m-ahmed-elbeskeri"
+    assignees:
+      - "m-ahmed-elbeskeri"
+    labels:
+      - "dependencies"
+      - "python"
+      - "automated"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    # Group related updates together
+    groups:
+      # Core dependencies
+      core-dependencies:
+        patterns:
+          - "pydantic*"
+          - "structlog*"
+          - "typing-extensions*"
+
+      # Development tools
+      dev-tools:
+        patterns:
+          - "pytest*"
+          - "black*"
+          - "ruff*"
+          - "mypy*"
+          - "pre-commit*"
+          - "tox*"
+          - "coverage*"
+
+      # Documentation tools
+      docs-tools:
+        patterns:
+          - "sphinx*"
+          - "myst-parser*"
+
+      # Observability stack
+      observability:
+        patterns:
+          - "prometheus-client*"
+          - "opentelemetry*"
+          - "psutil*"
+
+      # HTTP and networking
+      networking:
+        patterns:
+          - "aiohttp*"
+          - "httpx*"
+          - "aiosmtplib*"
+
+      # Integration dependencies
+      integrations:
+        patterns:
+          - "fastapi*"
+          - "celery*"
+          - "kubernetes*"
+          - "redis*"
+
+      # Security tools
+      security-tools:
+        patterns:
+          - "bandit*"
+          - "safety*"
+          - "semgrep*"
+
+    # Version update strategy
+    versioning-strategy: "increase"
+
+    # Ignore specific dependencies or versions
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "structlog"
+        update-types: ["version-update:semver-major"]
+
+      # Ignore beta/alpha versions for production dependencies
+      - dependency-name: "*"
+        versions: ["*alpha*", "*beta*", "*rc*"]
+
+    # Allow specific dependency updates
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "m-ahmed-elbeskeri"
+    assignees:
+      - "m-ahmed-elbeskeri"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      # Group GitHub Actions updates
+      github-actions:
+        patterns:
+          - "actions/*"
+          - "github/*"
+
+    # Only allow patch and minor updates for actions
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Docker (if you add Dockerfile later)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "m-ahmed-elbeskeri"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+
+# Configuration notes:
+# 1. Updated with maintainer username: m-ahmed-elbeskeri
+# 2. Adjust schedules based on your team's workflow
+# 3. Modify ignore rules based on your stability requirements
+# 4. Add or remove dependency groups based on your project structure
+# 5. Consider enabling auto-merge for security updates:
+#    - Go to repository Settings > General > Pull Requests
+#    - Enable "Allow auto-merge"
+#    - Set up branch protection rules with required status checks
