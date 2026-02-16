@@ -49,11 +49,13 @@ class BaseStore(Protocol):
 class MemoryStore:
     """In-memory implementation of BaseStore."""
 
-    __slots__ = ("_data",)
+    __slots__ = ("_data", "_seq", "_order")
 
     def __init__(self) -> None:
         # Keyed by (namespace, key)
         self._data: dict[tuple[Namespace, str], Item] = {}
+        self._seq: int = 0
+        self._order: dict[tuple[Namespace, str], int] = {}
 
     async def put(
         self,
@@ -63,6 +65,8 @@ class MemoryStore:
         metadata: Optional[dict[str, Any]] = None,
     ) -> None:
         now = time.time()
+        self._seq += 1
+        self._order[(namespace, key)] = self._seq
         existing = self._data.get((namespace, key))
         if existing is not None:
             existing.value = value
@@ -85,6 +89,7 @@ class MemoryStore:
     async def delete(self, namespace: Namespace, key: str) -> bool:
         if (namespace, key) in self._data:
             del self._data[(namespace, key)]
+            self._order.pop((namespace, key), None)
             return True
         return False
 
@@ -94,8 +99,11 @@ class MemoryStore:
         items = [
             item for (ns, _), item in self._data.items() if ns == namespace
         ]
-        # Sort by updated_at descending
-        items.sort(key=lambda i: i.updated_at, reverse=True)
+        # Sort by updated_at descending, then by insertion order descending
+        items.sort(
+            key=lambda i: (i.updated_at, self._order.get((i.namespace, i.key), 0)),
+            reverse=True,
+        )
         return items[offset : offset + limit]
 
     async def search(
