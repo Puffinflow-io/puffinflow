@@ -1,5 +1,7 @@
 """Workflow Orchestrator Core Engine."""
 
+from typing import Any
+
 # Version is managed by the parent package
 
 _LAZY_IMPORTS = {
@@ -35,7 +37,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         import importlib
 

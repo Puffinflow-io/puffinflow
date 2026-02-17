@@ -1,5 +1,7 @@
 """Agent scheduling module for PuffinFlow."""
 
+from typing import Any
+
 _LAZY_IMPORTS = {
     "ScheduleBuilder": (".builder", "ScheduleBuilder"),
     "InvalidInputTypeError": (".exceptions", "InvalidInputTypeError"),
@@ -29,7 +31,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         import importlib
 

@@ -1,5 +1,7 @@
 """Enhanced state decorators with flexible configuration."""
 
+from typing import Any
+
 _LAZY_IMPORTS = {
     # Builder
     "StateBuilder": (".builder", "StateBuilder"),
@@ -85,7 +87,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         import importlib
 

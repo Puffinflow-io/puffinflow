@@ -20,6 +20,7 @@ from typing import (
 )
 
 from .checkpoint import AgentCheckpoint
+from .checkpoint_serializer import CheckpointSerializer
 from .command import Command, Send
 from .context import Context
 from .reducers import ReducerRegistry
@@ -133,6 +134,7 @@ class FileCheckpointStorage:
             )
 
         # Create serializer
+        self._serializer: Optional[CheckpointSerializer] = None
         if self.format == "json":
             from .checkpoint_serializer import JsonCheckpointSerializer
 
@@ -141,8 +143,6 @@ class FileCheckpointStorage:
             from .checkpoint_serializer import MsgpackCheckpointSerializer
 
             self._serializer = MsgpackCheckpointSerializer()
-        else:
-            self._serializer = None  # Pickle uses its own path
 
         # Create directory if it doesn't exist
         self.base_path.mkdir(parents=True, exist_ok=True)

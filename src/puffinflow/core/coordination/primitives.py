@@ -12,11 +12,11 @@ from typing import Any, Optional
 class _LazyLogger:
     __slots__ = ("_name", "_real")
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self._name = name
-        self._real = None
+        self._real: Any = None
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str) -> Any:
         if self._real is None:
             import structlog
 
