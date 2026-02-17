@@ -168,6 +168,7 @@ class FileCheckpointStorage:
                     pickle.dump(checkpoint, f)
             else:
                 # Use pluggable serializer (JSON or MsgPack)
+                assert self._serializer is not None
                 data = self._serializer.serialize(checkpoint)
                 mode = "wb" if self.format == "msgpack" else "w"
                 with file_path.open(mode) as f:
@@ -212,6 +213,7 @@ class FileCheckpointStorage:
                     raw = f.read()
                 if isinstance(raw, str):
                     raw = raw.encode("utf-8")
+                assert self._serializer is not None
                 return self._serializer.deserialize(raw)
 
         except Exception as e:

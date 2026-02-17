@@ -102,7 +102,7 @@ class RedisCheckpointStorage:
         if data is None:
             return None
 
-        return self._serializer.deserialize(data)  # type: ignore[return-value]
+        return self._serializer.deserialize(data)  # type: ignore[no-any-return]
 
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from Redis index."""
@@ -186,7 +186,7 @@ class PostgresCheckpointStorage:
 
     async def _get_pool(self) -> Any:
         if self._pool is None:
-            import asyncpg  # type: ignore[import-not-found]
+            import asyncpg
 
             self._pool = await asyncpg.create_pool(self._dsn)
             await self._ensure_table()
@@ -280,7 +280,7 @@ class PostgresCheckpointStorage:
             data = json.loads(data)
         # data is the full envelope from the serializer
         serialized = json.dumps(data).encode("utf-8")
-        return self._serializer.deserialize(serialized)  # type: ignore[return-value]
+        return self._serializer.deserialize(serialized)  # type: ignore[no-any-return]
 
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from PostgreSQL."""
@@ -308,7 +308,7 @@ class PostgresCheckpointStorage:
                 agent_name,
                 checkpoint_id,
             )
-        return result != "DELETE 0"  # type: ignore[return-value]
+        return result != "DELETE 0"  # type: ignore[no-any-return]
 
     async def cleanup_checkpoints(self, agent_name: str) -> int:
         """Remove checkpoints exceeding the retention policy."""
@@ -457,7 +457,7 @@ class S3CheckpointStorage:
             logger.warning("Failed to load checkpoint from S3: %s", exc)
             return None
 
-        return self._serializer.deserialize(data)  # type: ignore[return-value]
+        return self._serializer.deserialize(data)  # type: ignore[no-any-return]
 
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from S3."""

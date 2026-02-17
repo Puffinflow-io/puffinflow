@@ -218,7 +218,9 @@ def sse_response(
             return sse_response(my_agent)
     """
     try:
-        from starlette.responses import StreamingResponse  # type: ignore[import-not-found]
+        from starlette.responses import (  # type: ignore[import-not-found]
+            StreamingResponse,
+        )
     except ImportError:
         raise ImportError(
             "starlette is required for sse_response(). "

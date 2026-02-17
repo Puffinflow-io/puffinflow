@@ -1,6 +1,6 @@
 """Resource management module for workflow orchestrator."""
 
-from typing import Any
+from typing import Any as _Any
 
 _LAZY_IMPORTS = {
     # Allocation
@@ -68,7 +68,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> _Any:
     if name in _LAZY_IMPORTS:
         import importlib
 

@@ -131,7 +131,7 @@ class TestObservableAgent:
                 await agent.run(timeout=30.0)
 
                 mock_super_run.assert_called_once_with(
-                    30.0, None, ExecutionMode.PARALLEL
+                    30.0, None, ExecutionMode.SEQUENTIAL, False, "per-state"
                 )
                 mock_tracing.span.assert_called_once_with(
                     "workflow.test-agent",
@@ -199,7 +199,7 @@ class TestObservableAgent:
                 await agent.run()
 
                 mock_super_run.assert_called_once_with(
-                    None, None, ExecutionMode.PARALLEL
+                    None, None, ExecutionMode.SEQUENTIAL, False, "per-state"
                 )
 
     @pytest.mark.asyncio
