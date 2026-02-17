@@ -668,14 +668,13 @@ async def _dagster_memory() -> float:
 # ---------------------------------------------------------------------------
 
 
-def _measure_import_time(module_name: str) -> float:
-    """Measure cold-start import time in a subprocess, subtracting Python startup."""
-    # Script that prints elapsed time for importing the module
-    # Use __import__ with fromlist to handle submodule imports (e.g. langgraph.graph)
-    if "." in module_name:
-        import_stmt = f"__import__('{module_name}', fromlist=['_'])"
-    else:
-        import_stmt = f"import {module_name}"
+def _measure_import_time(import_stmt: str) -> float:
+    """Measure cold-start import time in a subprocess, subtracting Python startup.
+
+    Args:
+        import_stmt: A full Python import statement, e.g.
+            "from puffinflow import Agent, state"
+    """
     script = (
         "import time; t0 = time.perf_counter(); "
         f"{import_stmt}; "
@@ -765,6 +764,7 @@ LIGHTWEIGHT_FRAMEWORKS = {
         "throughput": _puffinflow_throughput,
         "memory": _puffinflow_memory,
         "import_module": "puffinflow",
+        "import_stmt": "from puffinflow import Agent, state",
     },
     "LangGraph": {
         "seq3": lambda: _langgraph_sequential(3),
@@ -773,6 +773,7 @@ LIGHTWEIGHT_FRAMEWORKS = {
         "throughput": _langgraph_throughput,
         "memory": _langgraph_memory,
         "import_module": "langgraph.graph",
+        "import_stmt": "from langgraph.graph import StateGraph",
     },
     "LlamaIndex Workflows": {
         "seq3": lambda: _llamaindex_sequential(3),
@@ -781,6 +782,7 @@ LIGHTWEIGHT_FRAMEWORKS = {
         "throughput": _llamaindex_throughput,
         "memory": _llamaindex_memory,
         "import_module": "llama_index.core.workflow",
+        "import_stmt": "from llama_index.core.workflow import Workflow, step",
     },
 }
 
@@ -837,7 +839,7 @@ async def _bench_framework(name: str, fns: dict) -> dict[str, Any]:
         results["memory"] = None
 
     try:
-        results["import_time"] = _measure_import_time(fns["import_module"])
+        results["import_time"] = _measure_import_time(fns["import_stmt"])
         print(f"    Import time: {_fmt_import(results['import_time'])}")
     except Exception as e:
         print(f"    Import time: FAILED ({e})")

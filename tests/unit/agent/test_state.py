@@ -243,20 +243,20 @@ class TestRetryPolicy:
     @pytest.mark.asyncio
     async def test_retry_policy_wait_max_delay(self):
         """Test retry policy maximum delay cap."""
+        from unittest.mock import AsyncMock, patch
+
         policy = RetryPolicy(
-            initial_delay=0.1,  # Much smaller for testing
+            initial_delay=0.1,
             exponential_base=3.0,
             jitter=False,
         )
 
-        start_time = time.time()
-        await policy.wait(10)  # High attempt number to trigger max delay
-        elapsed = time.time() - start_time
-
-        # Should be capped at 60 seconds, but we'll test with smaller values
-        # 0.1 * (3.0 ^ 10) would be huge, but capped at 60s
-        # For testing, let's just verify it's reasonable
-        assert elapsed <= 61.5  # Allow margin for system timing variations
+        # 0.1 * (3.0 ^ 10) = 5904.9, which should be capped at 60s
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await policy.wait(10)
+            mock_sleep.assert_called_once()
+            actual_delay = mock_sleep.call_args[0][0]
+            assert actual_delay == 60.0, f"Expected 60.0 (max cap), got {actual_delay}"
 
     @pytest.mark.asyncio
     async def test_retry_policy_wait_with_jitter(self):

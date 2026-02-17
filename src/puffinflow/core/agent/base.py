@@ -104,20 +104,45 @@ class CheckpointStorage(Protocol):
 
 
 class FileCheckpointStorage:
-    """File-based checkpoint storage."""
+    """File-based checkpoint storage with pluggable serialization."""
 
-    def __init__(self, base_path: str = "./checkpoints", format: str = "pickle"):
+    def __init__(self, base_path: str = "./checkpoints", format: str = "json"):
         """
         Initialize file storage.
 
         Args:
             base_path: Directory to store checkpoint files
-            format: Storage format ('pickle' or 'json')
+            format: Storage format ('json', 'msgpack', or 'pickle')
         """
         self.base_path = Path(base_path)
         self.format = format.lower()
-        if self.format not in ("pickle", "json"):
-            raise ValueError(f"Unsupported format: {format}. Use 'pickle' or 'json'")
+        if self.format not in ("pickle", "json", "msgpack"):
+            raise ValueError(
+                f"Unsupported format: {format}. Use 'json', 'msgpack', or 'pickle'"
+            )
+
+        if self.format == "pickle":
+            import warnings
+
+            warnings.warn(
+                "Pickle checkpoint format is deprecated and will be removed in a "
+                "future version. Use format='json' (default) or format='msgpack' "
+                "for portable, secure serialization.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # Create serializer
+        if self.format == "json":
+            from .checkpoint_serializer import JsonCheckpointSerializer
+
+            self._serializer = JsonCheckpointSerializer()
+        elif self.format == "msgpack":
+            from .checkpoint_serializer import MsgpackCheckpointSerializer
+
+            self._serializer = MsgpackCheckpointSerializer()
+        else:
+            self._serializer = None  # Pickle uses its own path
 
         # Create directory if it doesn't exist
         self.base_path.mkdir(parents=True, exist_ok=True)
@@ -126,7 +151,8 @@ class FileCheckpointStorage:
         """Get file path for checkpoint."""
         agent_dir = self.base_path / agent_name
         agent_dir.mkdir(exist_ok=True)
-        ext = "pkl" if self.format == "pickle" else "json"
+        ext_map = {"pickle": "pkl", "json": "json", "msgpack": "msgpack"}
+        ext = ext_map[self.format]
         return agent_dir / f"{checkpoint_id}.{ext}"
 
     async def save_checkpoint(
@@ -140,50 +166,15 @@ class FileCheckpointStorage:
             if self.format == "pickle":
                 with file_path.open("wb") as f:
                     pickle.dump(checkpoint, f)
-            else:  # json
-                # Convert checkpoint to JSON-serializable format
-                checkpoint_data = {
-                    "timestamp": checkpoint.timestamp,
-                    "agent_name": checkpoint.agent_name,
-                    "agent_status": checkpoint.agent_status.value,
-                    "priority_queue": [
-                        {
-                            "priority": ps.priority,
-                            "timestamp": ps.timestamp,
-                            "state_name": ps.state_name,
-                            "metadata": {
-                                "status": ps.metadata.status.value,
-                                "attempts": ps.metadata.attempts,
-                                "max_retries": ps.metadata.max_retries,
-                                "last_execution": ps.metadata.last_execution,
-                                "last_success": ps.metadata.last_success,
-                                "state_id": ps.metadata.state_id,
-                                "priority": ps.metadata.priority.value,
-                            },
-                        }
-                        for ps in checkpoint.priority_queue
-                    ],
-                    "state_metadata": {
-                        k: {
-                            "status": v.status.value,
-                            "attempts": v.attempts,
-                            "max_retries": v.max_retries,
-                            "last_execution": v.last_execution,
-                            "last_success": v.last_success,
-                            "state_id": v.state_id,
-                            "priority": v.priority.value,
-                        }
-                        for k, v in checkpoint.state_metadata.items()
-                    },
-                    "running_states": list(checkpoint.running_states),
-                    "completed_states": list(checkpoint.completed_states),
-                    "completed_once": list(checkpoint.completed_once),
-                    "shared_state": checkpoint.shared_state,
-                    "session_start": checkpoint.session_start,
-                }
-
-                with file_path.open("w") as f:
-                    json.dump(checkpoint_data, f, indent=2, default=str)
+            else:
+                # Use pluggable serializer (JSON or MsgPack)
+                data = self._serializer.serialize(checkpoint)
+                mode = "wb" if self.format == "msgpack" else "w"
+                with file_path.open(mode) as f:
+                    if self.format == "msgpack":
+                        f.write(data)
+                    else:
+                        f.write(data.decode("utf-8"))
 
             logger.info(f"Checkpoint saved to {file_path}")
             return checkpoint_id
@@ -214,60 +205,14 @@ class FileCheckpointStorage:
                 with file_path.open("rb") as f:
                     checkpoint: AgentCheckpoint = pickle.load(f)
                     return checkpoint
-            else:  # json
-                with file_path.open("r") as f:
-                    data = json.load(f)
-
-                # Reconstruct checkpoint from JSON data
-                from .state import (
-                    AgentStatus,
-                    PrioritizedState,
-                    Priority,
-                    StateMetadata,
-                    StateStatus,
-                )
-
-                checkpoint = AgentCheckpoint(
-                    timestamp=data["timestamp"],
-                    agent_name=data["agent_name"],
-                    agent_status=AgentStatus(data["agent_status"]),
-                    priority_queue=[
-                        PrioritizedState(
-                            priority=ps["priority"],
-                            timestamp=ps["timestamp"],
-                            state_name=ps["state_name"],
-                            metadata=StateMetadata(
-                                status=StateStatus(ps["metadata"]["status"]),
-                                attempts=ps["metadata"]["attempts"],
-                                max_retries=ps["metadata"]["max_retries"],
-                                last_execution=ps["metadata"]["last_execution"],
-                                last_success=ps["metadata"]["last_success"],
-                                state_id=ps["metadata"]["state_id"],
-                                priority=Priority(ps["metadata"]["priority"]),
-                            ),
-                        )
-                        for ps in data["priority_queue"]
-                    ],
-                    state_metadata={
-                        k: StateMetadata(
-                            status=StateStatus(v["status"]),
-                            attempts=v["attempts"],
-                            max_retries=v["max_retries"],
-                            last_execution=v["last_execution"],
-                            last_success=v["last_success"],
-                            state_id=v["state_id"],
-                            priority=Priority(v["priority"]),
-                        )
-                        for k, v in data["state_metadata"].items()
-                    },
-                    running_states=set(data["running_states"]),
-                    completed_states=set(data["completed_states"]),
-                    completed_once=set(data["completed_once"]),
-                    shared_state=data["shared_state"],
-                    session_start=data["session_start"],
-                )
-
-                return checkpoint
+            else:
+                # Use pluggable serializer
+                mode = "rb" if self.format == "msgpack" else "r"
+                with file_path.open(mode) as f:
+                    raw = f.read()
+                if isinstance(raw, str):
+                    raw = raw.encode("utf-8")
+                return self._serializer.deserialize(raw)
 
         except Exception as e:
             logger.error(f"Failed to load checkpoint from {file_path}: {e}")
@@ -279,7 +224,8 @@ class FileCheckpointStorage:
         if not agent_dir.exists():
             return []
 
-        ext = "pkl" if self.format == "pickle" else "json"
+        ext_map = {"pickle": "pkl", "json": "json", "msgpack": "msgpack"}
+        ext = ext_map[self.format]
         checkpoint_files = [f.stem for f in agent_dir.glob(f"*.{ext}") if f.is_file()]
 
         # Sort by timestamp (extract from filename)
@@ -301,6 +247,16 @@ class FileCheckpointStorage:
         except Exception as e:
             logger.error(f"Failed to delete checkpoint {file_path}: {e}")
             return False
+
+    async def cleanup_checkpoints(self, agent_name: str) -> int:
+        """Remove old checkpoints (keep only the most recent 10)."""
+        checkpoints = await self.list_checkpoints(agent_name)
+        removed = 0
+        if len(checkpoints) > 10:
+            for cid in checkpoints[:-10]:
+                if await self.delete_checkpoint(agent_name, cid):
+                    removed += 1
+        return removed
 
 
 class MemoryCheckpointStorage:
@@ -373,6 +329,16 @@ class MemoryCheckpointStorage:
             logger.info(f"Deleted checkpoint from memory: {agent_name}/{checkpoint_id}")
             return True
         return False
+
+    async def cleanup_checkpoints(self, agent_name: str) -> int:
+        """Remove old checkpoints (keep only the most recent 10)."""
+        checkpoints = await self.list_checkpoints(agent_name)
+        removed = 0
+        if len(checkpoints) > 10:
+            for cid in checkpoints[:-10]:
+                if await self.delete_checkpoint(agent_name, cid):
+                    removed += 1
+        return removed
 
 
 @dataclass
@@ -714,6 +680,10 @@ class Agent:
 
     # Auto-discovered @state-decorated methods — populated by __init_subclass__
     _puffinflow_auto_states: tuple[tuple[str, str], ...] = ()
+    # Pre-computed sorted order with extracted metadata (state_name, method_name, deps, priority, resources)
+    _puffinflow_sorted_states: Optional[
+        tuple[tuple[str, str, list[str], Optional[Priority], Optional[Any]], ...]
+    ] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -728,6 +698,79 @@ class Agent:
                     state_name = getattr(attr_value, "_state_name", attr_name)
                     seen[state_name] = attr_name
         cls._puffinflow_auto_states = tuple(seen.items())
+
+        # Pre-compute sorted order and extract metadata at class definition time
+        if seen:
+            cls._puffinflow_sorted_states = cls._compute_sorted_states(seen)
+
+    @classmethod
+    def _compute_sorted_states(
+        cls, seen: dict[str, str]
+    ) -> tuple[tuple[str, str, list[str], Optional[Priority], Optional[Any]], ...]:
+        """Pre-compute topological sort and extract metadata at class definition time."""
+        # Extract deps from decorator metadata
+        deps_map: dict[str, list[str]] = {}
+        for state_name, method_name in seen.items():
+            # Walk MRO to find the actual function
+            func = None
+            for klass in cls.__mro__:
+                if method_name in vars(klass):
+                    func = vars(klass)[method_name]
+                    break
+            if func is None:
+                deps_map[state_name] = []
+                continue
+            config = getattr(func, "_state_config", None)
+            deps = config.get("depends_on", []) if isinstance(config, dict) else []
+            deps_map[state_name] = deps
+
+        # Check if any states have dependencies — if not, skip sort
+        has_deps = any(deps_map.values())
+        if has_deps:
+            # Kahn's algorithm
+            pending_set = set(seen.keys())
+            in_degree: dict[str, int] = {sn: 0 for sn in pending_set}
+            for sn, deps in deps_map.items():
+                for d in deps:
+                    if d in pending_set:
+                        in_degree[sn] += 1
+
+            queue = sorted(sn for sn, deg in in_degree.items() if deg == 0)
+            sorted_names: list[str] = []
+            while queue:
+                node = queue.pop(0)
+                sorted_names.append(node)
+                for sn, deps in deps_map.items():
+                    if node in deps and sn in in_degree:
+                        in_degree[sn] -= 1
+                        if in_degree[sn] == 0:
+                            queue.append(sn)
+                            queue.sort()
+            # Add remaining (circular/missing deps — let add_state catch it)
+            for sn in pending_set - set(sorted_names):
+                sorted_names.append(sn)
+        else:
+            # No dependencies — use insertion order (deterministic)
+            sorted_names = list(seen.keys())
+
+        # Extract metadata for each state
+        result: list[tuple[str, str, list[str], Optional[Priority], Optional[Any]]] = []
+        for state_name in sorted_names:
+            method_name = seen[state_name]
+            func = None
+            for klass in cls.__mro__:
+                if method_name in vars(klass):
+                    func = vars(klass)[method_name]
+                    break
+            if func is None:
+                result.append((state_name, method_name, [], None, None))
+                continue
+            deps = deps_map.get(state_name, [])
+            priority = getattr(func, "_priority", None)
+            resources = getattr(func, "_resource_requirements", None)
+            result.append((state_name, method_name, deps, priority, resources))
+
+        return tuple(result)
 
     def __init__(
         self,
@@ -808,6 +851,11 @@ class Agent:
         self._reducers: Optional[ReducerRegistry] = None
         self._store: Optional[Any] = kwargs.get("store", None)
         self._stream_manager: Optional[StreamManager] = None
+
+        # Durable execution attributes
+        self._drain_protocol: Optional[Any] = None  # DrainProtocol
+        self._pending_events: Optional[dict[str, asyncio.Event]] = None
+        self._event_results: Optional[dict[str, Any]] = None
 
     # --- Property wrappers for lazy/core-backed containers ---
 
@@ -1545,9 +1593,18 @@ class Agent:
         retry_policy: Optional[RetryPolicy] = None,
         coordination_primitives: Optional[list["CoordinationPrimitive"]] = None,
         max_retries: Optional[int] = None,
+        entry_point: Optional[bool] = None,
         **kwargs: Any,
     ) -> None:
-        """Add a state to the agent."""
+        """Add a state to the agent.
+
+        Args:
+            entry_point: Controls whether this state is selected as an entry
+                point in PARALLEL mode. ``True`` forces it as an entry point,
+                ``False`` excludes it (only reachable via return-value routing
+                or dependency auto-trigger). ``None`` (default) infers from
+                dependencies: states with no dependencies are entry points.
+        """
         # Validate state name
         if not name or not isinstance(name, str):
             raise ValueError("State name must be a non-empty string")
@@ -1643,86 +1700,46 @@ class Agent:
                 self._dependents[dep] = []
             self._dependents[dep].append(name)
 
+        # Track explicit entry_point overrides
+        if entry_point is not None:
+            if not hasattr(self, "_entry_point_overrides"):
+                self._entry_point_overrides: dict[str, bool] = {}
+            self._entry_point_overrides[name] = entry_point
+
     def _auto_discover_states(self) -> None:
         """Register @state-decorated methods that weren't manually added via add_state().
 
-        Called once at the start of run(). Uses Kahn's algorithm to topological-sort
-        by depends_on so that add_state() dependency validation succeeds.
+        Called once at the start of run(). Uses pre-computed sorted order from
+        __init_subclass__ to avoid re-running topological sort per instance.
         """
         if self._auto_discovered:
             return
         self._auto_discovered = True
 
-        auto_states = self._puffinflow_auto_states
-        if not auto_states:
+        sorted_states = self._puffinflow_sorted_states
+        if sorted_states is None:
             return
 
-        # Filter out states already registered manually in __init__
-        pending: list[tuple[str, str]] = []
-        for state_name, method_name in auto_states:
-            if state_name not in self.states:
-                pending.append((state_name, method_name))
-
-        if not pending:
-            return
-
-        # Build dependency graph for topological sort (Kahn's algorithm)
-        pending_set = {sn for sn, _ in pending}
-        pending_map = dict(pending)
-        # Collect depends_on from decorator metadata
-        deps_map: dict[str, list[str]] = {}
-        for state_name, method_name in pending:
-            func = getattr(type(self), method_name)
-            config = getattr(func, "_state_config", None)
-            deps = config.get("depends_on", []) if isinstance(config, dict) else []
-            # Only keep deps that are in the pending set (others are already registered)
-            deps_map[state_name] = deps
-
-        # Kahn's algorithm
-        in_degree: dict[str, int] = {sn: 0 for sn in pending_set}
-        for sn, deps in deps_map.items():
-            for d in deps:
-                if d in pending_set:
-                    in_degree[sn] += 1
-
-        queue: list[str] = [sn for sn, deg in in_degree.items() if deg == 0]
-        sorted_states: list[str] = []
-
-        while queue:
-            # Sort for deterministic ordering
-            queue.sort()
-            node = queue.pop(0)
-            sorted_states.append(node)
-            # Decrease in-degree of dependents
-            for sn, deps in deps_map.items():
-                if node in deps and sn in in_degree:
-                    in_degree[sn] -= 1
-                    if in_degree[sn] == 0:
-                        queue.append(sn)
-
-        # Any remaining nodes with in_degree > 0 have circular deps or missing deps
-        # — add them anyway and let add_state() / _validate_workflow_configuration catch it
-        for sn in pending_set - set(sorted_states):
-            sorted_states.append(sn)
-
-        # Register each state via add_state()
-        for state_name in sorted_states:
-            method_name = pending_map[state_name]
+        # Use pre-computed sorted order with extracted metadata
+        _states = self.states
+        _any_added = False
+        for state_name, method_name, deps, priority, resources in sorted_states:
+            if state_name in _states:
+                continue
             bound_method = getattr(self, method_name)
-            func = getattr(type(self), method_name)
-
-            # Extract decorator metadata
-            config = getattr(func, "_state_config", None)
-            deps = config.get("depends_on", []) if isinstance(config, dict) else []
-            priority = getattr(func, "_priority", None)
-            resources = getattr(func, "_resource_requirements", None)
-
             self.add_state(
                 state_name,
                 bound_method,
                 dependencies=deps if deps else None,
                 resources=resources,
                 priority=priority,
+            )
+            _any_added = True
+
+        # Compute _deps_snapshot once after all states added (instead of per add_state)
+        if _any_added:
+            self._deps_snapshot = sum(
+                id(v) for v in self._dependencies_dict.values()
             )
 
     def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
@@ -1926,21 +1943,36 @@ class Agent:
 
     # Find entry states
     def _find_entry_states(self) -> list[str]:
-        """Find states with no dependencies."""
+        """Find states that should be entry points.
+
+        A state is an entry point if:
+        - It has ``entry_point=True`` explicitly set, OR
+        - It has no dependencies AND no ``entry_point=False`` override.
+        """
         entry_states = []
         state_names = list(self.states.keys())  # Preserve order
+        overrides = getattr(self, "_entry_point_overrides", {})
 
         for state_name in state_names:
-            deps = self.dependencies.get(state_name, [])
-            if not deps:
+            override = overrides.get(state_name)
+            if override is True:
+                # Explicitly marked as entry point
                 entry_states.append(state_name)
+            elif override is False:
+                # Explicitly excluded from entry points
+                continue
+            else:
+                # Default: entry point if no dependencies
+                deps = self.dependencies.get(state_name, [])
+                if not deps:
+                    entry_states.append(state_name)
 
         return entry_states
 
     def _find_entry_states_by_mode(self, execution_mode: ExecutionMode) -> list[str]:
         """Find entry states based on execution mode."""
         if execution_mode == ExecutionMode.PARALLEL:
-            # PARALLEL mode: All states without dependencies are entry points
+            # PARALLEL mode: All entry-point states run initially
             entry_states = self._find_entry_states()
             if not entry_states:
                 # If no entry states found, use all states for backward compatibility
@@ -1948,7 +1980,7 @@ class Agent:
             return entry_states
 
         # execution_mode == ExecutionMode.SEQUENTIAL
-        # SEQUENTIAL mode: Only the first state without dependencies runs initially
+        # SEQUENTIAL mode: Only the first entry-point state runs initially
         true_entry_states = self._find_entry_states()
         if true_entry_states:
             # Return only the first entry state to enforce sequential execution
@@ -2575,13 +2607,127 @@ class Agent:
 
         return ScheduleBuilder(self, schedule_str)
 
+    # --- Durable execution helpers ---
+
+    async def wait_for_event(
+        self, event_name: str, timeout: Optional[float] = None
+    ) -> Any:
+        """Pause execution until a named event fires.
+
+        Used in temporal-style workflows where one agent waits for
+        an external signal before proceeding.
+
+        Args:
+            event_name: Name of the event to wait for.
+            timeout: Optional timeout in seconds.
+
+        Returns:
+            Data passed to ``fire_event``, or None on timeout.
+        """
+        if self._pending_events is None:
+            self._pending_events = {}
+        if self._event_results is None:
+            self._event_results = {}
+
+        event = asyncio.Event()
+        self._pending_events[event_name] = event
+
+        try:
+            if timeout:
+                await asyncio.wait_for(event.wait(), timeout=timeout)
+            else:
+                await event.wait()
+            return self._event_results.get(event_name)
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            self._pending_events.pop(event_name, None)
+
+    def fire_event(self, event_name: str, data: Any = None) -> None:
+        """Fire a named event, unblocking any ``wait_for_event`` calls.
+
+        Args:
+            event_name: Name of the event to fire.
+            data: Optional data to pass to the waiter.
+        """
+        if self._event_results is None:
+            self._event_results = {}
+        self._event_results[event_name] = data
+
+        if self._pending_events and event_name in self._pending_events:
+            self._pending_events[event_name].set()
+
+    async def resume_from(
+        self,
+        checkpoint_id: str,
+        timeout: Optional[float] = None,
+        execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL,
+    ) -> "AgentResult":
+        """Resume agent execution from a specific checkpoint.
+
+        Loads the checkpoint, restores agent state, and continues the run.
+
+        Args:
+            checkpoint_id: ID of the checkpoint to resume from.
+            timeout: Optional timeout for the resumed run.
+            execution_mode: Execution mode for the resumed run.
+
+        Returns:
+            AgentResult from the resumed execution.
+        """
+        checkpoint = await self.checkpoint_storage.load_checkpoint(
+            self.name, checkpoint_id
+        )
+        if checkpoint is None:
+            raise ValueError(
+                f"Checkpoint {checkpoint_id} not found for agent {self.name}"
+            )
+
+        # Restore agent state from checkpoint
+        self._restore_from_checkpoint(checkpoint)
+
+        # Emit restoration event
+        if self._stream_manager is not None:
+            from .streaming import StreamEvent
+
+            self._stream_manager.emit(
+                StreamEvent(
+                    event_type="checkpoint_restored",
+                    data={
+                        "checkpoint_id": checkpoint_id,
+                        "agent_name": self.name,
+                    },
+                )
+            )
+
+        return await self.run(
+            timeout=timeout,
+            execution_mode=execution_mode,
+            durable=True,
+        )
+
+    def _restore_from_checkpoint(self, checkpoint: AgentCheckpoint) -> None:
+        """Restore agent state from a checkpoint."""
+        from copy import deepcopy
+
+        self.status = checkpoint.agent_status
+        self.priority_queue = deepcopy(checkpoint.priority_queue)
+        self.state_metadata = deepcopy(checkpoint.state_metadata)
+        self.running_states = set(checkpoint.running_states)
+        self.completed_states = set(checkpoint.completed_states)
+        self.completed_once = set(checkpoint.completed_once)
+        self.shared_state = deepcopy(checkpoint.shared_state)
+        self.session_start = checkpoint.session_start
+
     # Main execution
     async def run(
         self,
         timeout: Optional[float] = None,
         initial_context: Optional[dict[str, Any]] = None,
         execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL,
-    ) -> AgentResult:
+        durable: bool = False,
+        checkpoint_granularity: str = "per-state",
+    ) -> "AgentResult":
         """
         Run the agent workflow with enhanced result tracking.
 
@@ -2604,13 +2750,58 @@ class Agent:
                   by return values
                 - PARALLEL: All states without dependencies run as
                   entry points
+            durable: When True, enables automatic checkpointing for crash
+                recovery. On entry, attempts to resume from the latest
+                checkpoint. After each state completes, saves a checkpoint.
+            checkpoint_granularity: Controls when checkpoints are saved during
+                durable execution. Options: "per-state" (after each state),
+                "on-error" (only on failure).
         """
         start_time = time.time()
         self._auto_discover_states()
+
+        # Durable execution: try to resume from latest checkpoint
+        if durable and self._checkpoint_storage is not None:
+            try:
+                # Check for crash marker (running marker from previous run)
+                latest = await self.checkpoint_storage.load_checkpoint(self.name)
+                if latest is not None and latest.agent_status == AgentStatus.RUNNING:
+                    logger.info(
+                        "Agent %s: detected crash — resuming from checkpoint",
+                        self.name,
+                    )
+                    self._restore_from_checkpoint(latest)
+                    if self._stream_manager is not None:
+                        from .streaming import StreamEvent
+
+                        self._stream_manager.emit(
+                            StreamEvent(
+                                event_type="checkpoint_restored",
+                                data={
+                                    "agent_name": self.name,
+                                    "resumed_from_crash": True,
+                                },
+                            )
+                        )
+            except Exception as exc:
+                logger.warning(
+                    "Agent %s: failed to load checkpoint for resume: %s",
+                    self.name,
+                    exc,
+                )
+
         self.status = AgentStatus.RUNNING
 
         if self.session_start is None:
             self.session_start = start_time
+
+        # Durable: save a "running" marker checkpoint
+        if durable and self._checkpoint_storage is not None:
+            try:
+                marker = AgentCheckpoint.create_from_agent(self)
+                await self.checkpoint_storage.save_checkpoint(self.name, marker)
+            except Exception as exc:
+                logger.warning("Failed to save running marker: %s", exc)
 
         try:
             # Determine if we can use the AgentCore fast path
@@ -2639,6 +2830,15 @@ class Agent:
                 mode_str = execution_mode.value
                 entry_states = _core.prepare_run(mode_str)
 
+                # Apply entry_point overrides — filter out states
+                # explicitly excluded via entry_point=False
+                _ep_overrides = getattr(self, "_entry_point_overrides", None)
+                if _ep_overrides:
+                    entry_states = [
+                        s for s in entry_states
+                        if _ep_overrides.get(s) is not False
+                    ]
+
                 # Lazy context
                 self._create_context(self.shared_state)
                 if initial_context:
@@ -2650,6 +2850,14 @@ class Agent:
                 _ctx = self._context
                 _states = self.states
                 _timeout: Optional[float] = timeout
+
+                # Pre-compute durable/drain guards as locals — zero cost when unused
+                _drain = self._drain_protocol
+                _ckpt = self._checkpoint_storage
+                _durable_pstate = durable and checkpoint_granularity == "per-state" and _ckpt is not None
+                _durable_onerr = durable and checkpoint_granularity == "on-error" and _ckpt is not None
+                _durable_final = durable and _ckpt is not None
+                _has_extras = _durable_pstate or _durable_onerr or _drain is not None
 
                 while self.status == AgentStatus.RUNNING:
                     if _timeout is not None and (time.time() - start_time) > _timeout:
@@ -2691,12 +2899,41 @@ class Agent:
 
                             # Batched: mark_completed + handle_result + is_done
                             if _core.execute_step(sn, _goto):
+                                if _durable_final:
+                                    try:
+                                        cp = AgentCheckpoint.create_from_agent(self)
+                                        await self.checkpoint_storage.save_checkpoint(
+                                            self.name, cp
+                                        )
+                                    except Exception:
+                                        pass
                                 if _timeout is not None:
-                                    # One more iteration so timeout check fires
                                     continue
                                 break
+
+                            if _has_extras:
+                                if _durable_pstate:
+                                    try:
+                                        cp = AgentCheckpoint.create_from_agent(self)
+                                        await self.checkpoint_storage.save_checkpoint(
+                                            self.name, cp
+                                        )
+                                    except Exception:
+                                        pass
+                                if _drain is not None and _drain.is_draining:
+                                    await self.save_checkpoint()
+                                    self.status = AgentStatus.PAUSED
+                                    break
                         except Exception as e:
                             _core.mark_failed(sn)
+                            if _durable_onerr:
+                                try:
+                                    cp = AgentCheckpoint.create_from_agent(self)
+                                    await self.checkpoint_storage.save_checkpoint(
+                                        self.name, cp
+                                    )
+                                except Exception:
+                                    pass
                             # Retry handling via core
                             if _core.should_retry(sn):
                                 delay = _core.get_retry_delay(
@@ -2889,6 +3126,11 @@ class Agent:
                         for state_name in entry_states:
                             await self._add_to_queue(state_name)
 
+                    _s_drain = self._drain_protocol
+                    _s_ckpt = self._checkpoint_storage
+                    _s_durable_ps = durable and checkpoint_granularity == "per-state" and _s_ckpt is not None
+                    _s_has_extras = _s_durable_ps or _s_drain is not None
+
                     while self.status == AgentStatus.RUNNING:
                         if timeout and (time.time() - start_time) > timeout:
                             logger.warning(
@@ -2896,6 +3138,18 @@ class Agent:
                                 f"{timeout} seconds."
                             )
                             self.status = AgentStatus.FAILED
+                            break
+
+                        if _s_has_extras and _s_drain is not None and _s_drain.is_draining:
+                            if durable and _s_ckpt is not None:
+                                try:
+                                    cp = AgentCheckpoint.create_from_agent(self)
+                                    await self.checkpoint_storage.save_checkpoint(
+                                        self.name, cp
+                                    )
+                                except Exception:
+                                    pass
+                            self.status = AgentStatus.PAUSED
                             break
 
                         if not self.priority_queue and not self.running_states:
@@ -2919,6 +3173,15 @@ class Agent:
                                     for s in ready_states[: self.max_concurrent]
                                 ]
                                 await asyncio.gather(*tasks, return_exceptions=True)
+
+                            if _s_durable_ps:
+                                try:
+                                    cp = AgentCheckpoint.create_from_agent(self)
+                                    await self.checkpoint_storage.save_checkpoint(
+                                        self.name, cp
+                                    )
+                                except Exception:
+                                    pass
                         elif self.priority_queue and not self.running_states:
                             logger.warning(
                                 f"Deadlock in agent {self.name}: States in "
@@ -2942,6 +3205,14 @@ class Agent:
                         self.status = AgentStatus.FAILED
                     else:
                         self.status = AgentStatus.COMPLETED
+
+            # Durable: save final checkpoint with completed/failed status
+            if durable and self._checkpoint_storage is not None:
+                try:
+                    final_cp = AgentCheckpoint.create_from_agent(self)
+                    await self.checkpoint_storage.save_checkpoint(self.name, final_cp)
+                except Exception:
+                    pass
 
             end_time = time.time()
 

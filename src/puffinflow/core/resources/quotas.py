@@ -8,11 +8,25 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional, Union
 
-import structlog
-
 from .requirements import ResourceType
 
-logger = structlog.get_logger(__name__)
+
+class _LazyLogger:
+    __slots__ = ("_name", "_real")
+
+    def __init__(self, name):
+        self._name = name
+        self._real = None
+
+    def __getattr__(self, attr):
+        if self._real is None:
+            import structlog
+
+            self._real = structlog.get_logger(self._name)
+        return getattr(self._real, attr)
+
+
+logger = _LazyLogger(__name__)
 
 
 class QuotaScope(Enum):

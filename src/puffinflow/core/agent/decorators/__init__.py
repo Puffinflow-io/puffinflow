@@ -1,50 +1,45 @@
 """Enhanced state decorators with flexible configuration."""
 
-# Import flexible decorator as the main state decorator
-# Import builder pattern
-from .builder import (
-    StateBuilder,
-    build_state,
-    cpu_state,
-    exclusive_state,
-    gpu_state,
-    memory_state,
-)
-from .builder import concurrent_state as builder_concurrent_state
-from .builder import critical_state as builder_critical_state
-from .builder import high_priority_state as builder_high_priority_state
-from .flexible import (
-    PROFILES,
-    FlexibleStateDecorator,
-    StateProfile,
-    batch_state,
-    concurrent_state,
-    cpu_intensive,
-    create_custom_decorator,
-    critical_state,
-    get_profile,
-    gpu_accelerated,
-    io_intensive,
-    list_profiles,
-    memory_intensive,
-    minimal_state,
-    network_intensive,
-    quick_state,
-    state,
-    synchronized_state,
-)
-
-# Import inspection utilities
-from .inspection import (
-    compare_states,
-    get_state_config,
-    get_state_coordination,
-    get_state_rate_limit,
-    get_state_requirements,
-    get_state_summary,
-    is_puffinflow_state,
-    list_state_metadata,
-)
+_LAZY_IMPORTS = {
+    # Builder
+    "StateBuilder": (".builder", "StateBuilder"),
+    "build_state": (".builder", "build_state"),
+    "cpu_state": (".builder", "cpu_state"),
+    "exclusive_state": (".builder", "exclusive_state"),
+    "gpu_state": (".builder", "gpu_state"),
+    "memory_state": (".builder", "memory_state"),
+    "builder_concurrent_state": (".builder", "concurrent_state"),
+    "builder_critical_state": (".builder", "critical_state"),
+    "builder_high_priority_state": (".builder", "high_priority_state"),
+    # Flexible
+    "PROFILES": (".flexible", "PROFILES"),
+    "FlexibleStateDecorator": (".flexible", "FlexibleStateDecorator"),
+    "StateProfile": (".flexible", "StateProfile"),
+    "batch_state": (".flexible", "batch_state"),
+    "concurrent_state": (".flexible", "concurrent_state"),
+    "cpu_intensive": (".flexible", "cpu_intensive"),
+    "create_custom_decorator": (".flexible", "create_custom_decorator"),
+    "critical_state": (".flexible", "critical_state"),
+    "get_profile": (".flexible", "get_profile"),
+    "gpu_accelerated": (".flexible", "gpu_accelerated"),
+    "io_intensive": (".flexible", "io_intensive"),
+    "list_profiles": (".flexible", "list_profiles"),
+    "memory_intensive": (".flexible", "memory_intensive"),
+    "minimal_state": (".flexible", "minimal_state"),
+    "network_intensive": (".flexible", "network_intensive"),
+    "quick_state": (".flexible", "quick_state"),
+    "state": (".flexible", "state"),
+    "synchronized_state": (".flexible", "synchronized_state"),
+    # Inspection
+    "compare_states": (".inspection", "compare_states"),
+    "get_state_config": (".inspection", "get_state_config"),
+    "get_state_coordination": (".inspection", "get_state_coordination"),
+    "get_state_rate_limit": (".inspection", "get_state_rate_limit"),
+    "get_state_requirements": (".inspection", "get_state_requirements"),
+    "get_state_summary": (".inspection", "get_state_summary"),
+    "is_puffinflow_state": (".inspection", "is_puffinflow_state"),
+    "list_state_metadata": (".inspection", "list_state_metadata"),
+}
 
 __all__ = [
     "PROFILES",
@@ -88,3 +83,15 @@ __all__ = [
     "state",
     "synchronized_state",
 ]
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        import importlib
+
+        module_path, attr = _LAZY_IMPORTS[name]
+        mod = importlib.import_module(module_path, __package__)
+        val = getattr(mod, attr)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

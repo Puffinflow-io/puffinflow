@@ -40,6 +40,23 @@ if _HAS_PYDANTIC_SETTINGS:
         storage_backend: str = Field(default="sqlite", alias="STORAGE_BACKEND")
         checkpoint_interval: int = Field(default=60, alias="CHECKPOINT_INTERVAL")
 
+        # Checkpoint configuration
+        checkpoint_format: str = Field(
+            default="json", alias="CHECKPOINT_FORMAT"
+        )  # json, msgpack, pickle
+        checkpoint_backend: str = Field(
+            default="file", alias="CHECKPOINT_BACKEND"
+        )  # file, memory, redis, postgres, s3
+        checkpoint_granularity: str = Field(
+            default="per-state", alias="CHECKPOINT_GRANULARITY"
+        )  # per-state, on-error
+
+        # Drain configuration
+        drain_timeout: float = Field(default=30.0, alias="DRAIN_TIMEOUT")
+
+        # Streaming configuration
+        streaming_port: int = Field(default=8080, alias="STREAMING_PORT")
+
         model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 else:
@@ -62,6 +79,13 @@ else:
             self.enable_scheduling: bool = kwargs.get("enable_scheduling", True)
             self.storage_backend: str = kwargs.get("storage_backend", "sqlite")
             self.checkpoint_interval: int = kwargs.get("checkpoint_interval", 60)
+            self.checkpoint_format: str = kwargs.get("checkpoint_format", "json")
+            self.checkpoint_backend: str = kwargs.get("checkpoint_backend", "file")
+            self.checkpoint_granularity: str = kwargs.get(
+                "checkpoint_granularity", "per-state"
+            )
+            self.drain_timeout: float = kwargs.get("drain_timeout", 30.0)
+            self.streaming_port: int = kwargs.get("streaming_port", 8080)
 
 
 class Features:

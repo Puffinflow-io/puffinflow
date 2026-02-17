@@ -2,6 +2,7 @@
 PuffinFlow - Workflow Orchestration Framework.
 """
 
+import importlib
 from typing import Any
 
 # Import version from setuptools-scm generated file
@@ -90,6 +91,49 @@ _LAZY_IMPORTS = {
     "MemoryStore": (".core.store.base", "MemoryStore"),
     # Subgraph
     "StateMapping": (".core.agent.subgraph", "StateMapping"),
+    # Scheduling
+    "GlobalScheduler": (".core.agent.scheduling.scheduler", "GlobalScheduler"),
+    "ScheduledAgent": (".core.agent.scheduling.scheduler", "ScheduledAgent"),
+    "ScheduleBuilder": (".core.agent.scheduling.builder", "ScheduleBuilder"),
+    # Checkpoint serialization
+    "CheckpointSerializer": (
+        ".core.agent.checkpoint_serializer",
+        "CheckpointSerializer",
+    ),
+    "JsonCheckpointSerializer": (
+        ".core.agent.checkpoint_serializer",
+        "JsonCheckpointSerializer",
+    ),
+    "MsgpackCheckpointSerializer": (
+        ".core.agent.checkpoint_serializer",
+        "MsgpackCheckpointSerializer",
+    ),
+    # Checkpoint backends
+    "RedisCheckpointStorage": (
+        ".core.agent.checkpoint_backends",
+        "RedisCheckpointStorage",
+    ),
+    "PostgresCheckpointStorage": (
+        ".core.agent.checkpoint_backends",
+        "PostgresCheckpointStorage",
+    ),
+    "S3CheckpointStorage": (
+        ".core.agent.checkpoint_backends",
+        "S3CheckpointStorage",
+    ),
+    "RetentionPolicy": (".core.agent.checkpoint_backends", "RetentionPolicy"),
+    # Drain protocol
+    "DrainProtocol": (".core.agent.drain", "DrainProtocol"),
+    "DrainResult": (".core.agent.drain", "DrainResult"),
+    # Streaming endpoints
+    "SSEStreamEndpoint": (
+        ".core.agent.streaming_endpoint",
+        "SSEStreamEndpoint",
+    ),
+    "WebSocketStreamEndpoint": (
+        ".core.agent.streaming_endpoint",
+        "WebSocketStreamEndpoint",
+    ),
 }
 
 __all__ = [
@@ -153,14 +197,31 @@ __all__ = [
     "add_reducer",
     "append_reducer",
     "replace_reducer",
+    # Scheduling
+    "GlobalScheduler",
+    "ScheduledAgent",
+    "ScheduleBuilder",
+    # Checkpoint serialization
+    "CheckpointSerializer",
+    "JsonCheckpointSerializer",
+    "MsgpackCheckpointSerializer",
+    # Checkpoint backends
+    "RedisCheckpointStorage",
+    "PostgresCheckpointStorage",
+    "S3CheckpointStorage",
+    "RetentionPolicy",
+    # Drain protocol
+    "DrainProtocol",
+    "DrainResult",
+    # Streaming endpoints
+    "SSEStreamEndpoint",
+    "WebSocketStreamEndpoint",
 ]
 
 
 def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         module_path, attr = _LAZY_IMPORTS[name]
-        import importlib
-
         mod = importlib.import_module(module_path, __package__)
         val = getattr(mod, attr)
         globals()[name] = val  # Cache for subsequent access
