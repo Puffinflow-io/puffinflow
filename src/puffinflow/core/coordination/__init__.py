@@ -1,76 +1,71 @@
 """Coordination module for multi-agent workflows."""
 
-from .agent_group import (
-    AgentGroup,
-    AgentOrchestrator,
-    ExecutionStrategy,
-    GroupResult,
-    OrchestrationExecution,
-    OrchestrationResult,
-    ParallelAgentGroup,
-    StageConfig,
-)
-from .agent_pool import (
-    AgentPool,
-    CompletedWork,
-    DynamicProcessingPool,
-    PoolContext,
-    ScalingPolicy,
-    WorkItem,
-    WorkProcessor,
-    WorkQueue,
-)
-from .agent_team import (
-    AgentTeam,
-    Event,
-    EventBus,
-    Message,
-    TeamResult,
-    create_team,
-    run_agents_parallel,
-    run_agents_sequential,
-)
-from .fluent_api import (
-    Agents,
-    ConditionalAgents,
-    FluentResult,
-    PipelineAgents,
-    collect_agent_outputs,
-    create_agent_team,
-    create_pipeline,
-    get_best_agent,
-    run_parallel_agents,
-    run_sequential_agents,
-)
-
-# Import coordination components
-try:
-    from .coordinator import AgentCoordinator, CoordinationConfig, enhance_agent
-    from .deadlock import DeadlockDetector, DeadlockResolutionStrategy
-    from .primitives import (
-        Barrier,
-        CoordinationPrimitive,
-        Lease,
-        Lock,
-        Mutex,
-        PrimitiveType,
-        Quota,
-        Semaphore,
-        create_primitive,
-    )
-    from .rate_limiter import (
-        AdaptiveRateLimiter,
-        CompositeRateLimiter,
-        FixedWindow,
-        LeakyBucket,
-        RateLimiter,
-        RateLimitStrategy,
-        SlidingWindow,
-        TokenBucket,
-    )
-except ImportError:
-    # Some coordination components may not be available
-    pass
+_LAZY_IMPORTS = {
+    # Agent group
+    "AgentGroup": (".agent_group", "AgentGroup"),
+    "AgentOrchestrator": (".agent_group", "AgentOrchestrator"),
+    "ExecutionStrategy": (".agent_group", "ExecutionStrategy"),
+    "GroupResult": (".agent_group", "GroupResult"),
+    "OrchestrationExecution": (".agent_group", "OrchestrationExecution"),
+    "OrchestrationResult": (".agent_group", "OrchestrationResult"),
+    "ParallelAgentGroup": (".agent_group", "ParallelAgentGroup"),
+    "StageConfig": (".agent_group", "StageConfig"),
+    # Agent pool
+    "AgentPool": (".agent_pool", "AgentPool"),
+    "CompletedWork": (".agent_pool", "CompletedWork"),
+    "DynamicProcessingPool": (".agent_pool", "DynamicProcessingPool"),
+    "PoolContext": (".agent_pool", "PoolContext"),
+    "ScalingPolicy": (".agent_pool", "ScalingPolicy"),
+    "WorkItem": (".agent_pool", "WorkItem"),
+    "WorkProcessor": (".agent_pool", "WorkProcessor"),
+    "WorkQueue": (".agent_pool", "WorkQueue"),
+    # Agent team
+    "AgentTeam": (".agent_team", "AgentTeam"),
+    "Event": (".agent_team", "Event"),
+    "EventBus": (".agent_team", "EventBus"),
+    "Message": (".agent_team", "Message"),
+    "TeamResult": (".agent_team", "TeamResult"),
+    "create_team": (".agent_team", "create_team"),
+    "run_agents_parallel": (".agent_team", "run_agents_parallel"),
+    "run_agents_sequential": (".agent_team", "run_agents_sequential"),
+    # Fluent API
+    "Agents": (".fluent_api", "Agents"),
+    "ConditionalAgents": (".fluent_api", "ConditionalAgents"),
+    "FluentResult": (".fluent_api", "FluentResult"),
+    "PipelineAgents": (".fluent_api", "PipelineAgents"),
+    "collect_agent_outputs": (".fluent_api", "collect_agent_outputs"),
+    "create_agent_team": (".fluent_api", "create_agent_team"),
+    "create_pipeline": (".fluent_api", "create_pipeline"),
+    "get_best_agent": (".fluent_api", "get_best_agent"),
+    "run_parallel_agents": (".fluent_api", "run_parallel_agents"),
+    "run_sequential_agents": (".fluent_api", "run_sequential_agents"),
+    # Coordinator
+    "AgentCoordinator": (".coordinator", "AgentCoordinator"),
+    "CoordinationConfig": (".coordinator", "CoordinationConfig"),
+    "enhance_agent": (".coordinator", "enhance_agent"),
+    # Deadlock
+    "DeadlockDetector": (".deadlock", "DeadlockDetector"),
+    "DeadlockResolutionStrategy": (".deadlock", "DeadlockResolutionStrategy"),
+    # Primitives
+    "Barrier": (".primitives", "Barrier"),
+    "CoordinationPrimitive": (".primitives", "CoordinationPrimitive"),
+    "Lease": (".primitives", "Lease"),
+    "Lock": (".primitives", "Lock"),
+    "Mutex": (".primitives", "Mutex"),
+    "PrimitiveType": (".primitives", "PrimitiveType"),
+    "Quota": (".primitives", "Quota"),
+    "Semaphore": (".primitives", "Semaphore"),
+    "create_primitive": (".primitives", "create_primitive"),
+    # Rate limiter
+    "AdaptiveRateLimiter": (".rate_limiter", "AdaptiveRateLimiter"),
+    "CompositeRateLimiter": (".rate_limiter", "CompositeRateLimiter"),
+    "FixedWindow": (".rate_limiter", "FixedWindow"),
+    "LeakyBucket": (".rate_limiter", "LeakyBucket"),
+    "RateLimiter": (".rate_limiter", "RateLimiter"),
+    "RateLimitStrategy": (".rate_limiter", "RateLimitStrategy"),
+    "SlidingWindow": (".rate_limiter", "SlidingWindow"),
+    "TokenBucket": (".rate_limiter", "TokenBucket"),
+}
 
 __all__ = [
     "AdaptiveRateLimiter",
@@ -134,3 +129,15 @@ __all__ = [
     "run_parallel_agents",
     "run_sequential_agents",
 ]
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        import importlib
+
+        module_path, attr = _LAZY_IMPORTS[name]
+        mod = importlib.import_module(module_path, __package__)
+        val = getattr(mod, attr)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

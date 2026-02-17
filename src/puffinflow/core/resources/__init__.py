@@ -1,37 +1,35 @@
 """Resource management module for workflow orchestrator."""
 
-# Import submodules for import path tests
-from . import allocation, pool, quotas, requirements
-from .allocation import (
-    AllocationRequest,
-    AllocationResult,
-    AllocationStrategy,
-    BestFitAllocator,
-    FairShareAllocator,
-    FirstFitAllocator,
-    PriorityAllocator,
-    ResourceAllocator,
-    WorstFitAllocator,
-)
-from .pool import (
-    ResourceAllocationError,
-    ResourceOverflowError,
-    ResourcePool,
-    ResourceQuotaExceededError,
-    ResourceUsageStats,
-)
-from .quotas import (
-    QuotaExceededError,
-    QuotaLimit,
-    QuotaManager,
-    QuotaMetrics,
-    QuotaPolicy,
-    QuotaScope,
-)
-from .requirements import (
-    ResourceRequirements,
-    ResourceType,
-)
+_LAZY_IMPORTS = {
+    # Allocation
+    "AllocationRequest": (".allocation", "AllocationRequest"),
+    "AllocationResult": (".allocation", "AllocationResult"),
+    "AllocationStrategy": (".allocation", "AllocationStrategy"),
+    "BestFitAllocator": (".allocation", "BestFitAllocator"),
+    "FairShareAllocator": (".allocation", "FairShareAllocator"),
+    "FirstFitAllocator": (".allocation", "FirstFitAllocator"),
+    "PriorityAllocator": (".allocation", "PriorityAllocator"),
+    "ResourceAllocator": (".allocation", "ResourceAllocator"),
+    "WorstFitAllocator": (".allocation", "WorstFitAllocator"),
+    # Pool
+    "ResourceAllocationError": (".pool", "ResourceAllocationError"),
+    "ResourceOverflowError": (".pool", "ResourceOverflowError"),
+    "ResourcePool": (".pool", "ResourcePool"),
+    "ResourceQuotaExceededError": (".pool", "ResourceQuotaExceededError"),
+    "ResourceUsageStats": (".pool", "ResourceUsageStats"),
+    # Quotas
+    "QuotaExceededError": (".quotas", "QuotaExceededError"),
+    "QuotaLimit": (".quotas", "QuotaLimit"),
+    "QuotaManager": (".quotas", "QuotaManager"),
+    "QuotaMetrics": (".quotas", "QuotaMetrics"),
+    "QuotaPolicy": (".quotas", "QuotaPolicy"),
+    "QuotaScope": (".quotas", "QuotaScope"),
+    # Requirements
+    "ResourceRequirements": (".requirements", "ResourceRequirements"),
+    "ResourceType": (".requirements", "ResourceType"),
+}
+
+_SUBMODULES = {"allocation", "pool", "quotas", "requirements"}
 
 __all__ = [
     "AllocationRequest",
@@ -67,11 +65,20 @@ __all__ = [
     "requirements",
 ]
 
-# Clean up module namespace
-import sys as _sys
 
-_current_module = _sys.modules[__name__]
-for _attr_name in dir(_current_module):
-    if not _attr_name.startswith("_") and _attr_name not in __all__:
-        delattr(_current_module, _attr_name)
-del _sys, _current_module, _attr_name
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        import importlib
+
+        module_path, attr = _LAZY_IMPORTS[name]
+        mod = importlib.import_module(module_path, __package__)
+        val = getattr(mod, attr)
+        globals()[name] = val
+        return val
+    if name in _SUBMODULES:
+        import importlib
+
+        mod = importlib.import_module(f".{name}", __package__)
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

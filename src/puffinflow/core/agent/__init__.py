@@ -2,99 +2,93 @@
 
 from typing import Any, Callable
 
-from .base import Agent, AgentResult, ResourceTimeoutError
-from .checkpoint import AgentCheckpoint
-from .command import Command, Send
-from .context import Context, StateType
-from .dependencies import DependencyConfig, DependencyLifecycle, DependencyType
-from .reducers import ReducerRegistry, add_reducer, append_reducer, replace_reducer
-from .state import (
-    AgentStatus,
-    DeadLetter,
-    ExecutionMode,
-    PrioritizedState,
-    Priority,
-    RetryPolicy,
-    StateMetadata,
-    StateResult,
-    StateStatus,
-)
-from .streaming import StreamEvent, StreamManager, StreamMode
-from .subgraph import StateMapping
+_LAZY_IMPORTS = {
+    # Core classes
+    "Agent": (".base", "Agent"),
+    "AgentResult": (".base", "AgentResult"),
+    "ResourceTimeoutError": (".base", "ResourceTimeoutError"),
+    "AgentCheckpoint": (".checkpoint", "AgentCheckpoint"),
+    "Command": (".command", "Command"),
+    "Send": (".command", "Send"),
+    "Context": (".context", "Context"),
+    "StateType": (".context", "StateType"),
+    "DependencyConfig": (".dependencies", "DependencyConfig"),
+    "DependencyLifecycle": (".dependencies", "DependencyLifecycle"),
+    "DependencyType": (".dependencies", "DependencyType"),
+    "ReducerRegistry": (".reducers", "ReducerRegistry"),
+    "add_reducer": (".reducers", "add_reducer"),
+    "append_reducer": (".reducers", "append_reducer"),
+    "replace_reducer": (".reducers", "replace_reducer"),
+    "AgentStatus": (".state", "AgentStatus"),
+    "DeadLetter": (".state", "DeadLetter"),
+    "ExecutionMode": (".state", "ExecutionMode"),
+    "PrioritizedState": (".state", "PrioritizedState"),
+    "Priority": (".state", "Priority"),
+    "RetryPolicy": (".state", "RetryPolicy"),
+    "StateMetadata": (".state", "StateMetadata"),
+    "StateResult": (".state", "StateResult"),
+    "StateStatus": (".state", "StateStatus"),
+    "StreamEvent": (".streaming", "StreamEvent"),
+    "StreamManager": (".streaming", "StreamManager"),
+    "StreamMode": (".streaming", "StreamMode"),
+    "StateMapping": (".subgraph", "StateMapping"),
+    # Decorators - builder
+    "StateBuilder": (".decorators.builder", "StateBuilder"),
+    "build_state": (".decorators.builder", "build_state"),
+    "cpu_state": (".decorators.builder", "cpu_state"),
+    "exclusive_state": (".decorators.builder", "exclusive_state"),
+    "external_service_state": (".decorators.builder", "external_service_state"),
+    "fault_tolerant_state": (".decorators.builder", "fault_tolerant_state"),
+    "gpu_state": (".decorators.builder", "gpu_state"),
+    "high_priority_state": (".decorators.builder", "high_priority_state"),
+    "isolated_state": (".decorators.builder", "isolated_state"),
+    "memory_state": (".decorators.builder", "memory_state"),
+    "production_state": (".decorators.builder", "production_state"),
+    "protected_state": (".decorators.builder", "protected_state"),
+    # Decorators - flexible
+    "FlexibleStateDecorator": (".decorators.flexible", "FlexibleStateDecorator"),
+    "StateProfile": (".decorators.flexible", "StateProfile"),
+    "batch_state": (".decorators.flexible", "batch_state"),
+    "concurrent_state": (".decorators.flexible", "concurrent_state"),
+    "cpu_intensive": (".decorators.flexible", "cpu_intensive"),
+    "create_custom_decorator": (".decorators.flexible", "create_custom_decorator"),
+    "critical_state": (".decorators.flexible", "critical_state"),
+    "external_service": (".decorators.flexible", "external_service"),
+    "fault_tolerant": (".decorators.flexible", "fault_tolerant"),
+    "get_profile": (".decorators.flexible", "get_profile"),
+    "gpu_accelerated": (".decorators.flexible", "gpu_accelerated"),
+    "high_availability": (".decorators.flexible", "high_availability"),
+    "io_intensive": (".decorators.flexible", "io_intensive"),
+    "list_profiles": (".decorators.flexible", "list_profiles"),
+    "memory_intensive": (".decorators.flexible", "memory_intensive"),
+    "minimal_state": (".decorators.flexible", "minimal_state"),
+    "network_intensive": (".decorators.flexible", "network_intensive"),
+    "quick_state": (".decorators.flexible", "quick_state"),
+    "state": (".decorators.flexible", "state"),
+    # Decorators - inspection
+    "compare_states": (".decorators.inspection", "compare_states"),
+    "get_state_config": (".decorators.inspection", "get_state_config"),
+    "get_state_coordination": (".decorators.inspection", "get_state_coordination"),
+    "get_state_rate_limit": (".decorators.inspection", "get_state_rate_limit"),
+    "get_state_requirements": (".decorators.inspection", "get_state_requirements"),
+    "get_state_summary": (".decorators.inspection", "get_state_summary"),
+    "is_puffinflow_state": (".decorators.inspection", "is_puffinflow_state"),
+    "list_state_metadata": (".decorators.inspection", "list_state_metadata"),
+    # Scheduling
+    "GlobalScheduler": (".scheduling.scheduler", "GlobalScheduler"),
+    "InputType": (".scheduling.inputs", "InputType"),
+    "InvalidInputTypeError": (".scheduling.exceptions", "InvalidInputTypeError"),
+    "InvalidScheduleError": (".scheduling.exceptions", "InvalidScheduleError"),
+    "ScheduleBuilder": (".scheduling.builder", "ScheduleBuilder"),
+    "ScheduledAgent": (".scheduling.scheduler", "ScheduledAgent"),
+    "ScheduledInput": (".scheduling.inputs", "ScheduledInput"),
+    "ScheduleParser": (".scheduling.parser", "ScheduleParser"),
+    "SchedulingError": (".scheduling.exceptions", "SchedulingError"),
+    "parse_magic_prefix": (".scheduling.inputs", "parse_magic_prefix"),
+    "parse_schedule_string": (".scheduling.parser", "parse_schedule_string"),
+}
 
-# Decorators
-try:
-    from .decorators.builder import (
-        StateBuilder,
-        build_state,
-        cpu_state,
-        exclusive_state,
-        external_service_state,
-        fault_tolerant_state,
-        gpu_state,
-        high_priority_state,
-        isolated_state,
-        memory_state,
-        production_state,
-        protected_state,
-    )
-    from .decorators.flexible import (
-        FlexibleStateDecorator,
-        StateProfile,
-        batch_state,
-        concurrent_state,
-        cpu_intensive,
-        create_custom_decorator,
-        critical_state,
-        external_service,
-        fault_tolerant,
-        get_profile,
-        gpu_accelerated,
-        high_availability,
-        io_intensive,
-        list_profiles,
-        memory_intensive,
-        minimal_state,
-        network_intensive,
-        quick_state,
-        state,
-    )
-
-    # synchronized_state,  # Temporarily disabled
-    from .decorators.inspection import (
-        compare_states,
-        get_state_config,
-        get_state_coordination,
-        get_state_rate_limit,
-        get_state_requirements,
-        get_state_summary,
-        is_puffinflow_state,
-        list_state_metadata,
-    )
-except ImportError:
-    # Decorators not available
-    pass
-
-# Scheduling components
-try:
-    from .scheduling import (
-        GlobalScheduler,
-        InputType,
-        InvalidInputTypeError,
-        InvalidScheduleError,
-        ScheduleBuilder,
-        ScheduledAgent,
-        ScheduledInput,
-        ScheduleParser,
-        SchedulingError,
-        parse_magic_prefix,
-        parse_schedule_string,
-    )
-
-    _SCHEDULING_AVAILABLE = True
-except ImportError:
-    # Scheduling not available
-    _SCHEDULING_AVAILABLE = False
+_SUBMODULES = {"decorators", "scheduling"}
 
 
 # Team decorators for convenience
@@ -284,6 +278,25 @@ __all__ = [
     # Subgraph
     "StateMapping",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY_IMPORTS:
+        import importlib
+
+        module_path, attr = _LAZY_IMPORTS[name]
+        mod = importlib.import_module(module_path, __package__)
+        val = getattr(mod, attr)
+        globals()[name] = val
+        return val
+    if name in _SUBMODULES:
+        import importlib
+
+        mod = importlib.import_module(f".{name}", __package__)
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __doc__ = """
 Agent Module for PuffinFlow

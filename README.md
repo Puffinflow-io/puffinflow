@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <b>2.2x lower latency</b> &middot; <b>1.8x higher throughput</b> &middot; <b>1000x faster import</b> &middot; <b>Same features, simpler code</b>
+  <b>2x lower latency</b> &middot; <b>1.7x higher throughput</b> &middot; <b>4x faster import</b> &middot; <b>Same features, simpler code</b>
 </p>
 
 ---
@@ -20,14 +20,14 @@
 LangGraph is the go-to framework for building AI agent workflows. But it's slow, complex, and the API fights you at every step. PuffinFlow gives you the same capabilities — Command, Send, reducers, streaming, persistent memory, subgraphs — with a Rust-backed core that's measurably faster.
 
 ```
-LangGraph sequential 5-step:    2.6 ms
-PuffinFlow sequential 5-step:   1.2 ms  (2.2x faster)
+LangGraph sequential 5-step:    2.5 ms
+PuffinFlow sequential 5-step:   1.3 ms  (2x faster)
 
-LangGraph throughput:            622 wf/sec
-PuffinFlow throughput:         1,088 wf/sec  (1.8x higher)
+LangGraph throughput:            680 wf/sec
+PuffinFlow throughput:         1,150 wf/sec  (1.7x higher)
 
-LangGraph cold import:         1,117 ms
-PuffinFlow cold import:            1 ms  (1000x faster)
+LangGraph cold import:          1,000 ms
+PuffinFlow cold import:           252 ms  (4x faster)
 ```
 
 Full benchmark methodology and results: [BENCHMARKS.md](./BENCHMARKS.md)
@@ -285,18 +285,18 @@ Orchestration overhead measured with identical `sum(i*i for i in range(5000))` w
 
 | Test | PuffinFlow | LangGraph | LlamaIndex |
 |------|-----------|-----------|------------|
-| Sequential 3-step | **0.7 ms** | 1.7 ms | 2.2 ms |
-| Sequential 5-step | **1.2 ms** | 2.6 ms | 3.4 ms |
-| Per-step overhead | **0.2 ms** | 0.5 ms | 0.6 ms |
-| Fan-out (3+1 agg) | **1.2 ms** | 3.4 ms | 2.1 ms |
-| Throughput (wf/sec) | **1,088** | 622 | 394 |
+| Sequential 3-step | **0.7 ms** | 1.5 ms | 2.0 ms |
+| Sequential 5-step | **1.3 ms** | 2.5 ms | 3.0 ms |
+| Per-step overhead | **0.3 ms** | 0.4 ms | 0.5 ms |
+| Fan-out (3+1 agg) | **1.2 ms** | 3.4 ms | 1.6 ms |
+| Throughput (wf/sec) | **1,150** | 680 | 430 |
 | Peak memory (500 wf) | 2.50 MB | 4.93 MB | **0.67 MB** |
-| Import time | **1 ms** | 1,117 ms | 1,852 ms |
+| Import time | **252 ms** | 1,000 ms | 1,600 ms |
 
-Per-step overhead = `(5-step − 3-step) / 2`. Import time = cold-start subprocess, Python startup subtracted.
+Per-step overhead = `(5-step − 3-step) / 2`. Import time measures `from pkg import ...` with real symbols in a cold subprocess, Python startup subtracted.
 
 ```bash
-pip install puffinflow langgraph llama-index-core prefect dagster
+pip install puffinflow langgraph llama-index-core
 python benchmarks/benchmark.py
 ```
 

@@ -14,8 +14,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
-import structlog
-
 from .pool import ResourcePool
 
 # Import resource management components from the canonical source
@@ -25,7 +23,23 @@ from .requirements import (
     get_resource_amount,
 )
 
-logger = structlog.get_logger(__name__)
+
+class _LazyLogger:
+    __slots__ = ("_name", "_real")
+
+    def __init__(self, name):
+        self._name = name
+        self._real = None
+
+    def __getattr__(self, attr):
+        if self._real is None:
+            import structlog
+
+            self._real = structlog.get_logger(self._name)
+        return getattr(self._real, attr)
+
+
+logger = _LazyLogger(__name__)
 
 
 class AllocationStrategy(Enum):

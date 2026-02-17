@@ -41,45 +41,45 @@ python benchmarks/benchmark.py --json
 
 | Test | PuffinFlow | LangGraph | LlamaIndex Workflows |
 |------|-----------|-----------|---------------------|
-| Sequential 3-step | **0.7 ms** | 1.7 ms | 2.2 ms |
-| Sequential 5-step | **1.2 ms** | 2.6 ms | 3.4 ms |
-| Per-step overhead | **0.2 ms** | 0.5 ms | 0.6 ms |
-| Fan-out (3 branches + 1 aggregate) | **1.2 ms** | 3.4 ms | 2.1 ms |
-| Throughput (workflows/sec) | **1,088** | 622 | 394 |
+| Sequential 3-step | **0.7 ms** | 1.5 ms | 2.0 ms |
+| Sequential 5-step | **1.3 ms** | 2.5 ms | 3.0 ms |
+| Per-step overhead | **0.3 ms** | 0.4 ms | 0.5 ms |
+| Fan-out (3 branches + 1 aggregate) | **1.2 ms** | 3.4 ms | 1.6 ms |
+| Throughput (workflows/sec) | **1,150** | 680 | 430 |
 | Peak memory (500 workflows) | 2.50 MB | 4.93 MB | **0.67 MB** |
-| Import time (cold start) | **1 ms** | 1,117 ms | 1,852 ms |
+| Import time (cold start) | **252 ms** | 1,000 ms | 1,600 ms |
 
-Per-step overhead = `(5-step − 3-step) / 2`. Import time = cold-start subprocess, Python startup subtracted.
+Per-step overhead = `(5-step − 3-step) / 2`. Import time measures `from pkg import ...` with real symbols (e.g. `from puffinflow import Agent, state`) in a cold subprocess, Python startup subtracted.
 
 ---
 
 ## Key Takeaways
 
-### Latency: 2.2x faster
+### Latency: 2x faster
 
 PuffinFlow's Rust core executes the state machine hot path — transition resolution, state dispatching, context management — in compiled Rust via PyO3. This delivers:
 
-- **2.2x lower latency** on sequential workflows (1.2ms vs 2.6ms for 5 steps)
-- **0.2ms per-step overhead** vs 0.5ms for LangGraph
+- **2x lower latency** on sequential workflows (1.3ms vs 2.5ms for 5 steps)
+- **0.3ms per-step overhead** vs 0.4ms for LangGraph
 - Near-identical performance to raw asyncio for simple chains
 
-### Throughput: 1.8x higher
+### Throughput: 1.7x higher
 
 Running workflows back-to-back over a 3-second window:
 
-- **PuffinFlow: 1,088 workflows/sec**
-- LangGraph: 622 workflows/sec
-- LlamaIndex: 394 workflows/sec
+- **PuffinFlow: 1,150 workflows/sec**
+- LangGraph: 680 workflows/sec
+- LlamaIndex: 430 workflows/sec
 
-### Import Time: 1000x faster
+### Import Time: 4x faster
 
-Cold-start import time matters for scripts, tests, notebooks, and CI/CD:
+Cold-start import time matters for scripts, tests, notebooks, and CI/CD. The benchmark measures real-world imports with actual symbols (e.g. `from puffinflow import Agent, state`), not bare `import pkg`:
 
-- **PuffinFlow: 1ms** (lazy imports — only loads what you use)
-- LangGraph: 1,117ms (over 1 second)
-- LlamaIndex: 1,852ms (nearly 2 seconds)
+- **PuffinFlow: 252ms** (lazy imports — only loads what you use)
+- LangGraph: 1,000ms (nearly 1 second)
+- LlamaIndex: 1,600ms (nearly 2 seconds)
 
-PuffinFlow uses a lazy import system (`__getattr__`-based) so the package loads in ~1ms. Submodules are only imported when first accessed.
+PuffinFlow uses a lazy import system (`__getattr__`-based) at every level of the package. Submodules and heavy dependencies like structlog are only imported when first accessed, keeping the import path lean.
 
 ### Memory: Competitive
 
@@ -94,7 +94,7 @@ The fan-out benchmark measures a common pattern: one start node dispatching to 3
 | Framework | Fan-out latency |
 |-----------|----------------|
 | **PuffinFlow** | **1.2 ms** |
-| LlamaIndex | 2.1 ms |
+| LlamaIndex | 1.6 ms |
 | LangGraph | 3.4 ms |
 
 PuffinFlow's `Send` API and reducer system handle parallel dispatch efficiently. The Rust core resolves transitions and merges without Python-level coordination overhead.
@@ -109,17 +109,17 @@ If you import your agent framework 50 times/day (script runs, test runs, noteboo
 
 | Framework | Daily import overhead |
 |-----------|---------------------|
-| PuffinFlow | 50ms (negligible) |
-| LangGraph | 55.9 seconds |
-| LlamaIndex | 92.6 seconds |
+| PuffinFlow | 12.6 seconds |
+| LangGraph | 50.0 seconds |
+| LlamaIndex | 80.0 seconds |
 
 ### For CI/CD
 
-In CI pipelines, cold-start import time adds directly to build time. PuffinFlow's 1ms import means your agent tests start almost instantly.
+In CI pipelines, cold-start import time adds directly to build time. PuffinFlow's 252ms import is 4x faster than LangGraph and 6x faster than LlamaIndex.
 
 ### For production throughput
 
-At 1,088 workflows/sec, PuffinFlow can handle high-frequency agent invocations without becoming a bottleneck. The framework overhead is negligible compared to actual LLM inference time (typically 100ms-10s per call).
+At 1,150 workflows/sec, PuffinFlow can handle high-frequency agent invocations without becoming a bottleneck. The framework overhead is negligible compared to actual LLM inference time (typically 100ms-10s per call).
 
 ---
 

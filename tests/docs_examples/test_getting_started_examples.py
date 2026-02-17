@@ -700,3 +700,296 @@ class TestGettingStartedExamples:
         assert error_notification is not None
         assert error_notification["type"] == "error"
         assert "Unsupported file format" in error_notification["message"]
+
+
+@pytest.mark.asyncio
+class TestProgressiveTutorialExamples:
+    """Test examples from the progressive AI News Digest tutorial."""
+
+    async def test_stage1_basic_workflow(self):
+        """Stage 1: Basic 3-state workflow runs and produces output."""
+        from puffinflow import Agent, state
+
+        agent = Agent("news-digest")
+
+        @state
+        async def plan_research(context):
+            topic = "large language models"
+            context.set_variable("topic", topic)
+            return "gather_articles"
+
+        @state
+        async def gather_articles(context):
+            topic = context.get_variable("topic")
+            articles = [
+                {"title": f"{topic} overview", "source": "Tech Daily"},
+                {"title": f"Advances in {topic}", "source": "AI Weekly"},
+            ]
+            context.set_variable("articles", articles)
+            return "write_summary"
+
+        @state
+        async def write_summary(context):
+            articles = context.get_variable("articles")
+            summary = f"Digest: reviewed {len(articles)} articles."
+            context.set_variable("summary", summary)
+            return None
+
+        agent.add_state("plan_research", plan_research)
+        agent.add_state("gather_articles", gather_articles)
+        agent.add_state("write_summary", write_summary)
+
+        result = await agent.run()
+
+        assert result.get_variable("topic") == "large language models"
+        assert len(result.get_variable("articles")) == 2
+        assert "reviewed 2 articles" in result.get_variable("summary")
+
+    async def test_stage2_branching(self):
+        """Stage 2: Conditional routing based on topic specificity."""
+        from puffinflow import Agent, state
+
+        agent = Agent("news-digest-branch")
+
+        @state
+        async def assess_topic(context):
+            topic = context.get_variable("topic")
+            if len(topic.split()) < 3:
+                return "narrow_topic"
+            return "plan_research"
+
+        @state
+        async def narrow_topic(context):
+            topic = context.get_variable("topic")
+            context.set_variable("topic", f"{topic} in healthcare applications")
+            return "plan_research"
+
+        @state
+        async def plan_research(context):
+            context.set_variable("research_planned", True)
+            return None
+
+        agent.add_state("assess_topic", assess_topic)
+        agent.add_state("narrow_topic", narrow_topic)
+        agent.add_state("plan_research", plan_research)
+
+        # Broad topic should trigger narrowing
+        agent.set_variable("topic", "AI")
+        result = await agent.run()
+        assert "healthcare" in result.get_variable("topic")
+        assert result.get_variable("research_planned") is True
+
+    async def test_stage3_resilience(self):
+        """Stage 3: Retry on simulated failure."""
+        from puffinflow import Agent, state
+
+        agent = Agent("news-digest-resilient")
+        call_count = {"n": 0}
+
+        @state(timeout=10.0, max_retries=3)
+        async def gather_articles(context):
+            call_count["n"] += 1
+            if call_count["n"] < 2:
+                raise ConnectionError("API temporarily unavailable")
+            context.set_variable("articles", [{"title": "test"}])
+            return None
+
+        agent.add_state("gather_articles", gather_articles)
+
+        result = await agent.run()
+        assert result.get_variable("articles") is not None
+        assert call_count["n"] >= 2  # Retried at least once
+
+    async def test_stage4_parallel_execution(self):
+        """Stage 4: Parallel search with dependencies."""
+        from puffinflow import Agent, ExecutionMode, state
+
+        agent = Agent("news-digest-parallel")
+
+        @state
+        async def search_web(context):
+            context.set_variable("web_articles", [{"title": "web result"}])
+
+        @state
+        async def search_academic(context):
+            context.set_variable("academic_articles", [{"title": "academic result"}])
+
+        @state
+        async def synthesize_sources(context):
+            web = context.get_variable("web_articles", [])
+            academic = context.get_variable("academic_articles", [])
+            context.set_variable("articles", web + academic)
+            return None
+
+        agent.add_state("search_web", search_web)
+        agent.add_state("search_academic", search_academic)
+        agent.add_state(
+            "synthesize_sources",
+            synthesize_sources,
+            dependencies=["search_web", "search_academic"],
+        )
+
+        result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
+        articles = result.get_variable("articles")
+        assert articles is not None
+        assert len(articles) == 2
+
+    async def test_stage7_outputs_and_initial_context(self):
+        """Stage 7: set_output and initial_context usage."""
+        from puffinflow import Agent, state
+
+        agent = Agent("news-digest-outputs")
+
+        @state
+        async def write_summary(context):
+            topic = context.get_variable("topic")
+            report = f"AI News Digest: {topic}"
+            context.set_output("digest", report)
+            return None
+
+        agent.add_state("write_summary", write_summary)
+
+        result = await agent.run(initial_context={"topic": "large language models"})
+        digest = result.get_output("digest")
+        assert digest is not None
+        assert "large language models" in digest
+
+    async def test_complete_tutorial_workflow(self):
+        """Complete workflow: sequential pipeline with all features."""
+        from puffinflow import Agent, Priority, state
+
+        agent = Agent("news-digest-complete")
+
+        @state
+        async def assess_topic(context):
+            topic = context.get_variable("topic")
+            if len(topic.split()) < 3:
+                return "narrow_topic"
+            return "gather_articles"
+
+        @state
+        async def narrow_topic(context):
+            topic = context.get_variable("topic")
+            context.set_variable("topic", f"{topic} in healthcare applications")
+            return "gather_articles"
+
+        @state(cpu=1.0, memory=256, timeout=30.0, max_retries=3)
+        async def gather_articles(context):
+            topic = context.get_variable("topic")
+            articles = [
+                {"title": f"{topic} news", "source": "Web"},
+                {"title": f"{topic} paper", "source": "ArXiv"},
+            ]
+            context.set_variable("articles", articles)
+            return "validate_output"
+
+        @state
+        async def validate_output(context):
+            articles = context.get_variable("articles", [])
+            if len(articles) < 1:
+                context.set_variable("error", "Not enough sources")
+                return "error_handler"
+            return "write_summary"
+
+        @state(cpu=4.0, memory=1024, priority=Priority.HIGH)
+        async def write_summary(context):
+            articles = context.get_variable("articles", [])
+            topic = context.get_variable("topic")
+            report = f"AI News Digest: {topic}\nSources: {len(articles)}\n"
+            for a in articles:
+                report += f" - {a['title']} ({a['source']})\n"
+            context.set_output("digest", report)
+            context.set_variable("digest_status", "complete")
+            return None
+
+        @state
+        async def error_handler(context):
+            context.set_variable("digest_status", "failed")
+            return None
+
+        agent.add_state("assess_topic", assess_topic)
+        agent.add_state("narrow_topic", narrow_topic)
+        agent.add_state("gather_articles", gather_articles)
+        agent.add_state("validate_output", validate_output)
+        agent.add_state("write_summary", write_summary)
+        agent.add_state("error_handler", error_handler)
+
+        result = await agent.run(
+            initial_context={"topic": "large language models"},
+        )
+
+        assert result.get_variable("digest_status") == "complete"
+        digest = result.get_output("digest")
+        assert digest is not None
+        assert "large language models" in digest
+
+    async def test_mixed_branching_and_parallelism(self):
+        """Combining conditional routing with parallel deps using entry_point=False."""
+        from puffinflow import Agent, ExecutionMode, state
+
+        agent = Agent("news-digest-mixed")
+
+        @state
+        async def assess_topic(context):
+            topic = context.get_variable("topic")
+            if len(topic.split()) < 3:
+                return "narrow_topic"
+            return "ready_to_search"
+
+        @state
+        async def narrow_topic(context):
+            topic = context.get_variable("topic")
+            context.set_variable("topic", f"{topic} in healthcare")
+            return "ready_to_search"
+
+        @state
+        async def ready_to_search(context):
+            # Gateway: signals topic is finalized, triggers parallel searches
+            return None
+
+        @state
+        async def search_web(context):
+            topic = context.get_variable("topic")
+            context.set_variable("web", [{"title": f"{topic} news"}])
+
+        @state
+        async def search_academic(context):
+            topic = context.get_variable("topic")
+            context.set_variable("academic", [{"title": f"{topic} paper"}])
+
+        @state
+        async def merge(context):
+            web = context.get_variable("web", [])
+            academic = context.get_variable("academic", [])
+            all_articles = web + academic
+            context.set_variable("articles", all_articles)
+            context.set_output("digest", f"Reviewed {len(all_articles)} sources")
+            return None
+
+        agent.add_state("assess_topic", assess_topic)
+        agent.add_state("narrow_topic", narrow_topic, entry_point=False)
+        agent.add_state("ready_to_search", ready_to_search, entry_point=False)
+        agent.add_state("search_web", search_web, dependencies=["ready_to_search"])
+        agent.add_state("search_academic", search_academic, dependencies=["ready_to_search"])
+        agent.add_state("merge", merge, dependencies=["search_web", "search_academic"])
+
+        # Test with broad topic (triggers narrowing)
+        result = await agent.run(
+            execution_mode=ExecutionMode.PARALLEL,
+            initial_context={"topic": "LLMs"},
+        )
+
+        # Verify branching happened (topic was narrowed)
+        assert "healthcare" in result.get_variable("topic")
+
+        # Verify parallel searches produced results using narrowed topic
+        articles = result.get_variable("articles")
+        assert articles is not None
+        assert len(articles) == 2
+        for a in articles:
+            assert "healthcare" in a["title"]
+
+        # Verify final output
+        digest = result.get_output("digest")
+        assert digest is not None
+        assert "2 sources" in digest

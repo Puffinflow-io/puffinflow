@@ -163,6 +163,20 @@ security = [
     "semgrep>=1.45.0",
 ]
 
+# Durable execution backends
+redis = ["redis>=4.0.0"]
+postgres = ["asyncpg>=0.27.0"]
+s3 = ["aiobotocore>=2.5.0"]
+msgpack = ["msgpack>=1.0.0"]
+
+# All durable execution dependencies
+durable = [
+    "redis>=4.0.0",
+    "asyncpg>=0.27.0",
+    "aiobotocore>=2.5.0",
+    "msgpack>=1.0.0",
+]
+
 # All optional dependencies combined
 all = [
     # CLI

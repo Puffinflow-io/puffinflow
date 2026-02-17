@@ -1,6 +1,7 @@
 """Streaming support for real-time event delivery."""
 
 import asyncio
+import json
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -24,6 +25,23 @@ class StreamEvent:
     data: dict[str, Any] = field(default_factory=dict)
     state_name: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
+
+    def to_sse(self) -> str:
+        """Format as Server-Sent Events string."""
+        payload = {"data": self.data, "state_name": self.state_name}
+        return f"event: {self.event_type}\ndata: {json.dumps(payload, default=str)}\n\n"
+
+    def to_json(self) -> str:
+        """Format as JSON string."""
+        return json.dumps(
+            {
+                "event_type": self.event_type,
+                "data": self.data,
+                "state_name": self.state_name,
+                "timestamp": self.timestamp,
+            },
+            default=str,
+        )
 
 
 class StreamManager:

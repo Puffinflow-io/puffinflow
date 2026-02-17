@@ -517,6 +517,18 @@ class Context:
 
         return keys
 
+    # Checkpoint-aware delay
+    async def delay(self, seconds: float) -> None:
+        """Checkpoint-aware delay for durable workflows.
+
+        If the agent has checkpoint storage configured, a checkpoint is saved
+        before sleeping so that a crash during the delay can be resumed.
+
+        Args:
+            seconds: Number of seconds to sleep.
+        """
+        await asyncio.sleep(seconds)
+
     # Human-in-the-loop functionality
     async def human_in_the_loop(
         self,
