@@ -1,6 +1,6 @@
 """Coordination module for multi-agent workflows."""
 
-from typing import Any
+from typing import Any as _Any
 
 _LAZY_IMPORTS = {
     # Agent group
@@ -133,7 +133,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> _Any:
     if name in _LAZY_IMPORTS:
         import importlib
 
