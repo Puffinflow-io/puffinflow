@@ -51,19 +51,19 @@ def compile_llm(node: Node, edges: list[Edge], all_nodes: list[Node]) -> list[st
     if cfg.system_prompt:
         lines.append(f"    system_prompt = {cfg.system_prompt!r}")
         lines.append(
-            f'    response = await llm_client.call('
-            f'prompt, system=system_prompt, '
+            f"    response = await llm_client.call("
+            f"prompt, system=system_prompt, "
             f'model="{cfg.model}", '
-            f'temperature={cfg.temperature}'
-            f'{f", max_tokens={cfg.max_tokens}" if cfg.max_tokens else ""})'
+            f"temperature={cfg.temperature}"
+            f"{f', max_tokens={cfg.max_tokens}' if cfg.max_tokens else ''})"
         )
     else:
         lines.append(
-            f'    response = await llm_client.call('
-            f'prompt, '
+            f"    response = await llm_client.call("
+            f"prompt, "
             f'model="{cfg.model}", '
-            f'temperature={cfg.temperature}'
-            f'{f", max_tokens={cfg.max_tokens}" if cfg.max_tokens else ""})'
+            f"temperature={cfg.temperature}"
+            f"{f', max_tokens={cfg.max_tokens}' if cfg.max_tokens else ''})"
         )
 
     lines.append(f'    ctx.set_variable("{cfg.output_key}", response)')

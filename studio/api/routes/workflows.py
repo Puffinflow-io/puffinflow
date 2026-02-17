@@ -1,4 +1,5 @@
 """Workflow CRUD routes with code generation integration."""
+
 from __future__ import annotations
 
 import contextlib

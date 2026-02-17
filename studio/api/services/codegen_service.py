@@ -1,4 +1,5 @@
 """Codegen service — wraps the code generator for use by API routes."""
+
 from __future__ import annotations
 
 import yaml

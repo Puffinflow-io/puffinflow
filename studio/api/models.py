@@ -1,4 +1,5 @@
 """SQLAlchemy ORM models for PuffinFlow Studio."""
+
 from __future__ import annotations
 
 import uuid

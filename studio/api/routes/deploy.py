@@ -1,4 +1,5 @@
 """Deployment routes — trigger and check status."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
