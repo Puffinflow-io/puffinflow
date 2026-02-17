@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import heapq
-import json
 import logging
 import pickle
 import time
@@ -20,7 +19,6 @@ from typing import (
 )
 
 from .checkpoint import AgentCheckpoint
-from .checkpoint_serializer import CheckpointSerializer
 from .command import Command, Send
 from .context import Context
 from .reducers import ReducerRegistry
@@ -75,6 +73,7 @@ if TYPE_CHECKING:
     from ..reliability.bulkhead import Bulkhead, BulkheadConfig
     from ..reliability.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
     from ..resources.pool import ResourcePool
+    from .checkpoint_serializer import CheckpointSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -487,7 +486,7 @@ class ResourceTimeoutError(Exception):
 class _StateMetadataProxy:
     """Single-state metadata proxy. Reads from AgentCore on demand."""
 
-    __slots__ = ("_core", "_name", "_extras", "_overrides", "_default_retry_policy")
+    __slots__ = ("_core", "_default_retry_policy", "_extras", "_name", "_overrides")
 
     def __init__(
         self, core, name: str, extras: Optional[dict] = None, default_retry_policy=None
@@ -598,7 +597,7 @@ class _StateMetadataProxy:
 class _StateMetadataProxyDict:
     """Dict-like proxy backed by AgentCore. No StateMetadata objects created."""
 
-    __slots__ = ("_core", "_cache", "_extras", "_default_retry_policy")
+    __slots__ = ("_cache", "_core", "_default_retry_policy", "_extras")
 
     def __init__(self, core, extras: Optional[dict] = None, default_retry_policy=None):
         self._core = core
@@ -731,7 +730,7 @@ class Agent:
         if has_deps:
             # Kahn's algorithm
             pending_set = set(seen.keys())
-            in_degree: dict[str, int] = {sn: 0 for sn in pending_set}
+            in_degree: dict[str, int] = dict.fromkeys(pending_set, 0)
             for sn, deps in deps_map.items():
                 for d in deps:
                     if d in pending_set:
@@ -803,9 +802,9 @@ class Agent:
         # Dependencies always populated (needed by slow path even when _core exists)
         self._dependencies_dict: dict[str, list[str]] = {}
         self._dependents_dict: dict[str, list[str]] = {}
-        self._deps_snapshot: Optional[
-            int
-        ] = None  # id() of deps dict values at last add_state
+        self._deps_snapshot: Optional[int] = (
+            None  # id() of deps dict values at last add_state
+        )
         self._use_fast_path: bool = False
         self._validated: bool = False
         self.status = AgentStatus.IDLE
@@ -839,8 +838,8 @@ class Agent:
 
         # Resource and reliability components - lazy initialization
         self._resource_pool = resource_pool
-        self._circuit_breaker: Optional["CircuitBreaker"] = None
-        self._bulkhead: Optional["Bulkhead"] = None
+        self._circuit_breaker: Optional[CircuitBreaker] = None
+        self._bulkhead: Optional[Bulkhead] = None
         self._circuit_breaker_config = circuit_breaker_config
         self._bulkhead_config = bulkhead_config
 
@@ -851,7 +850,7 @@ class Agent:
 
         # New feature attributes — zero overhead when unused
         self._reducers: Optional[ReducerRegistry] = None
-        self._store: Optional[Any] = kwargs.get("store", None)
+        self._store: Optional[Any] = kwargs.get("store")
         self._stream_manager: Optional[StreamManager] = None
 
         # Durable execution attributes
@@ -1740,9 +1739,7 @@ class Agent:
 
         # Compute _deps_snapshot once after all states added (instead of per add_state)
         if _any_added:
-            self._deps_snapshot = sum(
-                id(v) for v in self._dependencies_dict.values()
-            )
+            self._deps_snapshot = sum(id(v) for v in self._dependencies_dict.values())
 
     def _validate_workflow_configuration(self, execution_mode: ExecutionMode) -> None:
         """Validate the overall workflow configuration before execution."""
@@ -2837,8 +2834,7 @@ class Agent:
                 _ep_overrides = getattr(self, "_entry_point_overrides", None)
                 if _ep_overrides:
                     entry_states = [
-                        s for s in entry_states
-                        if _ep_overrides.get(s) is not False
+                        s for s in entry_states if _ep_overrides.get(s) is not False
                     ]
 
                 # Lazy context
@@ -2856,8 +2852,16 @@ class Agent:
                 # Pre-compute durable/drain guards as locals — zero cost when unused
                 _drain = self._drain_protocol
                 _ckpt = self._checkpoint_storage
-                _durable_pstate = durable and checkpoint_granularity == "per-state" and _ckpt is not None
-                _durable_onerr = durable and checkpoint_granularity == "on-error" and _ckpt is not None
+                _durable_pstate = (
+                    durable
+                    and checkpoint_granularity == "per-state"
+                    and _ckpt is not None
+                )
+                _durable_onerr = (
+                    durable
+                    and checkpoint_granularity == "on-error"
+                    and _ckpt is not None
+                )
                 _durable_final = durable and _ckpt is not None
                 _has_extras = _durable_pstate or _durable_onerr or _drain is not None
 
@@ -3062,8 +3066,7 @@ class Agent:
                     while self.status == AgentStatus.RUNNING:
                         if timeout and (time.time() - start_time) > timeout:
                             logger.warning(
-                                f"Agent {self.name} timed out after "
-                                f"{timeout} seconds."
+                                f"Agent {self.name} timed out after {timeout} seconds."
                             )
                             self.status = AgentStatus.FAILED
                             break
@@ -3130,19 +3133,26 @@ class Agent:
 
                     _s_drain = self._drain_protocol
                     _s_ckpt = self._checkpoint_storage
-                    _s_durable_ps = durable and checkpoint_granularity == "per-state" and _s_ckpt is not None
+                    _s_durable_ps = (
+                        durable
+                        and checkpoint_granularity == "per-state"
+                        and _s_ckpt is not None
+                    )
                     _s_has_extras = _s_durable_ps or _s_drain is not None
 
                     while self.status == AgentStatus.RUNNING:
                         if timeout and (time.time() - start_time) > timeout:
                             logger.warning(
-                                f"Agent {self.name} timed out after "
-                                f"{timeout} seconds."
+                                f"Agent {self.name} timed out after {timeout} seconds."
                             )
                             self.status = AgentStatus.FAILED
                             break
 
-                        if _s_has_extras and _s_drain is not None and _s_drain.is_draining:
+                        if (
+                            _s_has_extras
+                            and _s_drain is not None
+                            and _s_drain.is_draining
+                        ):
                             if durable and _s_ckpt is not None:
                                 try:
                                     cp = AgentCheckpoint.create_from_agent(self)

@@ -325,7 +325,7 @@ class AgentTeam:
 
             # Wait for completion with optional timeout
             if timeout:
-                done, pending = await asyncio.wait(
+                _done, pending = await asyncio.wait(
                     tasks.values(), timeout=timeout, return_when=asyncio.ALL_COMPLETED
                 )
 

@@ -10,7 +10,6 @@ Tests cover:
 - Default last-write-wins behavior without reducers
 """
 
-
 import pytest
 
 from puffinflow.core.agent.base import Agent

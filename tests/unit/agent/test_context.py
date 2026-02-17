@@ -426,7 +426,7 @@ class TestValidatedData:
 
         with pytest.raises(
             TypeError,
-            match="Type mismatch for item: expected .*TestUser'>, got .*TestProduct'>",
+            match=r"Type mismatch for item: expected .*TestUser'>, got .*TestProduct'>",
         ):
             context.set_validated_data("item", product)
 

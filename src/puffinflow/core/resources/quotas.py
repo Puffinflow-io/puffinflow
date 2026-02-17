@@ -524,7 +524,7 @@ class QuotaEnforcer:
 
         try:
             # First check all quotas
-            allowed, violations = await self.check_all_quotas(allocations)
+            allowed, _violations = await self.check_all_quotas(allocations)
             if not allowed:
                 return False, []
 

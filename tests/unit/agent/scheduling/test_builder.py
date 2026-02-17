@@ -282,7 +282,7 @@ class TestScheduleBuilder:
 
         # Verify agent.schedule was called
         self.mock_agent.schedule.assert_called_once()
-        args, kwargs = self.mock_agent.schedule.call_args
+        _args, kwargs = self.mock_agent.schedule.call_args
 
         # Check all input types were converted correctly
         assert kwargs["var"] == "value"
@@ -306,7 +306,7 @@ class TestScheduleBuilder:
 
         self.builder.run()
 
-        args, kwargs = self.mock_agent.schedule.call_args
+        _args, kwargs = self.mock_agent.schedule.call_args
 
         # Check complex values were serialized correctly
         assert "dict_data" in kwargs

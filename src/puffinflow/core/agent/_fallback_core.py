@@ -31,22 +31,22 @@ class StateMachineCore:
     """
 
     __slots__ = (
-        "_names",
-        "_name_to_idx",
-        "_n",
-        "_priority",
-        "_max_retries",
+        "_all_state_names_set",
         "_attempts",
-        "_status",
-        "_deps",
-        "_dependents",
-        "_heap",
-        "_in_queue",
-        "_running",
         "_completed",
         "_completed_once",
+        "_dependents",
+        "_deps",
+        "_heap",
+        "_in_queue",
+        "_max_retries",
+        "_n",
+        "_name_to_idx",
+        "_names",
+        "_priority",
+        "_running",
         "_seq",
-        "_all_state_names_set",
+        "_status",
     )
 
     def __init__(self, state_configs: list) -> None:

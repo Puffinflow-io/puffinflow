@@ -46,9 +46,9 @@ class TestResourceType:
         # Verify they are proper flags (powers of 2)
         for rt in ResourceType:
             if rt != ResourceType.NONE and rt != ResourceType.ALL:
-                assert (
-                    rt.value & (rt.value - 1)
-                ) == 0, f"{rt.name} is not a power of 2"
+                assert (rt.value & (rt.value - 1)) == 0, (
+                    f"{rt.name} is not a power of 2"
+                )
 
     def test_resource_type_all_combination(self):
         """Test ResourceType.ALL includes all resource types."""
@@ -184,9 +184,9 @@ class TestResourceType:
         # Verify that we have at least the expected basic types
         # (Don't do strict length check since some platforms may include NONE/ALL)
         basic_types_found = [rt for rt in all_types if rt in expected_basic_types]
-        assert (
-            len(basic_types_found) == len(expected_basic_types)
-        ), f"Missing basic types. Expected: {expected_basic_types}, Found: {basic_types_found}"
+        assert len(basic_types_found) == len(expected_basic_types), (
+            f"Missing basic types. Expected: {expected_basic_types}, Found: {basic_types_found}"
+        )
 
         # Verify NONE and ALL are always accessible regardless of iteration behavior
         assert ResourceType.NONE.value == 0
@@ -203,9 +203,9 @@ class TestResourceType:
 
         # Test that each basic type is a power of 2 (valid flag)
         for rt in expected_basic_types:
-            assert (
-                rt.value > 0 and (rt.value & (rt.value - 1)) == 0
-            ), f"{rt.name} value {rt.value} is not a power of 2"
+            assert rt.value > 0 and (rt.value & (rt.value - 1)) == 0, (
+                f"{rt.name} value {rt.value} is not a power of 2"
+            )
 
 
 class TestGetResourceAmount:
@@ -392,9 +392,9 @@ class TestPriorityProperty:
 
         for boost_value, expected_priority in test_cases:
             req = ResourceRequirements(priority_boost=boost_value)
-            assert (
-                req.priority == expected_priority
-            ), f"Failed for boost_value={boost_value}"
+            assert req.priority == expected_priority, (
+                f"Failed for boost_value={boost_value}"
+            )
 
     def test_priority_getter_negative_values(self):
         """Test priority property getter with negative priority_boost values."""

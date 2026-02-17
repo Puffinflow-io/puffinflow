@@ -415,9 +415,9 @@ class TestScheduleParserCronValidation:
         ]
 
         for expr, expected in edge_cases:
-            assert (
-                ScheduleParser._is_valid_cron(expr) == expected
-            ), f"Expression: {expr}"
+            assert ScheduleParser._is_valid_cron(expr) == expected, (
+                f"Expression: {expr}"
+            )
 
 
 class TestParseScheduleStringFunction:

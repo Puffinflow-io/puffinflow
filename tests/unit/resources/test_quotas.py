@@ -363,7 +363,7 @@ class TestQuotaExceededError:
         assert error.available == 2.0
 
         expected_message = (
-            "Quota exceeded for agent 'test_agent': " "requested 5.0 CPU, available 2.0"
+            "Quota exceeded for agent 'test_agent': requested 5.0 CPU, available 2.0"
         )
         assert str(error) == expected_message
 

@@ -160,9 +160,9 @@ async def test_streaming_propagation():
 
     # There should be events from the parent's own state execution
     parent_events = [e for e in events if e.state_name and "sub" in e.state_name]
-    assert (
-        len(parent_events) > 0
-    ), "Expected at least one event referencing the subgraph state 'sub'"
+    assert len(parent_events) > 0, (
+        "Expected at least one event referencing the subgraph state 'sub'"
+    )
 
     # Child events forwarded by make_subgraph_state should carry the child name prefix
     child_prefixed = [e for e in events if e.state_name and "my_child." in e.state_name]

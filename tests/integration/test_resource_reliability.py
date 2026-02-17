@@ -296,18 +296,18 @@ class TestResourceManagement:
             "COMPLETED",
             "SUCCESS",
         ], f"Expected COMPLETED or SUCCESS, got {status}"
-        assert (
-            "cpu_used" in result.outputs
-        ), f"cpu_used not in outputs: {result.outputs}"
-        assert (
-            "memory_used" in result.outputs
-        ), f"memory_used not in outputs: {result.outputs}"
-        assert (
-            result.outputs["cpu_used"] == 1.5
-        ), f"Expected cpu_used=1.5, got {result.outputs.get('cpu_used')}"
-        assert (
-            result.outputs["memory_used"] == 256.0
-        ), f"Expected memory_used=256.0, got {result.outputs.get('memory_used')}"
+        assert "cpu_used" in result.outputs, (
+            f"cpu_used not in outputs: {result.outputs}"
+        )
+        assert "memory_used" in result.outputs, (
+            f"memory_used not in outputs: {result.outputs}"
+        )
+        assert result.outputs["cpu_used"] == 1.5, (
+            f"Expected cpu_used=1.5, got {result.outputs.get('cpu_used')}"
+        )
+        assert result.outputs["memory_used"] == 256.0, (
+            f"Expected memory_used=256.0, got {result.outputs.get('memory_used')}"
+        )
 
     async def test_resource_contention(self):
         """Test behavior when resources are over-allocated."""
@@ -359,18 +359,18 @@ class TestResourceManagement:
                     failed_results.append(result)
 
         # At least some agents should succeed
-        assert (
-            len(successful_results) >= 1
-        ), f"Expected at least 1 success, got {len(successful_results)}"
+        assert len(successful_results) >= 1, (
+            f"Expected at least 1 success, got {len(successful_results)}"
+        )
 
         # Verify successful agents used resources correctly
         for result in successful_results:
-            assert (
-                "cpu_used" in result.outputs
-            ), f"cpu_used not in outputs: {result.outputs}"
-            assert (
-                "memory_used" in result.outputs
-            ), f"memory_used not in outputs: {result.outputs}"
+            assert "cpu_used" in result.outputs, (
+                f"cpu_used not in outputs: {result.outputs}"
+            )
+            assert "memory_used" in result.outputs, (
+                f"memory_used not in outputs: {result.outputs}"
+            )
 
     async def test_resource_leak_detection(self):
         """Test resource leak detection."""
@@ -406,9 +406,9 @@ class TestResourceManagement:
                 successful_results.append(result)
 
         # At least some should succeed
-        assert (
-            len(successful_results) >= 2
-        ), f"Expected at least 2 successes, got {len(successful_results)}"
+        assert len(successful_results) >= 2, (
+            f"Expected at least 2 successes, got {len(successful_results)}"
+        )
 
         # Check leak detection setup
         leak_metrics = leak_detector.get_metrics()
@@ -460,9 +460,9 @@ class TestReliabilityPatterns:
         external_failures = len(exceptions)
         total_failures = agent_failures + external_failures
 
-        assert (
-            total_failures >= 1
-        ), f"Expected at least 1 failure, got agent:{agent_failures}, external:{external_failures}"
+        assert total_failures >= 1, (
+            f"Expected at least 1 failure, got agent:{agent_failures}, external:{external_failures}"
+        )
 
     async def test_bulkhead_pattern(self):
         """Test bulkhead isolation pattern."""
@@ -545,12 +545,12 @@ class TestReliabilityPatterns:
                     non_critical_successes.append(r)
 
         # At least some should succeed
-        assert (
-            len(critical_successes) >= 1
-        ), f"Expected at least 1 critical success, got {len(critical_successes)}"
-        assert (
-            len(non_critical_successes) >= 1
-        ), f"Expected at least 1 non-critical success, got {len(non_critical_successes)}"
+        assert len(critical_successes) >= 1, (
+            f"Expected at least 1 critical success, got {len(critical_successes)}"
+        )
+        assert len(non_critical_successes) >= 1, (
+            f"Expected at least 1 non-critical success, got {len(non_critical_successes)}"
+        )
 
     async def test_combined_reliability_patterns(self):
         """Test multiple reliability patterns working together."""
@@ -612,9 +612,9 @@ class TestReliabilityPatterns:
                     successful_results.append(r)
 
         # At least one agent should succeed
-        assert (
-            len(successful_results) >= 1
-        ), f"Expected at least 1 success, got {len(successful_results)}"
+        assert len(successful_results) >= 1, (
+            f"Expected at least 1 success, got {len(successful_results)}"
+        )
 
         # Verify patterns are working
         assert circuit_breaker._failure_count >= 0
@@ -679,9 +679,9 @@ class TestReliabilityPatterns:
 
         # Should have some successes
         total_successes = len(phase1_successes) + len(phase2_successes)
-        assert (
-            total_successes >= 2
-        ), f"Expected at least 2 successes total, got {total_successes}"
+        assert total_successes >= 2, (
+            f"Expected at least 2 successes total, got {total_successes}"
+        )
 
 
 @pytest.mark.integration
@@ -723,15 +723,15 @@ class TestObservabilityIntegration:
             if status.upper() in ["COMPLETED", "SUCCESS"]:
                 success_results.append(r)
 
-        assert (
-            len(success_results) >= 1
-        ), f"Expected at least 1 success, got {len(success_results)}"
+        assert len(success_results) >= 1, (
+            f"Expected at least 1 success, got {len(success_results)}"
+        )
 
         # Verify successful agents have metrics
         for result in success_results:
-            assert (
-                "metrics_collected" in result.outputs
-            ), f"metrics_collected not in outputs: {result.outputs}"
+            assert "metrics_collected" in result.outputs, (
+                f"metrics_collected not in outputs: {result.outputs}"
+            )
             assert result.get_output("metrics_collected") is True
 
     async def test_tracing_across_coordination(self):
@@ -757,18 +757,18 @@ class TestObservabilityIntegration:
             if status.upper() in ["COMPLETED", "SUCCESS"]:
                 successful_results.append(r)
 
-        assert (
-            len(successful_results) >= 2
-        ), f"Expected at least 2 successes, got {len(successful_results)}"
+        assert len(successful_results) >= 2, (
+            f"Expected at least 2 successes, got {len(successful_results)}"
+        )
 
         # Verify tracing
         trace_ids = [result.get_output("trace_id") for result in successful_results]
-        assert all(
-            tid == shared_trace_id for tid in trace_ids
-        ), f"Trace IDs don't match: {trace_ids}"
+        assert all(tid == shared_trace_id for tid in trace_ids), (
+            f"Trace IDs don't match: {trace_ids}"
+        )
 
         # Verify operations were traced
         operations = [result.get_output("operation") for result in successful_results]
-        assert all(
-            op == "traced_operation" for op in operations
-        ), f"Operations don't match: {operations}"
+        assert all(op == "traced_operation" for op in operations), (
+            f"Operations don't match: {operations}"
+        )

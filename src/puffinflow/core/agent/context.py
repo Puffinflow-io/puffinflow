@@ -45,18 +45,18 @@ class Context:
     """Context for agent state management with rich content support."""
 
     __slots__ = (
-        "shared_state",
-        "cache_ttl",
+        "_cache",
+        "_metadata",
+        "_metrics",
+        "_outputs",
+        "_reducers",
+        "_store",
+        "_stream",
         "_typed_data",
         "_typed_var_types",
         "_validated_types",
-        "_cache",
-        "_outputs",
-        "_metadata",
-        "_metrics",
-        "_store",
-        "_stream",
-        "_reducers",
+        "cache_ttl",
+        "shared_state",
     )
 
     _META_TYPED = "_meta_typed_"

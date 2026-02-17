@@ -1,6 +1,5 @@
 """Unit tests for the persistent key-value store module."""
 
-
 import pytest
 
 from puffinflow.core.agent import Agent

@@ -38,9 +38,7 @@ class TestBestPracticesExamples:
         agent.add_state("process_payment", process_payment)
         agent.add_state("confirm_order", confirm_order)
 
-        result = await agent.run(
-            initial_context={"order": {"id": 42, "total": 99.99}}
-        )
+        result = await agent.run(initial_context={"order": {"id": 42, "total": 99.99}})
 
         assert result.get_variable("validated") is True
         assert result.get_variable("payment_status") == "charged"
@@ -152,9 +150,7 @@ class TestBestPracticesExamples:
 
         agent.add_state("load_config", load_config)
         agent.add_state("load_data", load_data)
-        agent.add_state(
-            "combine", combine, dependencies=["load_config", "load_data"]
-        )
+        agent.add_state("combine", combine, dependencies=["load_config", "load_data"])
 
         result = await agent.run(execution_mode=ExecutionMode.PARALLEL)
 

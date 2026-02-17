@@ -104,7 +104,7 @@ class TestIntroductionExamples:
             await asyncio.sleep(0.01)  # Reduced for faster tests
 
             # Create comprehensive analysis
-            topics = [f"topic_{i+1}" for i in range(len(results))]
+            topics = [f"topic_{i + 1}" for i in range(len(results))]
             analysis = {
                 "summary": f"Comprehensive analysis of {len(results)} articles about {query}",
                 "key_topics": topics,

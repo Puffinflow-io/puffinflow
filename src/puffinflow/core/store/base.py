@@ -31,19 +31,15 @@ class BaseStore(Protocol):
         key: str,
         value: Any,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    async def get(self, namespace: Namespace, key: str) -> Item | None:
-        ...
+    async def get(self, namespace: Namespace, key: str) -> Item | None: ...
 
-    async def delete(self, namespace: Namespace, key: str) -> bool:
-        ...
+    async def delete(self, namespace: Namespace, key: str) -> bool: ...
 
     async def list(
         self, namespace: Namespace, limit: int = 100, offset: int = 0
-    ) -> list[Item]:
-        ...
+    ) -> list[Item]: ...
 
     async def search(
         self, namespace: Namespace, query: str = "", limit: int = 10
@@ -54,7 +50,7 @@ class BaseStore(Protocol):
 class MemoryStore:
     """In-memory implementation of BaseStore."""
 
-    __slots__ = ("_data", "_seq", "_order")
+    __slots__ = ("_data", "_order", "_seq")
 
     def __init__(self) -> None:
         # Keyed by (namespace, key)
