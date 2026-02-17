@@ -1,4 +1,5 @@
 """Stateless code generation routes and WebSocket live preview."""
+
 from __future__ import annotations
 
 import asyncio

@@ -19,10 +19,10 @@ from pathlib import Path
 
 def run_command(cmd, description):
     """Run a command and handle the result."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     try:
         subprocess.run(cmd, check=True, capture_output=False)
@@ -113,14 +113,14 @@ def main():
                 break
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if all_passed:
         print("🎉 All tests passed successfully!")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         sys.exit(0)
     else:
         print("❌ Some tests failed!")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         sys.exit(1)
 
 

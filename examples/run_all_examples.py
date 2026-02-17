@@ -38,9 +38,9 @@ class ExampleRunner:
 
     async def run_example(self, name: str, example_main_func):
         """Run a single example and capture results."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Running {name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         start_time = time.time()
         success = False
@@ -102,9 +102,9 @@ class ExampleRunner:
 
     def generate_summary_report(self, successful: int, total: int):
         """Generate a comprehensive summary report."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("EXAMPLE TEST SUMMARY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         print(f"Total Examples: {total}")
         print(f"Successful: {successful}")
@@ -159,7 +159,7 @@ class ExampleRunner:
             print("   - Check that PuffinFlow is properly configured")
             print("   - Review the error messages above for specific issues")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
 
 
 async def run_quick_test():

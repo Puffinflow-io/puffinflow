@@ -1,4 +1,5 @@
 """Eval suite YAML parser and data models."""
+
 from __future__ import annotations
 
 from pathlib import Path

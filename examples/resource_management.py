@@ -308,7 +308,7 @@ async def demonstrate_allocation_strategies():
     print("Resource requests:")
     for i, req in enumerate(requests):
         print(
-            f"  Request {i+1}: {req.cpu} CPU, {req.memory}GB RAM, priority: {req.priority}"
+            f"  Request {i + 1}: {req.cpu} CPU, {req.memory}GB RAM, priority: {req.priority}"
         )
 
     # Simulate different allocation strategies
@@ -362,7 +362,7 @@ async def run_concurrent_resource_usage():
         execution_result = result.get_output("execution_result", {})
         efficiency = execution_result.get("efficiency", 0)
         total_efficiency += efficiency
-        print(f"  Agent {i+1}: {efficiency:.2f} efficiency")
+        print(f"  Agent {i + 1}: {efficiency:.2f} efficiency")
 
     average_efficiency = total_efficiency / len(results)
     print(f"Average efficiency: {average_efficiency:.2f}")

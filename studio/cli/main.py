@@ -1,4 +1,5 @@
 """PuffinFlow Studio CLI — powered by Typer."""
+
 from __future__ import annotations
 
 import asyncio

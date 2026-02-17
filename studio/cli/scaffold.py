@@ -1,4 +1,5 @@
 """Project template scaffolding for PuffinFlow Studio."""
+
 from __future__ import annotations
 
 from pathlib import Path
