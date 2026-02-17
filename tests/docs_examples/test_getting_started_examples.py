@@ -170,7 +170,7 @@ class TestGettingStartedExamples:
             users = context.get_variable("user_count")
             revenue = context.get_variable("revenue")
             print(f"Users: {users}, Revenue: {revenue}")
-            context.set_variable("report", f"Revenue per user: ${revenue/users:.2f}")
+            context.set_variable("report", f"Revenue per user: ${revenue / users:.2f}")
             print("Report generated and stored")
 
         # fetch_user_data and fetch_sales_data run in parallel
@@ -970,7 +970,9 @@ class TestProgressiveTutorialExamples:
         agent.add_state("narrow_topic", narrow_topic, entry_point=False)
         agent.add_state("ready_to_search", ready_to_search, entry_point=False)
         agent.add_state("search_web", search_web, dependencies=["ready_to_search"])
-        agent.add_state("search_academic", search_academic, dependencies=["ready_to_search"])
+        agent.add_state(
+            "search_academic", search_academic, dependencies=["ready_to_search"]
+        )
         agent.add_state("merge", merge, dependencies=["search_web", "search_academic"])
 
         # Test with broad topic (triggers narrowing)

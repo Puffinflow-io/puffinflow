@@ -109,8 +109,8 @@ class TestSchedulingModuleAll:
         from puffinflow.core.agent.scheduling import __all__
 
         for export_name in __all__:
-            assert hasattr(
-                scheduling_module, export_name
-            ), f"{export_name} not found in module"
+            assert hasattr(scheduling_module, export_name), (
+                f"{export_name} not found in module"
+            )
             exported_item = getattr(scheduling_module, export_name)
             assert exported_item is not None, f"{export_name} is None"

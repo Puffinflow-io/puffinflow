@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from puffinflow.core.agent.streaming import StreamEvent, StreamMode
 
 
@@ -32,7 +30,7 @@ class TestStreamEventToSse:
         sse = event.to_sse()
         # Extract the data line
         lines = sse.strip().split("\n")
-        data_line = [l for l in lines if l.startswith("data: ")][0]
+        data_line = next(line for line in lines if line.startswith("data: "))
         payload = json.loads(data_line[6:])  # Skip "data: "
         assert payload["data"]["result"] == "done"
         assert payload["state_name"] == "step_two"
@@ -123,7 +121,7 @@ class TestConvenienceFunctions:
     """Test sse_response and websocket_handler convenience functions."""
 
     def test_sse_response_requires_starlette(self):
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
 
         from puffinflow.core.agent.streaming_endpoint import sse_response
 

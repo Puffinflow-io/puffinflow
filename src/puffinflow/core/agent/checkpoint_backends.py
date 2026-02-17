@@ -40,11 +40,11 @@ class RedisCheckpointStorage:
     ) -> None:
         try:
             import redis.asyncio as aioredis
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "redis is required for RedisCheckpointStorage. "
                 "Install with: pip install redis"
-            )
+            ) from err
 
         self._redis = aioredis.from_url(url, decode_responses=False)
         self._prefix = prefix
@@ -90,9 +90,7 @@ class RedisCheckpointStorage:
         """Load checkpoint from Redis."""
         if checkpoint_id is None:
             # Get latest from index
-            ids = await self._redis.zrange(
-                self._index_key(agent_name), -1, -1
-            )
+            ids = await self._redis.zrange(self._index_key(agent_name), -1, -1)
             if not ids:
                 return None
             checkpoint_id = ids[0] if isinstance(ids[0], str) else ids[0].decode()
@@ -107,9 +105,7 @@ class RedisCheckpointStorage:
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from Redis index."""
         ids = await self._redis.zrange(self._index_key(agent_name), 0, -1)
-        return [
-            cid if isinstance(cid, str) else cid.decode() for cid in ids
-        ]
+        return [cid if isinstance(cid, str) else cid.decode() for cid in ids]
 
     async def delete_checkpoint(self, agent_name: str, checkpoint_id: str) -> bool:
         """Delete a checkpoint from Redis."""
@@ -172,11 +168,11 @@ class PostgresCheckpointStorage:
     ) -> None:
         try:
             import asyncpg  # type: ignore[import-not-found]  # noqa: F401
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "asyncpg is required for PostgresCheckpointStorage. "
                 "Install with: pip install asyncpg"
-            )
+            ) from err
 
         self._dsn = dsn
         self._table = table
@@ -379,11 +375,11 @@ class S3CheckpointStorage:
     ) -> None:
         try:
             import aiobotocore  # type: ignore[import-not-found]  # noqa: F401
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "aiobotocore is required for S3CheckpointStorage. "
                 "Install with: pip install aiobotocore"
-            )
+            ) from err
 
         self._bucket = bucket
         self._prefix = prefix
@@ -448,9 +444,7 @@ class S3CheckpointStorage:
                 region_name=self._region,
                 endpoint_url=self._endpoint_url,
             ) as client:
-                response = await client.get_object(
-                    Bucket=self._bucket, Key=key
-                )
+                response = await client.get_object(Bucket=self._bucket, Key=key)
                 async with response["Body"] as stream:
                     data = await stream.read()
         except Exception as exc:
@@ -472,9 +466,7 @@ class S3CheckpointStorage:
             endpoint_url=self._endpoint_url,
         ) as client:
             paginator = client.get_paginator("list_objects_v2")
-            async for page in paginator.paginate(
-                Bucket=self._bucket, Prefix=prefix
-            ):
+            async for page in paginator.paginate(Bucket=self._bucket, Prefix=prefix):
                 for obj in page.get("Contents", []):
                     # Extract checkpoint_id from key
                     key = obj["Key"]

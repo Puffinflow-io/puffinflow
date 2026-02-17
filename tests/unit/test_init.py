@@ -206,9 +206,9 @@ class TestAllExports:
         ]
 
         for export in core_exports:
-            assert (
-                export in puffinflow.__all__
-            ), f"Core export '{export}' missing from __all__"
+            assert export in puffinflow.__all__, (
+                f"Core export '{export}' missing from __all__"
+            )
 
     def test_decorator_exports_in_all(self):
         """Test that decorator exports are in __all__."""
@@ -225,9 +225,9 @@ class TestAllExports:
         ]
 
         for export in decorator_exports:
-            assert (
-                export in puffinflow.__all__
-            ), f"Decorator export '{export}' missing from __all__"
+            assert export in puffinflow.__all__, (
+                f"Decorator export '{export}' missing from __all__"
+            )
 
     def test_coordination_exports_in_all(self):
         """Test that coordination exports are in __all__."""
@@ -250,9 +250,9 @@ class TestAllExports:
         ]
 
         for export in coordination_exports:
-            assert (
-                export in puffinflow.__all__
-            ), f"Coordination export '{export}' missing from __all__"
+            assert export in puffinflow.__all__, (
+                f"Coordination export '{export}' missing from __all__"
+            )
 
 
 class TestUtilityFunctions:
@@ -296,9 +296,9 @@ class TestModuleStructure:
     def test_no_private_exports(self):
         """Test that private items are not in __all__."""
         for item in puffinflow.__all__:
-            assert not item.startswith(
-                "_"
-            ), f"Private item '{item}' should not be in __all__"
+            assert not item.startswith("_"), (
+                f"Private item '{item}' should not be in __all__"
+            )
 
     def test_import_structure_consistency(self):
         """Test that imports are organized consistently."""

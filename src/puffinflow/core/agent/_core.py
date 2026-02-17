@@ -17,4 +17,4 @@ except ImportError:
 
     _HAS_AGENT_CORE = True  # fallback is always available
 
-__all__ = ["StateMachineCore", "AgentCore", "_HAS_AGENT_CORE"]
+__all__ = ["_HAS_AGENT_CORE", "AgentCore", "StateMachineCore"]

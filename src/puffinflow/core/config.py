@@ -75,7 +75,7 @@ else:
             self.worker_timeout: float = kwargs.get("worker_timeout", 300.0)
             self.enable_metrics: bool = kwargs.get("enable_metrics", True)
             self.metrics_port: int = kwargs.get("metrics_port", 9090)
-            self.otlp_endpoint: Optional[str] = kwargs.get("otlp_endpoint", None)
+            self.otlp_endpoint: Optional[str] = kwargs.get("otlp_endpoint")
             self.enable_scheduling: bool = kwargs.get("enable_scheduling", True)
             self.storage_backend: str = kwargs.get("storage_backend", "sqlite")
             self.checkpoint_interval: int = kwargs.get("checkpoint_interval", 60)

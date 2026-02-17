@@ -1,7 +1,7 @@
 """Tests for the graceful shutdown drain protocol."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+import contextlib
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -103,9 +103,7 @@ class TestDrainProtocol:
 
         dp.register(agent)
 
-        with patch(
-            "puffinflow.core.agent.checkpoint.AgentCheckpoint"
-        ) as mock_cp_cls:
+        with patch("puffinflow.core.agent.checkpoint.AgentCheckpoint") as mock_cp_cls:
             mock_cp = MagicMock()
             mock_cp_cls.create_from_agent.return_value = mock_cp
 
@@ -139,8 +137,6 @@ class TestDrainProtocolSignalHandlers:
         # Should not raise on any platform
         # On Windows, uses signal.signal; on Unix, uses loop.add_signal_handler
         # Just verify it doesn't crash
-        try:
-            dp.install_signal_handlers()
-        except (RuntimeError, NotImplementedError):
+        with contextlib.suppress(RuntimeError, NotImplementedError):
             # May fail if no running event loop
-            pass
+            dp.install_signal_handlers()

@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,7 @@ def register_migration(
     return decorator
 
 
-def migrate_checkpoint(
-    data: dict, from_version: int, to_version: int
-) -> dict:
+def migrate_checkpoint(data: dict, from_version: int, to_version: int) -> dict:
     """Apply sequential migrations from from_version to to_version.
 
     Args:
@@ -54,9 +52,7 @@ def migrate_checkpoint(
         data = migration(data)
         data["schema_version"] = next_version
         current = next_version
-        logger.info(
-            "Migrated checkpoint from schema v%d to v%d", current - 1, current
-        )
+        logger.info("Migrated checkpoint from schema v%d to v%d", current - 1, current)
 
     return data
 
@@ -136,14 +132,14 @@ class MsgpackCheckpointSerializer(CheckpointSerializer):
 
     def __init__(self) -> None:
         try:
-            import msgpack  # type: ignore[import-not-found]  # noqa: F401
+            import msgpack  # type: ignore[import-not-found]
 
             self._msgpack = msgpack
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "msgpack is required for MsgpackCheckpointSerializer. "
                 "Install with: pip install msgpack"
-            )
+            ) from err
 
     def serialize(self, checkpoint: Any) -> bytes:
         """Serialize checkpoint to MessagePack bytes."""

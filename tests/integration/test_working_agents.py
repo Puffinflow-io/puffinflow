@@ -141,9 +141,9 @@ async def test_resource_contention_working():
     successful_results = [r for r in results if not isinstance(r, Exception)]
 
     # At least some should succeed
-    assert (
-        len(successful_results) >= 2
-    ), f"Expected at least 2 successes, got {len(successful_results)}"
+    assert len(successful_results) >= 2, (
+        f"Expected at least 2 successes, got {len(successful_results)}"
+    )
 
     # Check successful results
     for result in successful_results:

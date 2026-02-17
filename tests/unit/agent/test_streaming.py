@@ -12,7 +12,6 @@ Tests cover:
 - Zero overhead when no stream manager is attached
 """
 
-
 import pytest
 
 from puffinflow.core.agent import Agent, AgentStatus, Command

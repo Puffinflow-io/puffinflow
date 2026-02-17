@@ -290,9 +290,9 @@ class TestCoordinationModuleImports:
 
         # Verify that all items in __all__ are actually available in the module
         for export_name in all_exports:
-            assert hasattr(
-                puffinflow.core.coordination, export_name
-            ), f"Export '{export_name}' in __all__ but not available in module"
+            assert hasattr(puffinflow.core.coordination, export_name), (
+                f"Export '{export_name}' in __all__ but not available in module"
+            )
 
     def test_no_unexpected_exports(self):
         """Test that only expected items are exported."""
@@ -320,9 +320,9 @@ class TestCoordinationModuleImports:
         # All public attributes should be in __all__, except submodules
         for attr in public_attrs:
             if attr != "__all__" and attr not in submodules:
-                assert (
-                    attr in puffinflow.core.coordination.__all__
-                ), f"Public attribute '{attr}' not in __all__"
+                assert attr in puffinflow.core.coordination.__all__, (
+                    f"Public attribute '{attr}' not in __all__"
+                )
 
 
 class TestCoordinationModuleStructure:
@@ -334,9 +334,9 @@ class TestCoordinationModuleStructure:
 
         required_attrs = ["__all__", "__doc__"]
         for attr in required_attrs:
-            assert hasattr(
-                puffinflow.core.coordination, attr
-            ), f"Module missing required attribute: {attr}"
+            assert hasattr(puffinflow.core.coordination, attr), (
+                f"Module missing required attribute: {attr}"
+            )
 
     def test_all_is_list_of_strings(self):
         """Test that __all__ contains only strings."""

@@ -1,6 +1,5 @@
 """Tests for StateMachineCore (runs against whichever backend is available)."""
 
-
 from puffinflow.core.agent._core import StateMachineCore
 
 # ---------------------------------------------------------------------------

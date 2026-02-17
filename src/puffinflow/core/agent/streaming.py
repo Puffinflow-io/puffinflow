@@ -47,7 +47,7 @@ class StreamEvent:
 class StreamManager:
     """Manages an async queue of StreamEvents for real-time delivery."""
 
-    __slots__ = ("_queue", "_mode", "_closed")
+    __slots__ = ("_closed", "_mode", "_queue")
 
     def __init__(self, mode: StreamMode = StreamMode.EVENTS) -> None:
         self._queue: asyncio.Queue[Optional[StreamEvent]] = asyncio.Queue()

@@ -69,9 +69,9 @@ class TestDecoratorsModuleStructure:
 
             # Check that all expected exports are in __all__
             for export in expected_exports:
-                assert (
-                    export in __all__
-                ), f"Expected export '{export}' not found in __all__"
+                assert export in __all__, (
+                    f"Expected export '{export}' not found in __all__"
+                )
 
         except ImportError:
             pytest.skip("Import failed due to path issues in decorators module")

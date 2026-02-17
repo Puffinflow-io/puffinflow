@@ -67,7 +67,10 @@ class TestRedisCheckpointStorage:
 
     @pytest.fixture
     def mock_redis(self):
-        with patch("puffinflow.core.agent.checkpoint_backends.RedisCheckpointStorage.__init__", return_value=None) as _:
+        with patch(
+            "puffinflow.core.agent.checkpoint_backends.RedisCheckpointStorage.__init__",
+            return_value=None,
+        ) as _:
             from puffinflow.core.agent.checkpoint_backends import RedisCheckpointStorage
 
             storage = RedisCheckpointStorage.__new__(RedisCheckpointStorage)
@@ -199,7 +202,10 @@ class TestS3CheckpointStorage:
 
     @pytest.fixture
     def mock_s3(self):
-        with patch("puffinflow.core.agent.checkpoint_backends.S3CheckpointStorage.__init__", return_value=None):
+        with patch(
+            "puffinflow.core.agent.checkpoint_backends.S3CheckpointStorage.__init__",
+            return_value=None,
+        ):
             from puffinflow.core.agent.checkpoint_backends import S3CheckpointStorage
 
             storage = S3CheckpointStorage.__new__(S3CheckpointStorage)

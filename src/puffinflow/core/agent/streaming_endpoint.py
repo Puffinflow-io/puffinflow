@@ -1,14 +1,15 @@
 """WebSocket/SSE streaming endpoint helpers (ASGI-compatible)."""
 
 import asyncio
+import contextlib
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .base import Agent
 
-from .streaming import StreamEvent, StreamManager, StreamMode
+from .streaming import StreamManager, StreamMode
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +87,11 @@ class SSEStreamEndpoint:
             from starlette.routing import Route  # type: ignore[import-not-found]
 
             return Route("/stream", endpoint=self)
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "starlette is required for as_starlette_route(). "
                 "Install with: pip install starlette"
-            )
+            ) from err
 
     def as_fastapi_route(self) -> Any:
         """Return a FastAPI APIRoute for this endpoint."""
@@ -98,11 +99,11 @@ class SSEStreamEndpoint:
             from fastapi.routing import APIRoute  # type: ignore[import-not-found]
 
             return APIRoute("/stream", endpoint=self)
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "fastapi is required for as_fastapi_route(). "
                 "Install with: pip install fastapi"
-            )
+            ) from err
 
 
 class WebSocketStreamEndpoint:
@@ -145,16 +146,14 @@ class WebSocketStreamEndpoint:
         receive_task = asyncio.create_task(self._receive_controls(receive))
 
         try:
-            done, pending = await asyncio.wait(
+            _done, pending = await asyncio.wait(
                 {send_task, receive_task},
                 return_when=asyncio.FIRST_COMPLETED,
             )
             for task in pending:
                 task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
         except (asyncio.CancelledError, ConnectionError):
             pass
         finally:
@@ -190,7 +189,9 @@ class WebSocketStreamEndpoint:
                         action = control.get("action")
                         if action == "pause":
                             self.agent.status = AgentStatus.PAUSED
-                            logger.info("Agent %s paused via WebSocket", self.agent.name)
+                            logger.info(
+                                "Agent %s paused via WebSocket", self.agent.name
+                            )
                         elif action == "resume":
                             self.agent.status = AgentStatus.RUNNING
                             logger.info(
@@ -221,11 +222,11 @@ def sse_response(
         from starlette.responses import (  # type: ignore[import-not-found]
             StreamingResponse,
         )
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "starlette is required for sse_response(). "
             "Install with: pip install starlette"
-        )
+        ) from err
 
     stream = agent._stream_manager
     if stream is None:
@@ -293,15 +294,13 @@ async def websocket_handler(
     receive_task = asyncio.create_task(_receive_controls())
 
     try:
-        done, pending = await asyncio.wait(
+        _done, pending = await asyncio.wait(
             {send_task, receive_task},
             return_when=asyncio.FIRST_COMPLETED,
         )
         for task in pending:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
     except (asyncio.CancelledError, ConnectionError):
         pass

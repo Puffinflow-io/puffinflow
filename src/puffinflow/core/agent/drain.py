@@ -6,7 +6,7 @@ import platform
 import time
 import weakref
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .base import Agent
@@ -166,7 +166,7 @@ class DrainProtocol:
                 try:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        loop.create_task(self.drain())
+                        _task = loop.create_task(self.drain())  # noqa: RUF006
                     else:
                         loop.run_until_complete(self.drain())
                 except Exception:
