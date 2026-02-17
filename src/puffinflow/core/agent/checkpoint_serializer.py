@@ -136,7 +136,7 @@ class MsgpackCheckpointSerializer(CheckpointSerializer):
 
     def __init__(self) -> None:
         try:
-            import msgpack  # noqa: F401
+            import msgpack  # type: ignore[import-not-found]  # noqa: F401
 
             self._msgpack = msgpack
         except ImportError:
@@ -158,7 +158,8 @@ class MsgpackCheckpointSerializer(CheckpointSerializer):
             "schema_version": CHECKPOINT_SCHEMA_VERSION,
             "data": checkpoint_dict,
         }
-        return self._msgpack.packb(envelope, use_bin_type=True)
+        result: bytes = self._msgpack.packb(envelope, use_bin_type=True)
+        return result
 
     def deserialize(self, data: bytes) -> Any:
         """Deserialize MessagePack bytes to AgentCheckpoint."""

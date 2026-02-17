@@ -58,7 +58,9 @@ class ObservableAgent(Agent):
         self,
         timeout: Optional[float] = None,
         initial_context: Optional[dict[str, Any]] = None,
-        execution_mode: ExecutionMode = ExecutionMode.PARALLEL,
+        execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL,
+        durable: bool = False,
+        checkpoint_granularity: str = "per-state",
     ) -> AgentResult:
         """Run workflow with observability"""
         workflow_start = time.time()
@@ -71,7 +73,7 @@ class ObservableAgent(Agent):
                 workflow_id=self.workflow_id,
             ) as span:
                 try:
-                    result = await super().run(timeout, initial_context, execution_mode)
+                    result = await super().run(timeout, initial_context, execution_mode, durable, checkpoint_granularity)
 
                     duration = time.time() - workflow_start
                     if span:
@@ -96,7 +98,7 @@ class ObservableAgent(Agent):
                         )
                     raise
         else:
-            return await super().run(timeout, initial_context, execution_mode)
+            return await super().run(timeout, initial_context, execution_mode, durable, checkpoint_granularity)
 
     async def run_state(self, state_name: str) -> None:
         """Run state with observability"""

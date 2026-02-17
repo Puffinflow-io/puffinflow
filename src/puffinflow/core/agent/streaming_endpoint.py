@@ -83,7 +83,7 @@ class SSEStreamEndpoint:
     def as_starlette_route(self) -> Any:
         """Return a Starlette Route for this endpoint."""
         try:
-            from starlette.routing import Route
+            from starlette.routing import Route  # type: ignore[import-not-found]
 
             return Route("/stream", endpoint=self)
         except ImportError:
@@ -95,7 +95,7 @@ class SSEStreamEndpoint:
     def as_fastapi_route(self) -> Any:
         """Return a FastAPI APIRoute for this endpoint."""
         try:
-            from fastapi.routing import APIRoute
+            from fastapi.routing import APIRoute  # type: ignore[import-not-found]
 
             return APIRoute("/stream", endpoint=self)
         except ImportError:
@@ -209,7 +209,7 @@ class WebSocketStreamEndpoint:
 
 def sse_response(
     agent: "Agent", mode: StreamMode = StreamMode.EVENTS
-) -> Any:
+) -> Any:  # Returns StreamingResponse
     """Return a Starlette StreamingResponse for SSE.
 
     Usage with Starlette/FastAPI:
@@ -218,7 +218,7 @@ def sse_response(
             return sse_response(my_agent)
     """
     try:
-        from starlette.responses import StreamingResponse
+        from starlette.responses import StreamingResponse  # type: ignore[import-not-found]
     except ImportError:
         raise ImportError(
             "starlette is required for sse_response(). "
@@ -230,7 +230,7 @@ def sse_response(
         stream = StreamManager(mode)
         agent._stream_manager = stream
 
-    async def _generate():
+    async def _generate() -> Any:
         async for event in stream:
             yield event.to_sse()
 
@@ -263,11 +263,11 @@ async def websocket_handler(
         stream = StreamManager(mode)
         agent._stream_manager = stream
 
-    async def _send_events():
+    async def _send_events() -> None:
         async for event in stream:
             await websocket.send_text(event.to_json())
 
-    async def _receive_controls():
+    async def _receive_controls() -> None:
         from .state import AgentStatus
 
         try:

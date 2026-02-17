@@ -1,5 +1,7 @@
 """Reliability patterns for production workflows."""
 
+from typing import Any
+
 _LAZY_IMPORTS = {
     "Bulkhead": (".bulkhead", "Bulkhead"),
     "BulkheadConfig": (".bulkhead", "BulkheadConfig"),
@@ -30,7 +32,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         import importlib
 

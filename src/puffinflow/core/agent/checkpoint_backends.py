@@ -102,7 +102,7 @@ class RedisCheckpointStorage:
         if data is None:
             return None
 
-        return self._serializer.deserialize(data)
+        return self._serializer.deserialize(data)  # type: ignore[return-value]
 
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from Redis index."""
@@ -171,7 +171,7 @@ class PostgresCheckpointStorage:
         retention_policy: Optional[RetentionPolicy] = None,
     ) -> None:
         try:
-            import asyncpg  # noqa: F401
+            import asyncpg  # type: ignore[import-not-found]  # noqa: F401
         except ImportError:
             raise ImportError(
                 "asyncpg is required for PostgresCheckpointStorage. "
@@ -186,7 +186,7 @@ class PostgresCheckpointStorage:
 
     async def _get_pool(self) -> Any:
         if self._pool is None:
-            import asyncpg
+            import asyncpg  # type: ignore[import-not-found]
 
             self._pool = await asyncpg.create_pool(self._dsn)
             await self._ensure_table()
@@ -280,7 +280,7 @@ class PostgresCheckpointStorage:
             data = json.loads(data)
         # data is the full envelope from the serializer
         serialized = json.dumps(data).encode("utf-8")
-        return self._serializer.deserialize(serialized)
+        return self._serializer.deserialize(serialized)  # type: ignore[return-value]
 
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from PostgreSQL."""
@@ -308,7 +308,7 @@ class PostgresCheckpointStorage:
                 agent_name,
                 checkpoint_id,
             )
-        return result != "DELETE 0"
+        return result != "DELETE 0"  # type: ignore[return-value]
 
     async def cleanup_checkpoints(self, agent_name: str) -> int:
         """Remove checkpoints exceeding the retention policy."""
@@ -378,7 +378,7 @@ class S3CheckpointStorage:
         retention_policy: Optional[RetentionPolicy] = None,
     ) -> None:
         try:
-            import aiobotocore  # noqa: F401
+            import aiobotocore  # type: ignore[import-not-found]  # noqa: F401
         except ImportError:
             raise ImportError(
                 "aiobotocore is required for S3CheckpointStorage. "
@@ -396,7 +396,7 @@ class S3CheckpointStorage:
         return f"{self._prefix}/{agent_name}/{checkpoint_id}.json"
 
     def _create_session(self) -> Any:
-        import aiobotocore.session
+        import aiobotocore.session  # type: ignore[import-not-found]
 
         return aiobotocore.session.get_session()
 
@@ -457,7 +457,7 @@ class S3CheckpointStorage:
             logger.warning("Failed to load checkpoint from S3: %s", exc)
             return None
 
-        return self._serializer.deserialize(data)
+        return self._serializer.deserialize(data)  # type: ignore[return-value]
 
     async def list_checkpoints(self, agent_name: str) -> list[str]:
         """List checkpoint IDs from S3."""
