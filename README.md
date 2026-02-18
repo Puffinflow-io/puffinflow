@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <b>2x lower latency</b> &middot; <b>1.7x higher throughput</b> &middot; <b>4x faster import</b> &middot; <b>Same features, simpler code</b>
+  <b>~1.6x lower latency</b> &middot; <b>~1.6x higher throughput</b> &middot; <b>~3.6x faster import</b> &middot; <b>Same features, simpler code</b>
 </p>
 
 ---
@@ -20,14 +20,14 @@
 LangGraph is the go-to framework for building AI agent workflows. But it's slow, complex, and the API fights you at every step. PuffinFlow gives you the same capabilities — Command, Send, reducers, streaming, persistent memory, subgraphs — with a Rust-backed core that's measurably faster.
 
 ```
-LangGraph sequential 5-step:    2.5 ms
-PuffinFlow sequential 5-step:   1.3 ms  (2x faster)
+LangGraph sequential 5-step:    2.3 ms
+PuffinFlow sequential 5-step:   1.4 ms  (~1.6x faster)
 
-LangGraph throughput:            680 wf/sec
-PuffinFlow throughput:         1,150 wf/sec  (1.7x higher)
+LangGraph throughput:            705 wf/sec
+PuffinFlow throughput:         1,145 wf/sec  (~1.6x higher)
 
-LangGraph cold import:          1,000 ms
-PuffinFlow cold import:           252 ms  (4x faster)
+LangGraph cold import:           891 ms
+PuffinFlow cold import:          247 ms  (~3.6x faster)
 ```
 
 Full benchmark methodology and results: [BENCHMARKS.md](./BENCHMARKS.md)
@@ -285,13 +285,13 @@ Orchestration overhead measured with identical `sum(i*i for i in range(5000))` w
 
 | Test | PuffinFlow | LangGraph | LlamaIndex |
 |------|-----------|-----------|------------|
-| Sequential 3-step | **0.7 ms** | 1.5 ms | 2.0 ms |
-| Sequential 5-step | **1.3 ms** | 2.5 ms | 3.0 ms |
-| Per-step overhead | **0.3 ms** | 0.4 ms | 0.5 ms |
-| Fan-out (3+1 agg) | **1.2 ms** | 3.4 ms | 1.6 ms |
-| Throughput (wf/sec) | **1,150** | 680 | 430 |
-| Peak memory (500 wf) | 2.50 MB | 4.93 MB | **0.67 MB** |
-| Import time | **252 ms** | 1,000 ms | 1,600 ms |
+| Sequential 3-step | **0.7 ms** | 1.7 ms | 1.9 ms |
+| Sequential 5-step | **1.4 ms** | 2.3 ms | 2.9 ms |
+| Per-step overhead | **0.3 ms** | 0.3 ms | 0.5 ms |
+| Fan-out (3+1 agg) | **1.2 ms** | 3.2 ms | 1.6 ms |
+| Throughput (wf/sec) | **1,145** | 705 | 405 |
+| Peak memory (500 wf) | 2.64 MB | 4.93 MB | **0.67 MB** |
+| Import time | **247 ms** | 891 ms | 1,585 ms |
 
 Per-step overhead = `(5-step − 3-step) / 2`. Import time measures `from pkg import ...` with real symbols in a cold subprocess, Python startup subtracted.
 
